@@ -1,0 +1,52 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Test / type / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+coverage.xml
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+.python-version
+
+# Environment / secrets
+.env
+.env.*
+
+# --- OS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# --- Editors / IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
