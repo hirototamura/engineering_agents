@@ -102,7 +102,9 @@ class Simulation:
             max_tokens=llm_config.get('max_tokens', 200),
             repeat_penalty=llm_config.get('repeat_penalty', 1.1),
             repeat_last_n=llm_config.get('repeat_last_n', 128),
-            min_p=llm_config.get('min_p', 0.05)
+            min_p=llm_config.get('min_p', 0.05),
+            think=llm_config.get('think', False),
+            api_timeout=llm_config.get('api_timeout', 120),
         )
         
         # Initialize agents
