@@ -36,6 +36,9 @@ htmlcov/
 .env
 .env.*
 
+# Logs
+*.log
+
 # --- OS ---
 .DS_Store
 .AppleDouble
@@ -49,4 +52,3 @@ Icon?
 *.swp
 *.swo
 *~
-
