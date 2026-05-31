@@ -13,7 +13,7 @@ Multi-agent simulation for ECLSS anomaly detection through design change (resili
 | Baseline scenario | Done | `scrubber_degradation/scenario.yaml`, `scenario/runner.py`, baseline tests |
 | Labeled agent team | Done | Rule-based 4 roles, `messages.jsonl`, recovery + design change |
 | LLM shadow mode | Done / evolving | `agents.mode: labeled_shadow` — shadow chat, rule actions |
-| One Piece provenance | Planned | `integrations/one_piece/` |
+| One Piece provenance | Done (Day5B) | `integrations/one_piece/client.py`, `provenance.jsonl`, summary linkage |
 | Dashboard & CLI | Planned | Streamlit dashboard, `tools/cli.py` |
 
 ## Dependency direction
@@ -93,7 +93,7 @@ Roles are **scenario-specific labels** for `scrubber_degradation` only (`Scrubbe
 - **Actions remain rule-based** (deterministic recovery path unchanged).
 - Each step, Ollama generates **parallel shadow messages** per role (`llm_shadow_*` message types).
 - Shadow messages carry `decision_source: llm_shadow`, `parse_status`, `parse_error`, `raw_response_excerpt`.
-- LLM config in `agents.yaml` under `llm:` (defaults to `llama3.2`, short timeout).
+- LLM config in `agents.yaml` under `llm:` (default `qwen3.5:2b`, short timeout).
 - Requires Ollama running locally for shadow runs; baseline and `labeled` do not.
 
 ## Output layout
@@ -123,9 +123,15 @@ Schema details: [api-contracts.md](api-contracts.md). Scenario narrative: [scena
 | --- | --- |
 | SSOS | Mock adapter (`environment/ssos/mock_eclss.py`); real ROS2 via `SsosAdapter` stub |
 | LLM | Ollama via `core/llm/ollama.py`; used in `labeled_shadow` mode only |
-| One Piece | JSON provenance via `integrations/one_piece/` (planned); web UI deferred |
+| One Piece | JSON provenance via `integrations/one_piece/` (Day5B実装済み); web UI deferred |
 
 See [one-piece-integration.md](one-piece-integration.md) for the provenance plan.
+
+## Next implementation focus
+
+1. Day6: Streamlit dashboard for synchronized telemetry + messages + provenance inspection.
+2. Day7: CLI integration and E2E entrypoint (`run --scenario ... --agents-mode ...`).
+3. Week-2 entry: One Piece connector handoff format and SSOS adapter contract tests.
 
 ## Development setup
 

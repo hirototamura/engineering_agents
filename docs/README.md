@@ -7,7 +7,7 @@ Living docs for the ECLSS resilience-loop simulation platform.
 | [architecture.md](architecture.md) | Contributors | Layers, dependency rules, agent modes, run flow |
 | [api-contracts.md](api-contracts.md) | Integrators | `SimulatorProtocol`, JSONL schemas, ROS2-like topics |
 | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | Demo / ops | Scenario narrative, roles, where to read outputs |
-| [one-piece-integration.md](one-piece-integration.md) | Design tracking | One Piece provenance plan (in progress) |
+| [one-piece-integration.md](one-piece-integration.md) | Design tracking | One Piece provenance implementation + next extension plan |
 
 Planning and research notes live outside `docs/`:
 
@@ -29,3 +29,8 @@ python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degr
 # LLM shadow messages + rule actions
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_shadow'}})"
 ```
+
+## Current milestone (through Day5B)
+
+- Done: baseline scenario, labeled rule-team, labeled_shadow, One Piece provenance export
+- Next: Day6 dashboard, Day7 CLI + E2E, Week-2 connector / SSOS adapter prep
