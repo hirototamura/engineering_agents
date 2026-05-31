@@ -4,7 +4,7 @@ description: >
   the warning/critical band. No agents (deterministic physics-only run).
 
 simulation:
-  steps: 50
+  steps: 20
   initial_co2_ppm: 800.0
   initial_power_margin_w: 150.0
 
@@ -21,14 +21,15 @@ design_parameters:
 
 anomalies:
   - name: scrubber_degradation
-    start_step: 20
+    start_step: 10
     scrubber_efficiency_decay_per_step: 0.02
     power_margin_decay_per_step: 3.0
     co2_production_multiplier: 1.4
 
 agents:
-  mode: none  # none | labeled — baseline uses none; see agents.yaml for labeled config
+  mode: none  # none | labeled | labeled_shadow (Day5A)
 
 output:
   run_id: scrubber_degradation_baseline
   run_id_labeled: scrubber_degradation_labeled
+  run_id_labeled_shadow: scrubber_degradation_labeled_shadow

@@ -16,9 +16,10 @@ class AgentMessage:
     message: str
     message_type: str
     reasoning: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        payload = {
             "step": self.step,
             "from_role": self.from_role,
             "to_role": self.to_role,
@@ -26,6 +27,8 @@ class AgentMessage:
             "message_type": self.message_type,
             "reasoning": self.reasoning,
         }
+        payload.update(self.metadata)
+        return payload
 
 
 @dataclass

@@ -39,6 +39,9 @@ def test_scrubber_degradation_baseline_runs(tmp_path: Path):
     assert summary["co2_above_threshold_step"] >= 20
 
     assert any("scrubber_degradation" in str(e) for e in events) or len(anomaly_steps) > 0
+    injected = [e for e in events if e.get("kind") == "anomaly_injected"]
+    assert len(injected) == 1, "anomaly_injected should be logged once per run"
+    assert injected[0]["step"] == 0
 
 
 def test_scrubber_degradation_pre_anomaly_near_equilibrium(tmp_path: Path):

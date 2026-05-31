@@ -89,6 +89,13 @@
 - DesignEngineer 設計変更（bypass）が `design_state` に反映
 - `test_scrubber_baseline.py` は `agents.mode: none` のまま green
 
+### Day 5A — labeled_shadow 品質メモ（2026-05-31）
+
+- `qwen3.5:2b` + prompt 制約緩和（JSON object only, multi-line 許可）で `parse_status` が改善
+- 20 step 試験（80件）で **ok=79 / fallback=1（fallback率 1.25%）**
+- fallback はすべて `no balanced JSON object found`（JSON抽出失敗）由来
+- 現状 fallback は制御に影響しない（shadow ログのみ）。Day5B 以降は provenance に `parse_status` を保存して監査可能性を維持する
+
 ---
 
 ## バックログ（MVP 外・研究）

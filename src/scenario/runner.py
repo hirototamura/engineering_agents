@@ -101,7 +101,10 @@ def build_simulator(config: Dict[str, Any]) -> MockEclssSimulator:
 
 
 def build_agent_team(scenario_name: str, agents_config: Optional[Dict[str, Any]]):
-    if not agents_config or agents_config.get("mode") != "labeled":
+    if not agents_config:
+        return None
+    mode = agents_config.get("mode")
+    if mode not in {"labeled", "labeled_shadow"}:
         return None
     if scenario_name == "scrubber_degradation":
         return ScrubberDegradationTeam(agents_config)
@@ -110,7 +113,15 @@ def build_agent_team(scenario_name: str, agents_config: Optional[Dict[str, Any]]
 
 def _log_sim_events(log: EventLog, sim: MockEclssSimulator, step: int, logged_event_ids: set) -> None:
     for idx, event in enumerate(sim.get_events()):
-        event_step = event.get("step", step)
+        if "step" not in event:
+            key = ("static", idx, event.get("kind"), json.dumps(event, sort_keys=True, default=str))
+            if key in logged_event_ids:
+                continue
+            logged_event_ids.add(key)
+            log.append("events", {"step": 0, **event})
+            continue
+
+        event_step = event.get("step")
         if event_step != step:
             continue
         key = (event_step, idx, event.get("kind"), json.dumps(event, sort_keys=True, default=str))
@@ -137,6 +148,8 @@ def run_scenario(
         run_id = output_cfg.get("run_id", name)
         if agents_config and agents_config.get("mode") == "labeled":
             run_id = output_cfg.get("run_id_labeled", f"{name}_labeled")
+        elif agents_config and agents_config.get("mode") == "labeled_shadow":
+            run_id = output_cfg.get("run_id_labeled_shadow", f"{name}_labeled_shadow")
         if recreate_output:
             run_dir = EventLog.prepare_run_dir(results_base, run_id=run_id)
         else:
