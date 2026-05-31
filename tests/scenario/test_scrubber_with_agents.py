@@ -27,6 +27,7 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
     messages = _read_jsonl(run_dir / "messages.jsonl")
     telemetry = _read_jsonl(run_dir / "telemetry.jsonl")
     design_state = _read_jsonl(run_dir / "design_state.jsonl")
+    provenance = _read_jsonl(run_dir / "provenance.jsonl")
 
     assert summary["agents_mode"] == "labeled"
     assert summary["message_count"] > 0
@@ -51,6 +52,8 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
 
     final_step = telemetry[-1]
     assert final_step["co2_ppm"] < 1000.0
+    assert summary["provenance_record_count"] >= 1
+    assert summary["provenance_path"].endswith("provenance.jsonl")
 
     last_design_state = design_state[-1]
     edges = last_design_state["topology"]["edges"]
@@ -60,6 +63,11 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
         and edge["target"] == "scrubber"
         for edge in edges
     ), "design_state should include a permanent bypass edge"
+    assert provenance, "provenance should include at least one design change record"
+    first_record = provenance[0]
+    assert first_record["actor"] == "design_engineer"
+    assert first_record["change_kind"] == "add_edge"
+    assert first_record["trace"]["event_kind"] == "/eclss/events/design_change"
 
 
 def test_scrubber_degradation_labeled_shadow_logs_llm_decisions(tmp_path: Path):

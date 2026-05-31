@@ -189,11 +189,31 @@ Run-level KPIs written once at end.
   "co2_above_threshold_step": 33,
   "co2_recovered_below_threshold_step": 40,
   "message_count": 59,
-  "design_change_count": 1
+  "design_change_count": 1,
+  "provenance_path": "src/experiments/results/scrubber_degradation_labeled/provenance.jsonl",
+  "provenance_record_count": 1
 }
 ```
 
-One Piece integration may add `provenance_path` or similar fields when provenance logging lands.
+### provenance.jsonl (Day 5B+)
+
+One Piece-compatible design-change provenance record generated from run outputs.
+
+```json
+{
+  "record_id": "scrubber_degradation_labeled:design_change:1",
+  "run_id": "scrubber_degradation_labeled",
+  "scenario": "scrubber_degradation",
+  "step": 35,
+  "actor": "design_engineer",
+  "actor_kind": "ai_agent",
+  "change_kind": "add_edge",
+  "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
+  "before_topology": {"nodes": [{"id": "cabin"}], "edges": [{"source": "manifold", "target": "scrubber", "kind": "flow"}]},
+  "after_topology": {"nodes": [{"id": "cabin"}], "edges": [{"source": "manifold", "target": "scrubber", "kind": "bypass"}]},
+  "trace": {"event_kind": "/eclss/events/design_change", "decision_source": "rule"}
+}
+```
 
 ## Running scenarios
 

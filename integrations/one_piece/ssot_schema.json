@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1.0",
+  "record_type": "SsotProvenanceRecord",
+  "description": "Minimal One Piece provenance subset for ECLSS MVP",
+  "required_fields": [
+    "record_id",
+    "run_id",
+    "scenario",
+    "step",
+    "actor",
+    "actor_kind",
+    "change_kind",
+    "payload",
+    "before_topology",
+    "after_topology",
+    "trace"
+  ],
+  "optional_fields": [
+    "before_parameters",
+    "after_parameters"
+  ],
+  "enums": {
+    "actor_kind": [
+      "ai_agent",
+      "logic_automation"
+    ],
+    "change_kind": [
+      "add_edge",
+      "set_parameter"
+    ]
+  }
+}

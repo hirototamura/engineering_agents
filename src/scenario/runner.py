@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -13,10 +14,12 @@ from environment.eclss_ops.design_state import DesignStateManager
 from environment.eclss_ops.telemetry import compute_health_metrics
 from environment.protocol import AnomalySpec
 from environment.ssos.mock_eclss import MockEclssSimulator
+from integrations.one_piece import export_run_provenance
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
 from scenario.agents.types import AgentObservation
 
 SCENARIO_ROOT = Path(__file__).resolve().parent
+logger = logging.getLogger(__name__)
 
 
 def list_scenarios() -> List[str]:
@@ -204,8 +207,7 @@ def run_scenario(
                 message_count += 1
             _log_sim_events(log, sim, snap.step, logged_event_ids)
 
-    log.write_summary(
-        {
+    summary = {
             "scenario": name,
             "simulator": "mock_eclss",
             "agents_mode": (agents_config or {}).get("mode", "none"),
@@ -220,6 +222,19 @@ def run_scenario(
             "design_change_count": sum(
                 1 for e in sim.get_events() if "design_change" in str(e.get("kind", "")).lower()
             ),
-        }
-    )
+    }
+
+    log.write_summary(summary)
+
+    provenance_path = run_dir / "provenance.jsonl"
+    provenance_count = 0
+    try:
+        provenance_path = export_run_provenance(run_dir)
+        with provenance_path.open(encoding="utf-8") as f:
+            provenance_count = sum(1 for line in f if line.strip())
+    except Exception as exc:
+        logger.warning("One Piece provenance export failed: %s", exc)
+    summary["provenance_path"] = str(provenance_path)
+    summary["provenance_record_count"] = provenance_count
+    log.write_summary(summary)
     return run_dir

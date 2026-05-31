@@ -74,6 +74,7 @@ After a run, open `src/experiments/results/<run_id>/`:
 | What changed in the plant? | `telemetry.jsonl` | `co2_ppm`, `scrubber_efficiency`, flags |
 | What commands ran? | `events.jsonl` | `recovery_applied`, `design_change` |
 | What was the design graph? | `design_state.jsonl` | `topology.edges` — bypass appears step after change |
+| What is One Piece provenance? | `provenance.jsonl` | actor, change_kind, before/after topology, trace linkage |
 | Run KPIs? | `summary.json` | `peak_co2_ppm`, `co2_recovered_below_threshold_step`, `design_change_count` |
 
 ### design_change example

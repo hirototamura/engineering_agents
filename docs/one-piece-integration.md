@@ -10,16 +10,18 @@ When agents propose or apply design changes during a run, record **who changed w
 
 ```text
 integrations/one_piece/
-├── client.py          # append/read provenance records
+├── client.py          # generate provenance records from run outputs
 └── ssot_schema.json   # MVP subset: elements, parameters, traces
 ```
 
-## Trigger points (planned)
+## Trigger points
 
-Hook from `scenario/runner.py` after:
+`scenario/runner.py` exports provenance after the run summary is written:
 
-1. `sim.apply_design_change()` — permanent topology/parameter mutation
-2. Optionally: Operator recovery commands (temporary vs permanent distinction)
+1. Read `events.jsonl` design-change rows (`/eclss/events/design_change`)
+2. Join matching `messages.jsonl` entries for `reasoning` / `decision_source`
+3. Attach `before` / `after` topology snapshots from `design_state.jsonl`
+4. Write `provenance.jsonl` into the same run directory
 
 Each record should link to:
 
@@ -41,7 +43,7 @@ Aligned with One Piece `SsotProvenanceRecord` concept:
 | `before_topology` | snapshot from prior `design_state.jsonl` |
 | `after_topology` | post-change snapshot |
 
-Storage: JSON file co-located with run output (e.g. `provenance.jsonl`) or appended to project-level SSOT seed in `ssot_schema.json`.
+Storage: JSON file co-located with run output (`provenance.jsonl`). Schema contract lives in `integrations/one_piece/ssot_schema.json`.
 
 ## SSOS topology ingest (optional)
 
@@ -56,9 +58,13 @@ Recommendation (see also [mvp_plan.md](../memo/mvp_plan.md)):
 
 ## Status
 
-**In progress.** Implementation is active on a parallel track.
+**Day5B complete (MVP scope).**
 
-`labeled_shadow` mode is separate: LLM logging only, no One Piece writes yet.
+- `integrations/one_piece/client.py` provides `export_run_provenance(run_dir)`
+- `summary.json` now includes:
+  - `provenance_path`
+  - `provenance_record_count`
+- `labeled` and `labeled_shadow` runs emit design-change provenance when applicable
 
 ## Related docs
 

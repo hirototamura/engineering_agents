@@ -48,7 +48,7 @@
 | **2** | Mock ECLSS + Protocol + telemetry | 同左 | ✅ 完了 |
 | **3** | core 抽出 + runner 骨格 | **scrubber_degradation 正式化 + runner + 物理調整 + baseline 回帰テスト** | ✅ 完了 |
 | **4** | 4 ロール LLM エージェント | **scrubber_degradation 専用・ルールベース 4 ロール** + 回復ループ | ✅ 完了 |
-| **5** | One Piece JSON provenance | **Day5A: LLM shadow 統合**（`agents.mode: labeled_shadow`）→ Day5B: One Piece provenance | Day5A 完了 |
+| **5** | One Piece JSON provenance | **Day5A: LLM shadow 統合**（`agents.mode: labeled_shadow`）→ **Day5B: One Piece provenance** | ✅ Day5B 完了 |
 | **6** | Streamlit ダッシュボード | 左チャット + 右 CO2 グラフ（JSONL tail） | 未着手 |
 | **7** | E2E + CLI | `tools.cli run --scenario scrubber_degradation` 完走 | 未着手 |
 
@@ -147,7 +147,7 @@
 - [x] scrubber_degradation 専用・ルールベース 4 ロール（agents.yaml、`mode: labeled`）
 - [ ] BL-001 創発ロール実験（`mode: base`）— バックログ、Week-1 外
 - [x] Day5A: LLM shadow 統合（`agents.mode: labeled_shadow`、`decision_source`/`parse_status` ログ）
-- [ ] Day5B: integrations/one_piece/ provenance
+- [x] Day5B: integrations/one_piece/ provenance（`provenance.jsonl`, `summary.provenance_*`）
 - [ ] tools/dashboard/app.py
 - [ ] tools/cli + scrubber_demo.yaml E2E
 

@@ -42,6 +42,8 @@ def test_scrubber_degradation_baseline_runs(tmp_path: Path):
     injected = [e for e in events if e.get("kind") == "anomaly_injected"]
     assert len(injected) == 1, "anomaly_injected should be logged once per run"
     assert injected[0]["step"] == 0
+    assert (run_dir / "provenance.jsonl").exists()
+    assert summary["provenance_record_count"] == 0
 
 
 def test_scrubber_degradation_pre_anomaly_near_equilibrium(tmp_path: Path):
