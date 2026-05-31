@@ -44,17 +44,23 @@ See `docs/api-contracts.md` (Day 2+) for schema details.
 | System | MVP approach |
 | --- | --- |
 | SSOS | Mock adapter first (`environment/ssos/mock_eclss.py`); real ROS2 adapter later |
+| One Piece | JSON file provenance via `integrations/one_piece/`; no web UI in Week 1 |
+| LLM | Ollama via `core/llm/ollama.py`; Week-1 agents are rule-based first |
 
-### Mock ECLSS demo (Day 2)
+### scrubber_degradation baseline (Day 3)
 
 ```bash
-python src/scripts/run_mock_eclss.py --steps 50
-# → src/experiments/results/mock_eclss_demo/telemetry.jsonl
+python src/scripts/run_mock_eclss.py
+pytest tests/scenario/test_scrubber_baseline.py -q
 ```
 
 See [api-contracts.md](api-contracts.md) for protocol and JSONL schemas.
-| One Piece | JSON file provenance via `integrations/one_piece/`; no web UI in Week 1 |
-| LLM | Ollama via `core/llm/ollama.py` |
+
+## Agent roles (Day 4+)
+
+Week-1 implements **scenario-specific labeled roles** for `scrubber_degradation` only (Monitor, Diagnostician, Operator, DesignEngineer)—not a generic role framework.
+
+Research backlog **BL-001**: compare labeled roles vs unlabeled Base Role agents and whether situational roles emerge. See [memo/backlog.md](../memo/backlog.md).
 
 ## Development setup
 
