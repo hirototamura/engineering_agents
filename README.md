@@ -13,10 +13,10 @@ Multi-agent simulation platform for virtual-ops ECLSS anomaly detection through 
 | `src/tools/` | CLI and Streamlit dashboard |
 | `src/materials/2d-bar-simulation/` | **Legacy** 2D bar/fire reference sim |
 | `integrations/one_piece/` | Design-change provenance (JSON SSOT) |
-| `docs/` | Architecture and API contracts |
+| `docs/` | [Documentation index](docs/README.md) — architecture, API contracts, scenarios |
 | `memo/` | Design notes ([mvp_plan.md](memo/mvp_plan.md)) |
 
-Dependency direction: `tools → scenario → environment → core`. See [docs/architecture.md](docs/architecture.md).
+Dependency direction: `tools → scenario → environment → core`. See [docs/architecture.md](docs/architecture.md) and [docs/scenario-scrubber-degradation.md](docs/scenario-scrubber-degradation.md).
 
 ## Quick start (new stack)
 
@@ -29,21 +29,24 @@ pytest                    # または: python src/scripts/run_tests.py
 
 ECLSS scenario (`scrubber_degradation`) is under active development — see [memo/mvp_plan.md](memo/mvp_plan.md).
 
-### Mock ECLSS / scrubber_degradation baseline (Day 3+)
+### Mock ECLSS / scrubber_degradation
 
 ```bash
 # Physics-only baseline (agents.mode: none)
 python src/scripts/run_mock_eclss.py
 
-# Labeled rule-based agent team (Day 4)
+# Labeled rule-based agent team
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}}))"
+
+# LLM shadow mode (logs LLM messages; applies rule actions)
+python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_shadow'}}))"
 
 # Tests
 pytest tests/scenario/test_scrubber_baseline.py -q
 pytest tests/scenario/test_scrubber_with_agents.py -q
 ```
 
-Writes `telemetry.jsonl`, `health_metrics.jsonl`, `events.jsonl`, `design_state.jsonl`, and `summary.json` under `src/experiments/results/scrubber_degradation_baseline/`.
+Writes JSONL logs and `summary.json` under `src/experiments/results/<run_id>/` (baseline / labeled / labeled_shadow). See [docs/api-contracts.md](docs/api-contracts.md) for schemas.
 
 ## Legacy bar simulation
 

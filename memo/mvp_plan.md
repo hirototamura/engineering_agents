@@ -2,7 +2,8 @@
 
 > 設計プロセス記録。Cursor プラン `ECLSS Agent Directory MVP` から export（2026-05-30）。  
 > **2026-05-30 更新**: Day 1–2 完了後の振り返りに基づきロードマップを修正。  
-> **2026-05-30 更新**: Day 4 ロール設計方針・研究バックログ（[backlog.md](backlog.md)）を追記。
+> **2026-05-30 更新**: Day 4 ロール設計方針・研究バックログ（[backlog.md](backlog.md)）を追記。  
+> **2026-05-31 更新**: Day 5 を **LLM統合優先（Day5A: labeled_shadow）** に再編。
 
 ## ゴール
 
@@ -47,7 +48,7 @@
 | **2** | Mock ECLSS + Protocol + telemetry | 同左 | ✅ 完了 |
 | **3** | core 抽出 + runner 骨格 | **scrubber_degradation 正式化 + runner + 物理調整 + baseline 回帰テスト** | ✅ 完了 |
 | **4** | 4 ロール LLM エージェント | **scrubber_degradation 専用・ルールベース 4 ロール** + 回復ループ | ✅ 完了 |
-| **5** | One Piece JSON provenance | 設計変更 provenance（`integrations/one_piece/`） | 未着手 |
+| **5** | One Piece JSON provenance | **Day5A: LLM shadow 統合**（`agents.mode: labeled_shadow`）→ Day5B: One Piece provenance | Day5A 完了 |
 | **6** | Streamlit ダッシュボード | 左チャット + 右 CO2 グラフ（JSONL tail） | 未着手 |
 | **7** | E2E + CLI | `tools.cli run --scenario scrubber_degradation` 完走 | 未着手 |
 
@@ -138,7 +139,8 @@
 - [x] Mock 物理パラメータ調整（CO2 危険域到達）
 - [x] scrubber_degradation 専用・ルールベース 4 ロール（agents.yaml、`mode: labeled`）
 - [ ] BL-001 創発ロール実験（`mode: base`）— バックログ、Week-1 外
-- [ ] integrations/one_piece/ provenance
+- [x] Day5A: LLM shadow 統合（`agents.mode: labeled_shadow`、`decision_source`/`parse_status` ログ）
+- [ ] Day5B: integrations/one_piece/ provenance
 - [ ] tools/dashboard/app.py
 - [ ] tools/cli + scrubber_demo.yaml E2E
 
@@ -146,5 +148,8 @@
 
 ## 参考
 
+- ドキュメント索引: [docs/README.md](../docs/README.md)
 - API 契約: [docs/api-contracts.md](../docs/api-contracts.md)
 - アーキテクチャ: [docs/architecture.md](../docs/architecture.md)
+- シナリオ: [docs/scenario-scrubber-degradation.md](../docs/scenario-scrubber-degradation.md)
+- One Piece: [docs/one-piece-integration.md](../docs/one-piece-integration.md)
