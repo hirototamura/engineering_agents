@@ -29,6 +29,10 @@ roles:
   design_engineer:
     min_step: 35
     co2_threshold_ppm: 1000
+    allowed_parameters:
+      - scrubber_base_efficiency
+      - bypass_flow_bonus
+      - load_reduction_factor
     bypass_edge:
       node_a: manifold
       node_b: scrubber

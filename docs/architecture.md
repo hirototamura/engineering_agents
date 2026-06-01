@@ -13,8 +13,10 @@ Multi-agent simulation for ECLSS anomaly detection through design change (resili
 | Baseline scenario | Done | `scrubber_degradation/scenario.yaml`, `scenario/runner.py`, baseline tests |
 | Labeled agent team | Done | Rule-based 4 roles, `messages.jsonl`, recovery + design change |
 | LLM shadow mode | Done / evolving | `agents.mode: labeled_shadow` — shadow chat, rule actions |
+| LLM guarded mode | Done / tuning | `agents.mode: labeled_llm_guarded` — LLM actions + rule fallback + design guards |
 | One Piece provenance | Done (Day5B) | `integrations/one_piece/client.py`, `provenance.jsonl`, summary linkage |
-| Dashboard & CLI | Planned | Streamlit dashboard, `tools/cli.py` |
+| Dashboard | Done (Day6) | `src/tools/dashboard/app.py` |
+| CLI | Planned | `tools/cli.py` |
 
 ## Dependency direction
 
@@ -75,6 +77,7 @@ Configured in `scenario.yaml`; role thresholds in `agents.yaml` when mode ≠ `n
 | `none` | Mock only | — | — | `test_scrubber_baseline.py` (required green) |
 | `labeled` | Mock | Rule-based 4 roles | Rule messages, `decision_source: rule` | `test_scrubber_with_agents.py` |
 | `labeled_shadow` | Mock | Same rules as `labeled` | Rule + LLM shadow per role, `decision_source: llm_shadow` | shadow-mode tests (when present) |
+| `labeled_llm_guarded` | Mock | LLM adopted with guards, fallback to rules | `decision_source: llm` or `rule_fallback` | guarded-mode tests |
 | `base` | — | Not implemented | BL-001 backlog | — |
 
 Roles are **scenario-specific labels** for `scrubber_degradation` only (`ScrubberDegradationTeam`). Not a generic role framework. See [memo/backlog.md](../memo/backlog.md) BL-001 for unlabeled emergent-role research.
@@ -96,6 +99,12 @@ Roles are **scenario-specific labels** for `scrubber_degradation` only (`Scrubbe
 - LLM config in `agents.yaml` under `llm:` (default `qwen3.5:2b`, short timeout).
 - Requires Ollama running locally for shadow runs; baseline and `labeled` do not.
 
+### labeled_llm_guarded mode
+
+- Monitor / Diagnostician / Operator decisions are sourced from LLM outputs when parse + guard checks pass.
+- DesignEngineer accepts only guarded LLM proposals (allowed kind/node/parameter range); invalid proposals are rejected.
+- Fallback path emits rule behavior with `decision_source: rule_fallback`.
+
 ## Output layout
 
 Each run writes to `src/experiments/results/<run_id>/`:
@@ -106,7 +115,7 @@ Each run writes to `src/experiments/results/<run_id>/`:
 | `health_metrics.jsonl` | Every step |
 | `design_state.jsonl` | Every step (pre-agent topology) |
 | `events.jsonl` | Anomalies, recovery commands, design changes |
-| `messages.jsonl` | Agent modes with team (`labeled`, `labeled_shadow`) |
+| `messages.jsonl` | Agent modes with team (`labeled`, `labeled_shadow`, `labeled_llm_guarded`) |
 | `summary.json` | Once at end |
 
 Default run IDs (from `scenario.yaml`):
@@ -114,6 +123,7 @@ Default run IDs (from `scenario.yaml`):
 - `scrubber_degradation_baseline` — `agents.mode: none`
 - `scrubber_degradation_labeled` — `labeled`
 - `scrubber_degradation_labeled_shadow` — `labeled_shadow`
+- `scrubber_degradation_labeled_llm_guarded` — `labeled_llm_guarded`
 
 Schema details: [api-contracts.md](api-contracts.md). Scenario narrative: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md).
 
@@ -122,16 +132,15 @@ Schema details: [api-contracts.md](api-contracts.md). Scenario narrative: [scena
 | System | MVP approach |
 | --- | --- |
 | SSOS | Mock adapter (`environment/ssos/mock_eclss.py`); real ROS2 via `SsosAdapter` stub |
-| LLM | Ollama via `core/llm/ollama.py`; used in `labeled_shadow` mode only |
+| LLM | Ollama via `core/llm/ollama.py`; used in `labeled_shadow` and `labeled_llm_guarded` modes |
 | One Piece | JSON provenance via `integrations/one_piece/` (Day5B実装済み); web UI deferred |
 
 See [one-piece-integration.md](one-piece-integration.md) for the provenance plan.
 
 ## Next implementation focus
 
-1. Day6: Streamlit dashboard for synchronized telemetry + messages + provenance inspection.
-2. Day7: CLI integration and E2E entrypoint (`run --scenario ... --agents-mode ...`).
-3. Week-2 entry: One Piece connector handoff format and SSOS adapter contract tests.
+1. Day7: CLI integration and E2E entrypoint (`run --scenario ... --agents-mode ...`).
+2. Week-2 entry: One Piece connector handoff format and SSOS adapter contract tests.
 
 ## Development setup
 

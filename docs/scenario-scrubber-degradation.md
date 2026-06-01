@@ -34,7 +34,7 @@ Physics-only runs (`agents.mode: none`) demonstrate anomaly and CO2 rise but **d
 ```yaml
 # scenario.yaml
 agents:
-  mode: none  # none | labeled | labeled_shadow
+  mode: none  # none | labeled | labeled_shadow | labeled_llm_guarded
 ```
 
 Override at runtime:
@@ -62,7 +62,15 @@ Research note: these labels are human division-of-labor conventions. Unlabeled e
 
 Same rules and actions as `labeled`. Additionally logs four LLM-generated messages per step (one per role) with `decision_source: llm_shadow`. Useful to compare rule narrative vs model narrative before wiring LLM-driven actions.
 
-Requires Ollama and a pulled model (default `llama3.2` in `agents.yaml`).
+## labeled_llm_guarded mode
+
+LLM-driven decisions with guardrails:
+
+- Monitor / Diagnostician / Operator: LLM outputs are adopted when parse + guard checks pass
+- DesignEngineer: LLM proposal is filtered by change-kind / node / parameter range guards
+- On failure, the system falls back to rule behavior and logs `decision_source: rule_fallback`
+
+Requires Ollama and a pulled model (default `qwen3.5:2b` in `agents.yaml`).
 
 ## Where to read outputs
 
@@ -101,3 +109,16 @@ After a run, open `src/experiments/results/<run_id>/`:
 | `tests/scenario/test_scrubber_with_agents.py` | `labeled` | 4 roles, recovery, design change, final CO2 < 1000 |
 
 Always keep baseline green when changing agent or physics code.
+
+## Day6 visualization
+
+```bash
+python -m streamlit run src/tools/dashboard/app.py
+```
+
+Dashboard features:
+
+- Run selector (`src/experiments/results/<run_id>`)
+- Step slider synchronized with telemetry, messages, events, and provenance rows
+- CO2 / power margin trend plots with current-step marker
+- Run comparison mode for provenance and final design-parameter diffs (e.g. `labeled` vs `labeled_llm_guarded`)

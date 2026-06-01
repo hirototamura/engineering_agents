@@ -107,7 +107,7 @@ def build_agent_team(scenario_name: str, agents_config: Optional[Dict[str, Any]]
     if not agents_config:
         return None
     mode = agents_config.get("mode")
-    if mode not in {"labeled", "labeled_shadow"}:
+    if mode not in {"labeled", "labeled_shadow", "labeled_llm_guarded"}:
         return None
     if scenario_name == "scrubber_degradation":
         return ScrubberDegradationTeam(agents_config)
@@ -153,6 +153,8 @@ def run_scenario(
             run_id = output_cfg.get("run_id_labeled", f"{name}_labeled")
         elif agents_config and agents_config.get("mode") == "labeled_shadow":
             run_id = output_cfg.get("run_id_labeled_shadow", f"{name}_labeled_shadow")
+        elif agents_config and agents_config.get("mode") == "labeled_llm_guarded":
+            run_id = output_cfg.get("run_id_labeled_llm_guarded", f"{name}_labeled_llm_guarded")
         if recreate_output:
             run_dir = EventLog.prepare_run_dir(results_base, run_id=run_id)
         else:

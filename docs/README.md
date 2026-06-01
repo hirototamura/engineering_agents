@@ -28,9 +28,15 @@ python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degr
 
 # LLM shadow messages + rule actions
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_shadow'}})"
+
+# LLM applied with guards (monitor/diagnostician/operator + guarded design engineer)
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}})"
+
+# Day6 dashboard
+python -m streamlit run src/tools/dashboard/app.py
 ```
 
-## Current milestone (through Day5B)
+## Current milestone (through Day6)
 
-- Done: baseline scenario, labeled rule-team, labeled_shadow, One Piece provenance export
-- Next: Day6 dashboard, Day7 CLI + E2E, Week-2 connector / SSOS adapter prep
+- Done: baseline scenario, labeled rule-team, labeled_shadow, labeled_llm_guarded, One Piece provenance export, Day6 dashboard
+- Next: Day7 CLI + E2E, Week-2 connector / SSOS adapter prep

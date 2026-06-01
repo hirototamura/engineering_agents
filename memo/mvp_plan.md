@@ -50,7 +50,7 @@
 | **3** | core 抽出 + runner 骨格 | **scrubber_degradation 正式化 + runner + 物理調整 + baseline 回帰テスト** | ✅ 完了 |
 | **4** | 4 ロール LLM エージェント | **scrubber_degradation 専用・ルールベース 4 ロール** + 回復ループ | ✅ 完了 |
 | **5** | One Piece JSON provenance | **Day5A: LLM shadow 統合**（`agents.mode: labeled_shadow`）→ **Day5B: One Piece provenance** | ✅ Day5B 完了 |
-| **6** | Streamlit ダッシュボード | 左チャット + 右 CO2 グラフ（JSONL tail） | 未着手 |
+| **6** | Streamlit ダッシュボード | 左チャット + 右 CO2 グラフ（JSONL tail） + provenance step同期表示 | ✅ 実装完了（検証中） |
 | **7** | E2E + CLI | `tools.cli run --scenario scrubber_degradation` 完走 | 未着手 |
 
 ### Day 1–5 振り返り（2026-05-31）
@@ -67,8 +67,8 @@
 
 | フェーズ | 優先タスク | 完了条件 |
 | --- | --- | --- |
-| **Day 6** | `tools/dashboard/app.py` 実装（telemetry/health/messages/provenance の同時可視化） | step同期で CO2推移・役割メッセージ・設計変更履歴を1画面確認 |
-| **Day 7** | CLI 統合（`tools.cli run --scenario ... --agents-mode ...`）+ E2E整理 | 1コマンドで baseline/labeled/labeled_shadow 実行 + 出力先表示 |
+| **Day 6** | `tools/dashboard/app.py` 実装（telemetry/health/messages/provenance の同時可視化） | ✅ step同期で CO2推移・役割メッセージ・設計変更履歴を1画面確認 |
+| **Day 7** | CLI 統合（`tools.cli run --scenario ... --agents-mode ...`）+ E2E整理 | 1コマンドで baseline/labeled/labeled_shadow/labeled_llm_guarded 実行 + 出力先表示 |
 | **Day 8 (Week-2入口)** | One Piece連携拡張（provenance summary index, optional connector hook） | run横断で provenance 集計可能、one-piece 側への受け渡し仕様確定 |
 | **Day 9 (Week-2入口)** | SSOS adapter 前倒し準備（topic mapテスト、mockとの差分明示） | `SsosAdapter` に必要な I/O 契約とテストスタブを確定 |
 
@@ -175,7 +175,8 @@
 - [ ] BL-001 創発ロール実験（`mode: base`）— バックログ、Week-1 外
 - [x] Day5A: LLM shadow 統合（`agents.mode: labeled_shadow`、`decision_source`/`parse_status` ログ）
 - [x] Day5B: integrations/one_piece/ provenance（`provenance.jsonl`, `summary.provenance_*`）
-- [ ] tools/dashboard/app.py
+- [x] tools/dashboard/app.py（run選択 / step slider / telemetry+messages+events+provenance 可視化）
+- [x] labeled_llm_guarded 追加（Monitor/Diagnostician/Operator は LLM採用、DesignEngineer は guard付きLLM採用）
 - [ ] tools/cli + scrubber_demo.yaml E2E
 
 ---
