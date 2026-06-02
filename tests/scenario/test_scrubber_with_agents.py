@@ -30,6 +30,7 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
     design_state = _read_jsonl(run_dir / "design_state.jsonl")
     provenance = _read_jsonl(run_dir / "provenance.jsonl")
     events = _read_jsonl(run_dir / "events.jsonl")
+    eps_telemetry = _read_jsonl(run_dir / "eps_telemetry.jsonl")
 
     assert summary["agents_mode"] == "labeled"
     assert summary["message_count"] > 0
@@ -56,8 +57,14 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
     assert final_step["co2_ppm"] < 1000.0
     assert "eps_support_w" in final_step
     assert "eps_support_steps_remaining" in final_step
-    assert summary["provenance_record_count"] >= 1
+    assert summary["provenance_record_count"] >= 2
     assert summary["provenance_path"].endswith("provenance.jsonl")
+    assert len(eps_telemetry) == summary["steps"]
+    assert summary["eps_boost_applied_step"] is not None
+    assert summary["min_power_margin_w"] is not None
+    assert any(p.get("change_kind") == "request_eps_boost" for p in provenance)
+    assert any(p.get("record_type") == "recovery" for p in provenance)
+    assert any(r.get("bcdu_mode") == "discharging" for r in eps_telemetry)
 
     last_design_state = design_state[-1]
     edges = last_design_state["topology"]["edges"]

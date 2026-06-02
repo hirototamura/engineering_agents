@@ -4,7 +4,7 @@ Living document. Update when protocol, agent modes, or log schemas change.
 
 ## SimulatorProtocol
 
-Implementations: `MockEclssSimulator` (current), `SsosAdapter` (deferred).
+Implementations: `StationSimulator` (ECLSS + EPS, default for scenarios), `MockEclssSimulator` (plant-only), `SsosAdapter` (deferred).
 
 | Method | Returns | Description |
 | --- | --- | --- |
@@ -161,6 +161,25 @@ Raw physics snapshot per step (same fields as `TelemetrySnapshot`).
 {"step": 5, "co2_status": "safe", "power_status": "safe", "overall": "safe"}
 ```
 
+### eps_telemetry.jsonl
+
+Written for `mock_station` runs (EPS-4). One row per step from SARJ + BCDU.
+
+```json
+{
+  "step": 22,
+  "solar_voltage_v": 113.14,
+  "beta_angle_deg": 45.0,
+  "in_eclipse": false,
+  "bcdu_mode": "discharging",
+  "bus_voltage_v": 110.0,
+  "support_w": 120.0,
+  "support_steps_remaining": 3,
+  "fault": false,
+  "fault_message": ""
+}
+```
+
 ### events.jsonl
 
 Anomalies, recovery commands, design changes.
@@ -198,25 +217,29 @@ Run-level KPIs written once at end.
 ```json
 {
   "scenario": "scrubber_degradation",
-  "simulator": "mock_eclss",
+  "simulator": "mock_station",
   "agents_mode": "labeled",
   "steps": 50,
   "peak_co2_ppm": 1016.34,
   "final_co2_ppm": 967.2,
-  "final_health": {"step": 50, "co2_status": "safe", "power_status": "critical", "overall": "critical"},
+  "final_power_margin_w": -42.5,
+  "min_power_margin_w": -128.0,
+  "eps_boost_applied_step": 28,
+  "power_recovered_above_critical_step": 32,
+  "final_health": {"step": 50, "co2_status": "safe", "power_status": "warning", "overall": "warning"},
   "anomaly_seen": true,
   "co2_above_threshold_step": 33,
   "co2_recovered_below_threshold_step": 40,
   "message_count": 59,
   "design_change_count": 1,
   "provenance_path": "src/experiments/results/scrubber_degradation_labeled/provenance.jsonl",
-  "provenance_record_count": 1
+  "provenance_record_count": 2
 }
 ```
 
-### provenance.jsonl (Day 5B+)
+### provenance.jsonl (Day 5B+ / EPS-4)
 
-One Piece-compatible design-change provenance record generated from run outputs.
+One Piece-compatible provenance records: **design changes** and **EPS recovery** (`request_eps_boost`).
 
 ```json
 {
@@ -231,6 +254,20 @@ One Piece-compatible design-change provenance record generated from run outputs.
   "before_topology": {"nodes": [{"id": "cabin"}], "edges": [{"source": "manifold", "target": "scrubber", "kind": "flow"}]},
   "after_topology": {"nodes": [{"id": "cabin"}], "edges": [{"source": "manifold", "target": "scrubber", "kind": "bypass"}]},
   "trace": {"event_kind": "/eclss/events/design_change", "decision_source": "rule"}
+}
+```
+
+**Recovery record** (`record_type: recovery`):
+
+```json
+{
+  "record_id": "scrubber_degradation_labeled:recovery:2",
+  "record_type": "recovery",
+  "change_kind": "request_eps_boost",
+  "step": 28,
+  "actor": "operator",
+  "payload": {"support_w": 120.0, "eps": {"bcdu_mode": "discharging"}},
+  "trace": {"event_kind": "/eclss/events/recovery_applied", "decision_source": "rule"}
 }
 ```
 
@@ -251,8 +288,8 @@ Programmatic recovery smoke test:
 
 ```python
 from environment.protocol import CommandKind, RecoveryCommand
-from environment.ssos.mock_eclss import MockEclssSimulator
+from environment.ssos import StationSimulator, MockEclssSimulator
 
-sim = MockEclssSimulator()
-sim.apply_command(RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value=1.0))
+station = StationSimulator(MockEclssSimulator())
+station.apply_command(RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=120.0))
 ```

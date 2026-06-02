@@ -75,7 +75,7 @@ Recommendation (see also [mvp_plan.md](../memo/mvp_plan.md)):
 ## Next plan (post-Day5B)
 
 1. Add run-index export (`provenance_index.json`) for cross-run comparison in dashboard/CLI.
-2. Expand optional provenance scope for selected recovery commands (`recovery_applied`) with a temporary/permanent flag.
+2. ~~Expand optional provenance scope for selected recovery commands~~ — **Done (EPS-4):** `request_eps_boost` recovery records with `record_type: recovery`.
 3. Add connector handoff shim so One Piece repo can ingest run outputs without custom parsing.
 
 ## Related docs

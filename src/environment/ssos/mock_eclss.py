@@ -39,8 +39,6 @@ class MockEclssSimulator:
         self.fan_speed = 0.7
         self.bypass_enabled = False
         self.load_reduced = False
-        self.eps_support_w = 0.0
-        self.eps_support_steps_remaining = 0
         self._event_log: List[dict] = []
 
     def inject_anomaly(self, spec: AnomalySpec) -> None:
@@ -58,12 +56,6 @@ class MockEclssSimulator:
             self.power_margin_w,
             1.0,
         )
-
-        if self.eps_support_steps_remaining > 0:
-            self.power_margin_w += self.eps_support_w
-            self.eps_support_steps_remaining -= 1
-            if self.eps_support_steps_remaining == 0:
-                self.eps_support_w = 0.0
 
         co2_production = params["co2_production_ppm_per_step"] * co2_mult
         if self.load_reduced:
@@ -106,17 +98,13 @@ class MockEclssSimulator:
             return error
 
         if cmd.kind == CommandKind.REQUEST_EPS_BOOST:
-            self.eps_support_w = float(cmd.value)
-            duration = int(self.design.parameters.get("eps_support_duration_steps", 5.0))
-            self.eps_support_steps_remaining = max(1, duration)
-            msg = (
-                f"eps boost armed at {self.eps_support_w:.1f} W "
-                f"for {self.eps_support_steps_remaining} steps"
+            return CommandResult(
+                success=False,
+                message="request_eps_boost requires StationSimulator (EPS facade)",
             )
-        else:
-            self.fan_speed, self.bypass_enabled, self.load_reduced, msg = apply_command_to_state(
-                cmd, self.fan_speed, self.bypass_enabled, self.load_reduced
-            )
+        self.fan_speed, self.bypass_enabled, self.load_reduced, msg = apply_command_to_state(
+            cmd, self.fan_speed, self.bypass_enabled, self.load_reduced
+        )
         snap = self._snapshot(self.anomalies.on_step(self.step_count))
         self._event_log.append(
             {
@@ -162,7 +150,7 @@ class MockEclssSimulator:
             fan_speed=round(self.fan_speed, 3),
             bypass_enabled=self.bypass_enabled,
             load_reduced=self.load_reduced,
-            eps_support_w=round(self.eps_support_w, 2),
-            eps_support_steps_remaining=self.eps_support_steps_remaining,
+            eps_support_w=0.0,
+            eps_support_steps_remaining=0,
             anomaly_flags=list(anomaly_flags),
         )

@@ -64,19 +64,6 @@ def test_invalid_fan_speed_command_returns_failure_instead_of_crashing():
     assert "fan_speed must be numeric" in result.message
 
 
-def test_eps_boost_command_improves_power_margin():
-    sim = MockEclssSimulator(initial_power_margin_w=-150.0)
-    before = sim.step()
-    assert before.power_margin_w < 0.0
-
-    result = sim.apply_command(RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=150.0))
-    assert result.success is True
-    assert "eps boost armed" in result.message
-
-    after = sim.step()
-    assert after.power_margin_w > before.power_margin_w
-
-
 def test_design_change_adds_bypass_edge():
     sim = MockEclssSimulator()
     state = sim.apply_design_change(

@@ -18,8 +18,8 @@ from environment.protocol import (
     DesignChangeKind,
     HealthStatus,
     RecoveryCommand,
+    SimulatorProtocol,
 )
-from environment.ssos.mock_eclss import MockEclssSimulator
 from scenario.agents.types import AgentMessage, AgentObservation, StepAgentOutcome
 
 
@@ -50,7 +50,7 @@ class ScrubberDegradationTeam:
         self.llm_enabled = self.llm_shadow or self.llm_guarded
         self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_enabled else None
 
-    def run_step(self, sim: MockEclssSimulator, obs: AgentObservation) -> StepAgentOutcome:
+    def run_step(self, sim: SimulatorProtocol, obs: AgentObservation) -> StepAgentOutcome:
         if self.llm_guarded:
             return self._run_step_llm_guarded(sim, obs)
         outcome = StepAgentOutcome()
@@ -66,7 +66,7 @@ class ScrubberDegradationTeam:
             outcome.messages.extend(self._llm_shadow_messages(obs))
         return outcome
 
-    def apply_outcome(self, sim: MockEclssSimulator, outcome: StepAgentOutcome) -> None:
+    def apply_outcome(self, sim: SimulatorProtocol, outcome: StepAgentOutcome) -> None:
         for cmd in outcome.commands:
             sim.apply_command(cmd)
         for change in outcome.design_changes:
@@ -85,7 +85,7 @@ class ScrubberDegradationTeam:
 
     def _run_step_llm_guarded(
         self,
-        sim: MockEclssSimulator,
+        sim: SimulatorProtocol,
         obs: AgentObservation,
     ) -> StepAgentOutcome:
         outcome = StepAgentOutcome()
@@ -274,7 +274,7 @@ class ScrubberDegradationTeam:
 
     def _llm_design_engineer_guarded(
         self,
-        sim: MockEclssSimulator,
+        sim: SimulatorProtocol,
         obs: AgentObservation,
     ) -> Tuple[List[AgentMessage], List[DesignChange]]:
         if self.state.design_change_applied:

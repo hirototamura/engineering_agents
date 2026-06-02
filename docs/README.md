@@ -37,7 +37,9 @@ python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degr
 python -m streamlit run src/tools/dashboard/app.py
 ```
 
-## Current milestone (through Day6)
+## Current milestone (through EPS-4)
 
-- Done: baseline scenario, labeled rule-team, labeled_shadow, labeled_llm_guarded, One Piece provenance export, Day6 dashboard
-- Next: [EPS mock plan](../memo/eps_implementation_plan.md) (EPS-1〜4), then Day 8 CLI + E2E and connector/adapter prep
+- Done: baseline + labeled agents, LLM shadow/guarded, One Piece provenance (design + EPS recovery), dashboard with SARJ/BCDU, `StationSimulator` / `mock_station`
+- Next: [Day 8 CLI](../memo/eps_implementation_plan.md#day-8-cli1日) — then provenance index and SSOS adapter contract tests
+
+Requires `pip install -e ".[dev]"` before `from scenario.runner import ...` (packages live under `src/`).
