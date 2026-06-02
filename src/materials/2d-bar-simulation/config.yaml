@@ -4,12 +4,12 @@
 simulation:
   duration: 100  # Number of simulation steps
   half_space_size: 25  # Half of grid size (agents can move in range -25 to +25)
-  half_place_size: 5   # Half of place size (place covers -5 to +5)
+  # half_place_size: 5   # Half of place size (place covers -5 to +5)
   
 # Agent Parameters
 agents:
-  num_agents: 20
-  communication_radius: 5  # Radius for agent communication
+  num_agents: 10
+  communication_radius: 8  # Radius for agent communication
   memory_limit: 20  # Maximum number of memory entries to store
   memory_size: 5  # Number of recent memory entries used in LLM prompt
   message_history_limit: 10  # Maximum number of received messages to store
@@ -19,13 +19,13 @@ agents:
 # Each place must have a type: "bar", "cafe", "library", etc.
 # type is a required field
 places:
-  - name: "left_bar"
+  - name: "Bar Moon"
     type: "bar"  # Place type: bar, cafe, library, etc. (required)
     center_x: -15  # Left side of field
     center_y: 0
     half_size: 5  # covers -5 to +5 from center
     capacity: 12  # Maximum comfortable capacity of this place
-  - name: "right_bar"
+  - name: "Bar Mars"
     type: "bar"  # Place type: bar, cafe, library, etc. (required)
     center_x: 15  # Right side of field
     center_y: 0
@@ -35,10 +35,12 @@ places:
 # LLM Parameters
 llm:
   #model: "qwen3:4b-instruct-2507-q4_K_M"
-  model: "gpt-oss:20b"  # Ollama model name
+  model: "qwen3.5:2b"  # Ollama model name
   base_url: "http://localhost:11434"  # Ollama API endpoint
   temperature: 0.2
   max_tokens: 2048  # Thinking models need more tokens (thinking + response)
+  think: false # Thinking models: omit or set false so `response` is not starved of num_predict
+  api_timeout: 180  # seconds per /api/generate request (was 60; long prompts need headroom)
   # Anti-repetition parameters
   repeat_penalty: 1.1  # Repeat penalty (1.0-1.2 range, adjust for fine-tuning)
   repeat_last_n: 128  # Range to check for repetition (longer = stronger against loops)

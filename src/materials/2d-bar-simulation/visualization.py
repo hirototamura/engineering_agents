@@ -3,12 +3,14 @@ Visualization for LLM Multi-Agent 2D Simulation
 """
 import matplotlib
 import os
+import sys
 import time
 import logging
 from typing import List, Dict, Tuple, Optional
 
-# Set backend for compatibility (Mac, Linux, WSL)
-GUI_BACKENDS = ['TkAgg', 'Qt5Agg', 'MacOSX', 'Qt4Agg']
+# Default GUI backend order (Linux, etc.). On macOS, try MacOSX before TkAgg:
+# `matplotlib.use("TkAgg")` does not import tkinter until the first figure; pyenv
+# builds without `_tkinter` then fail at runtime with ModuleNotFoundError.
 NON_GUI_BACKENDS = ['agg', 'pdf', 'svg', 'ps']
 
 # Visualization constants
@@ -42,9 +44,17 @@ MAX_AGENTS_DISPLAY = 20
 # Set backend for compatibility (Mac, Linux, WSL)
 backend_set = False
 
-# Check if we're in WSL or headless environment
+# Check if we're in WSL or a Unix headless environment (no X11 DISPLAY).
+# macOS and Windows do not set DISPLAY for native GUI toolkits; do not treat as headless.
 is_wsl = 'microsoft' in os.uname().release.lower() if hasattr(os, 'uname') else False
-is_headless = not os.environ.get('DISPLAY') and not is_wsl
+is_darwin = sys.platform == 'darwin'
+is_windows = sys.platform == 'win32'
+is_headless = (
+    not is_wsl
+    and not is_darwin
+    and not is_windows
+    and not os.environ.get('DISPLAY')
+)
 
 if is_wsl or is_headless:
     # Use non-GUI backend for WSL or headless environments
@@ -53,14 +63,22 @@ if is_wsl or is_headless:
         backend_set = True
         import logging
         logger = logging.getLogger(__name__)
-        logger.info("Using Agg backend (non-GUI) for WSL/headless environment")
+        reason = 'WSL' if is_wsl else 'no DISPLAY (headless Linux/Unix)'
+        logger.info("Using Agg backend (non-GUI): %s", reason)
     except Exception:
         pass
 else:
-    # Try GUI backends for interactive environments
-    for backend_name in GUI_BACKENDS:
+    # Try GUI backends for interactive environments (platform-specific order).
+    if is_darwin:
+        gui_candidates = ['MacOSX', 'Qt5Agg', 'TkAgg', 'Qt4Agg']
+    elif is_windows:
+        gui_candidates = ['Qt5Agg', 'TkAgg', 'Qt4Agg']
+    else:
+        gui_candidates = ['TkAgg', 'Qt5Agg', 'MacOSX', 'Qt4Agg']
+
+    for backend_name in gui_candidates:
         try:
-            matplotlib.use(backend_name)
+            matplotlib.use(backend_name, force=True)
             backend_set = True
             break
         except (ImportError, ValueError):
@@ -97,6 +115,8 @@ class Visualizer:
         self.fig = None
         self.ax = None
         self.figure_initialized = False
+        # setup_figure sets figure_initialized True; first plt.show must not depend on that flag
+        self._interactive_window_shown = False
 
     def setup_figure(self, reuse_existing: bool = False):
         """Setup matplotlib figure"""
@@ -405,13 +425,13 @@ class Visualizer:
         if is_gui_backend:
             # Use interactive mode for GUI backends
             plt.ion()  # Turn on interactive mode (allows non-blocking display)
-            
-            if not self.figure_initialized:
-                # First time: create and show window
+
+            if not self._interactive_window_shown:
+                # First time: show window (setup_figure already set figure_initialized)
                 plt.show(block=False)
                 time.sleep(INITIAL_WINDOW_DELAY)
                 logger.info(f"Created visualization window for step {step}")
-                self.figure_initialized = True
+                self._interactive_window_shown = True
             else:
                 # Update existing window
                 plt.draw()

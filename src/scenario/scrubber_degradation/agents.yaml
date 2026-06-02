@@ -1,0 +1,39 @@
+# scrubber_degradation — scenario-specific labeled agent configuration (Day 4/5A).
+# Not a generic role framework. See memo/backlog.md BL-001.
+
+mode: labeled
+
+llm:
+  base_url: http://localhost:11434
+  model: qwen3.5:2b
+  temperature: 0.1
+  max_tokens: 200
+  repeat_penalty: 1.1
+  repeat_last_n: 128
+  min_p: 0.05
+  think: false
+  api_timeout: 10
+
+roles:
+  monitor:
+    co2_alert_ppm: 900
+
+  diagnostician: {}
+
+  operator:
+    co2_recovery_ppm: 1000
+    fan_speed: 1.0
+    enable_bypass: true
+    reduce_load_on_power_critical: true
+
+  design_engineer:
+    min_step: 35
+    co2_threshold_ppm: 1000
+    allowed_parameters:
+      - scrubber_base_efficiency
+      - bypass_flow_bonus
+      - load_reduction_factor
+    bypass_edge:
+      node_a: manifold
+      node_b: scrubber
+      kind: bypass

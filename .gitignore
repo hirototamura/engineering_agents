@@ -38,6 +38,13 @@ htmlcov/
 
 # Logs
 *.log
+simulation.log
+
+# Experiment run artifacts
+src/experiments/results/*
+!src/experiments/results/.gitkeep
+output/
+041922_output/
 
 # --- OS ---
 .DS_Store
