@@ -169,3 +169,20 @@ def test_scrubber_degradation_labeled_llm_guarded_changes_provenance_and_paramet
 
     final_parameters = design_state[-1]["parameters"]
     assert final_parameters["scrubber_base_efficiency"] >= 1.1
+
+
+def test_llm_guarded_operator_requires_literal_true_boolean():
+    team = ScrubberDegradationTeam(
+        {
+            "mode": "labeled_llm_guarded",
+            "roles": {"operator": {}},
+            "llm": {},
+        }
+    )
+    cmd, note = team._guard_operator_command({"kind": "enable_bypass", "value": "false"})
+    assert cmd is None
+    assert note == "bypass value must be literal true boolean"
+
+    cmd, note = team._guard_operator_command({"kind": "reduce_load", "value": 1})
+    assert cmd is None
+    assert note == "reduce_load value must be literal true boolean"

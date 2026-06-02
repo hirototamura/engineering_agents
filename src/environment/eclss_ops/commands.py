@@ -9,7 +9,10 @@ from environment.protocol import CommandKind, CommandResult, RecoveryCommand
 
 def validate_command(cmd: RecoveryCommand) -> Optional[CommandResult]:
     if cmd.kind == CommandKind.SET_FAN_SPEED:
-        speed = float(cmd.value)
+        try:
+            speed = float(cmd.value)
+        except (TypeError, ValueError):
+            return CommandResult(success=False, message=f"fan_speed must be numeric, got: {cmd.value!r}")
         if not 0.0 <= speed <= 1.0:
             return CommandResult(success=False, message=f"fan_speed out of range: {speed}")
     elif cmd.kind == CommandKind.ENABLE_BYPASS:

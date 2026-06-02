@@ -238,8 +238,8 @@ class ScrubberDegradationTeam:
         if kind == "enable_bypass":
             if self.state.bypass_enabled:
                 return None, "bypass already enabled"
-            if bool(value) is not True:
-                return None, "bypass value must be true"
+            if value is not True:
+                return None, "bypass value must be literal true boolean"
             self.state.bypass_enabled = True
             return (
                 RecoveryCommand(kind=CommandKind.ENABLE_BYPASS, value=True, issued_by="operator"),
@@ -248,8 +248,8 @@ class ScrubberDegradationTeam:
         if kind == "reduce_load":
             if self.state.load_reduced:
                 return None, "load already reduced"
-            if bool(value) is not True:
-                return None, "reduce_load value must be true"
+            if value is not True:
+                return None, "reduce_load value must be literal true boolean"
             self.state.load_reduced = True
             return (
                 RecoveryCommand(kind=CommandKind.REDUCE_LOAD, value=True, issued_by="operator"),

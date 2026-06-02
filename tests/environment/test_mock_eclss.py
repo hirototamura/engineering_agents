@@ -57,6 +57,13 @@ def test_recovery_command_reduces_co2_rise():
     assert sim.co2_ppm < co2_stressed + 500  # fan+bypass should help scrub
 
 
+def test_invalid_fan_speed_command_returns_failure_instead_of_crashing():
+    sim = MockEclssSimulator()
+    result = sim.apply_command(RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value="fast"))
+    assert result.success is False
+    assert "fan_speed must be numeric" in result.message
+
+
 def test_design_change_adds_bypass_edge():
     sim = MockEclssSimulator()
     state = sim.apply_design_change(
