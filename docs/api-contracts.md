@@ -72,7 +72,7 @@ Set in `src/scenario/scrubber_degradation/scenario.yaml` (`agents.mode`). Role t
 | --- | --- | --- | --- |
 | `none` | — | — | — |
 | `labeled` | `ScrubberDegradationTeam` | Rules | Rule messages only |
-| `labeled_shadow` | Same team | Rules (unchanged) | Rule + LLM shadow messages |
+| `labeled_llm_guarded` | Same team | LLM with guards + rule fallback | LLM or `rule_fallback` messages |
 
 Future: `base` (unlabeled emergent roles) — see [memo/backlog.md](../memo/backlog.md) BL-001.
 
@@ -111,7 +111,7 @@ All runs write under `src/experiments/results/<run_id>/`.
 
 ### messages.jsonl
 
-Written when `agents.mode` is `labeled` or `labeled_shadow`.
+Written when `agents.mode` is `labeled` or `labeled_llm_guarded`.
 
 **Rule message:**
 
@@ -127,7 +127,7 @@ Written when `agents.mode` is `labeled` or `labeled_shadow`.
 }
 ```
 
-**LLM shadow message** — same step may also include:
+**LLM guarded message** (`labeled_llm_guarded`):
 
 ```json
 {
@@ -135,9 +135,9 @@ Written when `agents.mode` is `labeled` or `labeled_shadow`.
   "from_role": "operator",
   "to_role": "team",
   "message": "...",
-  "message_type": "llm_shadow_operator",
+  "message_type": "recovery_command",
   "reasoning": "...",
-  "decision_source": "llm_shadow",
+  "decision_source": "llm",
   "parse_status": "ok",
   "parse_error": null,
   "raw_response_excerpt": "..."
@@ -148,8 +148,7 @@ Written when `agents.mode` is `labeled` or `labeled_shadow`.
 
 | Type | Source |
 | --- | --- |
-| `alert`, `diagnosis`, `recovery_command`, `design_change` | Rule |
-| `llm_shadow_monitor`, `llm_shadow_diagnosis`, `llm_shadow_operator`, `llm_shadow_design` | LLM shadow |
+| `alert`, `diagnosis`, `recovery_command`, `design_change` | Rule or LLM guarded |
 
 ### telemetry.jsonl
 
@@ -280,8 +279,8 @@ python src/scripts/run_mock_eclss.py
 # Labeled rule team
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
 
-# LLM shadow (requires Ollama; actions still rule-based)
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_shadow'}})"
+# LLM guarded (requires Ollama)
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}})"
 ```
 
 Programmatic recovery smoke test:

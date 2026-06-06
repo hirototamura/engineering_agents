@@ -1,4 +1,4 @@
-# scrubber_degradation — scenario-specific labeled agent configuration (Day 4/5A).
+# scrubber_degradation — scenario-specific labeled agent configuration (Day 4+).
 # Not a generic role framework. See memo/backlog.md BL-001.
 
 mode: labeled

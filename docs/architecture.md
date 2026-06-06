@@ -12,7 +12,6 @@ Multi-agent simulation for ECLSS anomaly detection through design change (resili
 | Simulator protocol | Done | `SimulatorProtocol`, `MockEclssSimulator`, `docs/api-contracts.md` |
 | Baseline scenario | Done | `scrubber_degradation/scenario.yaml`, `scenario/runner.py`, baseline tests |
 | Labeled agent team | Done | Rule-based 4 roles, `messages.jsonl`, recovery + design change |
-| LLM shadow mode | Done / evolving | `agents.mode: labeled_shadow` — shadow chat, rule actions |
 | LLM guarded mode | Done / tuning | `agents.mode: labeled_llm_guarded` — LLM actions + rule fallback + design guards |
 | One Piece provenance | Done (Day5B) | `integrations/one_piece/client.py`, `provenance.jsonl`, summary linkage |
 | Dashboard | Done (Day6) | `src/tools/dashboard/app.py` |
@@ -76,7 +75,6 @@ Configured in `scenario.yaml`; role thresholds in `agents.yaml` when mode ≠ `n
 | --- | --- | --- | --- | --- |
 | `none` | Mock only | — | — | `test_scrubber_baseline.py` (required green) |
 | `labeled` | Mock | Rule-based 4 roles | Rule messages, `decision_source: rule` | `test_scrubber_with_agents.py` |
-| `labeled_shadow` | Mock | Same rules as `labeled` | Rule + LLM shadow per role, `decision_source: llm_shadow` | shadow-mode tests (when present) |
 | `labeled_llm_guarded` | Mock | LLM adopted with guards, fallback to rules | `decision_source: llm` or `rule_fallback` | guarded-mode tests |
 | `base` | — | Not implemented | BL-001 backlog | — |
 
@@ -90,14 +88,6 @@ Roles are **scenario-specific labels** for `scrubber_degradation` only (`Scrubbe
 | Diagnostician | Diagnose | `anomaly_flags` present |
 | Operator | Recovery commands | CO2 ≥ 1000 → fan boost; power critical → load shed; then bypass |
 | DesignEngineer | Permanent design change | step ≥ 35 and CO2 ≥ 1000 → add bypass edge |
-
-### labeled_shadow mode
-
-- **Actions remain rule-based** (deterministic recovery path unchanged).
-- Each step, Ollama generates **parallel shadow messages** per role (`llm_shadow_*` message types).
-- Shadow messages carry `decision_source: llm_shadow`, `parse_status`, `parse_error`, `raw_response_excerpt`.
-- LLM config in `agents.yaml` under `llm:` (default `qwen3.5:2b`, short timeout).
-- Requires Ollama running locally for shadow runs; baseline and `labeled` do not.
 
 ### labeled_llm_guarded mode
 
@@ -115,14 +105,13 @@ Each run writes to `src/experiments/results/<run_id>/`:
 | `health_metrics.jsonl` | Every step |
 | `design_state.jsonl` | Every step (pre-agent topology) |
 | `events.jsonl` | Anomalies, recovery commands, design changes |
-| `messages.jsonl` | Agent modes with team (`labeled`, `labeled_shadow`, `labeled_llm_guarded`) |
+| `messages.jsonl` | Agent modes with team (`labeled`, `labeled_llm_guarded`) |
 | `summary.json` | Once at end |
 
 Default run IDs (from `scenario.yaml`):
 
 - `scrubber_degradation_baseline` — `agents.mode: none`
 - `scrubber_degradation_labeled` — `labeled`
-- `scrubber_degradation_labeled_shadow` — `labeled_shadow`
 - `scrubber_degradation_labeled_llm_guarded` — `labeled_llm_guarded`
 
 Schema details: [api-contracts.md](api-contracts.md). Scenario narrative: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md).
@@ -132,7 +121,7 @@ Schema details: [api-contracts.md](api-contracts.md). Scenario narrative: [scena
 | System | MVP approach |
 | --- | --- |
 | SSOS | Mock adapter (`environment/ssos/mock_eclss.py`); real ROS2 via `SsosAdapter` stub |
-| LLM | Ollama via `core/llm/ollama.py`; used in `labeled_shadow` and `labeled_llm_guarded` modes |
+| LLM | Ollama via `core/llm/ollama.py`; used in `labeled_llm_guarded` mode |
 | One Piece | JSON provenance via `integrations/one_piece/` (Day5B実装済み); web UI deferred |
 | EPS (power) | Done (EPS-1〜4): `StationSimulator`, SARJ/BCDU mock, `eps_telemetry.jsonl` |
 

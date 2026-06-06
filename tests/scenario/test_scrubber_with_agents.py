@@ -86,34 +86,6 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
     ), "operator should request EPS boost when power is critical"
 
 
-def test_scrubber_degradation_labeled_shadow_logs_llm_decisions(tmp_path: Path):
-    run_dir = run_scenario(
-        "scrubber_degradation",
-        output_dir=tmp_path / "labeled_shadow",
-        overrides={
-            "simulation": {"steps": 5},
-            "agents": {
-                "mode": "labeled_shadow",
-                "llm": {
-                    "base_url": "http://127.0.0.1:11434",
-                    "model": "llama3.2",
-                    "api_timeout": 1,
-                    "think": False,
-                },
-            },
-        },
-        recreate_output=True,
-    )
-
-    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
-    messages = _read_jsonl(run_dir / "messages.jsonl")
-
-    assert summary["agents_mode"] == "labeled_shadow"
-    assert messages, "shadow mode should emit at least llm_shadow messages"
-    assert any(m.get("decision_source") == "llm_shadow" for m in messages)
-    assert any("parse_status" in m for m in messages if m.get("decision_source") == "llm_shadow")
-
-
 def test_scrubber_degradation_labeled_llm_guarded_changes_provenance_and_parameters(
     tmp_path: Path, monkeypatch
 ):

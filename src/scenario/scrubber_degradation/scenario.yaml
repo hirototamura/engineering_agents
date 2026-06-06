@@ -27,10 +27,9 @@ anomalies:
     co2_production_multiplier: 1.4
 
 agents:
-  mode: none  # none | labeled | labeled_shadow | labeled_llm_guarded
+  mode: none  # none | labeled | labeled_llm_guarded
 
 output:
   run_id: scrubber_degradation_baseline
   run_id_labeled: scrubber_degradation_labeled
-  run_id_labeled_shadow: scrubber_degradation_labeled_shadow
   run_id_labeled_llm_guarded: scrubber_degradation_labeled_llm_guarded

@@ -64,7 +64,7 @@ Recommendation (see also [mvp_plan.md](../memo/mvp_plan.md)):
 - `summary.json` now includes:
   - `provenance_path`
   - `provenance_record_count`
-- `labeled` and `labeled_shadow` runs emit design-change provenance when applicable
+- `labeled` and `labeled_llm_guarded` runs emit design-change provenance when applicable
 
 ## Day5B retrospective
 

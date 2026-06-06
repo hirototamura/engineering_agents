@@ -10,7 +10,7 @@
 | 項目 | 状態 |
 | --- | --- |
 | Day 1–6 + Day5B provenance | [mvp_plan.md](mvp_plan.md) 上 ✅ |
-| ECLSS PR（labeled / shadow / guarded） | [PR #1](https://github.com/hirototamura/engineering_agents/pull/1) |
+| ECLSS PR（labeled / guarded） | [PR #1](https://github.com/hirototamura/engineering_agents/pull/1) |
 | **EPS-1〜4** | ✅ コミット `578fb0a`（EPS-1）、`c013600`（EPS-2）+ EPS-3/4 本ブランチ |
 | シミュレータ | `StationSimulator`（ECLSS + `EpsStack`）、`summary.simulator: mock_station` |
 | ログ | `eps_telemetry.jsonl` + recovery `provenance` + dashboard SARJ/BCDU |

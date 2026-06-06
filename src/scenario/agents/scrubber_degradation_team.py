@@ -45,9 +45,8 @@ class ScrubberDegradationTeam:
         self.diagnostician_cfg = roles.get("diagnostician", {})
         self.operator_cfg = roles.get("operator", {})
         self.design_cfg = roles.get("design_engineer", {})
-        self.llm_shadow = self.mode == "labeled_shadow"
         self.llm_guarded = self.mode == "labeled_llm_guarded"
-        self.llm_enabled = self.llm_shadow or self.llm_guarded
+        self.llm_enabled = self.llm_guarded
         self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_enabled else None
 
     def run_step(self, sim: SimulatorProtocol, obs: AgentObservation) -> StepAgentOutcome:
@@ -62,8 +61,6 @@ class ScrubberDegradationTeam:
         des_msgs, des_changes = self._design_engineer(obs)
         outcome.messages.extend(des_msgs)
         outcome.design_changes.extend(des_changes)
-        if self.llm_shadow:
-            outcome.messages.extend(self._llm_shadow_messages(obs))
         return outcome
 
     def apply_outcome(self, sim: SimulatorProtocol, outcome: StepAgentOutcome) -> None:
@@ -130,7 +127,7 @@ class ScrubberDegradationTeam:
         to_role: str,
         message_type: str,
     ) -> Optional[AgentMessage]:
-        contract = self._shadow_output_contract()
+        contract = self._llm_output_contract()
         prompt = (
             f"Role: {role} in ECLSS scrubber_degradation. "
             f"{contract} "
@@ -436,105 +433,12 @@ class ScrubberDegradationTeam:
         )
 
     @staticmethod
-    def _shadow_output_contract() -> str:
+    def _llm_output_contract() -> str:
         return (
             "Return ONLY one valid JSON object (multi-line is allowed). "
             "No markdown. No code fences. No prose outside JSON. "
             'Required keys: "message", "reasoning". '
             'Example: {"message":"CO2 rising; boost fan.","reasoning":"co2_ppm crossed threshold"}'
-        )
-
-    def _llm_shadow_messages(self, obs: AgentObservation) -> List[AgentMessage]:
-        contract = self._shadow_output_contract()
-        context = self._telemetry_context(obs)
-        prompts = [
-            (
-                "monitor",
-                "team",
-                "llm_shadow_monitor",
-                ("message",),
-                (
-                    "Role: monitor in ECLSS scrubber_degradation. "
-                    f"{contract} "
-                    f"Telemetry: {context}"
-                ),
-            ),
-            (
-                "diagnostician",
-                "operator",
-                "llm_shadow_diagnosis",
-                ("message",),
-                (
-                    "Role: diagnostician in ECLSS scrubber_degradation. "
-                    f"{contract} "
-                    f"Telemetry: {context}"
-                ),
-            ),
-            (
-                "operator",
-                "team",
-                "llm_shadow_operator",
-                ("message",),
-                (
-                    "Role: operator in ECLSS scrubber_degradation. "
-                    f"{contract} "
-                    f"Telemetry: {context}"
-                ),
-            ),
-            (
-                "design_engineer",
-                "team",
-                "llm_shadow_design",
-                ("message",),
-                (
-                    "Role: design_engineer in ECLSS scrubber_degradation. "
-                    f"{contract} "
-                    f"Telemetry: {context}"
-                ),
-            ),
-        ]
-        return [
-            self._llm_shadow_message(
-                obs=obs,
-                role=role,
-                to_role=to_role,
-                message_type=message_type,
-                required=required,
-                prompt=prompt,
-            )
-            for role, to_role, message_type, required, prompt in prompts
-        ]
-
-    def _llm_shadow_message(
-        self,
-        obs: AgentObservation,
-        role: str,
-        to_role: str,
-        message_type: str,
-        required: tuple[str, ...],
-        prompt: str,
-    ) -> AgentMessage:
-        raw = ""
-        if self.llm_client is not None:
-            raw = self.llm_client.generate(prompt)
-        parsed = parse_json_response(raw, required=required)
-        message = parsed.data.get("message", "")
-        if not message:
-            message = f"[shadow:{role}] no message"
-        reasoning = parsed.data.get("reasoning", "")
-        return AgentMessage(
-            step=obs.step,
-            from_role=role,
-            to_role=to_role,
-            message=message,
-            message_type=message_type,
-            reasoning=reasoning,
-            metadata={
-                "decision_source": "llm_shadow",
-                "parse_status": parsed.status,
-                "parse_error": parsed.error,
-                "raw_response_excerpt": parsed.raw_excerpt,
-            },
         )
 
     def _monitor(self, obs: AgentObservation) -> List[AgentMessage]:

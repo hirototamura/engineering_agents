@@ -38,15 +38,15 @@ python src/scripts/run_mock_eclss.py
 # Labeled rule-based agent team
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}}))"
 
-# LLM shadow mode (logs LLM messages; applies rule actions)
-python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_shadow'}}))"
+# LLM guarded mode (requires Ollama)
+python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}}))"
 
 # Tests
 pytest tests/scenario/test_scrubber_baseline.py -q
 pytest tests/scenario/test_scrubber_with_agents.py -q
 ```
 
-Writes JSONL logs and `summary.json` under `src/experiments/results/<run_id>/` (baseline / labeled / labeled_shadow). See [docs/api-contracts.md](docs/api-contracts.md) for schemas.
+Writes JSONL logs and `summary.json` under `src/experiments/results/<run_id>/` (baseline / labeled / labeled_llm_guarded). See [docs/api-contracts.md](docs/api-contracts.md) for schemas.
 
 ## Legacy bar simulation
 

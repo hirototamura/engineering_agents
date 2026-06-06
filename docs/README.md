@@ -27,9 +27,6 @@ python src/scripts/run_mock_eclss.py
 # Rule-based labeled team
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
 
-# LLM shadow messages + rule actions
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_shadow'}})"
-
 # LLM applied with guards (monitor/diagnostician/operator + guarded design engineer)
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}})"
 
@@ -39,7 +36,7 @@ python -m streamlit run src/tools/dashboard/app.py
 
 ## Current milestone (through EPS-4)
 
-- Done: baseline + labeled agents, LLM shadow/guarded, One Piece provenance (design + EPS recovery), dashboard with SARJ/BCDU, `StationSimulator` / `mock_station`
+- Done: baseline + labeled agents, LLM guarded mode, One Piece provenance (design + EPS recovery), dashboard with SARJ/BCDU, `StationSimulator` / `mock_station`
 - Next: [Day 8 CLI](../memo/eps_implementation_plan.md#day-8-cli1日) — then provenance index and SSOS adapter contract tests
 
 Requires `pip install -e ".[dev]"` before `from scenario.runner import ...` (packages live under `src/`).

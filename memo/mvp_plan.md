@@ -7,7 +7,8 @@
 > **2026-05-31 更新**: Day5B 完了を反映し、Day6 以降の実装順を再計画。  
 > **2026-06-02 更新**: ECLSS 単独では power margin 回復手段が不足するため、次フェーズ最優先を **EPS モック統合** に変更。  
 > **2026-06-02 更新**: EPS の Day 区切り詳細は [eps_implementation_plan.md](eps_implementation_plan.md) を参照。  
-> **2026-06-02 更新**: **EPS-1〜4 完了**（`feature/eps-mock-foundation`）。次は Day 8 CLI。
+> **2026-06-02 更新**: **EPS-1〜4 完了**（`feature/eps-mock-foundation`）。次は Day 8 CLI。  
+> **2026-06-02 更新**: `labeled_shadow` モードを廃止（`labeled` / `labeled_llm_guarded` の2系統に整理）。
 
 ## ゴール
 
@@ -62,8 +63,8 @@
 | 観点 | 状態 | 補足 |
 | --- | --- | --- |
 | ベースライン安定性 | ✅ | `agents.mode: none` を維持。`anomaly_injected` 重複記録も修正済み。 |
-| エージェント統合 | ✅ | `labeled`（rule）と `labeled_shadow`（rule + LLM観測）を分離。 |
-| shadow 品質 | ✅ 改善 | `qwen3.5:2b` で 20 step / 80件中 `ok=79`, `fallback=1`（1.25%）。 |
+| エージェント統合 | ✅ | `labeled`（rule）と `labeled_llm_guarded`（LLM + guard + fallback）。 |
+| shadow 品質（廃止） | — | Day5A の `labeled_shadow` は 2026-06-02 に削除。履歴は Day 5A メモ参照。 |
 | One Piece provenance | ✅ | `provenance.jsonl` 自動生成、`summary.provenance_*` 追記。 |
 | 未完了 | ⏳ | CLI / E2E / SSOS adapter 契約テスト（Day 8–10）。EPS は [eps_implementation_plan.md](eps_implementation_plan.md) 参照。 |
 
@@ -73,7 +74,7 @@
 | --- | --- | --- |
 | **Day 6** | `tools/dashboard/app.py` 実装（telemetry/health/messages/provenance の同時可視化） | ✅ step同期で CO2推移・役割メッセージ・設計変更履歴を1画面確認 |
 | **Next-1 (Week-2入口)** | SSOS EPS モック統合 — [EPS-1〜4](eps_implementation_plan.md#day-区切りロードマップ) | ✅ EPS-1〜4 完了 |
-| **Next-2** | CLI 統合 — [Day 8](eps_implementation_plan.md#day-8-cli1日) | 1コマンドで baseline/labeled/labeled_shadow/labeled_llm_guarded 実行 + 出力先表示 |
+| **Next-2** | CLI 統合 — [Day 8](eps_implementation_plan.md#day-8-cli1日) | 1コマンドで baseline/labeled/labeled_llm_guarded 実行 + 出力先表示 |
 | **Next-3** | One Piece連携拡張 — [Day 9](eps_implementation_plan.md#day-910-拡張) | run横断で provenance 集計可能、one-piece 側への受け渡し仕様確定 |
 | **Next-4** | SSOS adapter 前倒し準備 — [Day 10](eps_implementation_plan.md#day-910-拡張) | `SsosAdapter` に必要な I/O 契約とテストスタブを確定 |
 
@@ -126,7 +127,7 @@
 - DesignEngineer 設計変更（bypass）が `design_state` に反映
 - `test_scrubber_baseline.py` は `agents.mode: none` のまま green
 
-### Day 5A — labeled_shadow 品質メモ（2026-05-31）
+### Day 5A — labeled_shadow 品質メモ（2026-05-31、モードは 2026-06-02 廃止）
 
 - `qwen3.5:2b` + prompt 制約緩和（JSON object only, multi-line 許可）で `parse_status` が改善
 - 20 step 試験（80件）で **ok=79 / fallback=1（fallback率 1.25%）**
@@ -138,7 +139,7 @@
 - `integrations/one_piece/client.py` を追加し、run終了時に `provenance.jsonl` を自動生成
 - `events.jsonl`（design_change）+ `messages.jsonl` + `design_state.jsonl` を突合して記録
 - `summary.json` に `provenance_path` / `provenance_record_count` を追加
-- baseline では `provenance_record_count=0`、labeled/labeled_shadow では設計変更ぶん記録
+- baseline では `provenance_record_count=0`、labeled / labeled_llm_guarded では設計変更ぶん記録
 
 ### Next — EPS優先方針（2026-06-02）
 
