@@ -1,1 +1,1 @@
-"""Domain-agnostic simulation kernel (agents, LLM, event logging)."""
+"""ECLSS agent kernel (persona agents, teams, scenarios, LLM, event logging)."""
