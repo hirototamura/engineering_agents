@@ -97,9 +97,10 @@ personas:
 | operator | 空 commands 正当。手段詳細は contract 側 |
 | design_engineer | 議論が ops 不十分を示したとき提案。手段詳細は contract 側 |
 
-## 次のステップ（Day 8）
+## Day 8 完了（2026-06-06）
 
-1. 上記 yaml → `src/scenario/scrubber_degradation/agents.yaml`
-2. `DEFAULT_PERSONAS` + `TEAM_CHARTER` を同期（charter もシナリオ非依存に）
-3. `_situation_context()` にミッション文脈を集約
-4. `labeled_llm_guarded` run → `messages.jsonl` 確認
+- [x] yaml → `src/scenario/scrubber_degradation/agents.yaml`
+- [x] `DEFAULT_PERSONAS` 同期（`core/agents/persona.py`）
+- [x] `_situation_context()` — ミッション文脈は Situation 層（persona から分離済み）
+- [x] `docs/architecture.md` / `docs/scenario-scrubber-degradation.md` 更新
+- [ ] 本番 Ollama run（任意）→ `messages.jsonl` で創発を目視確認

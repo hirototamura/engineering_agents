@@ -29,7 +29,7 @@ src/integrations/   (called from scenario/tools only; e.g. one_piece provenance)
 
 | Layer | Responsibility |
 | --- | --- |
-| `src/core/` | Agent base, simulation loop, LLM clients, event logging |
+| `src/core/` | Persona agents, Team/Scenario ABCs, memory, LLM clients, event logging |
 | `src/environment/` | Simulator boundary (`SimulatorProtocol`, SSOS mock/adapter, ECLSS ops) |
 | `src/scenario/` | Scenario YAML, runner, scenario-specific agent teams |
 | `src/experiments/` | Run configs and results (results gitignored) |
@@ -48,10 +48,10 @@ src/integrations/   (called from scenario/tools only; e.g. one_piece provenance)
 scenario.yaml + agents.yaml
         │
         ▼
-  scenario/runner.py
+  scenario/runner.py → ScrubberDegradationScenario (registry)
         │
         ├─ build_station_simulator() → StationSimulator (ECLSS + EPS)
-        ├─ build_agent_team()  (if agents.mode ≠ none)
+        ├─ build_team() → ScrubberDegradationTeam (if agents.mode ≠ none)
         │
         ▼
   for each step:
@@ -91,9 +91,10 @@ Roles are **scenario-specific labels** for `scrubber_degradation` only (`Scrubbe
 
 ### labeled_llm_guarded mode
 
-- Monitor / Diagnostician / Operator decisions are sourced from LLM outputs when parse + guard checks pass.
-- DesignEngineer accepts only guarded LLM proposals (allowed kind/node/parameter range); invalid proposals are rejected.
-- Fallback path emits rule behavior with `decision_source: rule_fallback`.
+- **Two-round persona deliberation**: Round 1 open forum (4 agents), Round 2 react + act (monitor/diagnostician react; operator/design act).
+- **Prompt layers**: Team charter + `personas` (voice only) + `## Situation` (scenario + telemetry) + discourse + agent memory + output contract.
+- Parse + guard checks pass → `decision_source: llm`; else `rule_fallback` or `llm_guard_reject` for design.
+- Persona definitions: [memo/persona_workshop_draft.md](../memo/persona_workshop_draft.md). Plan: [memo/persona_llm_core_oop_plan.md](../memo/persona_llm_core_oop_plan.md).
 
 ## Output layout
 

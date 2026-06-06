@@ -1,6 +1,6 @@
 # Persona LLM 再設計 + Core OOP 骨格抽出
 
-**ステータス**: Day 1–6 完了 / Day 7–8 未着手  
+**ステータス**: Day 1–8 完了（本番 Ollama run は任意）  
 **関連**: [persona_workshop_draft.md](persona_workshop_draft.md), [backlog.md](backlog.md) BL-001
 
 ## ゴール（2本柱）
@@ -14,16 +14,18 @@
 
 ## 進捗チェックリスト
 
-| Day | 内容 | 状態 |
-| --- | --- | --- |
-| Day 1 | Core 骨格（types, Team/Scenario ABC, 旧 2D bar 削除） | ✅ |
-| Day 2 | AgentMemory + DiscourseBuffer | ✅ |
-| Day 3 | PersonaPromptBuilder + PersonaAgent | ✅ |
-| Day 4 | ScrubberDegradationTeam 移行 + 2ラウンド議論 | ✅ |
-| Day 5 | ScrubberDegradationScenario + runner 薄化 | ✅ |
-| Day 6 | スタブ persona + 回帰テスト | ✅ |
-| Day 7 | **Persona 設計ワークショップ**（ユーザーとの議論） | ⬜ |
-| Day 8 | agents.yaml 確定・本番 run・ドキュメント | ⬜ |
+
+| Day   | 内容                                             | 状態  |
+| ----- | ---------------------------------------------- | --- |
+| Day 1 | Core 骨格（types, Team/Scenario ABC, 旧 2D bar 削除） | ✅   |
+| Day 2 | AgentMemory + DiscourseBuffer                  | ✅   |
+| Day 3 | PersonaPromptBuilder + PersonaAgent            | ✅   |
+| Day 4 | ScrubberDegradationTeam 移行 + 2ラウンド議論           | ✅   |
+| Day 5 | ScrubberDegradationScenario + runner 薄化        | ✅   |
+| Day 6 | スタブ persona + 回帰テスト                            | ✅   |
+| Day 7 | **Persona 設計ワークショップ**（ユーザーとの議論）                | ✅   |
+| Day 8 | agents.yaml 確定・ドキュメント更新                         | ✅   |
+
 
 ---
 
@@ -31,10 +33,12 @@
 
 **結論: DiscourseBuffer だけでは不十分。2層メモリが必要。**
 
-| 層 | クラス | スコープ | 中身 | プロンプトでの役割 |
-| --- | --- | --- | --- | --- |
-| **チーム共有** | `DiscourseBuffer` | 全エージェント共通 | 直近 N 件の `AgentMessage` | OpenForum の「会議録」 |
-| **個体私有** | `AgentMemory` | `agent_id` ごと | 自分の過去発言・アクション・自己メモ | 「私は前に何を言い、何をしたか」 |
+
+| 層         | クラス               | スコープ          | 中身                     | プロンプトでの役割        |
+| --------- | ----------------- | ------------- | ---------------------- | ---------------- |
+| **チーム共有** | `DiscourseBuffer` | 全エージェント共通     | 直近 N 件の `AgentMessage` | OpenForum の「会議録」 |
+| **個体私有**  | `AgentMemory`     | `agent_id` ごと | 自分の過去発言・アクション・自己メモ     | 「私は前に何を言い、何をしたか」 |
+
 
 ```mermaid
 flowchart LR
@@ -60,6 +64,8 @@ flowchart LR
     AM1 --> Prompt
     AM2 --> Prompt
 ```
+
+
 
 ### AgentMemory の更新ルール
 
@@ -93,10 +99,12 @@ flowchart LR
 
 ## main_role と persona の違い
 
-| 属性 | 役割 | 粒度 |
-| --- | --- | --- |
-| **main_role** | 議論における専門アイデンティティ・視点のラベル | 1行 |
-| **persona** | 具体的な思考様式・条件付き行動指針 | 数行 |
+
+| 属性            | 役割                      | 粒度  |
+| ------------- | ----------------------- | --- |
+| **main_role** | 議論における専門アイデンティティ・視点のラベル | 1行  |
+| **persona**   | 具体的な思考様式・条件付き行動指針       | 数行  |
+
 
 - **main_role** = 「私は誰として話すか」（名札）
 - **persona** = 専門家としての思考・議論スタイル（**シナリオ・閾値・イベントは書かない** — `## Situation` 層へ）
@@ -145,6 +153,8 @@ flowchart TB
     PersonaAgent --> PromptBuilder
 ```
 
+
+
 ### core/ レイアウト（実装済み）
 
 ```text
@@ -165,11 +175,13 @@ core/
 
 ## 2ラウンド議論（8 LLM calls / step）
 
-| Round | 呼び出し | 契約 |
-| --- | --- | --- |
-| 1 | monitor → diagnostician → operator → design | `message`, `reasoning`, optional `memory` |
-| 2 | monitor, diagnostician | 同上（反応・異論） |
-| 2 | operator, design_engineer | action 契約 + optional `memory` |
+
+| Round | 呼び出し                                        | 契約                                        |
+| ----- | ------------------------------------------- | ----------------------------------------- |
+| 1     | monitor → diagnostician → operator → design | `message`, `reasoning`, optional `memory` |
+| 2     | monitor, diagnostician                      | 同上（反応・異論）                                 |
+| 2     | operator, design_engineer                   | action 契約 + optional `memory`             |
+
 
 注: design_engineer の Round 1 は `_design_llm_eligible` 未満ではスキップ（旧挙動）。
 
@@ -177,16 +189,18 @@ core/
 
 ## Day 別ロードマップ
 
-| Day | テーマ | 完了条件 |
-| --- | --- | --- |
-| **Day 1** | Core 骨格 | 旧 2D bar 削除、`test_imports` green |
-| **Day 2** | メモリ層 | append/trim ユニットテスト green |
-| **Day 3** | PersonaAgent | プロンプトセクション確認、`test_persona_prompt` green |
-| **Day 4** | Scrubber チーム | labeled + llm_guarded 動作 |
-| **Day 5** | Scenario 統合 | `run_scenario` API 不変 |
-| **Day 6** | テスト（スタブ） | 全 scenario 回帰 green、persona 未確定で OK |
-| **Day 7** | Persona ワークショップ | 4体の main_role/persona 合意 |
-| **Day 8** | 確定・仕上げ | yaml 反映、本番 run、docs 更新 |
+
+| Day       | テーマ             | 完了条件                                     |
+| --------- | --------------- | ---------------------------------------- |
+| **Day 1** | Core 骨格         | 旧 2D bar 削除、`test_imports` green         |
+| **Day 2** | メモリ層            | append/trim ユニットテスト green                |
+| **Day 3** | PersonaAgent    | プロンプトセクション確認、`test_persona_prompt` green |
+| **Day 4** | Scrubber チーム    | labeled + llm_guarded 動作                 |
+| **Day 5** | Scenario 統合     | `run_scenario` API 不変                    |
+| **Day 6** | テスト（スタブ）        | 全 scenario 回帰 green、persona 未確定で OK      |
+| **Day 7** | Persona ワークショップ | 4体の main_role/persona 合意 ✅               |
+| **Day 8** | 確定・仕上げ          | yaml 反映、docs 更新 ✅                         |
+
 
 ```text
 Day1 → Day2 → Day3 → Day4 → Day5 → Day6 → Day7(ワークショップ) → Day8
@@ -198,10 +212,12 @@ Day1 → Day2 → Day3 → Day4 → Day5 → Day6 → Day7(ワークショップ
 
 **エージェント設計の中核。** ワークショップ合意前に `agents.yaml` の persona 本文を本番確定しない。
 
-| 項目 | 内容 |
-| --- | --- |
-| 入力 | `DEFAULT_PERSONAS` スタブ、[persona_workshop_draft.md](persona_workshop_draft.md)、シナリオ叙事 |
-| 出力 | 4体分の確定 `main_role` + `persona`（yaml にそのまま貼れる形） |
+
+| 項目  | 内容                                                                                   |
+| --- | ------------------------------------------------------------------------------------ |
+| 入力  | `DEFAULT_PERSONAS` スタブ、[persona_workshop_draft.md](persona_workshop_draft.md)、シナリオ叙事 |
+| 出力  | 4体分の確定 `main_role` + `persona`（yaml にそのまま貼れる形）                                       |
+
 
 ### 議論アジェンダ
 
@@ -222,22 +238,26 @@ Day1 → Day2 → Day3 → Day4 → Day5 → Day6 → Day7(ワークショップ
 
 ## 後方互換性
 
-| 項目 | 方針 |
-| --- | --- |
-| `run_scenario(...)` API | 不変 |
-| `labeled` rule モード | ロジック不変 |
-| `from_role` / action JSON 必須キー | 不変 |
-| `memory` JSON キー | 新規 optional |
+
+| 項目                             | 方針          |
+| ------------------------------ | ----------- |
+| `run_scenario(...)` API        | 不変          |
+| `labeled` rule モード             | ロジック不変      |
+| `from_role` / action JSON 必須キー | 不変          |
+| `memory` JSON キー               | 新規 optional |
+
 
 ---
 
 ## リスクと緩和
 
-| リスク | 緩和 |
-| --- | --- |
-| メモリと Discourse の重複 | プロンプトで役割を明示分離 |
-| トークン超過 | `memory_limit=8`, `discourse_window=12` |
-| main_role / persona の曖昧さ | persona に heuristic を書くルールを固定 |
+
+| リスク                      | 緩和                                      |
+| ------------------------ | --------------------------------------- |
+| メモリと Discourse の重複       | プロンプトで役割を明示分離                           |
+| トークン超過                   | `memory_limit=8`, `discourse_window=12` |
+| main_role / persona の曖昧さ | persona に heuristic を書くルールを固定           |
+
 
 ---
 
@@ -273,4 +293,10 @@ Day1 → Day2 → Day3 → Day4 → Day5 → Day6 → Day7(ワークショップ
 
 FakeClient 8-call 対応。persona は STUB のまま。12 tests green。
 
-**次**: Day 7 ワークショップ → Day 8 yaml 確定
+### Day 7 — Persona ワークショップ ✅
+
+慎重派・明示的賛否・persona/シナリオ完全分離を合意。diagnostician は因果推測・問題特定に積極的。
+
+### Day 8 — 確定・仕上げ ✅
+
+`agents.yaml` と `DEFAULT_PERSONAS` に確定 persona を反映。`docs/architecture.md` / `docs/scenario-scrubber-degradation.md` 更新。12 tests green。

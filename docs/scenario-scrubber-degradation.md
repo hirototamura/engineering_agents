@@ -60,13 +60,20 @@ Research note: these labels are human division-of-labor conventions. Unlabeled e
 
 ## labeled_llm_guarded mode
 
-LLM-driven decisions with guardrails:
+Persona-based two-round deliberation (8 LLM calls per step) with guardrails:
 
-- Monitor / Diagnostician / Operator: LLM outputs are adopted when parse + guard checks pass
-- DesignEngineer: LLM proposal is filtered by change-kind / node / parameter range guards
-- On failure, the system falls back to rule behavior and logs `decision_source: rule_fallback`
+| Round | Agents | Output |
+| --- | --- | --- |
+| 1 — open forum | monitor, diagnostician, operator, design_engineer | message + reasoning (+ optional `memory`) |
+| 2 — react + act | monitor, diagnostician (react); operator, design_engineer (commands / design) | same contracts; action keys in round 2 only |
 
-Requires Ollama and a pulled model (default `qwen3.5:2b` in `agents.yaml`).
+**Persona vs scenario**: `personas` in `agents.yaml` define professional voice and debate style only. Scenario briefing, thresholds, and telemetry live under `## Situation` (injected by `ScrubberDegradationTeam._situation_context()`). Command and design shapes live in output contracts.
+
+**Memory**: team `DiscourseBuffer` (shared) + per-agent `AgentMemory` (private). See `memory_limit` / `discourse_window` in `agents.yaml`.
+
+Message metadata includes `deliberation_phase`, `main_role`, and `decision_source` (`llm`, `rule_fallback`, `llm_guard_reject`).
+
+On parse/guard failure, rule fallback applies. Requires Ollama and a pulled model (default `qwen3.5:2b`, `temperature: 0.45`, `max_tokens: 320`).
 
 ## Where to read outputs
 
