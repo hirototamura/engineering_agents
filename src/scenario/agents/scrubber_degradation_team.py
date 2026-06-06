@@ -1,8 +1,5 @@
 """
-Rule-based agent team for scrubber_degradation only.
-
-Four human-assigned role labels (Monitor, Diagnostician, Operator, DesignEngineer).
-Not a generic role framework — see memo/backlog.md BL-001 for unlabeled Base Role research.
+Scrubber degradation agent team — rule-based labeled mode + persona LLM guarded mode.
 """
 
 from __future__ import annotations
@@ -10,8 +7,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.agents.base import Team
+from core.agents.memory import TeamMemoryStore
+from core.agents.persona import (
+    PersonaAgent,
+    load_personas,
+    message_contract,
+)
+from core.agents.types import (
+    AgentMessage,
+    AgentObservation,
+    DeliberationPhase,
+    StepAgentOutcome,
+)
 from core.llm.ollama import OllamaClient
-from core.llm.parsing import parse_json_response
 from environment.protocol import (
     CommandKind,
     DesignChange,
@@ -20,7 +29,17 @@ from environment.protocol import (
     RecoveryCommand,
     SimulatorProtocol,
 )
-from scenario.agents.types import AgentMessage, AgentObservation, StepAgentOutcome
+
+ROUND1_SPEAKERS: Tuple[Tuple[str, str, str], ...] = (
+    ("monitor", "team", "alert"),
+    ("diagnostician", "operator", "diagnosis"),
+    ("operator", "team", "assessment"),
+    ("design_engineer", "team", "assessment"),
+)
+ROUND2_SPEAKERS: Tuple[Tuple[str, str, str], ...] = (
+    ("monitor", "team", "alert"),
+    ("diagnostician", "operator", "diagnosis"),
+)
 
 
 @dataclass
@@ -33,9 +52,7 @@ class ScrubberTeamState:
     eps_boost_requested: bool = False
 
 
-class ScrubberDegradationTeam:
-    """Scenario-specific labeled roles for the scrubber degradation demo."""
-
+class ScrubberDegradationTeam(Team):
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.mode = config.get("mode", "labeled")
@@ -49,9 +66,26 @@ class ScrubberDegradationTeam:
         self.llm_enabled = self.llm_guarded
         self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_enabled else None
 
+        self.personas = load_personas(config)
+        self.memory_store = TeamMemoryStore(
+            agent_ids=list(self.personas.keys()),
+            memory_limit=int(config.get("memory_limit", 8)),
+            discourse_window=int(config.get("discourse_window", 12)),
+        )
+        self.agents: Dict[str, PersonaAgent] = {
+            agent_id: PersonaAgent(
+                persona=persona,
+                memory=self.memory_store.agent_memories[agent_id],
+                llm_client=self.llm_client,
+            )
+            for agent_id, persona in self.personas.items()
+        }
+
     def run_step(self, sim: SimulatorProtocol, obs: AgentObservation) -> StepAgentOutcome:
         if self.llm_guarded:
-            return self._run_step_llm_guarded(sim, obs)
+            outcome = self._run_step_llm_guarded(sim, obs)
+            self.memory_store.commit_step(outcome)
+            return outcome
         outcome = StepAgentOutcome()
         outcome.messages.extend(self._monitor(obs))
         outcome.messages.extend(self._diagnostician(obs))
@@ -69,107 +103,163 @@ class ScrubberDegradationTeam:
         for change in outcome.design_changes:
             sim.apply_design_change(change)
 
-    @staticmethod
-    def _attach_metadata(
-        messages: List[AgentMessage],
-        metadata: Dict[str, Any],
-    ) -> List[AgentMessage]:
-        for message in messages:
-            merged = dict(message.metadata)
-            merged.update(metadata)
-            message.metadata = merged
-        return messages
-
     def _run_step_llm_guarded(
         self,
         sim: SimulatorProtocol,
         obs: AgentObservation,
     ) -> StepAgentOutcome:
         outcome = StepAgentOutcome()
+        step_discourse: List[AgentMessage] = []
+        situation = self._situation_context(obs, self.monitor_cfg, self.design_cfg, self.operator_cfg)
 
-        monitor_msg = self._llm_role_message(
-            obs=obs,
-            role="monitor",
-            to_role="team",
-            message_type="alert",
-        )
-        if monitor_msg is not None:
-            outcome.messages.append(monitor_msg)
-        else:
-            fallback = self._monitor(obs)
-            outcome.messages.extend(self._attach_metadata(fallback, {"decision_source": "rule_fallback"}))
+        for agent_id, to_role, message_type in ROUND1_SPEAKERS:
+            if agent_id == "design_engineer" and not self._design_llm_eligible(obs):
+                continue
+            msg = self._llm_deliberation_turn(
+                obs=obs,
+                agent_id=agent_id,
+                to_role=to_role,
+                message_type=message_type,
+                phase=DeliberationPhase.INITIAL,
+                situation=situation,
+                step_discourse=step_discourse,
+                contract=message_contract(),
+                required=("message",),
+            )
+            if msg is not None:
+                outcome.messages.append(msg)
+                step_discourse.append(msg)
+            elif agent_id in {"monitor", "diagnostician"}:
+                fallback = self._rule_fallback_messages(obs, agent_id)
+                tagged = self._attach_metadata(
+                    fallback,
+                    {"decision_source": "rule_fallback", "deliberation_phase": DeliberationPhase.INITIAL},
+                )
+                outcome.messages.extend(tagged)
+                step_discourse.extend(tagged)
 
-        diagnosis_msg = self._llm_role_message(
-            obs=obs,
-            role="diagnostician",
-            to_role="operator",
-            message_type="diagnosis",
-        )
-        if diagnosis_msg is not None:
-            outcome.messages.append(diagnosis_msg)
-        else:
-            fallback = self._diagnostician(obs)
-            outcome.messages.extend(self._attach_metadata(fallback, {"decision_source": "rule_fallback"}))
+        for agent_id, to_role, message_type in ROUND2_SPEAKERS:
+            msg = self._llm_deliberation_turn(
+                obs=obs,
+                agent_id=agent_id,
+                to_role=to_role,
+                message_type=message_type,
+                phase=DeliberationPhase.REACT,
+                situation=situation,
+                step_discourse=step_discourse,
+                contract=message_contract(),
+                required=("message",),
+            )
+            if msg is not None:
+                outcome.messages.append(msg)
+                step_discourse.append(msg)
+            elif agent_id in {"monitor", "diagnostician"}:
+                fallback = self._rule_fallback_messages(obs, agent_id)
+                tagged = self._attach_metadata(
+                    fallback,
+                    {"decision_source": "rule_fallback", "deliberation_phase": DeliberationPhase.REACT},
+                )
+                outcome.messages.extend(tagged)
+                step_discourse.extend(tagged)
 
-        op_msgs, op_cmds = self._llm_operator(obs)
+        op_msgs, op_cmds = self._llm_operator_action(obs, situation, step_discourse)
         outcome.messages.extend(op_msgs)
         outcome.commands.extend(op_cmds)
 
-        design_msgs, design_changes = self._llm_design_engineer_guarded(sim, obs)
+        design_msgs, design_changes = self._llm_design_action(sim, obs, situation, step_discourse)
         outcome.messages.extend(design_msgs)
         outcome.design_changes.extend(design_changes)
         return outcome
 
-    def _llm_role_message(
+    def _llm_deliberation_turn(
         self,
+        *,
         obs: AgentObservation,
-        role: str,
+        agent_id: str,
         to_role: str,
         message_type: str,
+        phase: str,
+        situation: str,
+        step_discourse: List[AgentMessage],
+        contract: str,
+        required: tuple[str, ...],
     ) -> Optional[AgentMessage]:
-        contract = self._llm_output_contract()
-        prompt = (
-            f"Role: {role} in ECLSS scrubber_degradation. "
-            f"{contract} "
-            f"Telemetry: {self._telemetry_context(obs)}"
+        agent = self.agents[agent_id]
+        ctx = agent.build_context(
+            step=obs.step,
+            phase=phase,
+            situation=situation,
+            step_discourse=step_discourse,
+            team_discourse=self.memory_store.discourse.recent(),
         )
-        parsed = self._parse_llm(prompt=prompt, required=("message",))
+        parsed = agent.deliberate(
+            ctx,
+            contract,
+            PersonaAgent.phase_hint(phase),
+            required,
+        )
         if parsed is None:
             return None
-        message = parsed.data.get("message", "").strip()
+        message = str(parsed.data.get("message", "")).strip()
         if not message:
             return None
+        persona = self.personas[agent_id]
+        metadata: Dict[str, Any] = {
+            "decision_source": "llm",
+            "deliberation_phase": phase,
+            "main_role": persona.main_role,
+            "parse_status": parsed.status,
+            "parse_error": parsed.error,
+            "raw_response_excerpt": parsed.raw_excerpt,
+        }
+        llm_memory = parsed.data.get("memory")
+        if llm_memory:
+            metadata["llm_memory"] = str(llm_memory)
         return AgentMessage(
             step=obs.step,
-            from_role=role,
+            from_role=agent_id,
             to_role=to_role,
             message=message,
             message_type=message_type,
-            reasoning=parsed.data.get("reasoning", ""),
-            metadata={
-                "decision_source": "llm",
-                "parse_status": parsed.status,
-                "parse_error": parsed.error,
-                "raw_response_excerpt": parsed.raw_excerpt,
-            },
+            reasoning=str(parsed.data.get("reasoning", "")),
+            metadata=metadata,
         )
 
-    def _llm_operator(self, obs: AgentObservation) -> Tuple[List[AgentMessage], List[RecoveryCommand]]:
+    def _llm_operator_action(
+        self,
+        obs: AgentObservation,
+        situation: str,
+        step_discourse: List[AgentMessage],
+    ) -> Tuple[List[AgentMessage], List[RecoveryCommand]]:
         contract = (
             "Return ONLY one valid JSON object (multi-line is allowed). "
             "No markdown. No code fences. No prose outside JSON. "
             'Required keys: "message", "reasoning", "commands". '
+            'Optional key: "memory". '
             'commands must be a list of {"kind": "...", "value": ...} with kind in '
-            '["set_fan_speed","enable_bypass","reduce_load","request_eps_boost"].'
+            '["set_fan_speed","enable_bypass","reduce_load","request_eps_boost"]. '
+            "Empty commands is valid when deliberate inaction is safer."
         )
-        prompt = (
-            "Role: operator in ECLSS scrubber_degradation. "
-            f"{contract} Telemetry: {self._telemetry_context(obs)}"
+        agent = self.agents["operator"]
+        ctx = agent.build_context(
+            step=obs.step,
+            phase=DeliberationPhase.ACTION,
+            situation=situation,
+            step_discourse=step_discourse,
+            team_discourse=self.memory_store.discourse.recent(),
         )
-        parsed = self._parse_llm(prompt=prompt, required=("commands",))
+        parsed = agent.deliberate(
+            ctx,
+            contract,
+            "Issue recovery commands based on the full discussion. Apply guards mentally — avoid repeats.",
+            ("commands",),
+        )
         if parsed is None:
             fallback_msgs, fallback_cmds = self._operator(obs)
-            return self._attach_metadata(fallback_msgs, {"decision_source": "rule_fallback"}), fallback_cmds
+            return self._attach_metadata(
+                fallback_msgs,
+                {"decision_source": "rule_fallback", "deliberation_phase": DeliberationPhase.ACTION},
+            ), fallback_cmds
 
         message = parsed.data.get("message", "Operator assessed current state.")
         reasoning = parsed.data.get("reasoning", "")
@@ -186,33 +276,147 @@ class ScrubberDegradationTeam:
             if cmd is not None:
                 commands.append(cmd)
 
+        persona = self.personas["operator"]
+        base_meta: Dict[str, Any] = {
+            "decision_source": "llm",
+            "deliberation_phase": DeliberationPhase.ACTION,
+            "main_role": persona.main_role,
+            "parse_status": parsed.status,
+            "parse_error": parsed.error,
+            "raw_response_excerpt": parsed.raw_excerpt,
+            "guard_notes": guard_notes,
+        }
+        if parsed.data.get("memory"):
+            base_meta["llm_memory"] = str(parsed.data["memory"])
+
         if not commands:
             fallback_msgs, fallback_cmds = self._operator(obs)
-            fallback_meta = {
-                "decision_source": "rule_fallback",
-                "parse_status": parsed.status,
-                "parse_error": parsed.error,
-                "raw_response_excerpt": parsed.raw_excerpt,
-                "guard_notes": guard_notes,
-            }
-            return self._attach_metadata(fallback_msgs, fallback_meta), fallback_cmds
+            base_meta["decision_source"] = "rule_fallback"
+            return self._attach_metadata(fallback_msgs, base_meta), fallback_cmds
 
         llm_msg = AgentMessage(
             step=obs.step,
             from_role="operator",
             to_role="team",
-            message=message,
+            message=str(message),
             message_type="recovery_command",
-            reasoning=reasoning,
-            metadata={
-                "decision_source": "llm",
-                "parse_status": parsed.status,
-                "parse_error": parsed.error,
-                "raw_response_excerpt": parsed.raw_excerpt,
-                "guard_notes": guard_notes,
-            },
+            reasoning=str(reasoning),
+            metadata=base_meta,
         )
         return [llm_msg], commands
+
+    def _llm_design_action(
+        self,
+        sim: SimulatorProtocol,
+        obs: AgentObservation,
+        situation: str,
+        step_discourse: List[AgentMessage],
+    ) -> Tuple[List[AgentMessage], List[DesignChange]]:
+        if not self._design_llm_eligible(obs) or self.state.design_change_applied:
+            return [], []
+
+        allowed_nodes = {node.id for node in sim.get_topology().nodes}
+        allowed_params = set(self.design_cfg.get("allowed_parameters", ["scrubber_base_efficiency"]))
+        contract = (
+            "Return ONLY one valid JSON object (multi-line is allowed). "
+            "No markdown. No code fences. No prose outside JSON. "
+            'Required keys: "apply_change", "change_kind", "payload", "message", "reasoning". '
+            'Optional key: "memory". '
+            'change_kind in ["add_edge","set_parameter"].'
+        )
+        agent = self.agents["design_engineer"]
+        ctx = agent.build_context(
+            step=obs.step,
+            phase=DeliberationPhase.ACTION,
+            situation=situation,
+            step_discourse=step_discourse,
+            team_discourse=self.memory_store.discourse.recent(),
+        )
+        parsed = agent.deliberate(
+            ctx,
+            contract,
+            "Propose a guarded design change only if the discussion supports it.",
+            ("apply_change", "change_kind", "payload"),
+        )
+        if parsed is None:
+            fallback_msgs, fallback_changes = self._design_engineer(obs)
+            return self._attach_metadata(
+                fallback_msgs,
+                {"decision_source": "rule_fallback", "deliberation_phase": DeliberationPhase.ACTION},
+            ), fallback_changes
+
+        apply_change = bool(parsed.data.get("apply_change"))
+        if not apply_change:
+            return [], []
+
+        change_kind = str(parsed.data.get("change_kind", "")).strip()
+        payload = parsed.data.get("payload", {})
+        if not isinstance(payload, dict):
+            payload = {}
+
+        guarded_change, guard_reason = self._guard_design_change(
+            change_kind=change_kind,
+            payload=payload,
+            allowed_nodes=allowed_nodes,
+            allowed_parameters=allowed_params,
+        )
+        persona = self.personas["design_engineer"]
+        base_meta: Dict[str, Any] = {
+            "deliberation_phase": DeliberationPhase.ACTION,
+            "main_role": persona.main_role,
+            "parse_status": parsed.status,
+            "parse_error": parsed.error,
+            "raw_response_excerpt": parsed.raw_excerpt,
+        }
+        if parsed.data.get("memory"):
+            base_meta["llm_memory"] = str(parsed.data["memory"])
+
+        if guarded_change is None:
+            reject_msg = AgentMessage(
+                step=obs.step,
+                from_role="design_engineer",
+                to_role="team",
+                message="Guard rejected LLM design proposal; keeping current design.",
+                message_type="design_guard_reject",
+                reasoning=guard_reason or "invalid proposal",
+                metadata={**base_meta, "decision_source": "llm_guard_reject"},
+            )
+            return [reject_msg], []
+
+        self.state.design_change_applied = True
+        apply_msg = AgentMessage(
+            step=obs.step,
+            from_role="design_engineer",
+            to_role="team",
+            message=parsed.data.get("message", "Applying guarded design change."),
+            message_type="design_change",
+            reasoning=parsed.data.get("reasoning", ""),
+            metadata={**base_meta, "decision_source": "llm", "guard_reason": guard_reason},
+        )
+        return [apply_msg], [guarded_change]
+
+    def _design_llm_eligible(self, obs: AgentObservation) -> bool:
+        min_step = int(self.design_cfg.get("min_step", 35))
+        co2_threshold = float(self.design_cfg.get("co2_threshold_ppm", 1000))
+        return obs.step >= min_step and obs.telemetry.co2_ppm >= co2_threshold
+
+    def _rule_fallback_messages(self, obs: AgentObservation, agent_id: str) -> List[AgentMessage]:
+        if agent_id == "monitor":
+            return self._monitor(obs)
+        if agent_id == "diagnostician":
+            return self._diagnostician(obs)
+        return []
+
+    @staticmethod
+    def _attach_metadata(
+        messages: List[AgentMessage],
+        metadata: Dict[str, Any],
+    ) -> List[AgentMessage]:
+        for message in messages:
+            merged = dict(message.metadata)
+            merged.update(metadata)
+            message.metadata = merged
+        return messages
 
     @staticmethod
     def _coerce_true_boolean(value: Any) -> Tuple[Optional[bool], Optional[str]]:
@@ -224,7 +428,7 @@ class ScrubberDegradationTeam:
                 return True, None
             if normalized in {"false", "0", "no"}:
                 return False, None
-        return None, "value must be true (boolean or \"true\" string)"
+        return None, 'value must be true (boolean or "true" string)'
 
     def _eps_boost_request_allowed(self, obs: Optional[AgentObservation]) -> Tuple[bool, Optional[str]]:
         if obs is not None and obs.telemetry.eps_support_steps_remaining > 0:
@@ -297,85 +501,6 @@ class ScrubberDegradationTeam:
             )
         return None, f"unsupported operator command kind: {kind}"
 
-    def _llm_design_engineer_guarded(
-        self,
-        sim: SimulatorProtocol,
-        obs: AgentObservation,
-    ) -> Tuple[List[AgentMessage], List[DesignChange]]:
-        if self.state.design_change_applied:
-            return [], []
-
-        min_step = int(self.design_cfg.get("min_step", 35))
-        co2_threshold = float(self.design_cfg.get("co2_threshold_ppm", 1000))
-        if obs.step < min_step or obs.telemetry.co2_ppm < co2_threshold:
-            return [], []
-
-        allowed_nodes = {node.id for node in sim.get_topology().nodes}
-        allowed_params = set(self.design_cfg.get("allowed_parameters", ["scrubber_base_efficiency"]))
-        contract = (
-            "Return ONLY one valid JSON object (multi-line is allowed). "
-            "No markdown. No code fences. No prose outside JSON. "
-            'Required keys: "apply_change", "change_kind", "payload", "message", "reasoning". '
-            'change_kind in ["add_edge","set_parameter"].'
-        )
-        prompt = (
-            "Role: design_engineer in ECLSS scrubber_degradation. "
-            f"{contract} Telemetry: {self._telemetry_context(obs)}"
-        )
-        parsed = self._parse_llm(prompt=prompt, required=("apply_change", "change_kind", "payload"))
-        if parsed is None:
-            fallback_msgs, fallback_changes = self._design_engineer(obs)
-            return self._attach_metadata(fallback_msgs, {"decision_source": "rule_fallback"}), fallback_changes
-
-        apply_change = bool(parsed.data.get("apply_change"))
-        if not apply_change:
-            return [], []
-        change_kind = str(parsed.data.get("change_kind", "")).strip()
-        payload = parsed.data.get("payload", {})
-        if not isinstance(payload, dict):
-            payload = {}
-
-        guarded_change, guard_reason = self._guard_design_change(
-            change_kind=change_kind,
-            payload=payload,
-            allowed_nodes=allowed_nodes,
-            allowed_parameters=allowed_params,
-        )
-        if guarded_change is None:
-            reject_msg = AgentMessage(
-                step=obs.step,
-                from_role="design_engineer",
-                to_role="team",
-                message="Guard rejected LLM design proposal; keeping current design.",
-                message_type="design_guard_reject",
-                reasoning=guard_reason or "invalid proposal",
-                metadata={
-                    "decision_source": "llm_guard_reject",
-                    "parse_status": parsed.status,
-                    "parse_error": parsed.error,
-                    "raw_response_excerpt": parsed.raw_excerpt,
-                },
-            )
-            return [reject_msg], []
-
-        self.state.design_change_applied = True
-        apply_msg = AgentMessage(
-            step=obs.step,
-            from_role="design_engineer",
-            to_role="team",
-            message=parsed.data.get("message", "Applying guarded design change."),
-            message_type="design_change",
-            reasoning=parsed.data.get("reasoning", ""),
-            metadata={
-                "decision_source": "llm",
-                "parse_status": parsed.status,
-                "parse_error": parsed.error,
-                "raw_response_excerpt": parsed.raw_excerpt,
-                "guard_reason": guard_reason,
-            },
-        )
-        return [apply_msg], [guarded_change]
-
     @staticmethod
     def _guard_design_change(
         change_kind: str,
@@ -423,22 +548,13 @@ class ScrubberDegradationTeam:
             )
         return None, f"unsupported change_kind: {change_kind}"
 
-    def _parse_llm(self, prompt: str, required: tuple[str, ...]):
-        raw = ""
-        if self.llm_client is not None:
-            raw = self.llm_client.generate(prompt)
-        parsed = parse_json_response(raw, required=required)
-        if parsed.status in {"fallback", "empty_response"}:
-            return None
-        return parsed
-
     @staticmethod
     def _build_llm_client(llm_cfg: Dict[str, Any]) -> OllamaClient:
         return OllamaClient(
             base_url=str(llm_cfg.get("base_url", "http://localhost:11434")),
             model=str(llm_cfg.get("model", "llama3.2")),
-            temperature=float(llm_cfg.get("temperature", 0.1)),
-            max_tokens=int(llm_cfg.get("max_tokens", 200)),
+            temperature=float(llm_cfg.get("temperature", 0.45)),
+            max_tokens=int(llm_cfg.get("max_tokens", 320)),
             repeat_penalty=float(llm_cfg.get("repeat_penalty", 1.1)),
             repeat_last_n=int(llm_cfg.get("repeat_last_n", 128)),
             min_p=float(llm_cfg.get("min_p", 0.05)),
@@ -450,8 +566,26 @@ class ScrubberDegradationTeam:
     def _rule_metadata() -> Dict[str, Any]:
         return {"decision_source": "rule"}
 
-    def _telemetry_context(self, obs: AgentObservation) -> str:
-        return (
+    @staticmethod
+    def _situation_context(
+        obs: AgentObservation,
+        monitor_cfg: Dict[str, Any],
+        design_cfg: Dict[str, Any],
+        operator_cfg: Dict[str, Any],
+    ) -> str:
+        """Scenario briefing + live telemetry — kept separate from persona definitions."""
+        alert_ppm = float(monitor_cfg.get("co2_alert_ppm", 900))
+        recovery_ppm = float(operator_cfg.get("co2_recovery_ppm", 1000))
+        design_min_step = int(design_cfg.get("min_step", 35))
+        design_co2 = float(design_cfg.get("co2_threshold_ppm", 1000))
+        mission = (
+            "Scenario: scrubber_degradation. Closed-habitat ECLSS ops. "
+            "Anomaly may reduce scrubber efficiency and increase CO2 load; "
+            "power margin may shrink. Rule thresholds (for reference): "
+            f"monitor alert {alert_ppm:.0f} ppm, recovery band {recovery_ppm:.0f} ppm, "
+            f"design change from step {design_min_step} when CO2 >= {design_co2:.0f} ppm."
+        )
+        telemetry = (
             f"step={obs.step}, co2_ppm={obs.telemetry.co2_ppm:.2f}, "
             f"scrubber_efficiency={obs.telemetry.scrubber_efficiency:.4f}, "
             f"power_margin_w={obs.telemetry.power_margin_w:.2f}, "
@@ -459,15 +593,7 @@ class ScrubberDegradationTeam:
             f"load_reduced={obs.telemetry.load_reduced}, anomaly_flags={obs.telemetry.anomaly_flags}, "
             f"co2_status={obs.health.co2_status.value}, power_status={obs.health.power_status.value}"
         )
-
-    @staticmethod
-    def _llm_output_contract() -> str:
-        return (
-            "Return ONLY one valid JSON object (multi-line is allowed). "
-            "No markdown. No code fences. No prose outside JSON. "
-            'Required keys: "message", "reasoning". '
-            'Example: {"message":"CO2 rising; boost fan.","reasoning":"co2_ppm crossed threshold"}'
-        )
+        return f"{mission}\nTelemetry: {telemetry}"
 
     def _monitor(self, obs: AgentObservation) -> List[AgentMessage]:
         threshold = float(self.monitor_cfg.get("co2_alert_ppm", 900))
