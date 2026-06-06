@@ -94,31 +94,50 @@ def test_scrubber_degradation_labeled_llm_guarded_changes_provenance_and_paramet
     class FakeClient:
         def generate(self, prompt: str) -> str:
             lower = prompt.lower()
-            if "role: monitor" in lower:
+            if "agent_id: monitor" in lower and "phase: deliberation_initial" in lower:
                 return json.dumps(
                     {
                         "message": "LLM monitor: CO2 trend requires attention.",
                         "reasoning": "co2 trajectory is rising",
                     }
                 )
-            if "role: diagnostician" in lower:
+            if "agent_id: diagnostician" in lower and "phase: deliberation_initial" in lower:
                 return json.dumps(
                     {
                         "message": "LLM diagnosis: scrubber degradation confirmed.",
                         "reasoning": "anomaly flags and efficiency drop align",
                     }
                 )
-            if "role: operator" in lower:
-                # Empty commands → rule_fallback so CO2 can exceed 1000 before step 35
-                # (aggressive LLM ops from step 1 prevent design_engineer thresholds).
-                    return json.dumps(
-                        {
-                            "message": "LLM operator: defer to rule recovery timing.",
-                            "reasoning": "test harness keeps anomaly narrative",
-                            "commands": [],
-                        }
-                    )
-            if "role: design_engineer" in lower:
+            if "agent_id: operator" in lower and "phase: deliberation_initial" in lower:
+                return json.dumps(
+                    {
+                        "message": "Assessing recovery options.",
+                        "reasoning": "waiting for more data",
+                    }
+                )
+            if "agent_id: monitor" in lower and "phase: deliberation_react" in lower:
+                return json.dumps(
+                    {
+                        "message": "Monitor reacts: trend still concerning.",
+                        "reasoning": "no improvement in co2 slope",
+                    }
+                )
+            if "agent_id: diagnostician" in lower and "phase: deliberation_react" in lower:
+                return json.dumps(
+                    {
+                        "message": "Diagnostician reacts: degradation confirmed.",
+                        "reasoning": "efficiency still falling",
+                    }
+                )
+            if "agent_id: operator" in lower and "phase: action" in lower:
+                return json.dumps(
+                    {
+                        "message": "LLM operator: defer to rule recovery timing.",
+                        "reasoning": "test harness keeps anomaly narrative",
+                        "commands": [],
+                    }
+                )
+            if "agent_id: design_engineer" in lower and "phase: action" in lower:
                 return json.dumps(
                     {
                         "apply_change": True,
@@ -149,6 +168,8 @@ def test_scrubber_degradation_labeled_llm_guarded_changes_provenance_and_paramet
     assert summary["agents_mode"] == "labeled_llm_guarded"
     assert summary["provenance_record_count"] >= 1
     assert any(m.get("decision_source") == "llm" for m in messages)
+    assert any(m.get("deliberation_phase") == "deliberation_initial" for m in messages)
+    assert any(m.get("deliberation_phase") == "action" for m in messages)
     assert any(p.get("change_kind") == "set_parameter" for p in provenance)
     assert any(
         p.get("trace", {}).get("decision_source") == "llm" for p in provenance

@@ -1,13 +1,33 @@
-# scrubber_degradation — scenario-specific labeled agent configuration (Day 4+).
-# Not a generic role framework. See memo/backlog.md BL-001.
+# scrubber_degradation — agent config (persona stubs until Day 7 workshop)
 
 mode: labeled
+
+memory_limit: 8
+discourse_window: 12
+
+personas:
+  monitor:
+    main_role: "Environmental sentinel"
+    persona: |
+      STUB — Day 7 workshop. Watch CO2 trends; speak when drift matters.
+  diagnostician:
+    main_role: "Fault analyst"
+    persona: |
+      STUB — Day 7 workshop. Form hypotheses from anomaly flags.
+  operator:
+    main_role: "Recovery tactician"
+    persona: |
+      STUB — Day 7 workshop. Minimal safe recovery from debate.
+  design_engineer:
+    main_role: "Resilience architect"
+    persona: |
+      STUB — Day 7 workshop. Structural fixes when ops insufficient.
 
 llm:
   base_url: http://localhost:11434
   model: qwen3.5:2b
-  temperature: 0.1
-  max_tokens: 200
+  temperature: 0.45
+  max_tokens: 320
   repeat_penalty: 1.1
   repeat_last_n: 128
   min_p: 0.05
