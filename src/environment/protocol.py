@@ -17,6 +17,7 @@ class CommandKind(str, Enum):
     SET_FAN_SPEED = "set_fan_speed"
     ENABLE_BYPASS = "enable_bypass"
     REDUCE_LOAD = "reduce_load"
+    REQUEST_EPS_BOOST = "request_eps_boost"
 
 
 class DesignChangeKind(str, Enum):
@@ -59,6 +60,8 @@ class TelemetrySnapshot:
     fan_speed: float
     bypass_enabled: bool
     load_reduced: bool
+    eps_support_w: float = 0.0
+    eps_support_steps_remaining: int = 0
     anomaly_flags: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:

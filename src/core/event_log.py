@@ -14,6 +14,7 @@ class EventLog:
         "messages",
         "telemetry",
         "health_metrics",
+        "eps_telemetry",
         "events",
         "design_state",
         "memory_reasoning",

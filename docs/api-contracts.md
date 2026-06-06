@@ -4,7 +4,7 @@ Living document. Update when protocol, agent modes, or log schemas change.
 
 ## SimulatorProtocol
 
-Implementations: `MockEclssSimulator` (current), `SsosAdapter` (deferred).
+Implementations: `StationSimulator` (ECLSS + EPS, default for scenarios), `MockEclssSimulator` (plant-only), `SsosAdapter` (deferred).
 
 | Method | Returns | Description |
 | --- | --- | --- |
@@ -27,6 +27,8 @@ Implementations: `MockEclssSimulator` (current), `SsosAdapter` (deferred).
   "fan_speed": 0.7,
   "bypass_enabled": false,
   "load_reduced": false,
+  "eps_support_w": 120.0,
+  "eps_support_steps_remaining": 4,
   "anomaly_flags": ["scrubber_degradation"]
 }
 ```
@@ -41,7 +43,7 @@ Implementations: `MockEclssSimulator` (current), `SsosAdapter` (deferred).
 }
 ```
 
-Supported `kind` values: `set_fan_speed`, `enable_bypass`, `reduce_load`.
+Supported `kind` values: `set_fan_speed`, `enable_bypass`, `reduce_load`, `request_eps_boost`.
 
 ### DesignChange
 
@@ -70,7 +72,7 @@ Set in `src/scenario/scrubber_degradation/scenario.yaml` (`agents.mode`). Role t
 | --- | --- | --- | --- |
 | `none` | — | — | — |
 | `labeled` | `ScrubberDegradationTeam` | Rules | Rule messages only |
-| `labeled_shadow` | Same team | Rules (unchanged) | Rule + LLM shadow messages |
+| `labeled_llm_guarded` | Same team | LLM with guards + rule fallback | LLM or `rule_fallback` messages |
 
 Future: `base` (unlabeled emergent roles) — see [memo/backlog.md](../memo/backlog.md) BL-001.
 
@@ -84,7 +86,24 @@ Future: `base` (unlabeled emergent roles) — see [memo/backlog.md](../memo/back
 | `/eclss/command/set_fan_speed` | sub | float 0–1 |
 | `/eclss/command/enable_bypass` | sub | bool |
 | `/eclss/command/reduce_load` | sub | bool |
+| `/eclss/command/request_eps_boost` | sub | float watts (0, 500] |
 | `/eclss/events/design_change` | event | DesignChange dict |
+
+## ROS2-like EPS topics (`environment/ssos/eps_topics.py`)
+
+Inspired by [space_station_eps](https://github.com/space-station-os/space_station_os/tree/main/space_station_eps). Mock implementations: `MockSarj`, `MockBcdu`, `EpsStack` (EPS-3 couples to ECLSS).
+
+| Topic | Direction | Payload |
+| --- | --- | --- |
+| `/solar/voltage` | pub | float V (SARJ estimate) |
+| `/bcdu/operation` | sub | discharge goal: `{support_w, duration_steps}` |
+| `/bcdu/status` | pub | `BcduStatus` dict — `mode`, `bus_voltage_v`, `support_w`, `fault`, … |
+| `/eps/diagnostics` | pub | `EpsDiagnostics` dict |
+| `/eps/eclss/load_request_w` | pub | float W (bridge topic; EPS-3) |
+
+**BCDU `mode` values**: `idle`, `charging`, `discharging`, `fault`, `safe`.
+
+**Discharge contract** (`MockBcdu.request_discharge`): `support_w` in (0, 500], `duration_steps` ≥ 1, bus voltage in [70, 120] V. On fault, mode latches `fault` and further discharge requests fail.
 
 ## JSONL event streams
 
@@ -92,7 +111,7 @@ All runs write under `src/experiments/results/<run_id>/`.
 
 ### messages.jsonl
 
-Written when `agents.mode` is `labeled` or `labeled_shadow`.
+Written when `agents.mode` is `labeled` or `labeled_llm_guarded`.
 
 **Rule message:**
 
@@ -108,7 +127,7 @@ Written when `agents.mode` is `labeled` or `labeled_shadow`.
 }
 ```
 
-**LLM shadow message** — same step may also include:
+**LLM guarded message** (`labeled_llm_guarded`):
 
 ```json
 {
@@ -116,9 +135,9 @@ Written when `agents.mode` is `labeled` or `labeled_shadow`.
   "from_role": "operator",
   "to_role": "team",
   "message": "...",
-  "message_type": "llm_shadow_operator",
+  "message_type": "recovery_command",
   "reasoning": "...",
-  "decision_source": "llm_shadow",
+  "decision_source": "llm",
   "parse_status": "ok",
   "parse_error": null,
   "raw_response_excerpt": "..."
@@ -129,8 +148,7 @@ Written when `agents.mode` is `labeled` or `labeled_shadow`.
 
 | Type | Source |
 | --- | --- |
-| `alert`, `diagnosis`, `recovery_command`, `design_change` | Rule |
-| `llm_shadow_monitor`, `llm_shadow_diagnosis`, `llm_shadow_operator`, `llm_shadow_design` | LLM shadow |
+| `alert`, `diagnosis`, `recovery_command`, `design_change` | Rule or LLM guarded |
 
 ### telemetry.jsonl
 
@@ -140,6 +158,25 @@ Raw physics snapshot per step (same fields as `TelemetrySnapshot`).
 
 ```json
 {"step": 5, "co2_status": "safe", "power_status": "safe", "overall": "safe"}
+```
+
+### eps_telemetry.jsonl
+
+Written for `mock_station` runs (EPS-4). One row per step from SARJ + BCDU.
+
+```json
+{
+  "step": 22,
+  "solar_voltage_v": 113.14,
+  "beta_angle_deg": 45.0,
+  "in_eclipse": false,
+  "bcdu_mode": "discharging",
+  "bus_voltage_v": 110.0,
+  "support_w": 120.0,
+  "support_steps_remaining": 3,
+  "fault": false,
+  "fault_message": ""
+}
 ```
 
 ### events.jsonl
@@ -179,25 +216,29 @@ Run-level KPIs written once at end.
 ```json
 {
   "scenario": "scrubber_degradation",
-  "simulator": "mock_eclss",
+  "simulator": "mock_station",
   "agents_mode": "labeled",
   "steps": 50,
   "peak_co2_ppm": 1016.34,
   "final_co2_ppm": 967.2,
-  "final_health": {"step": 50, "co2_status": "safe", "power_status": "critical", "overall": "critical"},
+  "final_power_margin_w": -42.5,
+  "min_power_margin_w": -128.0,
+  "eps_boost_applied_step": 28,
+  "power_recovered_above_critical_step": 32,
+  "final_health": {"step": 50, "co2_status": "safe", "power_status": "warning", "overall": "warning"},
   "anomaly_seen": true,
   "co2_above_threshold_step": 33,
   "co2_recovered_below_threshold_step": 40,
   "message_count": 59,
   "design_change_count": 1,
   "provenance_path": "src/experiments/results/scrubber_degradation_labeled/provenance.jsonl",
-  "provenance_record_count": 1
+  "provenance_record_count": 2
 }
 ```
 
-### provenance.jsonl (Day 5B+)
+### provenance.jsonl (Day 5B+ / EPS-4)
 
-One Piece-compatible design-change provenance record generated from run outputs.
+One Piece-compatible provenance records: **design changes** and **EPS recovery** (`request_eps_boost`).
 
 ```json
 {
@@ -215,6 +256,20 @@ One Piece-compatible design-change provenance record generated from run outputs.
 }
 ```
 
+**Recovery record** (`record_type: recovery`):
+
+```json
+{
+  "record_id": "scrubber_degradation_labeled:recovery:2",
+  "record_type": "recovery",
+  "change_kind": "request_eps_boost",
+  "step": 28,
+  "actor": "operator",
+  "payload": {"support_w": 120.0, "eps": {"bcdu_mode": "discharging"}},
+  "trace": {"event_kind": "/eclss/events/recovery_applied", "decision_source": "rule"}
+}
+```
+
 ## Running scenarios
 
 ```bash
@@ -224,16 +279,16 @@ python src/scripts/run_mock_eclss.py
 # Labeled rule team
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
 
-# LLM shadow (requires Ollama; actions still rule-based)
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_shadow'}})"
+# LLM guarded (requires Ollama)
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}})"
 ```
 
 Programmatic recovery smoke test:
 
 ```python
 from environment.protocol import CommandKind, RecoveryCommand
-from environment.ssos.mock_eclss import MockEclssSimulator
+from environment.ssos import StationSimulator, MockEclssSimulator
 
-sim = MockEclssSimulator()
-sim.apply_command(RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value=1.0))
+station = StationSimulator(MockEclssSimulator())
+station.apply_command(RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=120.0))
 ```

@@ -10,6 +10,7 @@ TELEMETRY_HEALTH = "/eclss/telemetry/health_summary"
 CMD_SET_FAN_SPEED = "/eclss/command/set_fan_speed"
 CMD_ENABLE_BYPASS = "/eclss/command/enable_bypass"
 CMD_REDUCE_LOAD = "/eclss/command/reduce_load"
+CMD_REQUEST_EPS_BOOST = "/eclss/command/request_eps_boost"
 
 # Design (agents → SSOT / simulator)
 DESIGN_APPLY_CHANGE = "/eclss/design/apply_change"
@@ -32,4 +33,5 @@ ALL_COMMAND_TOPICS = (
     CMD_SET_FAN_SPEED,
     CMD_ENABLE_BYPASS,
     CMD_REDUCE_LOAD,
+    CMD_REQUEST_EPS_BOOST,
 )

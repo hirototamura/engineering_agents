@@ -9,6 +9,7 @@ from environment.eclss_ops.commands import apply_command_to_state, validate_comm
 from environment.eclss_ops.design_state import DesignStateManager, default_parameters
 from environment.protocol import (
     AnomalySpec,
+    CommandKind,
     CommandResult,
     DesignChange,
     DesignState,
@@ -96,6 +97,11 @@ class MockEclssSimulator:
         if error:
             return error
 
+        if cmd.kind == CommandKind.REQUEST_EPS_BOOST:
+            return CommandResult(
+                success=False,
+                message="request_eps_boost requires StationSimulator (EPS facade)",
+            )
         self.fan_speed, self.bypass_enabled, self.load_reduced, msg = apply_command_to_state(
             cmd, self.fan_speed, self.bypass_enabled, self.load_reduced
         )
@@ -144,5 +150,7 @@ class MockEclssSimulator:
             fan_speed=round(self.fan_speed, 3),
             bypass_enabled=self.bypass_enabled,
             load_reduced=self.load_reduced,
+            eps_support_w=0.0,
+            eps_support_steps_remaining=0,
             anomaly_flags=list(anomaly_flags),
         )

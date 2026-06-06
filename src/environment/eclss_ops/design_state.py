@@ -43,6 +43,7 @@ def default_parameters() -> Dict[str, float]:
         "permanent_bypass_power_w": 20.0,
         "load_reduction_factor": 0.6,
         "base_power_draw_w": 200.0,
+        "eps_support_duration_steps": 5.0,
     }
 
 

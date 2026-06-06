@@ -44,6 +44,11 @@ def test_scrubber_degradation_baseline_runs(tmp_path: Path):
     assert injected[0]["step"] == 0
     assert (run_dir / "provenance.jsonl").exists()
     assert summary["provenance_record_count"] == 0
+    assert (run_dir / "eps_telemetry.jsonl").exists()
+    eps_rows = _read_jsonl(run_dir / "eps_telemetry.jsonl")
+    assert len(eps_rows) == 50
+    assert "solar_voltage_v" in eps_rows[0]
+    assert summary["min_power_margin_w"] is not None
 
 
 def test_scrubber_degradation_pre_anomaly_near_equilibrium(tmp_path: Path):

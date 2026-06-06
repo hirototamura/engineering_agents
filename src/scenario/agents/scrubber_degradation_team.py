@@ -18,8 +18,8 @@ from environment.protocol import (
     DesignChangeKind,
     HealthStatus,
     RecoveryCommand,
+    SimulatorProtocol,
 )
-from environment.ssos.mock_eclss import MockEclssSimulator
 from scenario.agents.types import AgentMessage, AgentObservation, StepAgentOutcome
 
 
@@ -30,6 +30,7 @@ class ScrubberTeamState:
     load_reduced: bool = False
     design_change_applied: bool = False
     alert_sent: bool = False
+    eps_boost_requested: bool = False
 
 
 class ScrubberDegradationTeam:
@@ -44,12 +45,11 @@ class ScrubberDegradationTeam:
         self.diagnostician_cfg = roles.get("diagnostician", {})
         self.operator_cfg = roles.get("operator", {})
         self.design_cfg = roles.get("design_engineer", {})
-        self.llm_shadow = self.mode == "labeled_shadow"
         self.llm_guarded = self.mode == "labeled_llm_guarded"
-        self.llm_enabled = self.llm_shadow or self.llm_guarded
+        self.llm_enabled = self.llm_guarded
         self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_enabled else None
 
-    def run_step(self, sim: MockEclssSimulator, obs: AgentObservation) -> StepAgentOutcome:
+    def run_step(self, sim: SimulatorProtocol, obs: AgentObservation) -> StepAgentOutcome:
         if self.llm_guarded:
             return self._run_step_llm_guarded(sim, obs)
         outcome = StepAgentOutcome()
@@ -61,11 +61,9 @@ class ScrubberDegradationTeam:
         des_msgs, des_changes = self._design_engineer(obs)
         outcome.messages.extend(des_msgs)
         outcome.design_changes.extend(des_changes)
-        if self.llm_shadow:
-            outcome.messages.extend(self._llm_shadow_messages(obs))
         return outcome
 
-    def apply_outcome(self, sim: MockEclssSimulator, outcome: StepAgentOutcome) -> None:
+    def apply_outcome(self, sim: SimulatorProtocol, outcome: StepAgentOutcome) -> None:
         for cmd in outcome.commands:
             sim.apply_command(cmd)
         for change in outcome.design_changes:
@@ -84,7 +82,7 @@ class ScrubberDegradationTeam:
 
     def _run_step_llm_guarded(
         self,
-        sim: MockEclssSimulator,
+        sim: SimulatorProtocol,
         obs: AgentObservation,
     ) -> StepAgentOutcome:
         outcome = StepAgentOutcome()
@@ -129,7 +127,7 @@ class ScrubberDegradationTeam:
         to_role: str,
         message_type: str,
     ) -> Optional[AgentMessage]:
-        contract = self._shadow_output_contract()
+        contract = self._llm_output_contract()
         prompt = (
             f"Role: {role} in ECLSS scrubber_degradation. "
             f"{contract} "
@@ -162,7 +160,7 @@ class ScrubberDegradationTeam:
             "No markdown. No code fences. No prose outside JSON. "
             'Required keys: "message", "reasoning", "commands". '
             'commands must be a list of {"kind": "...", "value": ...} with kind in '
-            '["set_fan_speed","enable_bypass","reduce_load"].'
+            '["set_fan_speed","enable_bypass","reduce_load","request_eps_boost"].'
         )
         prompt = (
             "Role: operator in ECLSS scrubber_degradation. "
@@ -182,7 +180,7 @@ class ScrubberDegradationTeam:
             raw_commands = []
 
         for item in raw_commands:
-            cmd, note = self._guard_operator_command(item)
+            cmd, note = self._guard_operator_command(item, obs=obs)
             if note:
                 guard_notes.append(note)
             if cmd is not None:
@@ -216,7 +214,32 @@ class ScrubberDegradationTeam:
         )
         return [llm_msg], commands
 
-    def _guard_operator_command(self, item: Any) -> Tuple[Optional[RecoveryCommand], Optional[str]]:
+    @staticmethod
+    def _coerce_true_boolean(value: Any) -> Tuple[Optional[bool], Optional[str]]:
+        if value is True:
+            return True, None
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized == "true":
+                return True, None
+            if normalized in {"false", "0", "no"}:
+                return False, None
+        return None, "value must be true (boolean or \"true\" string)"
+
+    def _eps_boost_request_allowed(self, obs: Optional[AgentObservation]) -> Tuple[bool, Optional[str]]:
+        if obs is not None and obs.telemetry.eps_support_steps_remaining > 0:
+            return False, "eps boost already active"
+        if not self.state.eps_boost_requested:
+            return True, None
+        if obs is not None and obs.health.power_status == HealthStatus.CRITICAL:
+            return True, None
+        return False, "eps boost already requested; re-request requires power critical"
+
+    def _guard_operator_command(
+        self,
+        item: Any,
+        obs: Optional[AgentObservation] = None,
+    ) -> Tuple[Optional[RecoveryCommand], Optional[str]]:
         if not isinstance(item, dict):
             return None, "operator command is not an object"
         kind = str(item.get("kind", "")).strip()
@@ -238,8 +261,9 @@ class ScrubberDegradationTeam:
         if kind == "enable_bypass":
             if self.state.bypass_enabled:
                 return None, "bypass already enabled"
-            if value is not True:
-                return None, "bypass value must be literal true boolean"
+            coerced, coerce_error = self._coerce_true_boolean(value)
+            if coerce_error is not None or coerced is not True:
+                return None, coerce_error or "bypass value must be true"
             self.state.bypass_enabled = True
             return (
                 RecoveryCommand(kind=CommandKind.ENABLE_BYPASS, value=True, issued_by="operator"),
@@ -248,18 +272,34 @@ class ScrubberDegradationTeam:
         if kind == "reduce_load":
             if self.state.load_reduced:
                 return None, "load already reduced"
-            if value is not True:
-                return None, "reduce_load value must be literal true boolean"
+            coerced, coerce_error = self._coerce_true_boolean(value)
+            if coerce_error is not None or coerced is not True:
+                return None, coerce_error or "reduce_load value must be true"
             self.state.load_reduced = True
             return (
                 RecoveryCommand(kind=CommandKind.REDUCE_LOAD, value=True, issued_by="operator"),
+                None,
+            )
+        if kind == "request_eps_boost":
+            allowed, allow_note = self._eps_boost_request_allowed(obs)
+            if not allowed:
+                return None, allow_note
+            try:
+                watts = float(value)
+            except (TypeError, ValueError):
+                return None, "eps boost value must be numeric"
+            if not (0.0 < watts <= 500.0):
+                return None, "eps boost out of range"
+            self.state.eps_boost_requested = True
+            return (
+                RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=watts, issued_by="operator"),
                 None,
             )
         return None, f"unsupported operator command kind: {kind}"
 
     def _llm_design_engineer_guarded(
         self,
-        sim: MockEclssSimulator,
+        sim: SimulatorProtocol,
         obs: AgentObservation,
     ) -> Tuple[List[AgentMessage], List[DesignChange]]:
         if self.state.design_change_applied:
@@ -421,105 +461,12 @@ class ScrubberDegradationTeam:
         )
 
     @staticmethod
-    def _shadow_output_contract() -> str:
+    def _llm_output_contract() -> str:
         return (
             "Return ONLY one valid JSON object (multi-line is allowed). "
             "No markdown. No code fences. No prose outside JSON. "
             'Required keys: "message", "reasoning". '
             'Example: {"message":"CO2 rising; boost fan.","reasoning":"co2_ppm crossed threshold"}'
-        )
-
-    def _llm_shadow_messages(self, obs: AgentObservation) -> List[AgentMessage]:
-        contract = self._shadow_output_contract()
-        context = self._telemetry_context(obs)
-        prompts = [
-            (
-                "monitor",
-                "team",
-                "llm_shadow_monitor",
-                ("message",),
-                (
-                    "Role: monitor in ECLSS scrubber_degradation. "
-                    f"{contract} "
-                    f"Telemetry: {context}"
-                ),
-            ),
-            (
-                "diagnostician",
-                "operator",
-                "llm_shadow_diagnosis",
-                ("message",),
-                (
-                    "Role: diagnostician in ECLSS scrubber_degradation. "
-                    f"{contract} "
-                    f"Telemetry: {context}"
-                ),
-            ),
-            (
-                "operator",
-                "team",
-                "llm_shadow_operator",
-                ("message",),
-                (
-                    "Role: operator in ECLSS scrubber_degradation. "
-                    f"{contract} "
-                    f"Telemetry: {context}"
-                ),
-            ),
-            (
-                "design_engineer",
-                "team",
-                "llm_shadow_design",
-                ("message",),
-                (
-                    "Role: design_engineer in ECLSS scrubber_degradation. "
-                    f"{contract} "
-                    f"Telemetry: {context}"
-                ),
-            ),
-        ]
-        return [
-            self._llm_shadow_message(
-                obs=obs,
-                role=role,
-                to_role=to_role,
-                message_type=message_type,
-                required=required,
-                prompt=prompt,
-            )
-            for role, to_role, message_type, required, prompt in prompts
-        ]
-
-    def _llm_shadow_message(
-        self,
-        obs: AgentObservation,
-        role: str,
-        to_role: str,
-        message_type: str,
-        required: tuple[str, ...],
-        prompt: str,
-    ) -> AgentMessage:
-        raw = ""
-        if self.llm_client is not None:
-            raw = self.llm_client.generate(prompt)
-        parsed = parse_json_response(raw, required=required)
-        message = parsed.data.get("message", "")
-        if not message:
-            message = f"[shadow:{role}] no message"
-        reasoning = parsed.data.get("reasoning", "")
-        return AgentMessage(
-            step=obs.step,
-            from_role=role,
-            to_role=to_role,
-            message=message,
-            message_type=message_type,
-            reasoning=reasoning,
-            metadata={
-                "decision_source": "llm_shadow",
-                "parse_status": parsed.status,
-                "parse_error": parsed.error,
-                "raw_response_excerpt": parsed.raw_excerpt,
-            },
         )
 
     def _monitor(self, obs: AgentObservation) -> List[AgentMessage]:
@@ -603,6 +550,28 @@ class ScrubberDegradationTeam:
                     message="Reducing cabin metabolic load to lower CO2 production.",
                     message_type="recovery_command",
                     reasoning="Power margin critical; load shedding.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        if (
+            self.operator_cfg.get("request_eps_boost_on_power_critical", True)
+            and obs.health.power_status == HealthStatus.CRITICAL
+            and obs.telemetry.eps_support_steps_remaining == 0
+        ):
+            eps_boost_w = float(self.operator_cfg.get("eps_boost_w", 120.0))
+            commands.append(
+                RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=eps_boost_w, issued_by="operator")
+            )
+            self.state.eps_boost_requested = True
+            messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role="operator",
+                    to_role="team",
+                    message=f"Requesting EPS support boost of {eps_boost_w:.0f} W.",
+                    message_type="recovery_command",
+                    reasoning="Power margin critical; requesting temporary EPS assist.",
                     metadata=self._rule_metadata(),
                 )
             )

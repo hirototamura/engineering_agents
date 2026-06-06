@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional
 
 
 DESIGN_CHANGE_EVENT_KIND = "/eclss/events/design_change"
+RECOVERY_EVENT_KIND = "/eclss/events/recovery_applied"
+EPS_BOOST_COMMAND_KIND = "request_eps_boost"
 
 
 def _read_json(path: Path) -> Dict[str, Any]:
@@ -46,6 +48,21 @@ def _design_state_after(step: int, states: List[Dict[str, Any]]) -> Dict[str, An
         if row_step >= (step + 1):
             return row
     return states[-1] if states else {}
+
+
+def _find_recovery_message(
+    step: int,
+    messages: List[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    for row in messages:
+        if int(row.get("step", -1)) != step:
+            continue
+        if row.get("from_role") != "operator":
+            continue
+        if row.get("message_type") != "recovery_command":
+            continue
+        return row
+    return None
 
 
 def _find_design_message(
@@ -109,6 +126,40 @@ def build_provenance_records(run_dir: Path) -> List[Dict[str, Any]]:
                 "reasoning": (msg or {}).get("reasoning"),
                 "decision_source": (msg or {}).get("decision_source"),
                 "parse_status": (msg or {}).get("parse_status"),
+            },
+        }
+        records.append(record)
+
+    for idx, event in enumerate(events):
+        if event.get("kind") != RECOVERY_EVENT_KIND:
+            continue
+        command = event.get("command") or {}
+        if command.get("kind") != EPS_BOOST_COMMAND_KIND:
+            continue
+
+        step = int(event.get("step", -1))
+        actor = command.get("issued_by", "operator")
+        msg = _find_recovery_message(step=step, messages=messages)
+        eps_meta = event.get("eps") or {}
+
+        record = {
+            "record_id": f"{run_id}:recovery:{len(records) + 1}",
+            "run_id": run_id,
+            "scenario": scenario,
+            "step": step,
+            "record_type": "recovery",
+            "actor": actor,
+            "actor_kind": "ai_agent",
+            "change_kind": EPS_BOOST_COMMAND_KIND,
+            "payload": {"support_w": command.get("value"), "eps": eps_meta},
+            "trace": {
+                "event_kind": event.get("kind"),
+                "event_index": idx,
+                "message": (msg or {}).get("message"),
+                "reasoning": (msg or {}).get("reasoning"),
+                "decision_source": (msg or {}).get("decision_source"),
+                "parse_status": (msg or {}).get("parse_status"),
+                "event_message": event.get("message"),
             },
         }
         records.append(record)

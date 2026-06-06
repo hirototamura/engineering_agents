@@ -34,7 +34,7 @@ Physics-only runs (`agents.mode: none`) demonstrate anomaly and CO2 rise but **d
 ```yaml
 # scenario.yaml
 agents:
-  mode: none  # none | labeled | labeled_shadow | labeled_llm_guarded
+  mode: none  # none | labeled | labeled_llm_guarded
 ```
 
 Override at runtime:
@@ -53,14 +53,10 @@ Scenario-specific — not reusable across other scenarios without a new team cla
 | --- | --- | --- |
 | Monitor | `roles.monitor.co2_alert_ppm` (900) | Emits `alert` when CO2 high |
 | Diagnostician | — | Emits `diagnosis` when anomaly flags set |
-| Operator | `co2_recovery_ppm`, `fan_speed`, etc. | Issues recovery commands |
+| Operator | `co2_recovery_ppm`, `fan_speed`, `eps_boost_w`, etc. | Issues recovery commands including EPS boost on power-critical |
 | DesignEngineer | `min_step`, `bypass_edge` | Proposes `add_edge` bypass |
 
 Research note: these labels are human division-of-labor conventions. Unlabeled emergent roles are tracked in [memo/backlog.md](../memo/backlog.md) BL-001.
-
-## labeled_shadow mode
-
-Same rules and actions as `labeled`. Additionally logs four LLM-generated messages per step (one per role) with `decision_source: llm_shadow`. Useful to compare rule narrative vs model narrative before wiring LLM-driven actions.
 
 ## labeled_llm_guarded mode
 

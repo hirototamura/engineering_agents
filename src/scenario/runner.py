@@ -12,8 +12,12 @@ import yaml
 from core.event_log import EventLog
 from environment.eclss_ops.design_state import DesignStateManager
 from environment.eclss_ops.telemetry import compute_health_metrics
-from environment.protocol import AnomalySpec
+from environment.protocol import AnomalySpec, HealthStatus, SimulatorProtocol
 from environment.ssos.mock_eclss import MockEclssSimulator
+from environment.ssos.station_simulator import StationSimulator
+from environment.ssos.eps_stack import EpsStack
+from environment.ssos.mock_sarj import MockSarj
+from environment.ssos.topics import EVENT_RECOVERY
 from integrations.one_piece import export_run_provenance
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
 from scenario.agents.types import AgentObservation
@@ -77,19 +81,19 @@ def _deep_merge(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, An
     return result
 
 
-def build_simulator(config: Dict[str, Any]) -> MockEclssSimulator:
+def build_eclss(config: Dict[str, Any]) -> MockEclssSimulator:
     sim_cfg = config.get("simulation", {})
     design_params = config.get("design_parameters")
     design = DesignStateManager(parameters=design_params) if design_params else DesignStateManager()
 
-    sim = MockEclssSimulator(
+    eclss = MockEclssSimulator(
         initial_co2_ppm=float(sim_cfg.get("initial_co2_ppm", 800.0)),
         initial_power_margin_w=float(sim_cfg.get("initial_power_margin_w", 150.0)),
         design=design,
     )
 
     for anomaly in config.get("anomalies", []):
-        sim.inject_anomaly(
+        eclss.inject_anomaly(
             AnomalySpec(
                 name=anomaly["name"],
                 start_step=int(anomaly["start_step"]),
@@ -100,21 +104,41 @@ def build_simulator(config: Dict[str, Any]) -> MockEclssSimulator:
                 co2_production_multiplier=float(anomaly.get("co2_production_multiplier", 1.0)),
             )
         )
-    return sim
+    return eclss
+
+
+def build_eps_stack(config: Dict[str, Any]) -> EpsStack:
+    eps_cfg = config.get("eps", {}) or {}
+    sarj_cfg = eps_cfg.get("sarj", {}) or {}
+    eclipse_window = sarj_cfg.get("eclipse_window")
+    sarj = MockSarj(
+        beta_angle_deg=float(sarj_cfg.get("beta_angle_deg", 45.0)),
+        eclipse_window=tuple(eclipse_window) if eclipse_window else None,
+    )
+    return EpsStack(sarj=sarj)
+
+
+def build_station_simulator(config: Dict[str, Any]) -> StationSimulator:
+    return StationSimulator(eclss=build_eclss(config), eps=build_eps_stack(config))
+
+
+def build_simulator(config: Dict[str, Any]) -> StationSimulator:
+    """Build coupled ECLSS + EPS station (default entry point for scenarios)."""
+    return build_station_simulator(config)
 
 
 def build_agent_team(scenario_name: str, agents_config: Optional[Dict[str, Any]]):
     if not agents_config:
         return None
     mode = agents_config.get("mode")
-    if mode not in {"labeled", "labeled_shadow", "labeled_llm_guarded"}:
+    if mode not in {"labeled", "labeled_llm_guarded"}:
         return None
     if scenario_name == "scrubber_degradation":
         return ScrubberDegradationTeam(agents_config)
     raise ValueError(f"No labeled agent team for scenario: {scenario_name}")
 
 
-def _log_sim_events(log: EventLog, sim: MockEclssSimulator, step: int, logged_event_ids: set) -> None:
+def _log_sim_events(log: EventLog, sim: SimulatorProtocol, step: int, logged_event_ids: set) -> None:
     for idx, event in enumerate(sim.get_events()):
         if "step" not in event:
             key = ("static", idx, event.get("kind"), json.dumps(event, sort_keys=True, default=str))
@@ -151,8 +175,6 @@ def run_scenario(
         run_id = output_cfg.get("run_id", name)
         if agents_config and agents_config.get("mode") == "labeled":
             run_id = output_cfg.get("run_id_labeled", f"{name}_labeled")
-        elif agents_config and agents_config.get("mode") == "labeled_shadow":
-            run_id = output_cfg.get("run_id_labeled_shadow", f"{name}_labeled_shadow")
         elif agents_config and agents_config.get("mode") == "labeled_llm_guarded":
             run_id = output_cfg.get("run_id_labeled_llm_guarded", f"{name}_labeled_llm_guarded")
         if recreate_output:
@@ -172,20 +194,38 @@ def run_scenario(
     log = EventLog(run_dir)
 
     peak_co2 = 0.0
+    min_power_margin_w: Optional[float] = None
     anomaly_seen = False
     co2_above_threshold_step: Optional[int] = None
     co2_recovered_below_threshold_step: Optional[int] = None
+    eps_boost_applied_step: Optional[int] = None
+    power_recovered_above_critical_step: Optional[int] = None
     message_count = 0
     last_snap = None
     last_health = None
     logged_event_ids: set = set()
+    was_power_critical = False
+    station = sim if isinstance(sim, StationSimulator) else None
 
     for _ in range(steps):
         snap = sim.step()
         last_snap = snap
         peak_co2 = max(peak_co2, snap.co2_ppm)
+        min_power_margin_w = (
+            snap.power_margin_w
+            if min_power_margin_w is None
+            else min(min_power_margin_w, snap.power_margin_w)
+        )
         health = compute_health_metrics(snap)
         last_health = health
+
+        if health.power_status == HealthStatus.CRITICAL:
+            was_power_critical = True
+        elif was_power_critical and power_recovered_above_critical_step is None:
+            power_recovered_above_critical_step = snap.step
+
+        if station is not None:
+            log.append("eps_telemetry", station.eps_telemetry_dict(snap.step))
 
         if snap.anomaly_flags:
             anomaly_seen = True
@@ -209,13 +249,27 @@ def run_scenario(
                 message_count += 1
             _log_sim_events(log, sim, snap.step, logged_event_ids)
 
+    for event in sim.get_events():
+        if event.get("kind") != EVENT_RECOVERY:
+            continue
+        command = event.get("command") or {}
+        if command.get("kind") != "request_eps_boost":
+            continue
+        step = event.get("step")
+        if step is not None and eps_boost_applied_step is None:
+            eps_boost_applied_step = int(step)
+
     summary = {
             "scenario": name,
-            "simulator": "mock_eclss",
+            "simulator": "mock_station",
             "agents_mode": (agents_config or {}).get("mode", "none"),
             "steps": steps,
             "peak_co2_ppm": round(peak_co2, 2),
             "final_co2_ppm": last_snap.co2_ppm if last_snap else None,
+            "final_power_margin_w": last_snap.power_margin_w if last_snap else None,
+            "min_power_margin_w": round(min_power_margin_w, 2) if min_power_margin_w is not None else None,
+            "eps_boost_applied_step": eps_boost_applied_step,
+            "power_recovered_above_critical_step": power_recovered_above_critical_step,
             "final_health": last_health.to_dict() if last_health else None,
             "anomaly_seen": anomaly_seen,
             "co2_above_threshold_step": co2_above_threshold_step,

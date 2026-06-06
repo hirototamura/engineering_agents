@@ -21,6 +21,13 @@ def validate_command(cmd: RecoveryCommand) -> Optional[CommandResult]:
     elif cmd.kind == CommandKind.REDUCE_LOAD:
         if not isinstance(cmd.value, bool):
             return CommandResult(success=False, message="reduce_load requires bool value")
+    elif cmd.kind == CommandKind.REQUEST_EPS_BOOST:
+        try:
+            watts = float(cmd.value)
+        except (TypeError, ValueError):
+            return CommandResult(success=False, message=f"eps_boost must be numeric, got: {cmd.value!r}")
+        if not 0.0 < watts <= 500.0:
+            return CommandResult(success=False, message=f"eps_boost out of range: {watts}")
     else:
         return CommandResult(success=False, message=f"unknown command kind: {cmd.kind}")
     return None
