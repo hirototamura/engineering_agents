@@ -1,20 +1,20 @@
-# API Contracts — SimulatorProtocol & Event Logs
+# API 契約 — SimulatorProtocol とイベントログ
 
-Living document. Update when protocol, agent modes, or log schemas change.
+リビングドキュメント。プロトコル、エージェントモード、ログスキーマ変更時に更新する。
 
 ## SimulatorProtocol
 
-Implementations: `StationSimulator` (ECLSS + EPS, default for scenarios), `MockEclssSimulator` (plant-only), `SsosAdapter` (deferred).
+実装: `StationSimulator`（ECLSS + EPS、シナリオのデフォルト）、`MockEclssSimulator`（プラントのみ）、`SsosAdapter`（将来）。
 
-| Method | Returns | Description |
+| メソッド | 戻り値 | 説明 |
 | --- | --- | --- |
-| `step()` | `TelemetrySnapshot` | Advance physics one tick |
-| `apply_command(cmd)` | `CommandResult` | Temporary recovery action |
-| `apply_design_change(change)` | `DesignState` | Permanent topology/parameter mutation |
-| `get_topology()` | `TopologyGraph` | Current node/edge graph |
-| `get_design_parameters()` | `dict[str, float]` | Mutable design parameters |
-| `get_design_state()` | `DesignState` | Topology + parameters snapshot |
-| `inject_anomaly(spec)` | `None` | Schedule composite anomaly |
+| `step()` | `TelemetrySnapshot` | 物理を 1 ティック進める |
+| `apply_command(cmd)` | `CommandResult` | 一時的な回復アクション |
+| `apply_design_change(change)` | `DesignState` | 恒久トポロジ/パラメータ変更 |
+| `get_topology()` | `TopologyGraph` | 現在のノード/エッジグラフ |
+| `get_design_parameters()` | `dict[str, float]` | 可変設計パラメータ |
+| `get_design_state()` | `DesignState` | トポロジ + パラメータのスナップショット |
+| `inject_anomaly(spec)` | `None` | 複合異常をスケジュール |
 
 ### TelemetrySnapshot
 
@@ -43,7 +43,7 @@ Implementations: `StationSimulator` (ECLSS + EPS, default for scenarios), `MockE
 }
 ```
 
-Supported `kind` values: `set_fan_speed`, `enable_bypass`, `reduce_load`, `request_eps_boost`.
+サポートする `kind`: `set_fan_speed`、`enable_bypass`、`reduce_load`、`request_eps_boost`。
 
 ### DesignChange
 
@@ -55,30 +55,46 @@ Supported `kind` values: `set_fan_speed`, `enable_bypass`, `reduce_load`, `reque
 }
 ```
 
-Supported `kind` values: `add_edge`, `set_parameter`.
+サポートする `kind`: `add_edge`、`set_parameter`。
 
-### Health thresholds
+### ヘルス閾値
 
-| Metric | safe | warning | critical |
+| 指標 | safe | warning | critical |
 | --- | --- | --- | --- |
 | CO2 (ppm) | < 1000 | 1000–2000 | ≥ 2000 |
-| Power margin (W) | > 0 | 0 to −100 | ≤ −100 |
+| 電力マージン (W) | > 0 | 0 〜 −100 | ≤ −100 |
 
-## Agent modes
+## エージェントモード
 
-Set in `src/scenario/scrubber_degradation/scenario.yaml` (`agents.mode`). Role thresholds in `agents.yaml`.
+`src/scenario/scrubber_degradation/scenario.yaml` の `agents.mode` で設定。ロール閾値は `agents.yaml`。
 
-| `agents.mode` | Team | Actions source | Messages |
+| `agents.mode` | チーム | アクションの出所 | メッセージ |
 | --- | --- | --- | --- |
 | `none` | — | — | — |
-| `labeled` | `ScrubberDegradationTeam` | Rules | Rule messages only |
-| `labeled_llm_guarded` | Same team | LLM with guards + rule fallback | LLM or `rule_fallback` messages |
+| `labeled` | `ScrubberDegradationTeam` | ルール | ルールメッセージのみ |
+| `labeled_llm_guarded` | 同上 | LLM + ガード、失敗時 rule fallback | `llm` / `rule_fallback` / `llm_guard_reject` |
 
-Future: `base` (unlabeled emergent roles) — see [memo/backlog.md](../memo/backlog.md) BL-001.
+将来: `base`（ラベルなし創発ロール）— [memo/backlog.md](../memo/backlog.md) BL-001。
 
-## ROS2-like topics (`environment/ssos/topics.py`)
+### labeled_llm_guarded の Persona メタデータ
 
-| Topic | Direction | Payload |
+`messages.jsonl` の LLM ガードメッセージに付与される任意フィールド:
+
+| フィールド | 例 | 説明 |
+| --- | --- | --- |
+| `deliberation_phase` | `round1_forum` / `round2_reaction` / `round2_action` | 2 ラウンド議論のフェーズ |
+| `main_role` | `Recovery tactician` | `agents.yaml` の名札（ログ用） |
+| `persona` | （省略可） | エージェント ID（`monitor` 等） |
+| `decision_source` | `llm` / `rule_fallback` / `llm_guard_reject` | 最終決定の出所 |
+| `parse_status` | `ok` / `parse_error` / `guard_reject` | JSON パース・ガード結果 |
+| `parse_error` | 文字列または `null` | パース/ガード失敗時の詳細 |
+| `raw_response_excerpt` | 文字列 | デバッグ用の生応答抜粋 |
+
+Persona 本文・シナリオ閾値はログに含めない。状況は実行時に `## Situation` として注入される。
+
+## ROS2 風トピック（`environment/ssos/topics.py`）
+
+| トピック | 方向 | ペイロード |
 | --- | --- | --- |
 | `/eclss/telemetry/co2_ppm` | pub | float |
 | `/eclss/telemetry/scrubber_efficiency` | pub | float |
@@ -86,34 +102,34 @@ Future: `base` (unlabeled emergent roles) — see [memo/backlog.md](../memo/back
 | `/eclss/command/set_fan_speed` | sub | float 0–1 |
 | `/eclss/command/enable_bypass` | sub | bool |
 | `/eclss/command/reduce_load` | sub | bool |
-| `/eclss/command/request_eps_boost` | sub | float watts (0, 500] |
+| `/eclss/command/request_eps_boost` | sub | float W (0, 500] |
 | `/eclss/events/design_change` | event | DesignChange dict |
 
-## ROS2-like EPS topics (`environment/ssos/eps_topics.py`)
+## ROS2 風 EPS トピック（`environment/ssos/eps_topics.py`）
 
-Inspired by [space_station_eps](https://github.com/space-station-os/space_station_os/tree/main/space_station_eps). Mock implementations: `MockSarj`, `MockBcdu`, `EpsStack` (EPS-3 couples to ECLSS).
+[space_station_eps](https://github.com/space-station-os/space_station_os/tree/main/space_station_eps) を参考。モック: `MockSarj`、`MockBcdu`、`EpsStack`（EPS-3 で ECLSS と結合）。
 
-| Topic | Direction | Payload |
+| トピック | 方向 | ペイロード |
 | --- | --- | --- |
-| `/solar/voltage` | pub | float V (SARJ estimate) |
-| `/bcdu/operation` | sub | discharge goal: `{support_w, duration_steps}` |
-| `/bcdu/status` | pub | `BcduStatus` dict — `mode`, `bus_voltage_v`, `support_w`, `fault`, … |
+| `/solar/voltage` | pub | float V（SARJ 推定） |
+| `/bcdu/operation` | sub | 放電要求: `{support_w, duration_steps}` |
+| `/bcdu/status` | pub | `BcduStatus` dict — `mode`、`bus_voltage_v`、`support_w`、`fault` 等 |
 | `/eps/diagnostics` | pub | `EpsDiagnostics` dict |
-| `/eps/eclss/load_request_w` | pub | float W (bridge topic; EPS-3) |
+| `/eps/eclss/load_request_w` | pub | float W（ブリッジトピック、EPS-3） |
 
-**BCDU `mode` values**: `idle`, `charging`, `discharging`, `fault`, `safe`.
+**BCDU `mode`**: `idle`、`charging`、`discharging`、`fault`、`safe`。
 
-**Discharge contract** (`MockBcdu.request_discharge`): `support_w` in (0, 500], `duration_steps` ≥ 1, bus voltage in [70, 120] V. On fault, mode latches `fault` and further discharge requests fail.
+**放電契約**（`MockBcdu.request_discharge`）: `support_w` は (0, 500]、`duration_steps` ≥ 1、バス電圧 [70, 120] V。fault 時は `fault` にラッチし、以降の放電要求は失敗。
 
-## JSONL event streams
+## JSONL イベントストリーム
 
-All runs write under `src/experiments/results/<run_id>/`.
+全実行は `src/experiments/results/<run_id>/` に書き込む。
 
 ### messages.jsonl
 
-Written when `agents.mode` is `labeled` or `labeled_llm_guarded`.
+`agents.mode` が `labeled` または `labeled_llm_guarded` のとき出力。
 
-**Rule message:**
+**ルールメッセージ:**
 
 ```json
 {
@@ -127,7 +143,7 @@ Written when `agents.mode` is `labeled` or `labeled_llm_guarded`.
 }
 ```
 
-**LLM guarded message** (`labeled_llm_guarded`):
+**LLM ガードメッセージ**（`labeled_llm_guarded`）:
 
 ```json
 {
@@ -138,21 +154,23 @@ Written when `agents.mode` is `labeled` or `labeled_llm_guarded`.
   "message_type": "recovery_command",
   "reasoning": "...",
   "decision_source": "llm",
+  "deliberation_phase": "round2_action",
+  "main_role": "Recovery tactician",
   "parse_status": "ok",
   "parse_error": null,
   "raw_response_excerpt": "..."
 }
 ```
 
-`message_type` values:
+`message_type`:
 
-| Type | Source |
+| 種別 | 出所 |
 | --- | --- |
-| `alert`, `diagnosis`, `recovery_command`, `design_change` | Rule or LLM guarded |
+| `alert`、`diagnosis`、`recovery_command`、`design_change` | ルールまたは LLM ガード |
 
 ### telemetry.jsonl
 
-Raw physics snapshot per step (same fields as `TelemetrySnapshot`).
+ステップごとの生物理スナップショット（`TelemetrySnapshot` と同フィールド）。
 
 ### health_metrics.jsonl
 
@@ -162,7 +180,7 @@ Raw physics snapshot per step (same fields as `TelemetrySnapshot`).
 
 ### eps_telemetry.jsonl
 
-Written for `mock_station` runs (EPS-4). One row per step from SARJ + BCDU.
+`mock_station` 実行時（EPS-4）。SARJ + BCDU から 1 行/ステップ。
 
 ```json
 {
@@ -181,7 +199,7 @@ Written for `mock_station` runs (EPS-4). One row per step from SARJ + BCDU.
 
 ### events.jsonl
 
-Anomalies, recovery commands, design changes.
+異常、回復コマンド、設計変更。
 
 ```json
 {"step": 20, "kind": "/eclss/events/anomaly", "flags": ["scrubber_degradation"]}
@@ -191,7 +209,7 @@ Anomalies, recovery commands, design changes.
 
 ### design_state.jsonl
 
-Topology + parameters snapshot **before** agent actions at each step.
+各ステップのエージェント行動**前**のトポロジ + パラメータスナップショット。
 
 ```json
 {
@@ -207,11 +225,11 @@ Topology + parameters snapshot **before** agent actions at each step.
 }
 ```
 
-Compare step *N* vs *N+1* after a design change event at step *N*.
+ステップ *N* で設計変更イベントがあれば、step *N* と *N+1* を比較する。
 
 ### summary.json
 
-Run-level KPIs written once at end.
+実行終了時に 1 回書き込む KPI。
 
 ```json
 {
@@ -236,9 +254,9 @@ Run-level KPIs written once at end.
 }
 ```
 
-### provenance.jsonl (Day 5B+ / EPS-4)
+### provenance.jsonl（Day 5B+ / EPS-4）
 
-One Piece-compatible provenance records: **design changes** and **EPS recovery** (`request_eps_boost`).
+One Piece 互換 provenance: **設計変更**と **EPS 回復**（`request_eps_boost`）。
 
 ```json
 {
@@ -256,7 +274,7 @@ One Piece-compatible provenance records: **design changes** and **EPS recovery**
 }
 ```
 
-**Recovery record** (`record_type: recovery`):
+**回復レコード**（`record_type: recovery`）:
 
 ```json
 {
@@ -270,20 +288,20 @@ One Piece-compatible provenance records: **design changes** and **EPS recovery**
 }
 ```
 
-## Running scenarios
+## シナリオの実行
 
 ```bash
-# Baseline (agents.mode: none) — default in scenario.yaml
+# ベースライン（agents.mode: none）— scenario.yaml のデフォルト
 python src/scripts/run_mock_eclss.py
 
-# Labeled rule team
+# ルールベース labeled チーム
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
 
-# LLM guarded (requires Ollama)
+# Persona + 2ラウンド議論 + ガード付き LLM（Ollama 要）
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}})"
 ```
 
-Programmatic recovery smoke test:
+プログラムからの回復スモークテスト:
 
 ```python
 from environment.protocol import CommandKind, RecoveryCommand

@@ -1,35 +1,39 @@
-# Scenario: scrubber_degradation
+# シナリオ: scrubber_degradation
 
-Reference scenario for the ECLSS virtual-ops resilience loop MVP.
+ECLSS 仮想運用レジリエンス・ループ MVP の参照シナリオ。
 
-## Narrative
+## 叙事（フェーズ）ルールベースの場合
 
-| Phase | Steps | What happens |
-| --- | --- | --- |
-| Equilibrium | 1–19 | CO2 ~800 ppm, scrubber at baseline efficiency |
-| Anomaly | 20+ | `scrubber_degradation`: efficiency drops, power margin shrinks, CO2 production rises |
-| Danger band | ~33+ | CO2 exceeds 1000 ppm (baseline / labeled runs) |
-| Response | 33–40 | Operator recovery commands (fan, load shed, bypass) |
-| Design change | ≥35 | DesignEngineer adds permanent bypass edge (labeled modes) |
-| Recovery | ~40+ | CO2 returns below 1000 ppm (labeled mode) |
 
-Physics-only runs (`agents.mode: none`) demonstrate anomaly and CO2 rise but **do not** apply recovery or design changes.
+| フェーズ | ステップ  | 内容                                            |
+| ---- | ----- | --------------------------------------------- |
+| 均衡   | 1–19  | CO2 約 800 ppm、スクラバーはベースライン効率                  |
+| 異常   | 20+   | `scrubber_degradation`: 効率低下、電力マージン縮小、CO2 産生増 |
+| 危険帯  | 約 33+ | CO2 が 1000 ppm 超（ベースライン / labeled 実行）         |
+| 対応   | 33–40 | Operator 回復コマンド（ファン、負荷削減、バイパス）                |
+| 設計変更 | ≥35   | DesignEngineer が恒久 bypass エッジを追加（labeled モード） |
+| 回復   | 約 40+ | CO2 が 1000 ppm 未満へ（labeled モード）               |
 
-## Configuration files
 
-| File | Purpose |
-| --- | --- |
-| [scenario.yaml](../src/scenario/scrubber_degradation/scenario.yaml) | Steps, initial state, design parameters, anomalies, `agents.mode`, output run IDs |
-| [agents.yaml](../src/scenario/scrubber_degradation/agents.yaml) | Role thresholds and LLM settings (used when `agents.mode` ≠ `none`) |
+物理のみ（`agents.mode: none`）は異常と CO2 上昇を示すが、**回復・設計変更は行わない**。
 
-### Key simulation parameters
+## 設定ファイル
 
-- Initial CO2: 800 ppm
-- Anomaly start: step 20
-- Scrubber efficiency decay: 0.02 / step after anomaly
-- CO2 production multiplier during anomaly: 1.4×
 
-### Agent modes
+| ファイル                                                                | 用途                                                   |
+| ------------------------------------------------------------------- | ---------------------------------------------------- |
+| [scenario.yaml](../src/scenario/scrubber_degradation/scenario.yaml) | ステップ数、初期状態、設計パラメータ、異常、`agents.mode`、run ID           |
+| [agents.yaml](../src/scenario/scrubber_degradation/agents.yaml)     | Persona、メモリ設定、ルール閾値、LLM 設定（`agents.mode` ≠ `none` 時） |
+
+
+### 主要シミュレーションパラメータ
+
+- 初期 CO2: 800 ppm
+- 異常開始: step 20
+- スクラバー効率減衰: 異常後 0.02 / step
+- 異常時 CO2 産生倍率: 1.4×
+
+### エージェントモード
 
 ```yaml
 # scenario.yaml
@@ -37,7 +41,7 @@ agents:
   mode: none  # none | labeled | labeled_llm_guarded
 ```
 
-Override at runtime:
+実行時オーバーライド:
 
 ```python
 from scenario.runner import run_scenario
@@ -45,83 +49,92 @@ from scenario.runner import run_scenario
 run_scenario("scrubber_degradation", overrides={"agents": {"mode": "labeled"}})
 ```
 
-## Labeled roles
+## Labeled ロール（ルール fallback）
 
-Scenario-specific — not reusable across other scenarios without a new team class.
+シナリオ固有 — 新チームクラスなしでは他シナリオに流用しない。
 
-| Role | Config key | Behavior |
-| --- | --- | --- |
-| Monitor | `roles.monitor.co2_alert_ppm` (900) | Emits `alert` when CO2 high |
-| Diagnostician | — | Emits `diagnosis` when anomaly flags set |
-| Operator | `co2_recovery_ppm`, `fan_speed`, `eps_boost_w`, etc. | Issues recovery commands including EPS boost on power-critical |
-| DesignEngineer | `min_step`, `bypass_edge` | Proposes `add_edge` bypass |
 
-Research note: these labels are human division-of-labor conventions. Unlabeled emergent roles are tracked in [memo/backlog.md](../memo/backlog.md) BL-001.
+| ロール            | 設定キー                                           | 挙動                               |
+| -------------- | ---------------------------------------------- | -------------------------------- |
+| Monitor        | `roles.monitor.co2_alert_ppm`（900）             | CO2 高時に `alert`                  |
+| Diagnostician  | —                                              | 異常フラグ時に `diagnosis`              |
+| Operator       | `co2_recovery_ppm`、`fan_speed`、`eps_boost_w` 等 | 回復コマンド（電力 critical 時 EPS ブースト含む） |
+| DesignEngineer | `min_step`、`bypass_edge`                       | `add_edge` バイパスを提案               |
 
-## labeled_llm_guarded mode
 
-Persona-based two-round deliberation (8 LLM calls per step) with guardrails:
+研究メモ: ラベルは人間の分業慣習の写し。ラベルなし創発ロールは [memo/backlog.md](../memo/backlog.md) BL-001。
 
-| Round | Agents | Output |
-| --- | --- | --- |
-| 1 — open forum | monitor, diagnostician, operator, design_engineer | message + reasoning (+ optional `memory`) |
-| 2 — react + act | monitor, diagnostician (react); operator, design_engineer (commands / design) | same contracts; action keys in round 2 only |
+## labeled_llm_guarded モード
 
-**Persona vs scenario**: `personas` in `agents.yaml` define professional voice and debate style only. Scenario briefing, thresholds, and telemetry live under `## Situation` (injected by `ScrubberDegradationTeam._situation_context()`). Command and design shapes live in output contracts.
+Persona ベースの 2 ラウンド議論（1 ステップ 8 回 LLM 呼び出し）+ ガード:
 
-**Memory**: team `DiscourseBuffer` (shared) + per-agent `AgentMemory` (private). See `memory_limit` / `discourse_window` in `agents.yaml`.
 
-Message metadata includes `deliberation_phase`, `main_role`, and `decision_source` (`llm`, `rule_fallback`, `llm_guard_reject`).
+| ラウンド          | エージェント                                                                  | 出力                                       |
+| ------------- | ----------------------------------------------------------------------- | ---------------------------------------- |
+| 1 — オープンフォーラム | monitor, diagnostician, operator, design_engineer                       | message + reasoning（+ optional `memory`） |
+| 2 — 反応 + 行動   | monitor, diagnostician（反応）；operator, design_engineer（commands / design） | 同上；action キーは Round 2 のみ                 |
 
-On parse/guard failure, rule fallback applies. Requires Ollama and a pulled model (default `qwen3.5:2b`, `temperature: 0.45`, `max_tokens: 320`).
 
-## Where to read outputs
+**Persona とシナリオの分離**: `agents.yaml` の `personas` は専門家としての声と議論スタイルのみ。シナリオ説明・閾値・テレメトリは `## Situation`（`ScrubberDegradationTeam._situation_context()` が注入）。コマンド・設計の形は出力契約（contract）側。
 
-After a run, open `src/experiments/results/<run_id>/`:
+**メモリ**: チーム共有 `DiscourseBuffer` + 個体私有 `AgentMemory`。`agents.yaml` の `memory_limit` / `discourse_window` を参照。
 
-| Question | File | What to look for |
-| --- | --- | --- |
-| What did agents say? | `messages.jsonl` | `from_role`, `message_type`, `decision_source` |
-| What changed in the plant? | `telemetry.jsonl` | `co2_ppm`, `scrubber_efficiency`, flags |
-| What commands ran? | `events.jsonl` | `recovery_applied`, `design_change` |
-| What was the design graph? | `design_state.jsonl` | `topology.edges` — bypass appears step after change |
-| What is One Piece provenance? | `provenance.jsonl` | actor, change_kind, before/after topology, trace linkage |
-| Run KPIs? | `summary.json` | `peak_co2_ppm`, `co2_recovered_below_threshold_step`, `design_change_count` |
+メッセージ metadata: `deliberation_phase`、`main_role`、`decision_source`（`llm`、`rule_fallback`、`llm_guard_reject`）。
 
-### design_change example
+parse/ガード失敗時は rule fallback。Ollama とモデル pull が必要（デフォルト `qwen3.5:2b`、`temperature: 0.45`、`max_tokens: 320`）。
 
-**Structured change** (`events.jsonl`):
+## 出力の読み方
+
+実行後、`src/experiments/results/<run_id>/` を開く:
+
+
+| 知りたいこと               | ファイル                 | 見る項目                                                                      |
+| -------------------- | -------------------- | ------------------------------------------------------------------------- |
+| エージェントの発言            | `messages.jsonl`     | `from_role`、`message_type`、`decision_source`、`deliberation_phase`         |
+| プラントの変化              | `telemetry.jsonl`    | `co2_ppm`、`scrubber_efficiency`、フラグ                                       |
+| 実行されたコマンド            | `events.jsonl`       | `recovery_applied`、`design_change`                                        |
+| 設計グラフ                | `design_state.jsonl` | `topology.edges` — 変更の翌ステップから bypass                                      |
+| One Piece provenance | `provenance.jsonl`   | actor、change_kind、変更前後トポロジ、trace                                          |
+| 実行 KPI               | `summary.json`       | `peak_co2_ppm`、`co2_recovered_below_threshold_step`、`design_change_count` |
+
+
+### design_change の例
+
+**構造化変更**（`events.jsonl`）:
 
 ```json
 {"step": 35, "kind": "/eclss/events/design_change", "change": {"kind": "add_edge", "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"}, "proposed_by": "design_engineer"}}
 ```
 
-**Human-readable proposal** (`messages.jsonl`):
+**人間可読な提案**（`messages.jsonl`）:
 
 ```json
 {"step": 35, "from_role": "design_engineer", "message_type": "design_change", "message": "Proposing permanent bypass plumbing between manifold and scrubber.", "decision_source": "rule"}
 ```
 
-**Topology effect** (`design_state.jsonl`): compare step 35 vs 36 — new edge `{"source": "manifold", "target": "scrubber", "kind": "bypass"}`.
+**トポロジ効果**（`design_state.jsonl`）: step 35 と 36 を比較 — 新エッジ `{"source": "manifold", "target": "scrubber", "kind": "bypass"}`。
 
-## Tests
+## テスト
 
-| Test | Mode | Asserts |
-| --- | --- | --- |
-| `tests/scenario/test_scrubber_baseline.py` | `none` | Anomaly fires, CO2 > 1000, no agents |
-| `tests/scenario/test_scrubber_with_agents.py` | `labeled` | 4 roles, recovery, design change, final CO2 < 1000 |
 
-Always keep baseline green when changing agent or physics code.
+| テスト                                           | モード                               | 検証内容                        |
+| --------------------------------------------- | --------------------------------- | --------------------------- |
+| `tests/scenario/test_scrubber_baseline.py`    | `none`                            | 異常発火、CO2 > 1000、エージェントなし    |
+| `tests/scenario/test_scrubber_with_agents.py` | `labeled` / `labeled_llm_guarded` | 4 ロール、回復、設計変更、最終 CO2 < 1000 |
 
-## Day6 visualization
+
+エージェント・物理コード変更時はベースラインを常に green に保つ。
+
+## 可視化（ダッシュボード）
 
 ```bash
 python -m streamlit run src/tools/dashboard/app.py
 ```
 
-Dashboard features:
+機能:
 
-- Run selector (`src/experiments/results/<run_id>`)
-- Step slider synchronized with telemetry, messages, events, and provenance rows
-- CO2 / power margin trend plots with current-step marker
-- Run comparison mode for provenance and final design-parameter diffs (e.g. `labeled` vs `labeled_llm_guarded`)
+- 実行セレクタ（`src/experiments/results/<run_id>`）
+- ステップスライダー（テレメトリ、メッセージ、イベント、provenance と同期）
+- CO2 / 電力マージンのトレンド（現在ステップマーカー付き）
+- 実行比較（provenance、最終設計パラメータ差分 — 例: `labeled` vs `labeled_llm_guarded`）
+

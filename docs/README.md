@@ -1,42 +1,44 @@
-# Documentation index
+# ドキュメント索引
 
-Living docs for the ECLSS resilience-loop simulation platform.
+ECLSS レジリエンス・ループ・シミュレーション基盤のリビングドキュメント。
 
-| Document | Audience | Contents |
+| ドキュメント | 対象読者 | 内容 |
 | --- | --- | --- |
-| [architecture.md](architecture.md) | Contributors | Layers, dependency rules, agent modes, run flow |
-| [api-contracts.md](api-contracts.md) | Integrators | `SimulatorProtocol`, JSONL schemas, ROS2-like topics |
-| [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | Demo / ops | Scenario narrative, roles, where to read outputs |
-| [one-piece-integration.md](one-piece-integration.md) | Design tracking | One Piece provenance implementation + next extension plan |
+| [architecture.md](architecture.md) | コントリビュータ | レイヤ構成、依存方向、エージェントモード、実行フロー |
+| [api-contracts.md](api-contracts.md) | インテグレータ | `SimulatorProtocol`、JSONL スキーマ、ROS2 風トピック |
+| [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | デモ・運用 | シナリオ叙事、ロール、出力の読み方 |
+| [one-piece-integration.md](one-piece-integration.md) | 設計追跡 | One Piece provenance 実装と拡張計画 |
 
-Planning and research notes live outside `docs/`:
+`docs/` 外の計画・研究メモ:
 
-- [memo/mvp_plan.md](../memo/mvp_plan.md) — week roadmap and task checklist
-- [memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md) — EPS-1〜4 and Day 8–10 (Week-2 entry)
-- [memo/backlog.md](../memo/backlog.md) — BL-001 labeled vs emergent roles, etc.
+- [memo/mvp_plan.md](../memo/mvp_plan.md) — Week ロードマップとタスク
+- [memo/persona_llm_core_oop_plan.md](../memo/persona_llm_core_oop_plan.md) — Persona LLM + Core OOP 実装プラン（Day 1–8 完了）
+- [memo/persona_workshop_draft.md](../memo/persona_workshop_draft.md) — Persona ワークショップ合意文案
+- [memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md) — EPS-1〜4、Day 8–10
+- [memo/backlog.md](../memo/backlog.md) — BL-001 ラベル付き vs 創発ロール 等
 
-## Quick commands
+## クイックコマンド
 
 ```bash
 pip install -e ".[dev]"
 pytest
 
-# Physics-only baseline (agents.mode: none)
+# 物理のみベースライン（agents.mode: none）
 python src/scripts/run_mock_eclss.py
 
-# Rule-based labeled team
+# ルールベース labeled チーム
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
 
-# LLM applied with guards (monitor/diagnostician/operator + guarded design engineer)
+# Persona + 2ラウンド議論 + ガード付き LLM（Ollama 要）
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}})"
 
-# Day6 dashboard
+# ダッシュボード
 python -m streamlit run src/tools/dashboard/app.py
 ```
 
-## Current milestone (through EPS-4)
+## 現在のマイルストーン
 
-- Done: baseline + labeled agents, LLM guarded mode, One Piece provenance (design + EPS recovery), dashboard with SARJ/BCDU, `StationSimulator` / `mock_station`
-- Next: [Day 8 CLI](../memo/eps_implementation_plan.md#day-8-cli1日) — then provenance index and SSOS adapter contract tests
+- **完了**: ベースライン + labeled エージェント、Persona `labeled_llm_guarded`、One Piece provenance（設計変更 + EPS 回復）、ダッシュボード、`StationSimulator` / `mock_station`
+- **次**: Day 8 CLI（[eps_implementation_plan.md](../memo/eps_implementation_plan.md)）→ provenance インデックス、SSOS アダプタ契約テスト
 
-Requires `pip install -e ".[dev]"` before `from scenario.runner import ...` (packages live under `src/`).
+`from scenario.runner import ...` の前に `pip install -e ".[dev]"` が必要（パッケージは `src/` 配下）。
