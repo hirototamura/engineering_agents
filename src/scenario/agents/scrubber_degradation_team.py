@@ -180,7 +180,7 @@ class ScrubberDegradationTeam:
             raw_commands = []
 
         for item in raw_commands:
-            cmd, note = self._guard_operator_command(item)
+            cmd, note = self._guard_operator_command(item, obs=obs)
             if note:
                 guard_notes.append(note)
             if cmd is not None:
@@ -214,7 +214,32 @@ class ScrubberDegradationTeam:
         )
         return [llm_msg], commands
 
-    def _guard_operator_command(self, item: Any) -> Tuple[Optional[RecoveryCommand], Optional[str]]:
+    @staticmethod
+    def _coerce_true_boolean(value: Any) -> Tuple[Optional[bool], Optional[str]]:
+        if value is True:
+            return True, None
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized == "true":
+                return True, None
+            if normalized in {"false", "0", "no"}:
+                return False, None
+        return None, "value must be true (boolean or \"true\" string)"
+
+    def _eps_boost_request_allowed(self, obs: Optional[AgentObservation]) -> Tuple[bool, Optional[str]]:
+        if obs is not None and obs.telemetry.eps_support_steps_remaining > 0:
+            return False, "eps boost already active"
+        if not self.state.eps_boost_requested:
+            return True, None
+        if obs is not None and obs.health.power_status == HealthStatus.CRITICAL:
+            return True, None
+        return False, "eps boost already requested; re-request requires power critical"
+
+    def _guard_operator_command(
+        self,
+        item: Any,
+        obs: Optional[AgentObservation] = None,
+    ) -> Tuple[Optional[RecoveryCommand], Optional[str]]:
         if not isinstance(item, dict):
             return None, "operator command is not an object"
         kind = str(item.get("kind", "")).strip()
@@ -236,8 +261,9 @@ class ScrubberDegradationTeam:
         if kind == "enable_bypass":
             if self.state.bypass_enabled:
                 return None, "bypass already enabled"
-            if value is not True:
-                return None, "bypass value must be literal true boolean"
+            coerced, coerce_error = self._coerce_true_boolean(value)
+            if coerce_error is not None or coerced is not True:
+                return None, coerce_error or "bypass value must be true"
             self.state.bypass_enabled = True
             return (
                 RecoveryCommand(kind=CommandKind.ENABLE_BYPASS, value=True, issued_by="operator"),
@@ -246,16 +272,18 @@ class ScrubberDegradationTeam:
         if kind == "reduce_load":
             if self.state.load_reduced:
                 return None, "load already reduced"
-            if value is not True:
-                return None, "reduce_load value must be literal true boolean"
+            coerced, coerce_error = self._coerce_true_boolean(value)
+            if coerce_error is not None or coerced is not True:
+                return None, coerce_error or "reduce_load value must be true"
             self.state.load_reduced = True
             return (
                 RecoveryCommand(kind=CommandKind.REDUCE_LOAD, value=True, issued_by="operator"),
                 None,
             )
         if kind == "request_eps_boost":
-            if self.state.eps_boost_requested:
-                return None, "eps boost already requested"
+            allowed, allow_note = self._eps_boost_request_allowed(obs)
+            if not allowed:
+                return None, allow_note
             try:
                 watts = float(value)
             except (TypeError, ValueError):
@@ -529,7 +557,7 @@ class ScrubberDegradationTeam:
         if (
             self.operator_cfg.get("request_eps_boost_on_power_critical", True)
             and obs.health.power_status == HealthStatus.CRITICAL
-            and not self.state.eps_boost_requested
+            and obs.telemetry.eps_support_steps_remaining == 0
         ):
             eps_boost_w = float(self.operator_cfg.get("eps_boost_w", 120.0))
             commands.append(

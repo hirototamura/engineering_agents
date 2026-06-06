@@ -77,7 +77,7 @@ def _line_plot(
     axes[1].axhline(0.0, color="#ff7f0e", linestyle="--", linewidth=1)
     axes[1].axvline(current_step, color="#d62728", linestyle=":", linewidth=1)
     axes[1].set_ylabel("Power margin (W)")
-    axes[1].set_title("Power margin trajectory")
+    axes[1].set_title("ECLSS net power margin (loads − generation budget; EPS boost added per step)")
     axes[1].grid(alpha=0.2)
 
     axes[2].plot(steps, eps_support, color="#9467bd", linewidth=2)
@@ -95,18 +95,33 @@ def _line_plot(
         axes[3].plot(eps_steps, solar_v, color="#e377c2", linewidth=2)
         axes[3].axvline(current_step, color="#d62728", linestyle=":", linewidth=1)
         axes[3].set_ylabel("Solar V")
-        axes[3].set_title("SARJ solar voltage")
+        axes[3].set_title("SARJ solar voltage (beta fixed in mock)")
         axes[3].grid(alpha=0.2)
 
-        axes[4].plot(eps_steps, bcdu_y, color="#17becf", linewidth=2, drawstyle="steps-post")
-        axes[4].plot(eps_steps, bcdu_support, color="#9467bd", linewidth=1, linestyle="--", alpha=0.8)
-        axes[4].axvline(current_step, color="#d62728", linestyle=":", linewidth=1)
-        axes[4].set_yticks(list(_BCDU_MODE_Y.values()))
-        axes[4].set_yticklabels(list(_BCDU_MODE_Y.keys()))
-        axes[4].set_ylabel("BCDU mode / W")
-        axes[4].set_xlabel("Step")
-        axes[4].set_title("BCDU mode (step) + support W (dashed)")
-        axes[4].grid(alpha=0.2)
+        ax_mode = axes[4]
+        ax_support = ax_mode.twinx()
+        ax_mode.plot(eps_steps, bcdu_y, color="#17becf", linewidth=2, drawstyle="steps-post", label="BCDU mode")
+        ax_support.plot(
+            eps_steps,
+            bcdu_support,
+            color="#9467bd",
+            linewidth=1.5,
+            linestyle="--",
+            alpha=0.9,
+            label="Support W",
+        )
+        ax_mode.axvline(current_step, color="#d62728", linestyle=":", linewidth=1)
+        ax_mode.set_yticks(list(_BCDU_MODE_Y.values()))
+        ax_mode.set_yticklabels(list(_BCDU_MODE_Y.keys()))
+        ax_mode.set_ylabel("BCDU mode")
+        ax_support.set_ylabel("Support (W)")
+        max_support = max(bcdu_support) if bcdu_support else 1.0
+        ax_support.set_ylim(0.0, max(max_support * 1.15, 10.0))
+        ax_mode.set_title("BCDU mode (left) + discharge support W (right, dashed)")
+        ax_mode.set_xlabel("Step")
+        ax_mode.grid(alpha=0.2)
+        lines = ax_mode.get_lines() + ax_support.get_lines()
+        ax_mode.legend(lines, [line.get_label() for line in lines], loc="upper right", fontsize=8)
     else:
         axes[2].set_xlabel("Step")
 
