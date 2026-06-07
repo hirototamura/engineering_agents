@@ -5,8 +5,9 @@ from __future__ import annotations
 import copy
 import json
 import math
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import matplotlib.pyplot as plt
 import streamlit as st
@@ -440,13 +441,11 @@ def _apply_proposal_changes(
     return {"nodes": nodes, "edges": edges}, parameters
 
 
-def _render_topology_panel(
-    *,
-    title: str,
+def _topology_display_bundle(
     topology: Dict[str, Any],
     proposed_edge_keys: Set[Tuple[str, str, str]],
     proposed_node_ids: Set[str],
-) -> None:
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     raw_nodes = topology.get("nodes", [])
     raw_edges = topology.get("edges", [])
     nodes, edges, _ = _prepare_topology_for_display(
@@ -454,17 +453,6 @@ def _render_topology_panel(
         raw_edges,
         proposed_edge_keys=proposed_edge_keys,
     )
-    _draw_topology_graph(
-        nodes,
-        edges,
-        proposed_edge_keys,
-        proposed_node_ids=proposed_node_ids,
-        title=title,
-    )
-    table_edges = [
-        {**edge, "proposed": _edge_key(edge) in proposed_edge_keys}
-        for edge in edges
-    ]
     table_nodes = [
         {
             **node,
@@ -473,27 +461,86 @@ def _render_topology_panel(
         }
         for node in nodes
     ]
+    table_edges = [
+        {**edge, "proposed": _edge_key(edge) in proposed_edge_keys}
+        for edge in edges
+    ]
+    return nodes, edges, table_nodes, table_edges
+
+
+def _render_topology_graph_only(
+    *,
+    title: str,
+    topology: Dict[str, Any],
+    proposed_edge_keys: Set[Tuple[str, str, str]],
+    proposed_node_ids: Set[str],
+) -> None:
+    nodes, edges, _, _ = _topology_display_bundle(topology, proposed_edge_keys, proposed_node_ids)
+    _draw_topology_graph(
+        nodes,
+        edges,
+        proposed_edge_keys,
+        proposed_node_ids=proposed_node_ids,
+        title=title,
+    )
+
+
+def _render_topology_panel(
+    *,
+    title: str,
+    topology: Dict[str, Any],
+    proposed_edge_keys: Set[Tuple[str, str, str]],
+    proposed_node_ids: Set[str],
+) -> None:
+    _, _, table_nodes, table_edges = _topology_display_bundle(
+        topology, proposed_edge_keys, proposed_node_ids
+    )
+    _render_topology_graph_only(
+        title=title,
+        topology=topology,
+        proposed_edge_keys=proposed_edge_keys,
+        proposed_node_ids=proposed_node_ids,
+    )
     st.markdown("**Nodes**")
-    st.dataframe(table_nodes, use_container_width=True, hide_index=True)
+    _render_dataframe_or_empty(table_nodes, "No nodes.")
     st.markdown("**Edges**")
-    st.dataframe(table_edges, use_container_width=True, hide_index=True)
+    _render_dataframe_or_empty(table_edges, "No edges.")
 
 
-def _render_topology_proposal_comparison(
+def _render_dataframe_or_empty(rows: List[Dict[str, Any]], empty_caption: str) -> None:
+    if rows:
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+    else:
+        st.caption(empty_caption)
+
+
+@dataclass
+class TopologyProposalContext:
+    proposal: Dict[str, Any]
+    changes: List[Dict[str, Any]]
+    baseline_topology: Dict[str, Any]
+    proposed_topology: Dict[str, Any]
+    delta_edge_keys: Set[Tuple[str, str, str]]
+    delta_node_ids: Set[str]
+    before_nodes: List[Dict[str, Any]]
+    before_edges: List[Dict[str, Any]]
+    after_nodes: List[Dict[str, Any]]
+    after_edges: List[Dict[str, Any]]
+    param_rows: List[Dict[str, Any]]
+
+
+def _load_topology_proposal_context(
     run_dir: Path,
     design_state_rows: List[Dict[str, Any]],
-) -> None:
-    st.subheader("Design topology — proposal comparison")
+) -> Optional[TopologyProposalContext]:
     proposal = _read_json(run_dir / "design_proposals.json")
     if not proposal:
-        st.info("No design_proposals.json for this run.")
-        return
+        return None
 
     run_end_topology, run_end_parameters = _run_end_design_state(design_state_rows)
     baseline_topology = proposal.get("baseline_topology") or run_end_topology
     if not baseline_topology:
-        st.warning("Proposal has no baseline topology and design_state.jsonl is empty.")
-        return
+        return None
 
     changes = proposal.get("changes", [])
     if not isinstance(changes, list):
@@ -504,56 +551,14 @@ def _render_topology_proposal_comparison(
         changes,
     )
 
-    before_edge_keys = _topology_edge_keys(baseline_topology)
-    after_edge_keys = _topology_edge_keys(proposed_topology)
-    before_node_ids = _topology_node_ids(baseline_topology)
-    after_node_ids = _topology_node_ids(proposed_topology)
-    delta_edge_keys = after_edge_keys - before_edge_keys
-    delta_node_ids = after_node_ids - before_node_ids
+    delta_edge_keys = _topology_edge_keys(proposed_topology) - _topology_edge_keys(baseline_topology)
+    delta_node_ids = _topology_node_ids(proposed_topology) - _topology_node_ids(baseline_topology)
 
-    st.caption(
-        "Compare run-end topology (before proposals) with the topology if design_engineer "
-        "changes were applied. Proposals are not applied during simulation."
-    )
-    if proposal.get("message"):
-        st.markdown(f"**Proposal:** {proposal['message']}")
-    if proposal.get("reasoning"):
-        st.caption(proposal["reasoning"])
-
-    meta_cols = st.columns(3)
-    with meta_cols[0]:
-        st.metric("Proposed changes", len(changes))
-    with meta_cols[1]:
-        st.metric("New edges", len(delta_edge_keys))
-    with meta_cols[2]:
-        st.metric("New nodes", len(delta_node_ids))
-
-    if changes:
-        st.markdown("**Proposed change list**")
-        st.dataframe(changes, use_container_width=True, hide_index=True)
-
-    graph_cols = st.columns(2)
-    with graph_cols[0]:
-        st.markdown("**Before (run-end baseline)**")
-        _render_topology_panel(
-            title="Run-end topology",
-            topology=baseline_topology,
-            proposed_edge_keys=set(),
-            proposed_node_ids=set(),
-        )
-    with graph_cols[1]:
-        st.markdown("**After (if proposals applied)**")
-        _render_topology_panel(
-            title="Proposed topology",
-            topology=proposed_topology,
-            proposed_edge_keys=delta_edge_keys,
-            proposed_node_ids=delta_node_ids,
-        )
-
-    baseline_legend = ", ".join(f"{kind}={color}" for kind, color in _EDGE_COLORS.items())
-    st.caption(
-        f"Baseline edges: {baseline_legend}. "
-        f"Proposed additions: dashed {_DESIGN_EDGE_COLOR} (*)."
+    _, _, before_nodes, before_edges = _topology_display_bundle(baseline_topology, set(), set())
+    _, _, after_nodes, after_edges = _topology_display_bundle(
+        proposed_topology,
+        delta_edge_keys,
+        delta_node_ids,
     )
 
     parameter_keys = sorted(
@@ -566,25 +571,274 @@ def _render_topology_proposal_comparison(
         }
         - {""}
     )
-    if parameter_keys:
-        param_rows: List[Dict[str, Any]] = []
-        for key in parameter_keys:
-            before_value = run_end_parameters.get(key)
-            after_value = proposed_parameters.get(key)
-            delta = None
-            if isinstance(before_value, (int, float)) and isinstance(after_value, (int, float)):
-                delta = round(after_value - before_value, 6)
-            param_rows.append(
-                {
-                    "parameter": key,
-                    "before": before_value,
-                    "after": after_value,
-                    "delta": delta,
-                    "proposed": before_value != after_value,
-                }
-            )
+    param_rows: List[Dict[str, Any]] = []
+    for key in parameter_keys:
+        before_value = run_end_parameters.get(key)
+        after_value = proposed_parameters.get(key)
+        delta = None
+        if isinstance(before_value, (int, float)) and isinstance(after_value, (int, float)):
+            delta = round(after_value - before_value, 6)
+        param_rows.append(
+            {
+                "parameter": key,
+                "before": before_value,
+                "after": after_value,
+                "delta": delta,
+                "proposed": before_value != after_value,
+            }
+        )
+
+    return TopologyProposalContext(
+        proposal=proposal,
+        changes=changes,
+        baseline_topology=baseline_topology,
+        proposed_topology=proposed_topology,
+        delta_edge_keys=delta_edge_keys,
+        delta_node_ids=delta_node_ids,
+        before_nodes=before_nodes,
+        before_edges=before_edges,
+        after_nodes=after_nodes,
+        after_edges=after_edges,
+        param_rows=param_rows,
+    )
+
+
+def _render_topology_proposal_blurb(ctx: Optional[TopologyProposalContext], *, missing: str) -> None:
+    if ctx is None:
+        st.info(missing)
+        return
+    if ctx.proposal.get("message"):
+        st.markdown(f"**Proposal:** {ctx.proposal['message']}")
+    if ctx.proposal.get("reasoning"):
+        st.caption(ctx.proposal["reasoning"])
+
+
+def _render_topology_proposal_metrics(ctx: Optional[TopologyProposalContext]) -> None:
+    if ctx is None:
+        return
+    metric_cols = st.columns(3)
+    with metric_cols[0]:
+        st.metric("Proposed changes", len(ctx.changes))
+    with metric_cols[1]:
+        st.metric("New edges", len(ctx.delta_edge_keys))
+    with metric_cols[2]:
+        st.metric("New nodes", len(ctx.delta_node_ids))
+
+
+def _render_topology_baseline_graph(ctx: TopologyProposalContext) -> None:
+    _render_topology_graph_only(
+        title="Run-end topology",
+        topology=ctx.baseline_topology,
+        proposed_edge_keys=set(),
+        proposed_node_ids=set(),
+    )
+
+
+def _render_topology_proposed_graph(ctx: TopologyProposalContext) -> None:
+    _render_topology_graph_only(
+        title="Proposed topology",
+        topology=ctx.proposed_topology,
+        proposed_edge_keys=ctx.delta_edge_keys,
+        proposed_node_ids=ctx.delta_node_ids,
+    )
+
+
+def _render_topology_proposal_body(ctx: Optional[TopologyProposalContext], *, missing: str) -> None:
+    """Single-run view: before/after panels side by side."""
+    if ctx is None:
+        st.info(missing)
+        return
+
+    _render_topology_proposal_metrics(ctx)
+
+    st.markdown("**Proposed change list**")
+    _render_dataframe_or_empty(ctx.changes, "No proposed changes.")
+
+    graph_cols = st.columns(2)
+    with graph_cols[0]:
+        st.markdown("**Before (run-end baseline)**")
+        _render_topology_panel(
+            title="Run-end topology",
+            topology=ctx.baseline_topology,
+            proposed_edge_keys=set(),
+            proposed_node_ids=set(),
+        )
+    with graph_cols[1]:
+        st.markdown("**After (if proposals applied)**")
+        _render_topology_panel(
+            title="Proposed topology",
+            topology=ctx.proposed_topology,
+            proposed_edge_keys=ctx.delta_edge_keys,
+            proposed_node_ids=ctx.delta_node_ids,
+        )
+
+    if ctx.param_rows:
         st.markdown("**Design parameters (before vs proposed)**")
-        st.dataframe(param_rows, use_container_width=True, hide_index=True)
+        _render_dataframe_or_empty(ctx.param_rows, "No parameter changes.")
+
+
+def _render_topology_proposal_for_run(
+    run_dir: Path,
+    design_state_rows: List[Dict[str, Any]],
+) -> None:
+    ctx = _load_topology_proposal_context(run_dir, design_state_rows)
+    st.caption(
+        "Compare run-end topology (before proposals) with the topology if design_engineer "
+        "changes were applied. Proposals are not applied during simulation."
+    )
+    _render_topology_proposal_blurb(
+        ctx,
+        missing="No design_proposals.json for this run.",
+    )
+    _render_topology_proposal_body(
+        ctx,
+        missing="No design_proposals.json for this run.",
+    )
+    if ctx is not None:
+        baseline_legend = ", ".join(f"{kind}={color}" for kind, color in _EDGE_COLORS.items())
+        st.caption(
+            f"Baseline edges: {baseline_legend}. "
+            f"Proposed additions: dashed {_DESIGN_EDGE_COLOR} (*)."
+        )
+
+
+def _render_dual_topology_proposal(primary: RunViewData, compare: RunViewData) -> None:
+    """Align topology subsections across runs (row-by-row, not stacked columns)."""
+    primary_ctx = _load_topology_proposal_context(primary.run_dir, primary.design_state)
+    compare_ctx = _load_topology_proposal_context(compare.run_dir, compare.design_state)
+
+    st.caption(
+        "Compare run-end topology (before proposals) with the topology if design_engineer "
+        "changes were applied. Proposals are not applied during simulation."
+    )
+
+    _render_paired_columns(
+        lambda: st.markdown(f"**`{primary.run_name}`**"),
+        lambda: st.markdown(f"**`{compare.run_name}`**"),
+    )
+
+    _render_paired_columns(
+        lambda: _render_topology_proposal_blurb(
+            primary_ctx,
+            missing="No design_proposals.json for this run.",
+        ),
+        lambda: _render_topology_proposal_blurb(
+            compare_ctx,
+            missing="No design_proposals.json for this run.",
+        ),
+    )
+
+    _render_paired_columns(
+        lambda: _render_topology_proposal_metrics(primary_ctx),
+        lambda: _render_topology_proposal_metrics(compare_ctx),
+    )
+
+    st.markdown("**Proposed change list**")
+    _render_paired_columns(
+        lambda: _render_dataframe_or_empty(
+            primary_ctx.changes if primary_ctx else [],
+            "No proposed changes.",
+        ),
+        lambda: _render_dataframe_or_empty(
+            compare_ctx.changes if compare_ctx else [],
+            "No proposed changes.",
+        ),
+    )
+
+    st.markdown("**Before (run-end baseline)**")
+    _render_paired_columns(
+        lambda: _render_topology_baseline_graph(primary_ctx)
+        if primary_ctx
+        else st.info("No topology data."),
+        lambda: _render_topology_baseline_graph(compare_ctx)
+        if compare_ctx
+        else st.info("No topology data."),
+    )
+
+    st.markdown("**Before — Nodes**")
+    _render_paired_columns(
+        lambda: _render_dataframe_or_empty(
+            primary_ctx.before_nodes if primary_ctx else [],
+            "No nodes.",
+        ),
+        lambda: _render_dataframe_or_empty(
+            compare_ctx.before_nodes if compare_ctx else [],
+            "No nodes.",
+        ),
+    )
+
+    st.markdown("**Before — Edges**")
+    _render_paired_columns(
+        lambda: _render_dataframe_or_empty(
+            primary_ctx.before_edges if primary_ctx else [],
+            "No edges.",
+        ),
+        lambda: _render_dataframe_or_empty(
+            compare_ctx.before_edges if compare_ctx else [],
+            "No edges.",
+        ),
+    )
+
+    st.markdown("**After (if proposals applied)**")
+    _render_paired_columns(
+        lambda: _render_topology_proposed_graph(primary_ctx)
+        if primary_ctx
+        else st.info("No topology data."),
+        lambda: _render_topology_proposed_graph(compare_ctx)
+        if compare_ctx
+        else st.info("No topology data."),
+    )
+
+    st.markdown("**After — Nodes**")
+    _render_paired_columns(
+        lambda: _render_dataframe_or_empty(
+            primary_ctx.after_nodes if primary_ctx else [],
+            "No nodes.",
+        ),
+        lambda: _render_dataframe_or_empty(
+            compare_ctx.after_nodes if compare_ctx else [],
+            "No nodes.",
+        ),
+    )
+
+    st.markdown("**After — Edges**")
+    _render_paired_columns(
+        lambda: _render_dataframe_or_empty(
+            primary_ctx.after_edges if primary_ctx else [],
+            "No edges.",
+        ),
+        lambda: _render_dataframe_or_empty(
+            compare_ctx.after_edges if compare_ctx else [],
+            "No edges.",
+        ),
+    )
+
+    if (primary_ctx and primary_ctx.param_rows) or (compare_ctx and compare_ctx.param_rows):
+        st.markdown("**Design parameters (before vs proposed)**")
+        _render_paired_columns(
+            lambda: _render_dataframe_or_empty(
+                primary_ctx.param_rows if primary_ctx else [],
+                "No parameter changes.",
+            ),
+            lambda: _render_dataframe_or_empty(
+                compare_ctx.param_rows if compare_ctx else [],
+                "No parameter changes.",
+            ),
+        )
+
+    baseline_legend = ", ".join(f"{kind}={color}" for kind, color in _EDGE_COLORS.items())
+    st.caption(
+        f"Baseline edges: {baseline_legend}. "
+        f"Proposed additions: dashed {_DESIGN_EDGE_COLOR} (*)."
+    )
+
+
+def _render_topology_proposal_comparison(
+    run_dir: Path,
+    design_state_rows: List[Dict[str, Any]],
+) -> None:
+    st.subheader("Design topology — proposal comparison")
+    _render_topology_proposal_for_run(run_dir, design_state_rows)
 
 
 def _render_summary(summary: Dict[str, Any]) -> None:
@@ -671,19 +925,134 @@ def _render_power_recovery_comparison(
         c_eps = len([r for r in _extract_recovery_commands(compare_events) if r["kind"] == "request_eps_boost"])
         st.metric("EPS boost commands", f"{p_eps} / {c_eps}")
 
-    rec_cols = st.columns(2)
-    with rec_cols[0]:
-        st.caption(f"`{primary_name}` recovery events")
-        st.dataframe(_extract_recovery_commands(primary_events), use_container_width=True, hide_index=True)
-    with rec_cols[1]:
-        st.caption(f"`{compare_name}` recovery events")
-        st.dataframe(_extract_recovery_commands(compare_events), use_container_width=True, hide_index=True)
+    _render_paired_columns(
+        lambda: (
+            st.caption(f"`{primary_name}` recovery events"),
+            _render_dataframe_or_empty(
+                _extract_recovery_commands(primary_events),
+                "No recovery events.",
+            ),
+        ),
+        lambda: (
+            st.caption(f"`{compare_name}` recovery events"),
+            _render_dataframe_or_empty(
+                _extract_recovery_commands(compare_events),
+                "No recovery events.",
+            ),
+        ),
+    )
 
 
 def _extract_final_parameters(design_state_rows: List[Dict[str, Any]]) -> Dict[str, float]:
     if not design_state_rows:
         return {}
     return dict(design_state_rows[-1].get("parameters", {}))
+
+
+def _max_telemetry_step(telemetry: List[Dict[str, Any]]) -> int:
+    return max((int(r["step"]) for r in telemetry), default=1)
+
+
+@dataclass
+class RunViewData:
+    run_dir: Path
+    run_name: str
+    telemetry: List[Dict[str, Any]]
+    eps_telemetry: List[Dict[str, Any]]
+    health: List[Dict[str, Any]]
+    messages: List[Dict[str, Any]]
+    events: List[Dict[str, Any]]
+    provenance: List[Dict[str, Any]]
+    design_state: List[Dict[str, Any]]
+    summary: Dict[str, Any]
+
+
+def _render_paired_columns(
+    render_primary: Callable[[], None],
+    render_compare: Callable[[], None],
+) -> None:
+    """Render two panels on one row so the next section aligns across runs."""
+    left_col, right_col = st.columns(2)
+    with left_col:
+        render_primary()
+    with right_col:
+        render_compare()
+
+
+def _render_dual_run_views(primary: RunViewData, compare: RunViewData, current_step: int) -> None:
+    """Section-aligned side-by-side layout (avoids column height drift)."""
+    st.subheader("Runs side by side")
+
+    _render_paired_columns(
+        lambda: (
+            st.markdown(f"**`{primary.run_name}`**"),
+            st.caption(f"`{primary.run_dir}`"),
+        ),
+        lambda: (
+            st.markdown(f"**`{compare.run_name}`**"),
+            st.caption(f"`{compare.run_dir}`"),
+        ),
+    )
+
+    _render_paired_columns(
+        lambda: _render_health_card(
+            primary.telemetry, primary.health, primary.eps_telemetry, current_step
+        ),
+        lambda: _render_health_card(
+            compare.telemetry, compare.health, compare.eps_telemetry, current_step
+        ),
+    )
+
+    _render_paired_columns(
+        lambda: _line_plot(primary.telemetry, primary.eps_telemetry, current_step),
+        lambda: _line_plot(compare.telemetry, compare.eps_telemetry, current_step),
+    )
+
+    st.subheader("Design topology — proposal comparison")
+    _render_dual_topology_proposal(primary, compare)
+
+    st.subheader(f"Step {current_step} detail")
+    primary_messages = _select_rows_at_step(primary.messages, current_step)
+    compare_messages = _select_rows_at_step(compare.messages, current_step)
+    primary_events = _select_rows_at_step(primary.events, current_step)
+    compare_events = _select_rows_at_step(compare.events, current_step)
+    primary_provenance = _select_rows_at_step(primary.provenance, current_step)
+    compare_provenance = _select_rows_at_step(compare.provenance, current_step)
+
+    st.markdown("**Messages**")
+    _render_paired_columns(
+        lambda: _render_dataframe_or_empty(primary_messages, "No messages at this step."),
+        lambda: _render_dataframe_or_empty(compare_messages, "No messages at this step."),
+    )
+
+    st.markdown("**Events**")
+    _render_paired_columns(
+        lambda: _render_dataframe_or_empty(primary_events, "No events at this step."),
+        lambda: _render_dataframe_or_empty(compare_events, "No events at this step."),
+    )
+
+    st.markdown("**Provenance**")
+    _render_paired_columns(
+        lambda: _render_dataframe_or_empty(primary_provenance, "No provenance records at this step."),
+        lambda: _render_dataframe_or_empty(compare_provenance, "No provenance records at this step."),
+    )
+
+    st.subheader("Run summary")
+    _render_paired_columns(
+        lambda: st.json(primary.summary, expanded=False) if primary.summary else st.warning("summary.json not found."),
+        lambda: st.json(compare.summary, expanded=False) if compare.summary else st.warning("summary.json not found."),
+    )
+
+
+def _render_run_detail_view(run: RunViewData, current_step: int) -> None:
+    """Health, trajectories, topology, step tables, and summary for a single run."""
+    st.markdown(f"**`{run.run_name}`**")
+    st.caption(f"`{run.run_dir}`")
+    _render_health_card(run.telemetry, run.health, run.eps_telemetry, current_step)
+    _line_plot(run.telemetry, run.eps_telemetry, current_step)
+    _render_topology_proposal_comparison(run.run_dir, run.design_state)
+    _render_step_tables(run.messages, run.events, run.provenance, current_step)
+    _render_summary(run.summary)
 
 
 def _render_run_comparison(
@@ -753,13 +1122,17 @@ def _render_run_comparison(
     st.markdown("**Final design parameters diff**")
     st.dataframe(diff_rows, use_container_width=True, hide_index=True)
 
-    prov_cols = st.columns(2)
-    with prov_cols[0]:
-        st.markdown(f"**{primary_name} provenance**")
-        st.dataframe(primary_provenance, use_container_width=True, hide_index=True)
-    with prov_cols[1]:
-        st.markdown(f"**{compare_name} provenance**")
-        st.dataframe(compare_provenance, use_container_width=True, hide_index=True)
+    st.markdown("**Provenance**")
+    _render_paired_columns(
+        lambda: (
+            st.markdown(f"**{primary_name}**"),
+            _render_dataframe_or_empty(primary_provenance, "No provenance records."),
+        ),
+        lambda: (
+            st.markdown(f"**{compare_name}**"),
+            _render_dataframe_or_empty(compare_provenance, "No provenance records."),
+        ),
+    )
 
 
 def main() -> None:
@@ -794,21 +1167,57 @@ def main() -> None:
     design_state = _read_jsonl(run_dir / "design_state.jsonl")
     summary = _read_json(run_dir / "summary.json")
 
-    max_step = max((int(r["step"]) for r in telemetry), default=1)
+    compare_telemetry: List[Dict[str, Any]] = []
+    compare_eps_telemetry: List[Dict[str, Any]] = []
+    compare_health: List[Dict[str, Any]] = []
+    compare_messages: List[Dict[str, Any]] = []
+    compare_events: List[Dict[str, Any]] = []
+    compare_provenance: List[Dict[str, Any]] = []
+    compare_design_state: List[Dict[str, Any]] = []
+    compare_summary: Dict[str, Any] = {}
+    if compare_run_dir is not None:
+        compare_telemetry = _read_jsonl(compare_run_dir / "telemetry.jsonl")
+        compare_eps_telemetry = _read_jsonl(compare_run_dir / "eps_telemetry.jsonl")
+        compare_health = _read_jsonl(compare_run_dir / "health_metrics.jsonl")
+        compare_messages = _read_jsonl(compare_run_dir / "messages.jsonl")
+        compare_events = _read_jsonl(compare_run_dir / "events.jsonl")
+        compare_provenance = _read_jsonl(compare_run_dir / "provenance.jsonl")
+        compare_design_state = _read_jsonl(compare_run_dir / "design_state.jsonl")
+        compare_summary = _read_json(compare_run_dir / "summary.json")
+
+    max_step = _max_telemetry_step(telemetry)
+    if compare_run_name and compare_telemetry:
+        max_step = min(max_step, _max_telemetry_step(compare_telemetry))
     current_step = st.sidebar.slider("Step", min_value=1, max_value=max_step, value=max_step)
 
-    st.caption(f"Run directory: `{run_dir}`")
-    _render_health_card(telemetry, health, eps_telemetry, current_step)
-    _line_plot(telemetry, eps_telemetry, current_step)
-    _render_topology_proposal_comparison(run_dir, design_state)
-    _render_step_tables(messages, events, provenance, current_step)
-    _render_summary(summary)
+    primary_run = RunViewData(
+        run_dir=run_dir,
+        run_name=selected_run_name,
+        telemetry=telemetry,
+        eps_telemetry=eps_telemetry,
+        health=health,
+        messages=messages,
+        events=events,
+        provenance=provenance,
+        design_state=design_state,
+        summary=summary,
+    )
 
     if compare_run_name and compare_run_dir:
-        compare_summary = _read_json(compare_run_dir / "summary.json")
-        compare_design_state = _read_jsonl(compare_run_dir / "design_state.jsonl")
-        compare_provenance = _read_jsonl(compare_run_dir / "provenance.jsonl")
-        compare_events = _read_jsonl(compare_run_dir / "events.jsonl")
+        compare_run = RunViewData(
+            run_dir=compare_run_dir,
+            run_name=compare_run_name,
+            telemetry=compare_telemetry,
+            eps_telemetry=compare_eps_telemetry,
+            health=compare_health,
+            messages=compare_messages,
+            events=compare_events,
+            provenance=compare_provenance,
+            design_state=compare_design_state,
+            summary=compare_summary,
+        )
+        _render_dual_run_views(primary_run, compare_run, current_step)
+        st.divider()
         _render_run_comparison(
             primary_name=selected_run_name,
             primary_summary=summary,
@@ -821,6 +1230,8 @@ def main() -> None:
             primary_events=events,
             compare_events=compare_events,
         )
+    else:
+        _render_run_detail_view(primary_run, current_step)
 
 
 if __name__ == "__main__":
