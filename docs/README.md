@@ -30,7 +30,7 @@ python src/scripts/run_mock_eclss.py
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
 
 # Persona + 2ラウンド議論 + ガード付き LLM（Ollama 要）
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm'}})"
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}})"
 
 # ダッシュボード
 python -m streamlit run src/tools/dashboard/app.py
@@ -38,7 +38,7 @@ python -m streamlit run src/tools/dashboard/app.py
 
 ## 現在のマイルストーン
 
-- **完了**: ベースライン + labeled エージェント、Persona `labeled_llm`、One Piece provenance（設計変更 + EPS 回復）、ダッシュボード、`StationSimulator` / `mock_station`
+- **完了**: ベースライン + labeled エージェント、同種 N 体 `llm` モード、One Piece provenance（設計変更 + EPS 回復）、ダッシュボード、`StationSimulator` / `mock_station`
 - **次**: Day 8 CLI（[eps_implementation_plan.md](../memo/eps_implementation_plan.md)）→ provenance インデックス、SSOS アダプタ契約テスト
 
 `from scenario.runner import ...` の前に `pip install -e ".[dev]"` が必要（パッケージは `src/` 配下）。

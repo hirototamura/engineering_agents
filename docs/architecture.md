@@ -11,8 +11,8 @@
 | リポジトリ構成 | 完了 | `src/` レイヤ、`core/agents/`、`scenario/` |
 | シミュレータプロトコル | 完了 | `SimulatorProtocol`、`MockEclssSimulator`、`docs/api-contracts.md` |
 | ベースラインシナリオ | 完了 | `scrubber_degradation/scenario.yaml`、`scenario/runner.py`、ベースラインテスト |
-| Labeled エージェントチーム | 完了 | ルールベース 4 ロール、`messages.jsonl`、回復 + 設計変更 |
-| LLM モード | 完了 / 調整中 | `agents.mode: labeled_llm` — Persona 議論、ルール fallback なし |
+| Labeled エージェントチーム | 完了 | ルールベース同種 N 体、`policy` 駆動、回復 + 事後設計提案 |
+| LLM モード | 完了 / 調整中 | `agents.mode: llm` — 1 ラウンド議論 + 代表 action、policy 非参照 |
 | One Piece provenance | 完了（Day5B） | `integrations/one_piece/client.py`、`provenance.jsonl` |
 | ダッシュボード | 完了（Day6） | `src/tools/dashboard/app.py`（トポロジグラフ含む） |
 | CLI | 計画中 | `tools/cli.py` |
@@ -67,31 +67,28 @@ scenario.yaml + agents.yaml
 | モード | 物理 | アクション | メッセージ | テスト |
 | --- | --- | --- | --- | --- |
 | `none` | モックのみ | — | — | `test_scrubber_baseline.py`（常に green） |
-| `labeled` | モック | ルールベース 4 ロール | `decision_source: rule` | `test_scrubber_with_agents.py` |
-| `labeled_llm` | モック | LLM のみ（repeat 可、add_node 可） | `llm` / `llm_no_action` / `skip` | labeled_llm テスト |
+| `labeled` | モック | ルールベース同種 N 体（`policy`） | `decision_source: rule` | `test_scrubber_with_agents.py` |
+| `llm` | モック | LLM のみ（N+1 呼び出し/step、repeat 可） | `llm` / `llm_no_action` / `skip` | llm テスト |
 | `base` | — | 未実装 | BL-001 バックログ | — |
 
-ロールは `scrubber_degradation` 専用の**シナリオ固有ラベル**（`ScrubberDegradationTeam`）。汎用ロールフレームワークではない。創発ロール研究は [memo/backlog.md](../memo/backlog.md) BL-001。
+チームは `scrubber_degradation` 専用の**同種エンジニア N 体**（`engineer_1` .. `engineer_N`）。進化ペルソナ研究は [memo/backlog.md](../memo/backlog.md) BL-002。
 
-### Labeled ロール（`labeled` 専用）
+### Labeled（`policy` 専用）
 
-`labeled` では以下の閾値が行動タイミングを決める。`labeled_llm` では異常（step 20）以外のタイミングはエージェント判断。
+`agents.yaml` の `policy` は **`labeled` のみ**が参照。閾値は `co2_recovery_ppm` を中心に回復・事後 design ゲートを駆動する。
 
-| ロール | 責務 | ルールトリガー（要約） |
-| --- | --- | --- |
-| Monitor | アラート | CO2 ≥ 900 ppm |
-| Diagnostician | 診断 | `anomaly_flags` あり |
-| Operator | 回復コマンド | CO2 ≥ 1000 → ファン強化；電力 critical → 負荷削減；バイパス |
-| DesignEngineer | 恒久設計変更 | step ≥ 35 かつ CO2 ≥ 1000 → bypass エッジ追加 |
+| 挙動 | ルールトリガー（要約） |
+| --- | --- |
+| アラート / 診断 | CO2 ≥ `co2_recovery_ppm`；`anomaly_flags` あり |
+| 回復コマンド | 代表 `engineer_{(step-1)%N}` がファン・負荷削減・EPS・バイパス |
+| 事後設計提案 | peak CO2 ≥ `co2_recovery_ppm` または `anomaly_seen` → bypass 提案 |
 
-### labeled_llm モード
+### llm モード
 
-- **2 ラウンド Persona 議論**: Round 1 オープンフォーラム（4 体）、Round 2 反応（monitor/diagnostician）、Action（operator/design）
-- **プロンプト層**: Team charter + `personas` + `## Situation` + ディスコース + 個体メモリ + 出力契約
-- **Persona とシナリオの分離**: 閾値・イベント・手段カタログは persona に書かない（[persona_workshop_draft.md](../memo/persona_workshop_draft.md)）
-- 成功 → `decision_source: llm`；parse 失敗・空アクション → `message_type: skip`（`llm_parse_fail` / `llm_no_action`）
-- operator: コマンド repeat 可。design: `add_node` / `add_edge` / `set_parameter` を複数ステップで適用可
-- 実装プラン: [memo/persona_llm_core_oop_plan.md](../memo/persona_llm_core_oop_plan.md)
+- **1 ラウンド deliberation**（全 N 体）→ **代表 action**（`engineer_{(step-1)%N}`）→ 事後 design（最終 step の代表）
+- **Situation**: `### Telemetry` + `### World state` のみ（`policy` 値は注入しない）
+- 成功 → `decision_source: llm`；parse 失敗・空 commands → `message_type: skip`
+- 実装プラン: [memo/homogeneous_agent_team_plan.md](../memo/homogeneous_agent_team_plan.md)
 
 ## 出力レイアウト
 
@@ -103,14 +100,14 @@ scenario.yaml + agents.yaml
 | `health_metrics.jsonl` | 毎ステップ |
 | `design_state.jsonl` | 毎ステップ（エージェント前トポロジ） |
 | `events.jsonl` | 異常、回復コマンド、設計変更 |
-| `messages.jsonl` | `labeled` / `labeled_llm` |
+| `messages.jsonl` | `labeled` / `llm` |
 | `summary.json` | 実行終了時に 1 回 |
 
 デフォルト run ID（`scenario.yaml`）:
 
 - `scrubber_degradation_baseline` — `agents.mode: none`
 - `scrubber_degradation_labeled` — `labeled`
-- `scrubber_degradation_labeled_llm` — `labeled_llm`
+- `scrubber_degradation_llm` — `llm`
 
 スキーマ詳細: [api-contracts.md](api-contracts.md)。シナリオ叙事: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md)。
 
@@ -119,7 +116,7 @@ scenario.yaml + agents.yaml
 | システム | MVP での扱い |
 | --- | --- |
 | SSOS | モックアダプタ（`environment/ssos/mock_eclss.py`）；実 ROS2 は `SsosAdapter` スタブ |
-| LLM | Ollama（`core/llm/ollama.py`）；`labeled_llm` で使用 |
+| LLM | Ollama（`core/llm/ollama.py`）；`llm` で使用 |
 | One Piece | JSON provenance（`integrations/one_piece/`、Day5B 実装済み）；Web UI は後回し |
 | EPS（電力） | 完了（EPS-1〜4）: `StationSimulator`、SARJ/BCDU モック、`eps_telemetry.jsonl` |
 

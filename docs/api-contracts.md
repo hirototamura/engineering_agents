@@ -72,25 +72,23 @@
 | --- | --- | --- | --- |
 | `none` | — | — | — |
 | `labeled` | `ScrubberDegradationTeam` | ルール | ルールメッセージのみ |
-| `labeled_llm` | 同上 | LLM のみ（チーム方針ガード・rule fallback なし） | `llm` / `llm_parse_fail` / `llm_no_action` |
+| `llm` | 同上 | LLM のみ（policy 非参照） | `llm` / `llm_parse_fail` / `llm_no_action` |
 
 将来: `base`（ラベルなし創発ロール）— [memo/backlog.md](../memo/backlog.md) BL-001。
 
-### labeled_llm の Persona メタデータ
+### llm のメタデータ
 
-`messages.jsonl` の LLM ガードメッセージに付与される任意フィールド:
+`messages.jsonl` の LLM メッセージに付与される任意フィールド:
 
 | フィールド | 例 | 説明 |
 | --- | --- | --- |
-| `deliberation_phase` | `round1_forum` / `round2_reaction` / `round2_action` | 2 ラウンド議論のフェーズ |
-| `main_role` | `Recovery tactician` | `agents.yaml` の名札（ログ用） |
-| `persona` | （省略可） | エージェント ID（`monitor` 等） |
-| `decision_source` | `llm` / `rule_fallback` / `llm_guard_reject` | 最終決定の出所 |
-| `parse_status` | `ok` / `parse_error` / `guard_reject` | JSON パース・ガード結果 |
-| `parse_error` | 文字列または `null` | パース/ガード失敗時の詳細 |
+| `deliberation_phase` | `deliberation` / `action` / `post_run_proposal` | 議論フェーズ |
+| `decision_source` | `llm` / `llm_parse_fail` / `llm_no_action` | 最終決定の出所 |
+| `parse_status` | `ok` / `parse_error` | JSON パース結果 |
+| `parse_error` | 文字列または `null` | パース失敗時の詳細 |
 | `raw_response_excerpt` | 文字列 | デバッグ用の生応答抜粋 |
 
-Persona 本文・シナリオ閾値はログに含めない。状況は実行時に `## Situation` として注入される。
+`from_role` は `engineer_1` .. `engineer_N`。Persona 本文・`policy` 閾値はログに含めない。Situation は `### Telemetry` + `### World state` のみ。
 
 ## ROS2 風トピック（`environment/ssos/topics.py`）
 
@@ -127,14 +125,14 @@ Persona 本文・シナリオ閾値はログに含めない。状況は実行時
 
 ### messages.jsonl
 
-`agents.mode` が `labeled` または `labeled_llm` のとき出力。
+`agents.mode` が `labeled` または `llm` のとき出力。
 
 **ルールメッセージ:**
 
 ```json
 {
   "step": 33,
-  "from_role": "monitor",
+  "from_role": "engineer_2",
   "to_role": "team",
   "message": "CO2 at 1016 ppm exceeds alert threshold 900.",
   "message_type": "alert",
@@ -143,19 +141,18 @@ Persona 本文・シナリオ閾値はログに含めない。状況は実行時
 }
 ```
 
-**LLM ガードメッセージ**（`labeled_llm`）:
+**LLM メッセージ**（`llm`）:
 
 ```json
 {
   "step": 33,
-  "from_role": "operator",
+  "from_role": "engineer_1",
   "to_role": "team",
   "message": "...",
   "message_type": "recovery_command",
   "reasoning": "...",
   "decision_source": "llm",
-  "deliberation_phase": "round2_action",
-  "main_role": "Recovery tactician",
+  "deliberation_phase": "action",
   "parse_status": "ok",
   "parse_error": null,
   "raw_response_excerpt": "..."
@@ -298,7 +295,7 @@ python src/scripts/run_mock_eclss.py
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
 
 # Persona + 2ラウンド議論 + ガード付き LLM（Ollama 要）
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm'}})"
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}})"
 ```
 
 プログラムからの回復スモークテスト:
