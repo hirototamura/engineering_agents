@@ -12,6 +12,7 @@ class DeliberationPhase:
     INITIAL = "deliberation_initial"
     REACT = "deliberation_react"
     ACTION = "action"
+    POST_RUN = "post_run_proposal"
 
 
 @dataclass

@@ -4,6 +4,7 @@ Scrubber degradation agent team — rule-based labeled mode + persona LLM guarde
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -11,8 +12,10 @@ from core.agents.base import Team
 from core.agents.memory import TeamMemoryStore
 from core.agents.persona import (
     PersonaAgent,
+    design_proposal_contract,
     load_personas,
     message_contract,
+    operator_action_contract,
 )
 from core.agents.types import (
     AgentMessage,
@@ -47,7 +50,7 @@ class ScrubberTeamState:
     fan_boost_applied: bool = False
     bypass_enabled: bool = False
     load_reduced: bool = False
-    design_change_applied: bool = False
+    design_assessment_sent: bool = False
     alert_sent: bool = False
     eps_boost_requested: bool = False
 
@@ -62,8 +65,8 @@ class ScrubberDegradationTeam(Team):
         self.diagnostician_cfg = roles.get("diagnostician", {})
         self.operator_cfg = roles.get("operator", {})
         self.design_cfg = roles.get("design_engineer", {})
-        self.llm_guarded = self.mode == "labeled_llm_guarded"
-        self.llm_enabled = self.llm_guarded
+        self.llm_mode = self.mode == "labeled_llm"
+        self.llm_enabled = self.llm_mode
         self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_enabled else None
 
         self.personas = load_personas(config)
@@ -82,8 +85,8 @@ class ScrubberDegradationTeam(Team):
         }
 
     def run_step(self, sim: SimulatorProtocol, obs: AgentObservation) -> StepAgentOutcome:
-        if self.llm_guarded:
-            outcome = self._run_step_llm_guarded(sim, obs)
+        if self.llm_mode:
+            outcome = self._run_step_llm(sim, obs)
             self.memory_store.commit_step(outcome)
             return outcome
         outcome = StepAgentOutcome()
@@ -92,9 +95,7 @@ class ScrubberDegradationTeam(Team):
         op_msgs, op_cmds = self._operator(obs)
         outcome.messages.extend(op_msgs)
         outcome.commands.extend(op_cmds)
-        des_msgs, des_changes = self._design_engineer(obs)
-        outcome.messages.extend(des_msgs)
-        outcome.design_changes.extend(des_changes)
+        outcome.messages.extend(self._design_engineer_discourse(obs))
         return outcome
 
     def apply_outcome(self, sim: SimulatorProtocol, outcome: StepAgentOutcome) -> None:
@@ -103,7 +104,7 @@ class ScrubberDegradationTeam(Team):
         for change in outcome.design_changes:
             sim.apply_design_change(change)
 
-    def _run_step_llm_guarded(
+    def _run_step_llm(
         self,
         sim: SimulatorProtocol,
         obs: AgentObservation,
@@ -113,8 +114,6 @@ class ScrubberDegradationTeam(Team):
         situation = self._situation_context(obs, self.monitor_cfg, self.design_cfg, self.operator_cfg)
 
         for agent_id, to_role, message_type in ROUND1_SPEAKERS:
-            if agent_id == "design_engineer" and not self._design_llm_eligible(obs):
-                continue
             msg = self._llm_deliberation_turn(
                 obs=obs,
                 agent_id=agent_id,
@@ -129,14 +128,16 @@ class ScrubberDegradationTeam(Team):
             if msg is not None:
                 outcome.messages.append(msg)
                 step_discourse.append(msg)
-            elif agent_id in {"monitor", "diagnostician"}:
-                fallback = self._rule_fallback_messages(obs, agent_id)
-                tagged = self._attach_metadata(
-                    fallback,
-                    {"decision_source": "rule_fallback", "deliberation_phase": DeliberationPhase.INITIAL},
+            else:
+                outcome.messages.append(
+                    self._llm_skip(
+                        obs=obs,
+                        agent_id=agent_id,
+                        phase=DeliberationPhase.INITIAL,
+                        reason="parse_failed_or_empty_message",
+                        decision_source="llm_parse_fail",
+                    )
                 )
-                outcome.messages.extend(tagged)
-                step_discourse.extend(tagged)
 
         for agent_id, to_role, message_type in ROUND2_SPEAKERS:
             msg = self._llm_deliberation_turn(
@@ -153,23 +154,31 @@ class ScrubberDegradationTeam(Team):
             if msg is not None:
                 outcome.messages.append(msg)
                 step_discourse.append(msg)
-            elif agent_id in {"monitor", "diagnostician"}:
-                fallback = self._rule_fallback_messages(obs, agent_id)
-                tagged = self._attach_metadata(
-                    fallback,
-                    {"decision_source": "rule_fallback", "deliberation_phase": DeliberationPhase.REACT},
+            else:
+                outcome.messages.append(
+                    self._llm_skip(
+                        obs=obs,
+                        agent_id=agent_id,
+                        phase=DeliberationPhase.REACT,
+                        reason="parse_failed_or_empty_message",
+                        decision_source="llm_parse_fail",
+                    )
                 )
-                outcome.messages.extend(tagged)
-                step_discourse.extend(tagged)
 
         op_msgs, op_cmds = self._llm_operator_action(obs, situation, step_discourse)
         outcome.messages.extend(op_msgs)
         outcome.commands.extend(op_cmds)
-
-        design_msgs, design_changes = self._llm_design_action(sim, obs, situation, step_discourse)
-        outcome.messages.extend(design_msgs)
-        outcome.design_changes.extend(design_changes)
         return outcome
+
+    def propose_post_run_design(
+        self,
+        sim: SimulatorProtocol,
+        summary: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        baseline = sim.get_design_state().to_dict()
+        if self.llm_mode:
+            return self._llm_post_run_design_proposal(summary, baseline)
+        return self._rule_post_run_design_proposal(summary, baseline)
 
     def _llm_deliberation_turn(
         self,
@@ -231,15 +240,7 @@ class ScrubberDegradationTeam(Team):
         situation: str,
         step_discourse: List[AgentMessage],
     ) -> Tuple[List[AgentMessage], List[RecoveryCommand]]:
-        contract = (
-            "Return ONLY one valid JSON object (multi-line is allowed). "
-            "No markdown. No code fences. No prose outside JSON. "
-            'Required keys: "message", "reasoning", "commands". '
-            'Optional key: "memory". '
-            'commands must be a list of {"kind": "...", "value": ...} with kind in '
-            '["set_fan_speed","enable_bypass","reduce_load","request_eps_boost"]. '
-            "Empty commands is valid when deliberate inaction is safer."
-        )
+        contract = operator_action_contract()
         agent = self.agents["operator"]
         ctx = agent.build_context(
             step=obs.step,
@@ -251,28 +252,33 @@ class ScrubberDegradationTeam(Team):
         parsed = agent.deliberate(
             ctx,
             contract,
-            "Issue recovery commands based on the full discussion. Apply guards mentally — avoid repeats.",
+            "Issue recovery commands when discourse and Situation warrant intervention; "
+            "cite named teammates from Round 1. ",
             ("commands",),
         )
         if parsed is None:
-            fallback_msgs, fallback_cmds = self._operator(obs)
-            return self._attach_metadata(
-                fallback_msgs,
-                {"decision_source": "rule_fallback", "deliberation_phase": DeliberationPhase.ACTION},
-            ), fallback_cmds
+            return [
+                self._llm_skip(
+                    obs=obs,
+                    agent_id="operator",
+                    phase=DeliberationPhase.ACTION,
+                    reason="parse_failed",
+                    decision_source="llm_parse_fail",
+                )
+            ], []
 
         message = parsed.data.get("message", "Operator assessed current state.")
         reasoning = parsed.data.get("reasoning", "")
         commands: List[RecoveryCommand] = []
-        guard_notes: List[str] = []
+        parse_notes: List[str] = []
         raw_commands = parsed.data.get("commands", [])
         if not isinstance(raw_commands, list):
             raw_commands = []
 
         for item in raw_commands:
-            cmd, note = self._guard_operator_command(item, obs=obs)
+            cmd, note = self._parse_llm_operator_command(item)
             if note:
-                guard_notes.append(note)
+                parse_notes.append(note)
             if cmd is not None:
                 commands.append(cmd)
 
@@ -284,15 +290,23 @@ class ScrubberDegradationTeam(Team):
             "parse_status": parsed.status,
             "parse_error": parsed.error,
             "raw_response_excerpt": parsed.raw_excerpt,
-            "guard_notes": guard_notes,
+            "parse_notes": parse_notes,
         }
         if parsed.data.get("memory"):
             base_meta["llm_memory"] = str(parsed.data["memory"])
 
         if not commands:
-            fallback_msgs, fallback_cmds = self._operator(obs)
-            base_meta["decision_source"] = "rule_fallback"
-            return self._attach_metadata(fallback_msgs, base_meta), fallback_cmds
+            return [
+                self._llm_skip(
+                    obs=obs,
+                    agent_id="operator",
+                    phase=DeliberationPhase.ACTION,
+                    reason="empty_commands",
+                    decision_source="llm_no_action",
+                    parse_status=parsed.status,
+                    parse_error=parsed.error,
+                )
+            ], []
 
         llm_msg = AgentMessage(
             step=obs.step,
@@ -305,107 +319,154 @@ class ScrubberDegradationTeam(Team):
         )
         return [llm_msg], commands
 
-    def _llm_design_action(
+    def _llm_post_run_design_proposal(
         self,
-        sim: SimulatorProtocol,
-        obs: AgentObservation,
-        situation: str,
-        step_discourse: List[AgentMessage],
-    ) -> Tuple[List[AgentMessage], List[DesignChange]]:
-        if not self._design_llm_eligible(obs) or self.state.design_change_applied:
-            return [], []
-
-        allowed_nodes = {node.id for node in sim.get_topology().nodes}
-        allowed_params = set(self.design_cfg.get("allowed_parameters", ["scrubber_base_efficiency"]))
-        contract = (
-            "Return ONLY one valid JSON object (multi-line is allowed). "
-            "No markdown. No code fences. No prose outside JSON. "
-            'Required keys: "apply_change", "change_kind", "payload", "message", "reasoning". '
-            'Optional key: "memory". '
-            'change_kind in ["add_edge","set_parameter"].'
+        summary: Dict[str, Any],
+        baseline: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        steps = int(summary.get("steps", 0))
+        situation = (
+            "Post-run design review. Simulation complete.\n"
+            f"Run summary: steps={steps}, peak_co2_ppm={summary.get('peak_co2_ppm')}, "
+            f"final_co2_ppm={summary.get('final_co2_ppm')}, "
+            f"co2_recovered_below_threshold_step={summary.get('co2_recovered_below_threshold_step')}, "
+            f"anomaly_seen={summary.get('anomaly_seen')}, "
+            f"eps_boost_applied_step={summary.get('eps_boost_applied_step')}.\n"
+            f"Baseline topology at run end: {json.dumps(baseline.get('topology', {}), ensure_ascii=False)}"
         )
+        contract = design_proposal_contract()
         agent = self.agents["design_engineer"]
         ctx = agent.build_context(
-            step=obs.step,
-            phase=DeliberationPhase.ACTION,
+            step=steps,
+            phase=DeliberationPhase.POST_RUN,
             situation=situation,
-            step_discourse=step_discourse,
+            step_discourse=[],
             team_discourse=self.memory_store.discourse.recent(),
         )
         parsed = agent.deliberate(
             ctx,
             contract,
-            "Propose a guarded design change only if the discussion supports it.",
-            ("apply_change", "change_kind", "payload"),
+            PersonaAgent.phase_hint(DeliberationPhase.POST_RUN),
+            ("message", "reasoning", "changes"),
         )
         if parsed is None:
-            fallback_msgs, fallback_changes = self._design_engineer(obs)
-            return self._attach_metadata(
-                fallback_msgs,
-                {"decision_source": "rule_fallback", "deliberation_phase": DeliberationPhase.ACTION},
-            ), fallback_changes
+            return {
+                "proposed_by": "design_engineer",
+                "decision_source": "llm_parse_fail",
+                "message": "",
+                "reasoning": "LLM response could not be parsed.",
+                "changes": [],
+                "baseline_topology": baseline.get("topology", {}),
+            }
 
-        apply_change = bool(parsed.data.get("apply_change"))
-        if not apply_change:
-            return [], []
-
-        change_kind = str(parsed.data.get("change_kind", "")).strip()
-        payload = parsed.data.get("payload", {})
-        if not isinstance(payload, dict):
-            payload = {}
-
-        guarded_change, guard_reason = self._guard_design_change(
-            change_kind=change_kind,
-            payload=payload,
-            allowed_nodes=allowed_nodes,
-            allowed_parameters=allowed_params,
-        )
-        persona = self.personas["design_engineer"]
-        base_meta: Dict[str, Any] = {
-            "deliberation_phase": DeliberationPhase.ACTION,
-            "main_role": persona.main_role,
+        changes, parse_notes = self._parse_llm_design_proposals(parsed.data.get("changes", []))
+        return {
+            "proposed_by": "design_engineer",
+            "decision_source": "llm",
+            "message": str(parsed.data.get("message", "")),
+            "reasoning": str(parsed.data.get("reasoning", "")),
+            "changes": changes,
+            "baseline_topology": baseline.get("topology", {}),
             "parse_status": parsed.status,
             "parse_error": parsed.error,
+            "parse_notes": parse_notes,
             "raw_response_excerpt": parsed.raw_excerpt,
         }
-        if parsed.data.get("memory"):
-            base_meta["llm_memory"] = str(parsed.data["memory"])
 
-        if guarded_change is None:
-            reject_msg = AgentMessage(
-                step=obs.step,
-                from_role="design_engineer",
-                to_role="team",
-                message="Guard rejected LLM design proposal; keeping current design.",
-                message_type="design_guard_reject",
-                reasoning=guard_reason or "invalid proposal",
-                metadata={**base_meta, "decision_source": "llm_guard_reject"},
-            )
-            return [reject_msg], []
-
-        self.state.design_change_applied = True
-        apply_msg = AgentMessage(
-            step=obs.step,
-            from_role="design_engineer",
-            to_role="team",
-            message=parsed.data.get("message", "Applying guarded design change."),
-            message_type="design_change",
-            reasoning=parsed.data.get("reasoning", ""),
-            metadata={**base_meta, "decision_source": "llm", "guard_reason": guard_reason},
-        )
-        return [apply_msg], [guarded_change]
-
-    def _design_llm_eligible(self, obs: AgentObservation) -> bool:
-        min_step = int(self.design_cfg.get("min_step", 35))
+    def _rule_post_run_design_proposal(
+        self,
+        summary: Dict[str, Any],
+        baseline: Dict[str, Any],
+    ) -> Dict[str, Any]:
         co2_threshold = float(self.design_cfg.get("co2_threshold_ppm", 1000))
-        return obs.step >= min_step and obs.telemetry.co2_ppm >= co2_threshold
+        peak = float(summary.get("peak_co2_ppm", 0))
+        anomaly_seen = bool(summary.get("anomaly_seen"))
+        if peak < co2_threshold and not anomaly_seen:
+            return {
+                "proposed_by": "design_engineer",
+                "decision_source": "rule",
+                "message": "No structural topology changes recommended after this run.",
+                "reasoning": (
+                    f"Peak CO2 {peak:.0f} ppm stayed below design review threshold "
+                    f"{co2_threshold:.0f} ppm with no sustained anomaly."
+                ),
+                "changes": [],
+                "baseline_topology": baseline.get("topology", {}),
+            }
 
-    def _rule_fallback_messages(self, obs: AgentObservation, agent_id: str) -> List[AgentMessage]:
-        if agent_id == "monitor":
-            return self._monitor(obs)
-        if agent_id == "diagnostician":
-            return self._diagnostician(obs)
-        return []
+        edge = self.design_cfg.get("bypass_edge", {})
+        changes = [
+            {
+                "change_kind": "add_edge",
+                "payload": {
+                    "node_a": edge.get("node_a", "manifold"),
+                    "node_b": edge.get("node_b", "scrubber"),
+                    "kind": edge.get("kind", "bypass"),
+                },
+            }
+        ]
+        return {
+            "proposed_by": "design_engineer",
+            "decision_source": "rule",
+            "message": "Propose permanent bypass plumbing between manifold and scrubber.",
+            "reasoning": (
+                "Repeated anomaly and high CO2 during the run; temporary ops may be insufficient "
+                "for long-term resilience."
+            ),
+            "changes": changes,
+            "baseline_topology": baseline.get("topology", {}),
+        }
+
+    def _parse_llm_design_proposals(
+        self,
+        raw_changes: Any,
+    ) -> Tuple[List[Dict[str, Any]], List[str]]:
+        if not isinstance(raw_changes, list):
+            return [], ["changes is not a list"]
+        accepted: List[Dict[str, Any]] = []
+        notes: List[str] = []
+        for item in raw_changes:
+            if not isinstance(item, dict):
+                notes.append("change item is not an object")
+                continue
+            change_kind = str(item.get("change_kind", "")).strip()
+            payload = item.get("payload", {})
+            if not isinstance(payload, dict):
+                payload = {}
+            if self._parse_llm_design_change(change_kind=change_kind, payload=payload) is None:
+                notes.append(f"unparsed change: {change_kind}")
+                continue
+            accepted.append({"change_kind": change_kind, "payload": payload})
+        return accepted, notes
+
+    def _llm_skip(
+        self,
+        *,
+        obs: AgentObservation,
+        agent_id: str,
+        phase: str,
+        reason: str,
+        decision_source: str,
+        **extra: Any,
+    ) -> AgentMessage:
+        persona = self.personas.get(agent_id)
+        metadata: Dict[str, Any] = {
+            "decision_source": decision_source,
+            "deliberation_phase": phase,
+            "skip_reason": reason,
+        }
+        if persona is not None:
+            metadata["main_role"] = persona.main_role
+        metadata.update(extra)
+        return AgentMessage(
+            step=obs.step,
+            from_role=agent_id,
+            to_role="team",
+            message="",
+            message_type="skip",
+            reasoning=reason,
+            metadata=metadata,
+        )
 
     @staticmethod
     def _attach_metadata(
@@ -419,134 +480,102 @@ class ScrubberDegradationTeam(Team):
         return messages
 
     @staticmethod
-    def _coerce_true_boolean(value: Any) -> Tuple[Optional[bool], Optional[str]]:
-        if value is True:
-            return True, None
+    def _coerce_boolean(value: Any) -> Tuple[Optional[bool], Optional[str]]:
+        if isinstance(value, bool):
+            return value, None
         if isinstance(value, str):
             normalized = value.strip().lower()
             if normalized == "true":
                 return True, None
             if normalized in {"false", "0", "no"}:
                 return False, None
-        return None, 'value must be true (boolean or "true" string)'
+        return None, 'value must be boolean or "true"/"false" string'
 
-    def _eps_boost_request_allowed(self, obs: Optional[AgentObservation]) -> Tuple[bool, Optional[str]]:
-        if obs is not None and obs.telemetry.eps_support_steps_remaining > 0:
-            return False, "eps boost already active"
-        if not self.state.eps_boost_requested:
-            return True, None
-        if obs is not None and obs.health.power_status == HealthStatus.CRITICAL:
-            return True, None
-        return False, "eps boost already requested; re-request requires power critical"
-
-    def _guard_operator_command(
-        self,
-        item: Any,
-        obs: Optional[AgentObservation] = None,
-    ) -> Tuple[Optional[RecoveryCommand], Optional[str]]:
+    def _parse_llm_operator_command(self, item: Any) -> Tuple[Optional[RecoveryCommand], Optional[str]]:
+        """Parse LLM operator JSON into a command without team-level policy guards."""
         if not isinstance(item, dict):
             return None, "operator command is not an object"
         kind = str(item.get("kind", "")).strip()
         value = item.get("value")
         if kind == "set_fan_speed":
-            if self.state.fan_boost_applied:
-                return None, "fan speed already set"
             try:
                 numeric = float(value)
             except (TypeError, ValueError):
                 return None, "invalid fan speed value"
-            if not (0.0 <= numeric <= 1.0):
-                return None, "fan speed out of range"
-            self.state.fan_boost_applied = True
             return (
                 RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value=numeric, issued_by="operator"),
                 None,
             )
         if kind == "enable_bypass":
-            if self.state.bypass_enabled:
-                return None, "bypass already enabled"
-            coerced, coerce_error = self._coerce_true_boolean(value)
-            if coerce_error is not None or coerced is not True:
-                return None, coerce_error or "bypass value must be true"
-            self.state.bypass_enabled = True
+            coerced, coerce_error = self._coerce_boolean(value)
+            if coerce_error is not None:
+                return None, coerce_error
             return (
-                RecoveryCommand(kind=CommandKind.ENABLE_BYPASS, value=True, issued_by="operator"),
+                RecoveryCommand(kind=CommandKind.ENABLE_BYPASS, value=coerced, issued_by="operator"),
                 None,
             )
         if kind == "reduce_load":
-            if self.state.load_reduced:
-                return None, "load already reduced"
-            coerced, coerce_error = self._coerce_true_boolean(value)
-            if coerce_error is not None or coerced is not True:
-                return None, coerce_error or "reduce_load value must be true"
-            self.state.load_reduced = True
+            coerced, coerce_error = self._coerce_boolean(value)
+            if coerce_error is not None:
+                return None, coerce_error
             return (
-                RecoveryCommand(kind=CommandKind.REDUCE_LOAD, value=True, issued_by="operator"),
+                RecoveryCommand(kind=CommandKind.REDUCE_LOAD, value=coerced, issued_by="operator"),
                 None,
             )
         if kind == "request_eps_boost":
-            allowed, allow_note = self._eps_boost_request_allowed(obs)
-            if not allowed:
-                return None, allow_note
             try:
                 watts = float(value)
             except (TypeError, ValueError):
                 return None, "eps boost value must be numeric"
-            if not (0.0 < watts <= 500.0):
-                return None, "eps boost out of range"
-            self.state.eps_boost_requested = True
             return (
                 RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=watts, issued_by="operator"),
                 None,
             )
         return None, f"unsupported operator command kind: {kind}"
 
-    @staticmethod
-    def _guard_design_change(
-        change_kind: str,
-        payload: Dict[str, Any],
-        allowed_nodes: set[str],
-        allowed_parameters: set[str],
-    ) -> Tuple[Optional[DesignChange], Optional[str]]:
+    def _parse_llm_design_change(self, change_kind: str, payload: Dict[str, Any]) -> Optional[DesignChange]:
+        """Parse LLM design JSON into a change without team-level policy guards."""
+        if change_kind == "add_node":
+            node_id = str(payload.get("id", "")).strip()
+            if not node_id:
+                return None
+            return DesignChange(
+                kind=DesignChangeKind.ADD_NODE,
+                payload={
+                    "id": node_id,
+                    "name": str(payload.get("name", node_id)),
+                    "kind": str(payload.get("kind", "volume")),
+                },
+                proposed_by="design_engineer",
+            )
         if change_kind == "add_edge":
             node_a = payload.get("node_a")
             node_b = payload.get("node_b")
-            if node_a not in allowed_nodes or node_b not in allowed_nodes:
-                return None, "edge references unknown node"
-            kind = payload.get("kind", "bypass")
-            if kind not in {"bypass", "flow"}:
-                return None, "edge kind not allowed"
-            return (
-                DesignChange(
-                    kind=DesignChangeKind.ADD_EDGE,
-                    payload={"node_a": node_a, "node_b": node_b, "kind": kind},
-                    proposed_by="design_engineer",
-                ),
-                None,
+            if not node_a or not node_b:
+                return None
+            return DesignChange(
+                kind=DesignChangeKind.ADD_EDGE,
+                payload={
+                    "node_a": node_a,
+                    "node_b": node_b,
+                    "kind": payload.get("kind", "bypass"),
+                },
+                proposed_by="design_engineer",
             )
         if change_kind == "set_parameter":
-            key = str(payload.get("key", ""))
-            if key not in allowed_parameters:
-                return None, f"parameter not allowed: {key}"
+            key = str(payload.get("key", "")).strip()
+            if not key:
+                return None
             try:
                 value = float(payload.get("value"))
             except (TypeError, ValueError):
-                return None, "parameter value is not numeric"
-            if key == "scrubber_base_efficiency" and not (0.1 <= value <= 1.2):
-                return None, "scrubber_base_efficiency out of range"
-            if key == "bypass_flow_bonus" and not (0.0 <= value <= 1.0):
-                return None, "bypass_flow_bonus out of range"
-            if key == "load_reduction_factor" and not (0.1 <= value <= 1.0):
-                return None, "load_reduction_factor out of range"
-            return (
-                DesignChange(
-                    kind=DesignChangeKind.SET_PARAMETER,
-                    payload={"key": key, "value": value},
-                    proposed_by="design_engineer",
-                ),
-                None,
+                return None
+            return DesignChange(
+                kind=DesignChangeKind.SET_PARAMETER,
+                payload={"key": key, "value": value},
+                proposed_by="design_engineer",
             )
-        return None, f"unsupported change_kind: {change_kind}"
+        return None
 
     @staticmethod
     def _build_llm_client(llm_cfg: Dict[str, Any]) -> OllamaClient:
@@ -554,7 +583,7 @@ class ScrubberDegradationTeam(Team):
             base_url=str(llm_cfg.get("base_url", "http://localhost:11434")),
             model=str(llm_cfg.get("model", "llama3.2")),
             temperature=float(llm_cfg.get("temperature", 0.45)),
-            max_tokens=int(llm_cfg.get("max_tokens", 320)),
+            max_tokens=int(llm_cfg.get("max_tokens", 512)),
             repeat_penalty=float(llm_cfg.get("repeat_penalty", 1.1)),
             repeat_last_n=int(llm_cfg.get("repeat_last_n", 128)),
             min_p=float(llm_cfg.get("min_p", 0.05)),
@@ -583,7 +612,8 @@ class ScrubberDegradationTeam(Team):
             "Anomaly may reduce scrubber efficiency and increase CO2 load; "
             "power margin may shrink. Rule thresholds (for reference): "
             f"monitor alert {alert_ppm:.0f} ppm, recovery band {recovery_ppm:.0f} ppm, "
-            f"design change from step {design_min_step} when CO2 >= {design_co2:.0f} ppm."
+            f"design engineer reviews topology post-run when peak CO2 >= {design_co2:.0f} ppm "
+            f"(reference threshold from step {design_min_step})."
         )
         telemetry = (
             f"step={obs.step}, co2_ppm={obs.telemetry.co2_ppm:.2f}, "
@@ -726,33 +756,27 @@ class ScrubberDegradationTeam(Team):
 
         return messages, commands
 
-    def _design_engineer(self, obs: AgentObservation) -> tuple[List[AgentMessage], List[DesignChange]]:
-        if self.state.design_change_applied:
-            return [], []
+    def _design_engineer_discourse(self, obs: AgentObservation) -> List[AgentMessage]:
+        if self.state.design_assessment_sent:
+            return []
 
         min_step = int(self.design_cfg.get("min_step", 35))
         co2_threshold = float(self.design_cfg.get("co2_threshold_ppm", 1000))
         if obs.step < min_step or obs.telemetry.co2_ppm < co2_threshold:
-            return [], []
+            return []
 
-        edge = self.design_cfg.get("bypass_edge", {})
-        change = DesignChange(
-            kind=DesignChangeKind.ADD_EDGE,
-            payload={
-                "node_a": edge.get("node_a", "manifold"),
-                "node_b": edge.get("node_b", "scrubber"),
-                "kind": edge.get("kind", "bypass"),
-            },
-            proposed_by="design_engineer",
-        )
-        self.state.design_change_applied = True
-        msg = AgentMessage(
-            step=obs.step,
-            from_role="design_engineer",
-            to_role="team",
-            message="Proposing permanent bypass plumbing between manifold and scrubber.",
-            message_type="design_change",
-            reasoning="Repeated anomaly; temporary ops insufficient for long-term resilience.",
-            metadata=self._rule_metadata(),
-        )
-        return [msg], [change]
+        self.state.design_assessment_sent = True
+        return [
+            AgentMessage(
+                step=obs.step,
+                from_role="design_engineer",
+                to_role="team",
+                message=(
+                    "Ops may stabilize CO2 short-term; a durable bypass path should be evaluated "
+                    "after this run."
+                ),
+                message_type="assessment",
+                reasoning="High CO2 with anomaly — structural relief may be needed post-simulation.",
+                metadata=self._rule_metadata(),
+            )
+        ]
