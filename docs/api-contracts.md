@@ -72,11 +72,11 @@
 | --- | --- | --- | --- |
 | `none` | — | — | — |
 | `labeled` | `ScrubberDegradationTeam` | ルール | ルールメッセージのみ |
-| `labeled_llm_guarded` | 同上 | LLM + ガード、失敗時 rule fallback | `llm` / `rule_fallback` / `llm_guard_reject` |
+| `labeled_llm` | 同上 | LLM のみ（チーム方針ガード・rule fallback なし） | `llm` / `llm_parse_fail` / `llm_no_action` |
 
 将来: `base`（ラベルなし創発ロール）— [memo/backlog.md](../memo/backlog.md) BL-001。
 
-### labeled_llm_guarded の Persona メタデータ
+### labeled_llm の Persona メタデータ
 
 `messages.jsonl` の LLM ガードメッセージに付与される任意フィールド:
 
@@ -127,7 +127,7 @@ Persona 本文・シナリオ閾値はログに含めない。状況は実行時
 
 ### messages.jsonl
 
-`agents.mode` が `labeled` または `labeled_llm_guarded` のとき出力。
+`agents.mode` が `labeled` または `labeled_llm` のとき出力。
 
 **ルールメッセージ:**
 
@@ -143,7 +143,7 @@ Persona 本文・シナリオ閾値はログに含めない。状況は実行時
 }
 ```
 
-**LLM ガードメッセージ**（`labeled_llm_guarded`）:
+**LLM ガードメッセージ**（`labeled_llm`）:
 
 ```json
 {
@@ -298,7 +298,7 @@ python src/scripts/run_mock_eclss.py
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
 
 # Persona + 2ラウンド議論 + ガード付き LLM（Ollama 要）
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}})"
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm'}})"
 ```
 
 プログラムからの回復スモークテスト:

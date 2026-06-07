@@ -62,7 +62,7 @@ One Piece コネクタ [`one_piece_connectors/ssos.py`](https://github.com/hirot
 
 - `integrations/one_piece/client.py` が `export_run_provenance(run_dir)` を提供
 - `summary.json` に `provenance_path`、`provenance_record_count` を追加
-- `labeled` / `labeled_llm_guarded` 実行で設計変更 provenance を出力（該当時）
+- `labeled` / `labeled_llm` 実行で設計変更 provenance を出力（該当時）
 
 ## Day5B 振り返り
 

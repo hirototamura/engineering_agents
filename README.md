@@ -32,7 +32,7 @@ pytest                    # または: python src/scripts/run_tests.py
 | --- | --- |
 | `none` | 物理のみベースライン（エージェントなし） |
 | `labeled` | ルールベース 4 ロール（Monitor / Diagnostician / Operator / DesignEngineer） |
-| `labeled_llm_guarded` | Persona + 2 ラウンド議論（8 LLM 呼び出し/step）+ ガード + rule fallback |
+| `labeled_llm` | Persona + 2 ラウンド議論（8 LLM 呼び出し/step）、ルール fallback なし |
 
 Persona 定義は `src/scenario/scrubber_degradation/agents.yaml`（Day 8 ワークショップ確定）。**persona とシナリオは分離** — 閾値・テレメトリは実行時の `## Situation` に注入。
 
@@ -44,7 +44,7 @@ python src/scripts/run_mock_eclss.py
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}}))"
 
 # Persona + 2ラウンド議論 + ガード付き LLM（Ollama 要、デフォルト qwen3.5:2b）
-python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}}))"
+python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm'}}))"
 
 # テスト
 pytest tests/scenario/test_scrubber_baseline.py -q
@@ -54,7 +54,7 @@ pytest tests/scenario/test_scrubber_with_agents.py -q
 python -m streamlit run src/tools/dashboard/app.py
 ```
 
-実行結果は `src/experiments/results/<run_id>/` に JSONL と `summary.json` を出力（baseline / labeled / labeled_llm_guarded）。スキーマは [docs/api-contracts.md](docs/api-contracts.md)。
+実行結果は `src/experiments/results/<run_id>/` に JSONL と `summary.json` を出力（baseline / labeled / labeled_llm）。スキーマは [docs/api-contracts.md](docs/api-contracts.md)。
 
 ## ライセンス
 
