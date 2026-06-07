@@ -69,7 +69,7 @@ class ScrubberDegradationScenario(Scenario):
         if not agents_config:
             return None
         mode = agents_config.get("mode")
-        if mode not in {"labeled", "labeled_llm"}:
+        if mode not in {"labeled", "llm"}:
             return None
         return ScrubberDegradationTeam(agents_config)
 
@@ -90,8 +90,8 @@ class ScrubberDegradationScenario(Scenario):
             run_id = output_cfg.get("run_id", self.name)
             if agents_config and agents_config.get("mode") == "labeled":
                 run_id = output_cfg.get("run_id_labeled", f"{self.name}_labeled")
-            elif agents_config and agents_config.get("mode") == "labeled_llm":
-                run_id = output_cfg.get("run_id_labeled_llm", f"{self.name}_labeled_llm")
+            elif agents_config and agents_config.get("mode") == "llm":
+                run_id = output_cfg.get("run_id_llm", f"{self.name}_llm")
             if recreate_output:
                 run_dir = EventLog.prepare_run_dir(results_base, run_id=run_id)
             else:
@@ -196,6 +196,8 @@ class ScrubberDegradationScenario(Scenario):
 
         design_proposals_path = run_dir / "design_proposals.json"
         if isinstance(team, ScrubberDegradationTeam):
+            summary["team_count"] = team.team_cfg.count
+            summary["agent_ids"] = list(team.team_cfg.agent_ids)
             design_proposal = team.propose_post_run_design(sim, summary)
             design_proposals_path.write_text(
                 json.dumps(design_proposal, ensure_ascii=False, indent=2),

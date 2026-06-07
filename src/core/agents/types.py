@@ -9,8 +9,7 @@ from environment.protocol import DesignChange, HealthMetrics, RecoveryCommand, T
 
 
 class DeliberationPhase:
-    INITIAL = "deliberation_initial"
-    REACT = "deliberation_react"
+    DELIBERATION = "deliberation"
     ACTION = "action"
     POST_RUN = "post_run_proposal"
 

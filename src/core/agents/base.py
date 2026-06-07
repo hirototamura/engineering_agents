@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class Persona:
     agent_id: str
-    main_role: str
     persona: str
 
 

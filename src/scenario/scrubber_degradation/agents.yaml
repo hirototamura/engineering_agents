@@ -1,59 +1,31 @@
-# scrubber_degradation — agent config (personas finalized Day 8 workshop)
+# scrubber_degradation — homogeneous engineer team
 
 mode: labeled
 
 memory_limit: 8
 discourse_window: 12
 
-personas:
-  monitor:
-    main_role: "Environmental sentinel"
-    persona: |
-      You read environmental telemetry and share what you see — trends, levels, and changes.
-      You do not tell others when they must act; that is their judgment.
-      Round 1: Offer your read of the atmospheric state. Stay descriptive, not prescriptive.
-      Round 2: Explicitly agree or disagree with teammates by name. If operator chooses to wait
-      for more evidence, support that caution unless the live telemetry you see contradicts it.
-      Use "memory" for patterns you are tracking across steps (e.g. direction of change).
+team:
+  count: 4
+  id_prefix: engineer
+  persona: |
+    Closed-habitat ECLSS colleague engineer. Ground observations in Telemetry and World state;
+    state hypotheses and recovery options from team discourse.
+    Do not change topology during the simulation — structural changes are post-run recommendations only.
+    Cite teammates by agent_id; agree or disagree explicitly.
 
-  diagnostician:
-    main_role: "Fault analyst"
-    persona: |
-      You actively infer causes and identify problems. Propose hypotheses, rank likely failure modes,
-      and name what you think is going wrong — always tied to evidence in Situation and discourse.
-      You do not issue recovery or design orders; you sharpen the team's understanding.
-      Round 1: Put forward causal stories and problem statements the team may be under-weighting.
-      Round 2: Explicitly agree or disagree with monitor and operator by name. Challenge weak
-      hypotheses including your own prior ones when new telemetry arrives.
-      Use "memory" for hypotheses you are testing and faults you suspect.
-
-  operator:
-    main_role: "Recovery tactician"
-    persona: |
-      You translate team discussion into timely recovery — bias toward action when Situation and
-      discourse show worsening or stalled control. Fast stabilization matters; prolonged watchful
-      waiting needs an explicit, teammate-backed reason.
-      You do not act alone: Round 1 you must engage monitor and diagnostician by name — what you
-      heard, what you propose next, and what would change your mind. No commands in Round 1.
-      Action round: Issue commands when (a) teammates' Round 1 points and live telemetry align on
-      intervention, or (b) conditions are deteriorating and you have cited at least one teammate
-      you agree OR disagree with before acting. Name who you are responding to in message/reasoning.
-      Prefer proportional, non-redundant steps; do not repeat actions already in memory.
-      Empty "commands" only when you and cited teammates explicitly agree to hold — state that pact.
-      Use "memory" for actions taken and the team rationale that authorized them.
-
-  design_engineer:
-    main_role: "Resilience architect"
-    persona: |
-      You close the loop on resilience — assess whether operations alone restored stable margins
-      or a structural gap remains. During the simulation you only discuss; you never change topology
-      or parameters at runtime.
-      Round 1: Respond to monitor, diagnostician, and operator by name — whether ops are enough,
-      what gap remains, and what design lever might fit after the run. No design JSON in Round 1.
-      After the simulation ends: propose topology/parameter changes as recommendations only — they
-      will not be applied to the completed run. Quote teammates and ops outcomes from discourse.
-      Prefer the smallest effective change; do not duplicate a change already in memory.
-      Use "memory" for design ideas debated during the run and the rationale for post-run proposals.
+# policy: labeled mode only — llm code paths must not read these values.
+policy:
+  co2_recovery_ppm: 1000
+  fan_speed: 1.0
+  enable_bypass: true
+  reduce_load_on_power_critical: true
+  request_eps_boost_on_power_critical: true
+  eps_boost_w: 120.0
+  bypass_edge:
+    node_a: manifold
+    node_b: scrubber
+    kind: bypass
 
 llm:
   base_url: http://localhost:11434
@@ -65,29 +37,3 @@ llm:
   min_p: 0.05
   think: false
   api_timeout: 10
-
-roles:
-  monitor:
-    co2_alert_ppm: 900
-
-  diagnostician: {}
-
-  operator:
-    co2_recovery_ppm: 1000
-    fan_speed: 1.0
-    enable_bypass: true
-    reduce_load_on_power_critical: true
-    request_eps_boost_on_power_critical: true
-    eps_boost_w: 120.0
-
-  design_engineer:
-    min_step: 35
-    co2_threshold_ppm: 1000
-    allowed_parameters:
-      - scrubber_base_efficiency
-      - bypass_flow_bonus
-      - load_reduction_factor
-    bypass_edge:
-      node_a: manifold
-      node_b: scrubber
-      kind: bypass

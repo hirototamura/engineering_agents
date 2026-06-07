@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.agents.base import DeliberationContext, Persona
 from core.agents.memory import AgentMemory
@@ -13,79 +13,50 @@ from core.llm.parsing import parse_json_response
 
 TEAM_CHARTER = """You are on a closed-habitat ECLSS resilience team.
 Your Persona is a professional lens — not a script. You may disagree with teammates, wait, or propose alternatives.
-Ground claims in Situation (telemetry) and team discourse. Crew safety comes first.
+Ground claims in Telemetry (numbers) and World state (descriptive health). Normative safety judgment is yours as an ECLSS engineer — do not assume hidden facility thresholds.
 Scenario specifics live only under ## Situation — not in your Persona."""
 
-DEFAULT_PERSONAS: Dict[str, Dict[str, str]] = {
-    "monitor": {
-        "main_role": "Environmental sentinel",
-        "persona": (
-            "You read environmental telemetry and share what you see — trends, levels, and changes.\n"
-            "You do not tell others when they must act; that is their judgment.\n"
-            "Round 1: Offer your read of the atmospheric state. Stay descriptive, not prescriptive.\n"
-            "Round 2: Explicitly agree or disagree with teammates by name. If operator chooses to wait\n"
-            "for more evidence, support that caution unless the live telemetry you see contradicts it.\n"
-            'Use "memory" for patterns you are tracking across steps (e.g. direction of change).'
-        ),
-    },
-    "diagnostician": {
-        "main_role": "Fault analyst",
-        "persona": (
-            "You actively infer causes and identify problems. Propose hypotheses, rank likely failure modes,\n"
-            "and name what you think is going wrong — always tied to evidence in Situation and discourse.\n"
-            "You do not issue recovery or design orders; you sharpen the team's understanding.\n"
-            "Round 1: Put forward causal stories and problem statements the team may be under-weighting.\n"
-            "Round 2: Explicitly agree or disagree with monitor and operator by name. Challenge weak\n"
-            "hypotheses including your own prior ones when new telemetry arrives.\n"
-            'Use "memory" for hypotheses you are testing and faults you suspect.'
-        ),
-    },
-    "operator": {
-        "main_role": "Recovery tactician",
-        "persona": (
-            "You translate team discussion into timely recovery — bias toward action when Situation and\n"
-            "discourse show worsening or stalled control. Fast stabilization matters; prolonged watchful\n"
-            "waiting needs an explicit, teammate-backed reason.\n"
-            "You do not act alone: Round 1 you must engage monitor and diagnostician by name — what you\n"
-            "heard, what you propose next, and what would change your mind. No commands in Round 1.\n"
-            "Action round: Issue commands when (a) teammates' Round 1 points and live telemetry align on\n"
-            "intervention, or (b) conditions are deteriorating and you have cited at least one teammate\n"
-            "you agree OR disagree with before acting. Name who you are responding to in message/reasoning.\n"
-            "Prefer proportional, non-redundant steps. \n"
-            'Empty "commands" only when you and cited teammates explicitly agree to hold — state that pact.\n'
-            'Use "memory" for actions taken and the team rationale that authorized them.'
-        ),
-    },
-    "design_engineer": {
-        "main_role": "Resilience architect",
-        "persona": (
-            "You close the loop on resilience — assess whether operations alone restored stable margins\n"
-            "or a structural gap remains. During the simulation you only discuss; you never change topology\n"
-            "or parameters at runtime.\n"
-            "Round 1: Respond to monitor, diagnostician, and operator by name — whether ops are enough,\n"
-            "what gap remains, and what design lever might fit after the run. No design JSON in Round 1.\n"
-            "After the simulation ends: propose topology/parameter changes as recommendations only — they\n"
-            "will not be applied to the completed run. Quote teammates and ops outcomes from discourse.\n"
-            "Prefer the smallest effective change; do not duplicate a change already in memory.\n"
-            'Use "memory" for design ideas debated during the run and the rationale for post-run proposals.'
-        ),
-    },
-}
-
-SCRUBBER_AGENT_IDS = ("monitor", "diagnostician", "operator", "design_engineer")
+DEFAULT_TEAM_PERSONA = (
+    "Closed-habitat ECLSS colleague engineer. Ground observations in Telemetry and World state; "
+    "state hypotheses and recovery options from team discourse.\n"
+    "Do not change topology during the simulation — structural changes are post-run recommendations only.\n"
+    "Cite teammates by agent_id; agree or disagree explicitly."
+)
 
 
-def load_personas(config: Dict[str, Any]) -> Dict[str, Persona]:
-    raw = config.get("personas") or {}
-    personas: Dict[str, Persona] = {}
-    for agent_id in SCRUBBER_AGENT_IDS:
-        entry = raw.get(agent_id) or DEFAULT_PERSONAS[agent_id]
-        personas[agent_id] = Persona(
-            agent_id=agent_id,
-            main_role=str(entry.get("main_role", DEFAULT_PERSONAS[agent_id]["main_role"])),
-            persona=str(entry.get("persona", DEFAULT_PERSONAS[agent_id]["persona"])).strip(),
-        )
-    return personas
+@dataclass(frozen=True)
+class TeamConfig:
+    count: int
+    id_prefix: str
+    shared_persona: str
+    agent_ids: Tuple[str, ...]
+
+    def action_rep_index(self, step: int) -> int:
+        return (step - 1) % self.count
+
+    def action_rep_id(self, step: int) -> str:
+        return self.agent_ids[self.action_rep_index(step)]
+
+
+def load_team(config: Dict[str, Any]) -> TeamConfig:
+    team_raw = config.get("team") or {}
+    count = max(1, int(team_raw.get("count", 4)))
+    id_prefix = str(team_raw.get("id_prefix", "engineer"))
+    persona_text = str(team_raw.get("persona") or DEFAULT_TEAM_PERSONA).strip()
+    agent_ids = tuple(f"{id_prefix}_{i}" for i in range(1, count + 1))
+    return TeamConfig(
+        count=count,
+        id_prefix=id_prefix,
+        shared_persona=persona_text,
+        agent_ids=agent_ids,
+    )
+
+
+def build_personas(team: TeamConfig) -> Dict[str, Persona]:
+    return {
+        agent_id: Persona(agent_id=agent_id, persona=team.shared_persona)
+        for agent_id in team.agent_ids
+    }
 
 
 @dataclass
@@ -189,8 +160,6 @@ class PersonaPromptBuilder:
             f"{charter}\n\n"
             f"agent_id: {persona.agent_id}\n"
             f"phase: {ctx.phase}\n\n"
-            f"## Your identity\n"
-            f"Main role: {persona.main_role}\n\n"
             f"## How you think and act\n"
             f"{persona.persona}\n\n"
             f"## Situation\n"
@@ -265,19 +234,17 @@ class PersonaAgent:
 
     @staticmethod
     def phase_hint(phase: str) -> str:
-        if phase == DeliberationPhase.INITIAL:
+        if phase == DeliberationPhase.DELIBERATION:
             return (
-                "Open forum: share your professional judgment. "
-                "React to telemetry and prior team discourse if relevant."
-            )
-        if phase == DeliberationPhase.REACT:
-            return (
-                "Reaction round: respond to teammates' statements this step. "
-                "Agree, challenge, or refine — cite telemetry."
+                "Deliberation: share observations and professional judgment. "
+                "React to Telemetry, World state, and teammates by agent_id."
             )
         if phase == DeliberationPhase.POST_RUN:
             return (
                 "Post-run design review: simulation is complete. Propose structural changes as "
                 "recommendations only — cite team discourse and run outcomes."
             )
-        return "Action round: decide based on the full discussion this step."
+        return (
+            "Action round (team representative): issue recovery commands when discourse and "
+            "Situation warrant intervention; cite named teammates from this step."
+        )
