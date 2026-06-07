@@ -43,24 +43,31 @@ DEFAULT_PERSONAS: Dict[str, Dict[str, str]] = {
     "operator": {
         "main_role": "Recovery tactician",
         "persona": (
-            "You decide when the team has enough grounds to intervene. Output contract defines available\n"
-            "commands; guards enforce limits — you need not repeat that catalog here.\n"
-            'Empty "commands" is valid and often right when evidence or team consensus is not ready —\n'
-            "say so clearly in message/reasoning. Do not repeat actions already recorded in your memory.\n"
-            "Round 1: State whether you would intervene yet and why; no commands in this round.\n"
-            "Action round: Issue commands only when your judgment supports it; cite debate and Situation.\n"
-            'Use "memory" for what you already did and why you waited or acted.'
+            "You translate team discussion into timely recovery — bias toward action when Situation and\n"
+            "discourse show worsening or stalled control. Fast stabilization matters; prolonged watchful\n"
+            "waiting needs an explicit, teammate-backed reason.\n"
+            "You do not act alone: Round 1 you must engage monitor and diagnostician by name — what you\n"
+            "heard, what you propose next, and what would change your mind. No commands in Round 1.\n"
+            "Action round: Issue commands when (a) teammates' Round 1 points and live telemetry align on\n"
+            "intervention, or (b) conditions are deteriorating and you have cited at least one teammate\n"
+            "you agree OR disagree with before acting. Name who you are responding to in message/reasoning.\n"
+            "Prefer proportional, non-redundant steps. \n"
+            'Empty "commands" only when you and cited teammates explicitly agree to hold — state that pact.\n'
+            'Use "memory" for actions taken and the team rationale that authorized them.'
         ),
     },
     "design_engineer": {
         "main_role": "Resilience architect",
         "persona": (
-            "You propose structural changes when team discussion shows operational responses are\n"
-            "insufficient — not from telemetry alone. Output contract defines change shapes; guards apply.\n"
-            "Round 1: Contribute design perspective if the debate touches long-term resilience;\n"
-            "no apply_change in this round.\n"
-            "Action round: apply_change only when open forum supports it; link explicitly to prior messages.\n"
-            'Use "memory" for debate points and ops outcomes that motivate a design move.'
+            "You close the loop on resilience — assess whether operations alone restored stable margins\n"
+            "or a structural gap remains. During the simulation you only discuss; you never change topology\n"
+            "or parameters at runtime.\n"
+            "Round 1: Respond to monitor, diagnostician, and operator by name — whether ops are enough,\n"
+            "what gap remains, and what design lever might fit after the run. No design JSON in Round 1.\n"
+            "After the simulation ends: propose topology/parameter changes as recommendations only — they\n"
+            "will not be applied to the completed run. Quote teammates and ops outcomes from discourse.\n"
+            "Prefer the smallest effective change; do not duplicate a change already in memory.\n"
+            'Use "memory" for design ideas debated during the run and the rationale for post-run proposals.'
         ),
     },
 }
@@ -89,15 +96,67 @@ class ParsedTurn:
     raw_excerpt: str = ""
 
 
-def message_contract() -> str:
+MESSAGE_WORD_LIMIT = 60
+REASONING_WORD_LIMIT = 80
+MEMORY_WORD_LIMIT = 25
+
+
+def json_envelope_preamble() -> str:
     return (
         "Return ONLY one valid JSON object (multi-line is allowed). "
         "No markdown. No code fences. No prose outside JSON. "
+    )
+
+
+def output_word_limits_clause() -> str:
+    return (
+        f'Keep "message" at most {MESSAGE_WORD_LIMIT} words and '
+        f'"reasoning" at most {REASONING_WORD_LIMIT} words. '
+        f'Optional "memory" at most {MEMORY_WORD_LIMIT} words.'
+    )
+
+
+def message_contract() -> str:
+    return (
+        f"{json_envelope_preamble()}"
         'Required keys: "message", "reasoning". '
-        'Optional key: "memory" (short note for your future self). '
+        'Optional key: "memory". '
+        f"{output_word_limits_clause()} "
         'Example: {"message":"CO2 rising.","reasoning":"co2_ppm crossed threshold",'
         '"memory":"Fan boost may be next."}'
     )
+
+
+def operator_action_contract() -> str:
+    return (
+        f"{json_envelope_preamble()}"
+        'Required keys: "message", "reasoning", "commands". '
+        'Optional key: "memory". '
+        f"{output_word_limits_clause()} "
+        'commands must be a list of {"kind": "...", "value": ...} with kind in '
+        '["set_fan_speed","enable_bypass","reduce_load","request_eps_boost"]. '
+        "Empty commands when you and teammates agree to hold this step."
+    )
+
+
+def design_proposal_contract() -> str:
+    return (
+        f"{json_envelope_preamble()}"
+        'Required keys: "message", "reasoning", "changes". '
+        'Optional key: "memory". '
+        f"{output_word_limits_clause()} "
+        '"changes" is a list of {"change_kind","payload"} objects. '
+        'change_kind in ["add_node","add_edge","set_parameter"]. '
+        'add_node payload: {"id","name","kind"}. '
+        'add_edge payload: {"node_a","node_b","kind"}. '
+        'set_parameter payload: {"key","value"}. '
+        "Proposals are post-run only — they will NOT be applied to the completed simulation."
+    )
+
+
+def design_action_contract() -> str:
+    """Deprecated alias — runtime design actions are no longer applied."""
+    return design_proposal_contract()
 
 
 def format_discourse(messages: List[AgentMessage]) -> str:
@@ -215,5 +274,10 @@ class PersonaAgent:
             return (
                 "Reaction round: respond to teammates' statements this step. "
                 "Agree, challenge, or refine — cite telemetry."
+            )
+        if phase == DeliberationPhase.POST_RUN:
+            return (
+                "Post-run design review: simulation is complete. Propose structural changes as "
+                "recommendations only — cite team discourse and run outcomes."
             )
         return "Action round: decide based on the full discussion this step."

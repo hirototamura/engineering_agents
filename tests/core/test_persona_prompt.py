@@ -39,3 +39,5 @@ def test_persona_prompt_includes_memory_discourse_and_markers():
     assert "noted rising CO2" in prompt
     assert "## Your memory" in prompt
     assert "## Team discourse" in prompt
+    assert "at most 60 words" in prompt
+    assert "at most 80 words" in prompt
