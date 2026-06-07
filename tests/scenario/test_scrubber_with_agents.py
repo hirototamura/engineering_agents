@@ -35,20 +35,18 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
     eps_telemetry = _read_jsonl(run_dir / "eps_telemetry.jsonl")
 
     assert summary["agents_mode"] == "labeled"
+    assert summary["team_count"] == 4
+    assert summary["agent_ids"] == ["engineer_1", "engineer_2", "engineer_3", "engineer_4"]
     assert summary["message_count"] > 0
     assert len(messages) == summary["message_count"]
 
     roles = {m["from_role"] for m in messages}
-    assert "monitor" in roles
-    assert "diagnostician" in roles
-    assert "operator" in roles
-    assert "design_engineer" in roles
+    assert roles.issubset({"engineer_1", "engineer_2", "engineer_3", "engineer_4"})
 
     message_types = {m["message_type"] for m in messages}
     assert "alert" in message_types
     assert "diagnosis" in message_types
     assert "recovery_command" in message_types
-    assert "assessment" in message_types
     assert "design_change" not in message_types
 
     assert summary["design_change_count"] == 0
@@ -86,66 +84,50 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
         e.get("kind") == "/eclss/events/recovery_applied"
         and (e.get("command") or {}).get("kind") == "request_eps_boost"
         for e in events
-    ), "operator should request EPS boost when power is critical"
+    ), "action rep should request EPS boost when power is critical"
 
 
-def test_scrubber_degradation_labeled_llm_post_run_design_proposals(
-    tmp_path: Path, monkeypatch
-):
+def test_scrubber_degradation_llm_post_run_design_proposals(tmp_path: Path, monkeypatch):
     class FakeClient:
         def generate(self, prompt: str) -> str:
             lower = prompt.lower()
-            if "agent_id: monitor" in lower and "phase: deliberation_initial" in lower:
+            if "phase: deliberation" in lower and "engineer_1" in lower:
                 return json.dumps(
                     {
-                        "message": "LLM monitor: CO2 trend requires attention.",
+                        "message": "LLM engineer_1: CO2 trend requires attention.",
                         "reasoning": "co2 trajectory is rising",
                     }
                 )
-            if "agent_id: diagnostician" in lower and "phase: deliberation_initial" in lower:
+            if "phase: deliberation" in lower and "engineer_2" in lower:
                 return json.dumps(
                     {
-                        "message": "LLM diagnosis: scrubber degradation confirmed.",
+                        "message": "LLM engineer_2: scrubber degradation confirmed.",
                         "reasoning": "anomaly flags and efficiency drop align",
                     }
                 )
-            if "agent_id: operator" in lower and "phase: deliberation_initial" in lower:
+            if "phase: deliberation" in lower and "engineer_3" in lower:
                 return json.dumps(
                     {
                         "message": "Assessing recovery options.",
                         "reasoning": "waiting for more data",
                     }
                 )
-            if "agent_id: design_engineer" in lower and "phase: deliberation_initial" in lower:
+            if "phase: deliberation" in lower and "engineer_4" in lower:
                 return json.dumps(
                     {
-                        "message": "LLM design: ops may not close the resilience gap.",
+                        "message": "LLM engineer_4: ops may not close the resilience gap.",
                         "reasoning": "structural bypass worth evaluating post-run",
                     }
                 )
-            if "agent_id: monitor" in lower and "phase: deliberation_react" in lower:
+            if "phase: action" in lower:
                 return json.dumps(
                     {
-                        "message": "Monitor reacts: trend still concerning.",
-                        "reasoning": "no improvement in co2 slope",
-                    }
-                )
-            if "agent_id: diagnostician" in lower and "phase: deliberation_react" in lower:
-                return json.dumps(
-                    {
-                        "message": "Diagnostician reacts: degradation confirmed.",
-                        "reasoning": "efficiency still falling",
-                    }
-                )
-            if "agent_id: operator" in lower and "phase: action" in lower:
-                return json.dumps(
-                    {
-                        "message": "LLM operator: defer to rule recovery timing.",
+                        "message": "LLM action rep: defer recovery this step.",
                         "reasoning": "test harness keeps anomaly narrative",
                         "commands": [],
                     }
                 )
-            if "agent_id: design_engineer" in lower and "phase: post_run_proposal" in lower:
+            if "phase: post_run_proposal" in lower:
                 return json.dumps(
                     {
                         "message": "LLM design: increase scrubber base efficiency.",
@@ -164,9 +146,9 @@ def test_scrubber_degradation_labeled_llm_post_run_design_proposals(
 
     run_dir = run_scenario(
         "scrubber_degradation",
-        output_dir=tmp_path / "labeled_llm",
+        output_dir=tmp_path / "llm",
         overrides={
-            "agents": {"mode": "labeled_llm"},
+            "agents": {"mode": "llm"},
         },
         recreate_output=True,
     )
@@ -178,19 +160,22 @@ def test_scrubber_degradation_labeled_llm_post_run_design_proposals(
 
     design_proposals = json.loads((run_dir / "design_proposals.json").read_text(encoding="utf-8"))
 
-    assert summary["agents_mode"] == "labeled_llm"
+    assert summary["agents_mode"] == "llm"
+    assert summary["team_count"] == 4
     assert summary["design_change_count"] == 0
     assert summary["design_proposal_count"] >= 1
     assert any(m.get("decision_source") == "llm" for m in messages)
-    assert any(m.get("deliberation_phase") == "deliberation_initial" for m in messages)
+    assert any(m.get("deliberation_phase") == "deliberation" for m in messages)
     assert any(m.get("deliberation_phase") == "action" for m in messages)
+    assert not any(m.get("deliberation_phase") == "deliberation_react" for m in messages)
     assert not any(m.get("message_type") == "design_change" for m in messages)
     assert any(
         m.get("message_type") == "skip" and m.get("decision_source") == "llm_no_action"
         for m in messages
-    ), "empty operator commands should be recorded as skip, not rule fallback"
+    ), "empty action rep commands should be recorded as skip, not rule fallback"
     assert not any(m.get("decision_source") == "rule_fallback" for m in messages)
     assert design_proposals.get("decision_source") == "llm"
+    assert design_proposals.get("proposed_by", "").startswith("engineer_")
     assert any(c.get("change_kind") == "set_parameter" for c in design_proposals.get("changes", []))
     assert not any(p.get("change_kind") == "set_parameter" for p in provenance)
 
@@ -229,29 +214,29 @@ def _obs(
 def test_llm_operator_parse_allows_repeated_commands_without_team_state():
     team = ScrubberDegradationTeam(
         {
-            "mode": "labeled_llm",
-            "roles": {"operator": {}},
+            "mode": "llm",
+            "team": {"count": 2},
             "llm": {},
         }
     )
 
-    cmd1, note1 = team._parse_llm_operator_command({"kind": "set_fan_speed", "value": 0.8})
-    cmd2, note2 = team._parse_llm_operator_command({"kind": "set_fan_speed", "value": 1.0})
+    cmd1, note1 = team._parse_llm_operator_command({"kind": "set_fan_speed", "value": 0.8}, issued_by="engineer_1")
+    cmd2, note2 = team._parse_llm_operator_command({"kind": "set_fan_speed", "value": 1.0}, issued_by="engineer_1")
     assert cmd1 is not None and note1 is None
     assert cmd2 is not None and note2 is None
     assert not team.state.fan_boost_applied
 
-    cmd, note = team._parse_llm_operator_command({"kind": "enable_bypass", "value": "true"})
+    cmd, note = team._parse_llm_operator_command({"kind": "enable_bypass", "value": "true"}, issued_by="engineer_1")
     assert cmd is not None
     assert note is None
     assert cmd.value is True
 
-    cmd, note = team._parse_llm_operator_command({"kind": "enable_bypass", "value": "false"})
+    cmd, note = team._parse_llm_operator_command({"kind": "enable_bypass", "value": "false"}, issued_by="engineer_1")
     assert cmd is not None
     assert note is None
     assert cmd.value is False
 
-    cmd, note = team._parse_llm_operator_command({"kind": "request_eps_boost", "value": 120.0})
+    cmd, note = team._parse_llm_operator_command({"kind": "request_eps_boost", "value": 120.0}, issued_by="engineer_1")
     assert cmd is not None
     assert note is None
     assert not team.state.eps_boost_requested
@@ -260,8 +245,8 @@ def test_llm_operator_parse_allows_repeated_commands_without_team_state():
 def test_llm_design_parse_supports_add_node_and_unrestricted_parameter():
     team = ScrubberDegradationTeam(
         {
-            "mode": "labeled_llm",
-            "roles": {"design_engineer": {}},
+            "mode": "llm",
+            "team": {"count": 2},
             "llm": {},
         }
     )
@@ -269,6 +254,7 @@ def test_llm_design_parse_supports_add_node_and_unrestricted_parameter():
     node_change = team._parse_llm_design_change(
         "add_node",
         {"id": "aux_scrubber", "name": "Aux Scrubber", "kind": "scrubber"},
+        proposed_by="engineer_2",
     )
     assert node_change is not None
     assert node_change.kind == DesignChangeKind.ADD_NODE
@@ -276,6 +262,7 @@ def test_llm_design_parse_supports_add_node_and_unrestricted_parameter():
     param_change = team._parse_llm_design_change(
         "set_parameter",
         {"key": "custom_gain", "value": 0.42},
+        proposed_by="engineer_2",
     )
     assert param_change is not None
     assert param_change.payload["key"] == "custom_gain"
