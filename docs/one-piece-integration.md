@@ -1,85 +1,199 @@
-# One Piece integration
+# One Piece 連携
 
-Design-change provenance via a minimal JSON SSOT layer. Full [One Piece](https://github.com/hirototamura/one-piece) web UI is **out of scope** for the current MVP.
+設計変更と運用回復の **provenance（来歴）** を、One Piece のデータモデルと互換な JSON で記録する。完全な [One Piece](https://github.com/hirototamura/one-piece) Web UI は現 MVP のスコープ外。
 
-## Goal
+> JSONL スキーマ: [api-contracts.md](api-contracts.md)。未完了項目: [development-plan.md](development-plan.md)。
 
-When agents propose or apply design changes during a run, record **who changed what, when, and why** in a format compatible with One Piece's provenance model — without blocking the simulation loop.
+---
 
-## Planned layout
+## 目的
+
+自律ハードウェア開発の前段として、次を追跡可能にする:
+
+1. **ランタイム回復** — 誰が、いつ、どの EPS ブーストを要求したか
+2. **事後設計提案** — 誰が、なぜ、どのトポロジ変更を推奨したか（`design_proposals.json`）
+3. （将来）One Piece SSOT への取り込みと横断インデックス
+
+シミュレーションループは provenance 生成でブロックしない。失敗時は warning ログのみ。
+
+---
+
+## レイアウト
 
 ```text
-integrations/one_piece/
-├── client.py          # generate provenance records from run outputs
-└── ssot_schema.json   # MVP subset: elements, parameters, traces
+src/integrations/one_piece/
+├── __init__.py        # export_run_provenance
+├── client.py          # events/messages からレコード構築
+└── ssot_schema.json   # MVP サブセット（elements, parameters, traces）
 ```
 
-## Trigger points
+---
 
-`scenario/runner.py` exports provenance after the run summary is written:
+## トリガーとフロー
 
-1. Read `events.jsonl` design-change rows (`/eclss/events/design_change`)
-2. Join matching `messages.jsonl` entries for `reasoning` / `decision_source`
-3. Attach `before` / `after` topology snapshots from `design_state.jsonl`
-4. Write `provenance.jsonl` into the same run directory
+`ScrubberDegradationScenario.run()` の末尾:
 
-Each record should link to:
+```text
+1. team.propose_post_run_design()  → design_proposals.json
+2. log.write_summary(summary)
+3. export_run_provenance(run_dir)  → provenance.jsonl
+4. summary に provenance_path / provenance_record_count を追記
+```
 
-- Run ID and step from `summary.json`
-- Matching row in `events.jsonl` (`/eclss/events/design_change`)
-- Agent role from `messages.jsonl` when applicable
+```text
+events.jsonl ──┐
+messages.jsonl ├──► build_provenance_records() ──► provenance.jsonl
+design_state.jsonl ┘
+summary.json
+```
 
-## Data model (MVP subset)
+---
 
-Aligned with One Piece `SsotProvenanceRecord` concept:
+## 現状エクスポートされるレコード
 
-| Field | Example |
+| 種別 | ソース | 現 scrubber_degradation |
+| --- | --- | --- |
+| `design_change` | ランタイム `/eclss/events/design_change` | **0 件**（ランタイムで設計適用しないため） |
+| `recovery` | `request_eps_boost` の `recovery_applied` | **1 件以上**（labeled / llm で電力 critical 時） |
+
+### 回復レコード（実装済み）
+
+```json
+{
+  "record_id": "scrubber_degradation_labeled_rule_base:recovery:1",
+  "record_type": "recovery",
+  "run_id": "scrubber_degradation_labeled_rule_base",
+  "scenario": "scrubber_degradation",
+  "step": 28,
+  "actor": "engineer_3",
+  "actor_kind": "ai_agent",
+  "change_kind": "request_eps_boost",
+  "payload": {
+    "support_w": 120.0,
+    "eps": {"bcdu_mode": "discharging"}
+  },
+  "trace": {
+    "event_kind": "/eclss/events/recovery_applied",
+    "decision_source": "rule",
+    "message": "Requesting EPS support boost of 120 W.",
+    "reasoning": "Power margin critical; requesting temporary EPS assist."
+  }
+}
+```
+
+`actor` は `issued_by`（`engineer_*`）。`trace` は同一 step の `recovery_command` メッセージ（`from_role == actor`）から解決する。
+
+### 設計変更レコード（プロトコル対応済み・データなし）
+
+ランタイムで `apply_design_change` された場合の形式（将来または他シナリオ用）:
+
+```json
+{
+  "record_id": "run_id:design_change:1",
+  "run_id": "run_id",
+  "scenario": "scrubber_degradation",
+  "step": 35,
+  "actor": "engineer_4",
+  "actor_kind": "ai_agent",
+  "change_kind": "add_edge",
+  "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
+  "before_topology": {"nodes": [], "edges": []},
+  "after_topology": {"nodes": [], "edges": []},
+  "trace": {
+    "event_kind": "/eclss/events/design_change",
+    "decision_source": "rule"
+  }
+}
+```
+
+---
+
+## design_proposals.json との関係
+
+| 成果物 | タイミング | provenance 連携 |
+| --- | --- | --- |
+| `design_proposals.json` | ラン終了後 | **未エクスポート**（開発予定） |
+| `provenance.jsonl` | ラン終了後 | ランタイムイベントのみ |
+
+事後の恒久提案（バイパス弁追加、非常電源、`set_parameter` 等）は `design_proposals.json` にあり、ダッシュボードが Before/After プレビューを描画する。One Piece へは **まだ自動連携しない**。
+
+### 想定される次ステップ（Day 9）
+
+1. `design_proposals.json` を読み、`record_type: design_proposal` レコードを追加
+2. `before_topology` = `baseline_topology`、`after_topology` = 提案適用後の仮想グラフ
+3. `trace.decision_source` = `rule` / `llm`、`trace.reasoning` = 提案理由
+
+---
+
+## データモデル（MVP サブセット）
+
+One Piece `SsotProvenanceRecord` 概念に準拠。必須フィールド:
+
+| フィールド | 説明 |
 | --- | --- |
-| `actor` | `design_engineer` (rule) or future LLM agent id |
+| `record_id` | `{run_id}:{種別}:{連番}` |
+| `run_id` | 実行ディレクトリ名 |
+| `scenario` | `scrubber_degradation` 等 |
+| `step` | イベント step |
+| `actor` | 代表エンジニア ID（`engineer_*`） |
 | `actor_kind` | `ai_agent` / `logic_automation` |
-| `step` | 35 |
-| `change_kind` | `add_edge` |
-| `payload` | bypass edge manifold → scrubber |
-| `before_topology` | snapshot from prior `design_state.jsonl` |
-| `after_topology` | post-change snapshot |
+| `change_kind` | `request_eps_boost`、`add_edge` 等 |
+| `payload` | コマンド/変更の詳細 |
+| `trace` | message、reasoning、decision_source、parse_status |
 
-Storage: JSON file co-located with run output (`provenance.jsonl`). Schema contract lives in `integrations/one_piece/ssot_schema.json`.
+任意: `record_type`（`recovery`）、`before_topology` / `after_topology`（設計変更時）。
 
-## SSOS topology ingest (optional)
+契約: `src/integrations/one_piece/ssot_schema.json`。
 
-One Piece connector [`one_piece_connectors/ssos.py`](https://github.com/hirototamura/one-piece/blob/main/packages/connectors/one_piece_connectors/ssos.py) can seed initial `SystemElement` + ICD graph from a real SSOS repo. The MVP may instead hand-author `ssot_schema.json` from Mock ECLSS default topology in `environment/eclss_ops/design_state.py`.
+---
 
-## Dependency strategy
+## summary.json とのリンク
 
-Recommendation (see also [mvp_plan.md](../memo/mvp_plan.md)):
+```json
+{
+  "provenance_path": "src/experiments/results/scrubber_degradation_labeled_rule_base/provenance.jsonl",
+  "provenance_record_count": 2,
+  "design_proposals_path": ".../design_proposals.json",
+  "design_proposal_count": 1
+}
+```
 
-- **JSON file + future connector** — no hard dependency on One Piece packages until provenance stabilizes
-- Git submodule or `pip install -e ../one-piece/packages/connectors` when ingest is needed
+ベースライン（`agents.mode: none`）も **0 件の `provenance.jsonl`** を出力し、ファイル存在契約を安定化。
 
-## Status
+---
 
-**Day5B complete (MVP scope).**
+## SSOS トポロジ取り込み（任意・将来）
 
-- `integrations/one_piece/client.py` provides `export_run_provenance(run_dir)`
-- `summary.json` now includes:
-  - `provenance_path`
-  - `provenance_record_count`
-- `labeled` and `labeled_llm_guarded` runs emit design-change provenance when applicable
+One Piece コネクタ [`one_piece_connectors/ssos.py`](https://github.com/hirototamura/one-piece/blob/main/packages/connectors/one_piece_connectors/ssos.py) は実 SSOS から初期 `SystemElement` + ICD グラフをシードできる。
 
-## Day5B retrospective
+MVP では `environment/eclss_ops/design_state.py` の Mock ECLSS デフォルトトポロジを使用。実 SSOS 接合は [development-plan.md](development-plan.md) の SSOS adapter を参照。
 
-- Export timing is end-of-run, but records include all `design_change` steps (not final state only).
-- Baseline runs still produce `provenance.jsonl` with zero records, keeping file contract stable.
-- Trace linkage now carries `reasoning`, `decision_source`, `parse_status` when available.
+---
 
-## Next plan (post-Day5B)
+## 依存戦略
 
-1. Add run-index export (`provenance_index.json`) for cross-run comparison in dashboard/CLI.
-2. ~~Expand optional provenance scope for selected recovery commands~~ — **Done (EPS-4):** `request_eps_boost` recovery records with `record_type: recovery`.
-3. Add connector handoff shim so One Piece repo can ingest run outputs without custom parsing.
+- **JSON ファイル + 将来コネクタ** — provenance 形式が安定するまで One Piece パッケージへのハード依存を避ける
+- 取り込み必要時: git submodule または `pip install -e ../one-piece/packages/connectors`
+- 方針詳細: [memo/mvp_plan.md](../memo/mvp_plan.md)
 
-## Related docs
+---
 
-- [api-contracts.md](api-contracts.md) — `design_change` event schema
-- [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) — where to inspect design changes in run output
-- [architecture.md](architecture.md) — layer placement of `integrations/`
+## ステータスまとめ
+
+| 項目 | 状態 |
+| --- | --- |
+| `export_run_provenance()` | 完了 |
+| EPS 回復 provenance | 完了 |
+| ランタイム design_change provenance | プロトコルあり・現シナリオでは 0 件 |
+| post-run `design_proposals` → provenance | **未実装** |
+| `provenance_index.json`（横断） | **未実装** |
+| One Piece Web UI | スコープ外 |
+
+---
+
+## 関連ドキュメント
+
+- [api-contracts.md](api-contracts.md) — 全 JSONL スキーマ
+- [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) — 出力の読み方
+- [architecture.md](architecture.md) — 実行フロー
+- [development-plan.md](development-plan.md) — Day 9–10 計画

@@ -19,7 +19,7 @@ def test_build_provenance_includes_eps_recovery_record(tmp_path: Path):
     run_dir = run_scenario(
         "scrubber_degradation",
         output_dir=tmp_path / "labeled",
-        overrides={"agents": {"mode": "labeled"}},
+        overrides={"agents": {"mode": "labeled_rule_base"}},
         recreate_output=True,
     )
     records = build_provenance_records(run_dir)
@@ -27,3 +27,7 @@ def test_build_provenance_includes_eps_recovery_record(tmp_path: Path):
     assert recovery, "expected EPS boost recovery provenance"
     assert recovery[0]["record_type"] == "recovery"
     assert recovery[0]["trace"]["event_kind"] == "/eclss/events/recovery_applied"
+    assert recovery[0]["actor"].startswith("engineer_")
+    assert recovery[0]["trace"]["message"]
+    assert recovery[0]["trace"]["reasoning"]
+    assert recovery[0]["trace"]["decision_source"] == "rule"

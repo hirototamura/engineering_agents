@@ -1,41 +1,39 @@
-# scrubber_degradation — scenario-specific labeled agent configuration (Day 4+).
-# Not a generic role framework. See memo/backlog.md BL-001.
+# scrubber_degradation — homogeneous engineer team
 
-mode: labeled
+mode: labeled_rule_base
+
+memory_limit: 8
+discourse_window: 12
+
+team:
+  count: 4
+  id_prefix: engineer
+  persona: |
+    Closed-habitat ECLSS colleague engineer. Ground observations in Telemetry and World state;
+    state hypotheses and recovery options from team discourse.
+    Do not change topology during the simulation — structural changes are post-run recommendations only.
+    Cite teammates by agent_id; agree or disagree explicitly.
+
+# policy: labeled_rule_base mode only — llm code paths must not read these values.
+policy:
+  co2_recovery_ppm: 1000
+  fan_speed: 1.0
+  enable_bypass: true
+  reduce_load_on_power_critical: true
+  request_eps_boost_on_power_critical: true
+  eps_boost_w: 120.0
+  bypass_edge:
+    node_a: manifold
+    node_b: scrubber
+    kind: bypass
 
 llm:
   base_url: http://localhost:11434
-  model: qwen3.5:2b
-  temperature: 0.1
-  max_tokens: 200
+  model: gemma4:e4b
+  temperature: 0.45
+  max_tokens: 512
   repeat_penalty: 1.1
   repeat_last_n: 128
   min_p: 0.05
   think: false
   api_timeout: 10
-
-roles:
-  monitor:
-    co2_alert_ppm: 900
-
-  diagnostician: {}
-
-  operator:
-    co2_recovery_ppm: 1000
-    fan_speed: 1.0
-    enable_bypass: true
-    reduce_load_on_power_critical: true
-    request_eps_boost_on_power_critical: true
-    eps_boost_w: 120.0
-
-  design_engineer:
-    min_step: 35
-    co2_threshold_ppm: 1000
-    allowed_parameters:
-      - scrubber_base_efficiency
-      - bypass_flow_bonus
-      - load_reduction_factor
-    bypass_edge:
-      node_a: manifold
-      node_b: scrubber
-      kind: bypass

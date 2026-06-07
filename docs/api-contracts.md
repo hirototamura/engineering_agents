@@ -1,22 +1,36 @@
-# API Contracts — SimulatorProtocol & Event Logs
+# API 契約 — SimulatorProtocol とイベントログ
 
-Living document. Update when protocol, agent modes, or log schemas change.
+**ECLSS**（Environmental Control and Life Support System / 生命維持装置）と **EPS**（Electrical Power System / 電力系）のシミュレータ境界、回復コマンド、JSONL スキーマのリファレンス。プロトコルやログ形式を変更したら **本ドキュメントを同時に更新**する。
+
+> シナリオの叙事: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md)
+
+---
 
 ## SimulatorProtocol
 
-Implementations: `StationSimulator` (ECLSS + EPS, default for scenarios), `MockEclssSimulator` (plant-only), `SsosAdapter` (deferred).
+実装:
 
-| Method | Returns | Description |
+| クラス | 用途 |
+| --- | --- |
+| `StationSimulator` | **デフォルト** — ECLSS + EPS |
+| `MockEclssSimulator` | プラントのみ（単体テスト） |
+| `SsosAdapter` | 将来の実 SSOS ブリッジ（スタブ） |
+
+| メソッド | 戻り値 | 説明 |
 | --- | --- | --- |
-| `step()` | `TelemetrySnapshot` | Advance physics one tick |
-| `apply_command(cmd)` | `CommandResult` | Temporary recovery action |
-| `apply_design_change(change)` | `DesignState` | Permanent topology/parameter mutation |
-| `get_topology()` | `TopologyGraph` | Current node/edge graph |
-| `get_design_parameters()` | `dict[str, float]` | Mutable design parameters |
-| `get_design_state()` | `DesignState` | Topology + parameters snapshot |
-| `inject_anomaly(spec)` | `None` | Schedule composite anomaly |
+| `step()` | `TelemetrySnapshot` | 生命維持プラントを 1 ティック進める |
+| `apply_command(cmd)` | `CommandResult` | 一時的な回復アクション |
+| `apply_design_change(change)` | `DesignState` | 恒久変更（**現シナリオではランタイム未使用**） |
+| `get_topology()` | `TopologyGraph` | ノード/エッジ |
+| `get_design_parameters()` | `dict[str, float]` | 可変パラメータ |
+| `get_design_state()` | `DesignState` | トポロジ + パラメータ |
+| `inject_anomaly(spec)` | `None` | 異常スケジュール |
 
-### TelemetrySnapshot
+---
+
+## TelemetrySnapshot
+
+`telemetry.jsonl` の 1 行。
 
 ```json
 {
@@ -33,52 +47,190 @@ Implementations: `StationSimulator` (ECLSS + EPS, default for scenarios), `MockE
 }
 ```
 
-### RecoveryCommand
+| フィールド | 説明 |
+| --- | --- |
+| `co2_ppm` | 居住空間 CO2 濃度 |
+| `scrubber_efficiency` | 有効除去効率（異常で低下） |
+| `power_margin_w` | ECLSS ネット電力マージン（正=余裕、負=不足） |
+| `eps_support_w` | EPS からの一時支援ワット |
+| `eps_support_steps_remaining` | 支援残り step 数 |
+| `anomaly_flags` | 有効な異常名のリスト |
+
+---
+
+## RecoveryCommand
+
+ランタイムで `apply_command` される一時操作。
 
 ```json
 {
   "kind": "set_fan_speed",
   "value": 1.0,
-  "issued_by": "operator"
+  "issued_by": "engineer_2"
 }
 ```
 
-Supported `kind` values: `set_fan_speed`, `enable_bypass`, `reduce_load`, `request_eps_boost`.
+| `kind` | `value` 型 | 説明 |
+| --- | --- | --- |
+| `set_fan_speed` | float 0–1 | ファン速度 |
+| `enable_bypass` | bool | 一時バイパス有効化 |
+| `reduce_load` | bool | 代謝負荷削減 |
+| `request_eps_boost` | float W (0, 500] | EPS 放電支援要求 |
 
-### DesignChange
+`issued_by` は代表エンジニア ID（`engineer_*`）またはレガシー `operator`。
+
+---
+
+## DesignChange（プロトコル型）
+
+シミュレータが理解する恒久変更。**現行 scrubber_degradation ではランタイム apply されない**。事後提案は `design_proposals.json` で表現し、ダッシュボードがプレビュー用に仮適用する。
 
 ```json
 {
   "kind": "add_edge",
   "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
-  "proposed_by": "design_engineer"
+  "proposed_by": "engineer_4"
 }
 ```
 
-Supported `kind` values: `add_edge`, `set_parameter`.
+| `kind` | 用途 |
+| --- | --- |
+| `add_edge` | 新規エッジ（flow / bypass / power） |
+| `add_node` | 新規ノード（valve、electrical 等） |
+| `set_parameter` | 設計パラメータ変更 |
 
-### Health thresholds
+---
 
-| Metric | safe | warning | critical |
+## design_proposals.json（事後提案）
+
+ラン終了後に 1 ファイル。シミュレーション結果のトポロジは**変更されない**。
+
+```json
+{
+  "proposed_by": "engineer_2",
+  "decision_source": "rule",
+  "message": "Propose permanent bypass plumbing between manifold and scrubber.",
+  "reasoning": "Repeated anomaly and high CO2 during the run; ...",
+  "changes": [
+    {
+      "change_kind": "add_edge",
+      "payload": {
+        "node_a": "manifold",
+        "node_b": "scrubber",
+        "kind": "bypass"
+      }
+    }
+  ],
+  "baseline_topology": {
+    "nodes": [{"id": "cabin", "name": "Cabin", "kind": "volume"}, "..."],
+    "edges": [{"source": "manifold", "target": "scrubber", "kind": "flow"}, "..."]
+  },
+  "parse_notes": []
+}
+```
+
+| フィールド | 説明 |
+| --- | --- |
+| `proposed_by` | 最終 step の action rep |
+| `decision_source` | `rule` または `llm` |
+| `changes` | 提案された恒久変更のリスト |
+| `baseline_topology` | ラン終了時点のグラフ（変更前） |
+| `parse_notes` | LLM パース時の警告（任意） |
+
+`summary.json` の `design_proposals_path`、`design_proposal_count` と対応。
+
+---
+
+## ヘルス閾値
+
+`health_metrics.jsonl` — `compute_health_metrics()`（`src/environment/eclss_ops/telemetry.py`）:
+
+```json
+{"step": 5, "co2_status": "safe", "power_status": "safe", "overall": "safe"}
+```
+
+| 定数 | 値 |
+| --- | --- |
+| `CO2_SAFE_PPM` | 800 |
+| `CO2_WARNING_PPM` | 1200 |
+| `POWER_LOW_W` | 0 |
+| `POWER_CRITICAL_W` | −150 |
+
+| 指標 | safe | warning | critical |
 | --- | --- | --- | --- |
-| CO2 (ppm) | < 1000 | 1000–2000 | ≥ 2000 |
-| Power margin (W) | > 0 | 0 to −100 | ≤ −100 |
+| CO2 (ppm) | < 800 | 800 〜 1200 未満 | ≥ 1200 |
+| 電力マージン (W) | > 0 | 0 〜 −150 未満 | ≤ −150 |
+| `overall` | 両方 safe | より悪い方が warning | より悪い方が critical |
 
-## Agent modes
+エージェントの `policy.co2_recovery_ppm`（デフォルト 1000）などは**回復コマンドのトリガー**であり、上表のヘルス区分とは別。
 
-Set in `src/scenario/scrubber_degradation/scenario.yaml` (`agents.mode`). Role thresholds in `agents.yaml`.
+---
 
-| `agents.mode` | Team | Actions source | Messages |
-| --- | --- | --- | --- |
-| `none` | — | — | — |
-| `labeled` | `ScrubberDegradationTeam` | Rules | Rule messages only |
-| `labeled_llm_guarded` | Same team | LLM with guards + rule fallback | LLM or `rule_fallback` messages |
+## エージェントモード
 
-Future: `base` (unlabeled emergent roles) — see [memo/backlog.md](../memo/backlog.md) BL-001.
+| `agents.mode` | チーム | メッセージ | ランタイムコマンド | 事後提案 |
+| --- | --- | --- | --- | --- |
+| `none` | — | — | — | — |
+| `labeled_rule_base` | `ScrubberDegradationTeam` | `decision_source: rule` | policy 駆動 | rule |
+| `llm` | 同上 | `llm` / `llm_parse_fail` / `llm_no_action` | LLM `commands` | llm |
 
-## ROS2-like topics (`environment/ssos/topics.py`)
+将来: `base`（創発ロール）— [memo/backlog.md](../memo/backlog.md) BL-001。
 
-| Topic | Direction | Payload |
+### messages.jsonl — ルール例
+
+```json
+{
+  "step": 33,
+  "from_role": "engineer_2",
+  "to_role": "team",
+  "message": "CO2 at 1016 ppm exceeds recovery band 1000 ppm.",
+  "message_type": "alert",
+  "reasoning": "Telemetry threshold crossed.",
+  "decision_source": "rule"
+}
+```
+
+### messages.jsonl — LLM 例
+
+```json
+{
+  "step": 17,
+  "from_role": "engineer_1",
+  "to_role": "team",
+  "message": "EPS boost critical for CO2 reduction.",
+  "message_type": "recovery_command",
+  "reasoning": "Power margin remains low, bypass ineffective.",
+  "decision_source": "llm",
+  "deliberation_phase": "action",
+  "parse_status": "ok",
+  "parse_error": null,
+  "raw_response_excerpt": "{...}"
+}
+```
+
+| `message_type` | 説明 |
+| --- | --- |
+| `alert` | 閾値超過通知 |
+| `diagnosis` | 異常フラグに基づく所見 |
+| `recovery_command` | 回復判断の説明 |
+| `comment` | llm deliberation の発言 |
+| `skip` | パース失敗・空 action（`llm_no_action` 等） |
+
+| `deliberation_phase` | 説明 |
+| --- | --- |
+| `deliberation` | 全員議論ラウンド |
+| `action` | 代表のコマンド決定 |
+| `post_run_proposal` | 事後設計（messages に載る場合） |
+
+`from_role` は `engineer_1` … `engineer_N`。Persona 全文や `policy` 値はログに含めない。
+
+---
+
+## ROS2 風 ECLSS トピック
+
+`environment/ssos/topics.py` — モック／将来アダプタの契約。
+
+| トピック | 方向 | ペイロード |
 | --- | --- | --- |
 | `/eclss/telemetry/co2_ppm` | pub | float |
 | `/eclss/telemetry/scrubber_efficiency` | pub | float |
@@ -86,83 +238,62 @@ Future: `base` (unlabeled emergent roles) — see [memo/backlog.md](../memo/back
 | `/eclss/command/set_fan_speed` | sub | float 0–1 |
 | `/eclss/command/enable_bypass` | sub | bool |
 | `/eclss/command/reduce_load` | sub | bool |
-| `/eclss/command/request_eps_boost` | sub | float watts (0, 500] |
+| `/eclss/command/request_eps_boost` | sub | float W |
 | `/eclss/events/design_change` | event | DesignChange dict |
+| `/eclss/events/recovery_applied` | event | コマンド適用結果 |
+| `/eclss/events/anomaly` | event | 異常フラグ |
 
-## ROS2-like EPS topics (`environment/ssos/eps_topics.py`)
+---
 
-Inspired by [space_station_eps](https://github.com/space-station-os/space_station_os/tree/main/space_station_eps). Mock implementations: `MockSarj`, `MockBcdu`, `EpsStack` (EPS-3 couples to ECLSS).
+## ROS2 風 EPS トピック
 
-| Topic | Direction | Payload |
+**EPS**（Electrical Power System）— 発電・蓄電・配電。MVP では **SARJ**（Solar Alpha Rotary Joint）と **BCDU**（Battery Charge/Discharge Unit）をモック。実系では **MBSU**（Main Bus Switching Unit）、**DDCU**（Direct Current-to-Direct Current Converter Unit）も含まれる。
+
+`environment/ssos/eps_topics.py`。参考: [space_station_eps](https://github.com/space-station-os/space_station_os/tree/main/space_station_eps)。
+
+| トピック | 方向 | ペイロード |
 | --- | --- | --- |
-| `/solar/voltage` | pub | float V (SARJ estimate) |
-| `/bcdu/operation` | sub | discharge goal: `{support_w, duration_steps}` |
-| `/bcdu/status` | pub | `BcduStatus` dict — `mode`, `bus_voltage_v`, `support_w`, `fault`, … |
-| `/eps/diagnostics` | pub | `EpsDiagnostics` dict |
-| `/eps/eclss/load_request_w` | pub | float W (bridge topic; EPS-3) |
+| `/solar/voltage` | pub | float V |
+| `/bcdu/operation` | sub | `{support_w, duration_steps}` |
+| `/bcdu/status` | pub | `BcduStatus` |
+| `/eps/diagnostics` | pub | `EpsDiagnostics` |
+| `/eps/eclss/load_request_w` | pub | float W |
 
-**BCDU `mode` values**: `idle`, `charging`, `discharging`, `fault`, `safe`.
+**BCDU `mode`**: `idle`、`charging`、`discharging`、`fault`、`safe`。
 
-**Discharge contract** (`MockBcdu.request_discharge`): `support_w` in (0, 500], `duration_steps` ≥ 1, bus voltage in [70, 120] V. On fault, mode latches `fault` and further discharge requests fail.
+---
 
-## JSONL event streams
+## JSONL 出力ディレクトリ
 
-All runs write under `src/experiments/results/<run_id>/`.
+`src/experiments/results/<run_id>/`
 
-### messages.jsonl
+### events.jsonl
 
-Written when `agents.mode` is `labeled` or `labeled_llm_guarded`.
+```json
+{"step": 20, "kind": "/eclss/events/anomaly", "flags": ["scrubber_degradation"]}
+{"step": 33, "kind": "/eclss/events/recovery_applied", "command": {"kind": "set_fan_speed", "value": 1.0, "issued_by": "engineer_2"}, "message": "fan_speed set to 1.0"}
+```
 
-**Rule message:**
+現行フローでは **`/eclss/events/design_change` はランタイムに発生しない**（事後提案は `design_proposals.json`）。
+
+### design_state.jsonl
+
+毎 step、エージェント行動**前**のスナップショット。ランタイム中トポロジ不変のため `topology` は run 全体で同一。
 
 ```json
 {
-  "step": 33,
-  "from_role": "monitor",
-  "to_role": "team",
-  "message": "CO2 at 1016 ppm exceeds alert threshold 900.",
-  "message_type": "alert",
-  "reasoning": "Telemetry threshold crossed.",
-  "decision_source": "rule"
+  "step": 36,
+  "topology": {
+    "nodes": [{"id": "cabin", "name": "Cabin", "kind": "volume"}],
+    "edges": [{"source": "manifold", "target": "scrubber", "kind": "flow"}]
+  },
+  "parameters": {"scrubber_base_efficiency": 0.95}
 }
-```
-
-**LLM guarded message** (`labeled_llm_guarded`):
-
-```json
-{
-  "step": 33,
-  "from_role": "operator",
-  "to_role": "team",
-  "message": "...",
-  "message_type": "recovery_command",
-  "reasoning": "...",
-  "decision_source": "llm",
-  "parse_status": "ok",
-  "parse_error": null,
-  "raw_response_excerpt": "..."
-}
-```
-
-`message_type` values:
-
-| Type | Source |
-| --- | --- |
-| `alert`, `diagnosis`, `recovery_command`, `design_change` | Rule or LLM guarded |
-
-### telemetry.jsonl
-
-Raw physics snapshot per step (same fields as `TelemetrySnapshot`).
-
-### health_metrics.jsonl
-
-```json
-{"step": 5, "co2_status": "safe", "power_status": "safe", "overall": "safe"}
 ```
 
 ### eps_telemetry.jsonl
 
-Written for `mock_station` runs (EPS-4). One row per step from SARJ + BCDU.
+`StationSimulator` 実行時のみ。1 行/step。
 
 ```json
 {
@@ -179,45 +310,15 @@ Written for `mock_station` runs (EPS-4). One row per step from SARJ + BCDU.
 }
 ```
 
-### events.jsonl
-
-Anomalies, recovery commands, design changes.
-
-```json
-{"step": 20, "kind": "/eclss/events/anomaly", "flags": ["scrubber_degradation"]}
-{"step": 33, "kind": "/eclss/events/recovery_applied", "command": {"kind": "set_fan_speed", "value": 1.0, "issued_by": "operator"}, "message": "fan_speed set to 1.0"}
-{"step": 35, "kind": "/eclss/events/design_change", "change": {"kind": "add_edge", "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"}, "proposed_by": "design_engineer"}}
-```
-
-### design_state.jsonl
-
-Topology + parameters snapshot **before** agent actions at each step.
-
-```json
-{
-  "step": 36,
-  "topology": {
-    "nodes": [{"id": "cabin", "name": "Cabin", "kind": "volume"}, "..."],
-    "edges": [
-      {"source": "manifold", "target": "scrubber", "kind": "flow"},
-      {"source": "manifold", "target": "scrubber", "kind": "bypass"}
-    ]
-  },
-  "parameters": {"scrubber_base_efficiency": 0.95, "...": "..."}
-}
-```
-
-Compare step *N* vs *N+1* after a design change event at step *N*.
-
 ### summary.json
-
-Run-level KPIs written once at end.
 
 ```json
 {
   "scenario": "scrubber_degradation",
   "simulator": "mock_station",
-  "agents_mode": "labeled",
+  "agents_mode": "labeled_rule_base",
+  "team_count": 4,
+  "agent_ids": ["engineer_1", "engineer_2", "engineer_3", "engineer_4"],
   "steps": 50,
   "peak_co2_ppm": 1016.34,
   "final_co2_ppm": 967.2,
@@ -230,60 +331,72 @@ Run-level KPIs written once at end.
   "co2_above_threshold_step": 33,
   "co2_recovered_below_threshold_step": 40,
   "message_count": 59,
-  "design_change_count": 1,
-  "provenance_path": "src/experiments/results/scrubber_degradation_labeled/provenance.jsonl",
+  "design_change_count": 0,
+  "design_proposal_count": 1,
+  "design_proposals_path": "src/experiments/results/.../design_proposals.json",
+  "provenance_path": "src/experiments/results/.../provenance.jsonl",
   "provenance_record_count": 2
 }
 ```
 
-### provenance.jsonl (Day 5B+ / EPS-4)
+---
 
-One Piece-compatible provenance records: **design changes** and **EPS recovery** (`request_eps_boost`).
+## provenance.jsonl（One Piece 互換）
 
-```json
-{
-  "record_id": "scrubber_degradation_labeled:design_change:1",
-  "run_id": "scrubber_degradation_labeled",
-  "scenario": "scrubber_degradation",
-  "step": 35,
-  "actor": "design_engineer",
-  "actor_kind": "ai_agent",
-  "change_kind": "add_edge",
-  "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
-  "before_topology": {"nodes": [{"id": "cabin"}], "edges": [{"source": "manifold", "target": "scrubber", "kind": "flow"}]},
-  "after_topology": {"nodes": [{"id": "cabin"}], "edges": [{"source": "manifold", "target": "scrubber", "kind": "bypass"}]},
-  "trace": {"event_kind": "/eclss/events/design_change", "decision_source": "rule"}
-}
-```
+`src/integrations/one_piece/client.py` が run 終了時に生成。
 
-**Recovery record** (`record_type: recovery`):
+### 現状エクスポートされるもの
+
+| ソース | 条件 |
+| --- | --- |
+| ランタイム `design_change` イベント | 現シナリオでは **0 件** |
+| `request_eps_boost` 回復 | `events.jsonl` の `recovery_applied` |
+
+### 回復レコード例
 
 ```json
 {
-  "record_id": "scrubber_degradation_labeled:recovery:2",
+  "record_id": "scrubber_degradation_labeled_rule_base:recovery:1",
   "record_type": "recovery",
-  "change_kind": "request_eps_boost",
+  "run_id": "scrubber_degradation_labeled_rule_base",
+  "scenario": "scrubber_degradation",
   "step": 28,
-  "actor": "operator",
+  "actor": "engineer_3",
+  "actor_kind": "ai_agent",
+  "change_kind": "request_eps_boost",
   "payload": {"support_w": 120.0, "eps": {"bcdu_mode": "discharging"}},
-  "trace": {"event_kind": "/eclss/events/recovery_applied", "decision_source": "rule"}
+  "trace": {
+    "event_kind": "/eclss/events/recovery_applied",
+    "decision_source": "rule",
+    "message": "Requesting EPS support boost of 120 W."
+  }
 }
 ```
 
-## Running scenarios
+### 未エクスポート（開発予定）
+
+`design_proposals.json` の事後提案 → provenance レコード。詳細: [one-piece-integration.md](one-piece-integration.md)、[development-plan.md](development-plan.md)。
+
+スキーマ参照: `src/integrations/one_piece/ssot_schema.json`。
+
+---
+
+## 実行例
 
 ```bash
-# Baseline (agents.mode: none) — default in scenario.yaml
+pip install -e ".[dev]"
+
+# ベースライン
 python src/scripts/run_mock_eclss.py
 
-# Labeled rule team
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
+# labeled_rule_base
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}})"
 
-# LLM guarded (requires Ollama)
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_llm_guarded'}})"
+# llm（Ollama 要）
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}})"
 ```
 
-Programmatic recovery smoke test:
+プログラムからの EPS スモーク:
 
 ```python
 from environment.protocol import CommandKind, RecoveryCommand

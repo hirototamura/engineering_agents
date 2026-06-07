@@ -33,7 +33,9 @@ def test_scrubber_degradation_baseline_runs(tmp_path: Path):
     assert anomaly_steps, "anomaly should activate by step 20"
     assert min(row["step"] for row in anomaly_steps) == 20
 
-    assert summary["peak_co2_ppm"] > 1000.0, "CO2 should enter danger band for demo narrative"
+    from environment.eclss_ops.telemetry import CO2_SAFE_PPM
+
+    assert summary["peak_co2_ppm"] > CO2_SAFE_PPM, "CO2 should exceed safe band for demo narrative"
     assert summary["anomaly_seen"] is True
     assert summary["co2_above_threshold_step"] is not None
     assert summary["co2_above_threshold_step"] >= 20
