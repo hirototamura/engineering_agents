@@ -21,6 +21,7 @@ class CommandKind(str, Enum):
 
 
 class DesignChangeKind(str, Enum):
+    ADD_NODE = "add_node"
     ADD_EDGE = "add_edge"
     SET_PARAMETER = "set_parameter"
 

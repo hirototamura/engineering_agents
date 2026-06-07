@@ -63,7 +63,15 @@ class DesignStateManager:
         )
 
     def apply_change(self, change: DesignChange) -> DesignState:
-        if change.kind == DesignChangeKind.ADD_EDGE:
+        if change.kind == DesignChangeKind.ADD_NODE:
+            payload = change.payload
+            node = TopologyNode(
+                id=payload["id"],
+                name=payload.get("name", payload["id"]),
+                kind=payload.get("kind", "volume"),
+            )
+            self.topology.nodes.append(node)
+        elif change.kind == DesignChangeKind.ADD_EDGE:
             payload = change.payload
             edge = TopologyEdge(
                 source=payload["node_a"],
