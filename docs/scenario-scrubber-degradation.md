@@ -258,7 +258,7 @@ LLM モードでは `decision_source: "llm"`、`changes` に `add_node`（`bypas
 | `final_co2_ppm` | 最終 step の CO2 |
 | `eps_boost_applied_step` | 初めて EPS ブーストが効いた step |
 | `co2_above_threshold_step` | CO2 が `CO2_WARNING_PPM`（1200 ppm）以上になった step |
-| `co2_recovered_below_threshold_step` | 回復した step（あれば） |
+| `co2_recovered_below_threshold_step` | CO2 が `CO2_WARNING_PPM`（1200 ppm）未満に戻った step（`co2_above_threshold_step` 設定後） |
 | `design_proposal_count` | 事後提案の change 数 |
 | `provenance_record_count` | provenance 行数（回復中心） |
 

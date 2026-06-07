@@ -81,7 +81,7 @@ summary.json
 }
 ```
 
-`actor` は `issued_by`（`engineer_*`）。旧データでは `operator` の場合あり。
+`actor` は `issued_by`（`engineer_*`）。`trace` は同一 step の `recovery_command` メッセージ（`from_role == actor`）から解決する。
 
 ### 設計変更レコード（プロトコル対応済み・データなし）
 
@@ -135,7 +135,7 @@ One Piece `SsotProvenanceRecord` 概念に準拠。必須フィールド:
 | `run_id` | 実行ディレクトリ名 |
 | `scenario` | `scrubber_degradation` 等 |
 | `step` | イベント step |
-| `actor` | エージェント ID または `operator` |
+| `actor` | 代表エンジニア ID（`engineer_*`） |
 | `actor_kind` | `ai_agent` / `logic_automation` |
 | `change_kind` | `request_eps_boost`、`add_edge` 等 |
 | `payload` | コマンド/変更の詳細 |

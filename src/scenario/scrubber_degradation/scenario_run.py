@@ -14,7 +14,7 @@ from core.agents.base import Team
 from core.agents.types import AgentObservation
 from core.event_log import EventLog
 from core.scenario import Scenario
-from environment.eclss_ops.telemetry import CO2_SAFE_PPM, CO2_WARNING_PPM, compute_health_metrics
+from environment.eclss_ops.telemetry import CO2_WARNING_PPM, compute_health_metrics
 from environment.protocol import HealthStatus, SimulatorProtocol
 from environment.ssos.station_simulator import StationSimulator
 from environment.ssos.topics import EVENT_RECOVERY
@@ -148,7 +148,7 @@ class ScrubberDegradationScenario(Scenario):
                 anomaly_seen = True
             if snap.co2_ppm >= CO2_WARNING_PPM and co2_above_threshold_step is None:
                 co2_above_threshold_step = snap.step
-            if snap.co2_ppm < CO2_SAFE_PPM and co2_above_threshold_step is not None:
+            if snap.co2_ppm < CO2_WARNING_PPM and co2_above_threshold_step is not None:
                 if co2_recovered_below_threshold_step is None:
                     co2_recovered_below_threshold_step = snap.step
 

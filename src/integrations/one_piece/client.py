@@ -52,14 +52,16 @@ def _design_state_after(step: int, states: List[Dict[str, Any]]) -> Dict[str, An
 
 def _find_recovery_message(
     step: int,
+    actor: str,
     messages: List[Dict[str, Any]],
 ) -> Optional[Dict[str, Any]]:
+    """Match recovery_command message for the step and issuing engineer (engineer_*)."""
     for row in messages:
         if int(row.get("step", -1)) != step:
             continue
-        if row.get("from_role") != "operator":
-            continue
         if row.get("message_type") != "recovery_command":
+            continue
+        if row.get("from_role") != actor:
             continue
         return row
     return None
@@ -138,8 +140,8 @@ def build_provenance_records(run_dir: Path) -> List[Dict[str, Any]]:
             continue
 
         step = int(event.get("step", -1))
-        actor = command.get("issued_by", "operator")
-        msg = _find_recovery_message(step=step, messages=messages)
+        actor = command.get("issued_by") or "unknown"
+        msg = _find_recovery_message(step=step, actor=actor, messages=messages)
         eps_meta = event.get("eps") or {}
 
         record = {
