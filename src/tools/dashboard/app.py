@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+import html
+import itertools
 import json
 import math
 from dataclasses import dataclass
@@ -11,6 +13,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import matplotlib.pyplot as plt
 import streamlit as st
+import streamlit.components.v1 as components
 
 RESULTS_ROOT = Path(__file__).resolve().parents[2] / "experiments" / "results"
 
@@ -50,44 +53,68 @@ def _select_rows_at_step(rows: List[Dict[str, Any]], step: int) -> List[Dict[str
 _BCDU_MODE_Y = {"idle": 0, "charging": 1, "discharging": 2, "fault": 3, "safe": 4}
 
 
-def _line_plot(
+def _build_line_plot_figure(
     telemetry_rows: List[Dict[str, Any]],
     eps_rows: List[Dict[str, Any]],
-    current_step: int,
-) -> None:
+    *,
+    highlight_step: Optional[int] = None,
+) -> Optional[plt.Figure]:
     if not telemetry_rows:
-        st.info("No telemetry data found.")
-        return
+        return None
 
     steps = [int(r["step"]) for r in telemetry_rows]
+    scrubber_eff = [float(r.get("scrubber_efficiency", 0.0)) for r in telemetry_rows]
     co2 = [float(r["co2_ppm"]) for r in telemetry_rows]
     power = [float(r["power_margin_w"]) for r in telemetry_rows]
     eps_support = [float(r.get("eps_support_w", 0.0)) for r in telemetry_rows]
+    anomaly_start = next(
+        (
+            int(r["step"])
+            for r in telemetry_rows
+            if "scrubber_degradation" in r.get("anomaly_flags", [])
+        ),
+        None,
+    )
 
-    nrows = 5 if eps_rows else 3
+    nrows = 6 if eps_rows else 4
     fig, axes = plt.subplots(nrows, 1, figsize=(10, 3 * nrows), sharex=True)
-    if nrows == 3:
+    if nrows == 4:
         axes = list(axes)
 
-    axes[0].plot(steps, co2, color="#1f77b4", linewidth=2)
-    axes[0].axhline(1000.0, color="#ff7f0e", linestyle="--", linewidth=1)
-    axes[0].axvline(current_step, color="#d62728", linestyle=":", linewidth=1)
-    axes[0].set_ylabel("CO2 (ppm)")
-    axes[0].set_title("CO2 trajectory")
+    def _maybe_highlight(ax: plt.Axes) -> None:
+        if highlight_step is not None:
+            ax.axvline(highlight_step, color="#d62728", linestyle=":", linewidth=1)
+
+    baseline_eff = scrubber_eff[0] if scrubber_eff else 0.95
+    axes[0].plot(steps, scrubber_eff, color="#bcbd22", linewidth=2)
+    axes[0].axhline(baseline_eff, color="#ff7f0e", linestyle="--", linewidth=1)
+    if anomaly_start is not None:
+        axes[0].axvline(anomaly_start, color="#9467bd", linestyle="--", linewidth=1)
+    _maybe_highlight(axes[0])
+    axes[0].set_ylim(0.0, 1.05)
+    axes[0].set_ylabel("Efficiency")
+    axes[0].set_title("Scrubber efficiency (anomaly: scrubber_degradation)")
     axes[0].grid(alpha=0.2)
 
-    axes[1].plot(steps, power, color="#2ca02c", linewidth=2)
-    axes[1].axhline(0.0, color="#ff7f0e", linestyle="--", linewidth=1)
-    axes[1].axvline(current_step, color="#d62728", linestyle=":", linewidth=1)
-    axes[1].set_ylabel("Power margin (W)")
-    axes[1].set_title("ECLSS net power margin (loads − generation budget; EPS boost added per step)")
+    axes[1].plot(steps, co2, color="#1f77b4", linewidth=2)
+    axes[1].axhline(1000.0, color="#ff7f0e", linestyle="--", linewidth=1)
+    _maybe_highlight(axes[1])
+    axes[1].set_ylabel("CO2 (ppm)")
+    axes[1].set_title("CO2 trajectory")
     axes[1].grid(alpha=0.2)
 
-    axes[2].plot(steps, eps_support, color="#9467bd", linewidth=2)
-    axes[2].axvline(current_step, color="#d62728", linestyle=":", linewidth=1)
-    axes[2].set_ylabel("EPS support (W)")
-    axes[2].set_title("EPS support (ECLSS telemetry)")
+    axes[2].plot(steps, power, color="#2ca02c", linewidth=2)
+    axes[2].axhline(0.0, color="#ff7f0e", linestyle="--", linewidth=1)
+    _maybe_highlight(axes[2])
+    axes[2].set_ylabel("Power margin (W)")
+    axes[2].set_title("ECLSS net power margin (loads − generation budget; EPS boost added per step)")
     axes[2].grid(alpha=0.2)
+
+    axes[3].plot(steps, eps_support, color="#9467bd", linewidth=2)
+    _maybe_highlight(axes[3])
+    axes[3].set_ylabel("EPS support (W)")
+    axes[3].set_title("EPS support (ECLSS telemetry)")
+    axes[3].grid(alpha=0.2)
 
     if eps_rows:
         eps_steps = [int(r["step"]) for r in eps_rows]
@@ -95,13 +122,13 @@ def _line_plot(
         bcdu_y = [_BCDU_MODE_Y.get(str(r.get("bcdu_mode", "idle")), 0) for r in eps_rows]
         bcdu_support = [float(r.get("support_w", 0.0)) for r in eps_rows]
 
-        axes[3].plot(eps_steps, solar_v, color="#e377c2", linewidth=2)
-        axes[3].axvline(current_step, color="#d62728", linestyle=":", linewidth=1)
-        axes[3].set_ylabel("Solar V")
-        axes[3].set_title("SARJ solar voltage (beta fixed in mock)")
-        axes[3].grid(alpha=0.2)
+        axes[4].plot(eps_steps, solar_v, color="#e377c2", linewidth=2)
+        _maybe_highlight(axes[4])
+        axes[4].set_ylabel("Solar V")
+        axes[4].set_title("SARJ solar voltage (beta fixed in mock)")
+        axes[4].grid(alpha=0.2)
 
-        ax_mode = axes[4]
+        ax_mode = axes[5]
         ax_support = ax_mode.twinx()
         ax_mode.plot(eps_steps, bcdu_y, color="#17becf", linewidth=2, drawstyle="steps-post", label="BCDU mode")
         ax_support.plot(
@@ -113,7 +140,7 @@ def _line_plot(
             alpha=0.9,
             label="Support W",
         )
-        ax_mode.axvline(current_step, color="#d62728", linestyle=":", linewidth=1)
+        _maybe_highlight(ax_mode)
         ax_mode.set_yticks(list(_BCDU_MODE_Y.values()))
         ax_mode.set_yticklabels(list(_BCDU_MODE_Y.keys()))
         ax_mode.set_ylabel("BCDU mode")
@@ -125,10 +152,338 @@ def _line_plot(
         ax_mode.grid(alpha=0.2)
         lines = ax_mode.get_lines() + ax_support.get_lines()
         ax_mode.legend(lines, [line.get_label() for line in lines], loc="upper right", fontsize=8)
+        fig._replay_highlight_axes = list(axes[:6])
     else:
-        axes[2].set_xlabel("Step")
+        axes[3].set_xlabel("Step")
+        fig._replay_highlight_axes = list(axes)
 
+    return fig
+
+
+def _line_plot(
+    telemetry_rows: List[Dict[str, Any]],
+    eps_rows: List[Dict[str, Any]],
+    current_step: int,
+) -> None:
+    fig = _build_line_plot_figure(
+        telemetry_rows,
+        eps_rows,
+        highlight_step=current_step,
+    )
+    if fig is None:
+        st.info("No telemetry data found.")
+        return
     st.pyplot(fig, use_container_width=True)
+
+
+def _set_plot_highlight(fig: plt.Figure, highlight_step: Optional[int]) -> None:
+    """Update cached replay figure with a current-step marker only."""
+    for artist in getattr(fig, "_replay_highlight_lines", []):
+        artist.remove()
+    fig._replay_highlight_lines = []
+    if highlight_step is None:
+        return
+    for ax in getattr(fig, "_replay_highlight_axes", fig.get_axes()):
+        line = ax.axvline(highlight_step, color="#d62728", linestyle=":", linewidth=1)
+        fig._replay_highlight_lines.append(line)
+
+
+def _render_static_replay_plot(run: RunViewData, current_step: int) -> None:
+    """Draw telemetry plots once per run; refresh only the step marker."""
+    if st.session_state.get("replay_static_plot_run") != run.run_name:
+        st.session_state.replay_static_plot_run = run.run_name
+        st.session_state.replay_static_plot_fig = _build_line_plot_figure(
+            run.telemetry,
+            run.eps_telemetry,
+            highlight_step=None,
+        )
+
+    fig = st.session_state.get("replay_static_plot_fig")
+    if fig is None:
+        st.info("No telemetry data found.")
+        return
+    _set_plot_highlight(fig, current_step)
+    st.pyplot(fig, use_container_width=True, clear_figure=False)
+
+
+def _escape_html(text: Any) -> str:
+    return html.escape(str(text or ""), quote=True)
+
+
+def _event_timeline_label(event: Dict[str, Any]) -> str:
+    kind = str(event.get("kind", "event"))
+    if kind == "anomaly_injected":
+        spec = event.get("spec") or {}
+        return (
+            f"Anomaly scheduled: {spec.get('name', 'anomaly')} "
+            f"(starts step {spec.get('start_step', '?')})"
+        )
+    if kind == "/eclss/events/anomaly":
+        flags = event.get("flags") or []
+        return f"Anomaly active: {', '.join(flags) if flags else '—'}"
+    if kind == "/eclss/events/recovery_applied":
+        command = event.get("command") or {}
+        issued_by = command.get("issued_by", "?")
+        return (
+            f"Recovery applied: {command.get('kind', '?')} "
+            f"→ {command.get('value', '?')} ({issued_by})"
+        )
+    if kind == "/eclss/events/design_change":
+        change = event.get("change") or {}
+        return f"Design change: {change.get('kind', '?')} ({change.get('proposed_by', '?')})"
+    if event.get("message"):
+        return str(event["message"])
+    return kind
+
+
+_REPLAY_TIMELINE_HEIGHT = 520
+_REPLAY_FEED_HEIGHT = 300
+
+
+def _step_visual_state(step: int, current_step: int) -> Tuple[float, str, str, str]:
+    """Opacity, title color, body color, dot style for timeline nodes."""
+    if step == current_step:
+        return 1.0, "#ffffff", "#e8e8e8", "background:#ffffff;box-shadow:0 0 6px rgba(255,255,255,0.8);"
+    if step < current_step:
+        return 0.45, "#8a8a8a", "#6f6f6f", "background:#666666;"
+    return 0.25, "#5a5a5a", "#4a4a4a", "background:#3a3a3a;"
+
+
+def _nearest_step_anchor(available_steps: List[int], current_step: int) -> int:
+    if not available_steps:
+        return current_step
+    if current_step in available_steps:
+        return current_step
+    prior = [step for step in available_steps if step <= current_step]
+    if prior:
+        return prior[-1]
+    return min(available_steps)
+
+
+def _group_events_by_step(events: List[Dict[str, Any]]) -> List[Tuple[int, List[str]]]:
+    ordered = sorted(events, key=lambda row: (int(row.get("step", 0)), str(row.get("kind", ""))))
+    groups: List[Tuple[int, List[str]]] = []
+    for step, rows in itertools.groupby(ordered, key=lambda row: int(row.get("step", 0))):
+        labels = [_event_timeline_label(event) for event in rows]
+        groups.append((step, labels))
+    return groups
+
+
+def _render_scrolling_html(
+    inner_html: str,
+    *,
+    height_px: int,
+    scroll_anchor_id: str,
+    panel_style: str = "",
+) -> None:
+    """Render scrollable HTML and center the anchor element (components allow JS)."""
+    doc = f"""<!DOCTYPE html>
+<html><head><style>
+  html, body {{ margin:0; padding:0; background:transparent; }}
+  #scroll-panel {{
+    height:{height_px}px;
+    overflow-y:auto;
+    overflow-x:hidden;
+    {panel_style}
+  }}
+</style></head><body>
+  <div id="scroll-panel">{inner_html}</div>
+  <script>
+    (function() {{
+      const panel = document.getElementById("scroll-panel");
+      const target = document.getElementById("{scroll_anchor_id}");
+      if (!panel || !target) return;
+      const top = target.getBoundingClientRect().top
+        - panel.getBoundingClientRect().top
+        + panel.scrollTop;
+      panel.scrollTop = Math.max(0, top - panel.clientHeight / 2 + target.clientHeight / 2);
+    }})();
+  </script>
+</body></html>"""
+    components.html(doc, height=height_px + 6, scrolling=False)
+
+
+def _render_event_timeline(events: List[Dict[str, Any]], current_step: int) -> None:
+    st.markdown("**Event timeline**")
+    if not events:
+        st.caption("No events logged.")
+        return
+
+    groups = _group_events_by_step(events)
+    anchor_step = _nearest_step_anchor([step for step, _ in groups], current_step)
+    anchor_id = f"tl-step-{anchor_step}"
+
+    nodes: List[str] = []
+    for step, labels in groups:
+        opacity, title_color, body_color, dot_style = _step_visual_state(step, current_step)
+        label_html = "<br>".join(
+            f"<span style='color:{body_color};'>{_escape_html(label)}</span>" for label in labels
+        )
+        dot_size = "12px" if step == current_step else "10px"
+        nodes.append(
+            f"<div id='tl-step-{step}' style='display:flex;gap:10px;margin-bottom:16px;"
+            f"opacity:{opacity};position:relative;z-index:1;'>"
+            f"<div style='width:22px;display:flex;justify-content:center;flex-shrink:0;'>"
+            f"<div style='width:{dot_size};height:{dot_size};border-radius:50%;"
+            f"margin-top:3px;{dot_style}'></div></div>"
+            f"<div style='flex:1;line-height:1;font-size:0.82rem;'>"
+            f"<div style='font-weight:600;color:{title_color};'>Step {step}</div>"
+            f"<div style='margin-top:2px;'>{label_html}</div>"
+            f"</div></div>"
+        )
+
+    inner = (
+        "<div style='background:#0a0a0a;border-radius:8px;padding:14px 10px 8px 6px;"
+        "position:relative;min-height:100%;'>"
+        "<div style='position:absolute;left:16px;top:18px;bottom:18px;width:2px;"
+        "background:rgba(255,255,255,0.35);z-index:0;'></div>"
+        + "".join(nodes)
+        + "</div>"
+    )
+    _render_scrolling_html(
+        inner,
+        height_px=_REPLAY_TIMELINE_HEIGHT,
+        scroll_anchor_id=anchor_id,
+    )
+
+
+def _messages_through_step(messages: List[Dict[str, Any]], current_step: int) -> List[Dict[str, Any]]:
+    return [row for row in messages if int(row.get("step", -1)) <= current_step]
+
+
+def _group_messages_by_step(messages: List[Dict[str, Any]]) -> List[Tuple[int, List[Dict[str, Any]]]]:
+    ordered = sorted(messages, key=lambda row: int(row.get("step", -1)))
+    groups: List[Tuple[int, List[Dict[str, Any]]]] = []
+    for step, rows in itertools.groupby(ordered, key=lambda row: int(row.get("step", -1))):
+        groups.append((step, list(rows)))
+    return groups
+
+
+def _render_agent_scroll_feed(
+    messages: List[Dict[str, Any]],
+    current_step: int,
+    *,
+    field: str,
+    title: str,
+    empty_caption: str,
+    height_px: int = _REPLAY_FEED_HEIGHT,
+    anchor_prefix: str,
+) -> None:
+    st.markdown(f"**{title}**")
+    visible = _messages_through_step(messages, current_step)
+    if field == "reasoning":
+        visible = [row for row in visible if str(row.get("reasoning", "")).strip()]
+
+    if not visible:
+        st.caption(empty_caption)
+        return
+
+    groups = _group_messages_by_step(visible)
+    anchor_step = _nearest_step_anchor([step for step, _ in groups], current_step)
+    anchor_id = f"{anchor_prefix}-step-{anchor_step}"
+
+    blocks: List[str] = [
+        "<div style='font-size:0.82rem;line-height:1;padding-right:4px;color:#e8e8e8;'>"
+    ]
+    for step, rows in groups:
+        is_current = step == current_step
+        marker = " ▶" if is_current else ""
+        header_color = "#f0ad4e" if is_current else "#ffffff"
+        blocks.append(
+            f"<div id='{anchor_prefix}-step-{step}' style='margin-bottom:6px;'>"
+            f"<div style='font-weight:600;margin:6px 0 2px 0;color:{header_color};'>"
+            f"Step {step}{marker}</div>"
+        )
+        for row in rows:
+            role = _escape_html(row.get("from_role", "?"))
+            msg_type = _escape_html(row.get("message_type", "") or "")
+            body = _escape_html(str(row.get(field, "") or "").strip() or "—")
+            type_suffix = (
+                f" <span style='color:#9aa0a6;'>({msg_type})</span>" if msg_type else ""
+            )
+            blocks.append(
+                "<div style='margin:0 0 3px 8px;color:#e8e8e8;'>"
+                f"<span style='font-weight:500;color:#ffffff;'>{role}</span>"
+                f"{type_suffix}: {body}"
+                "</div>"
+            )
+        blocks.append("</div>")
+    blocks.append("</div>")
+
+    _render_scrolling_html(
+        "".join(blocks),
+        height_px=height_px,
+        scroll_anchor_id=anchor_id,
+        panel_style="color:#e8e8e8;",
+    )
+
+
+def _init_replay_state(run_name: str, max_step: int) -> None:
+    if st.session_state.get("replay_run_name") != run_name:
+        st.session_state.replay_run_name = run_name
+        st.session_state.replay_step = 1
+    st.session_state.replay_step = min(
+        max(int(st.session_state.get("replay_step", 1)), 1),
+        max_step,
+    )
+
+
+def _replay_step_controls(max_step: int) -> int:
+    if "replay_step" not in st.session_state:
+        st.session_state.replay_step = 1
+
+    control_cols = st.columns([5, 1])
+    with control_cols[1]:
+        if st.button("Reset", key="replay_reset_btn"):
+            st.session_state.replay_step = 1
+
+    with control_cols[0]:
+        st.session_state.replay_step = st.slider(
+            "Replay step",
+            min_value=1,
+            max_value=max_step,
+            value=int(st.session_state.replay_step),
+        )
+
+    return int(st.session_state.replay_step)
+
+
+def _render_run_replay_view(run: RunViewData) -> None:
+    """Per-run step replay: timeline, plots, and agent discourse."""
+    max_step = _max_telemetry_step(run.telemetry)
+    _init_replay_state(run.run_name, max_step)
+    st.session_state.replay_run_name = run.run_name
+
+    st.markdown(f"**`{run.run_name}`** — step-by-step replay")
+    st.caption(f"`{run.run_dir}`")
+    current_step = _replay_step_controls(max_step)
+
+    left_col, center_col, right_col = st.columns([1, 2.2, 1.3], gap="medium")
+
+    with left_col:
+        _render_event_timeline(run.events, current_step)
+
+    with center_col:
+        _render_health_card(run.telemetry, run.health, run.eps_telemetry, current_step)
+        _render_static_replay_plot(run, current_step)
+
+    with right_col:
+        _render_agent_scroll_feed(
+            run.messages,
+            current_step,
+            field="message",
+            title="Agent messages",
+            empty_caption="No agent messages through this step.",
+            anchor_prefix="msg",
+        )
+        _render_agent_scroll_feed(
+            run.messages,
+            current_step,
+            field="reasoning",
+            title="Agent reasoning",
+            empty_caption="No agent reasoning through this step.",
+            anchor_prefix="reason",
+        )
 
 
 def _render_step_tables(
@@ -1188,7 +1543,12 @@ def main() -> None:
     max_step = _max_telemetry_step(telemetry)
     if compare_run_name and compare_telemetry:
         max_step = min(max_step, _max_telemetry_step(compare_telemetry))
-    current_step = st.sidebar.slider("Step", min_value=1, max_value=max_step, value=max_step)
+    overview_step = st.sidebar.slider(
+        "Step (overview)",
+        min_value=1,
+        max_value=max_step,
+        value=max_step,
+    )
 
     primary_run = RunViewData(
         run_dir=run_dir,
@@ -1203,7 +1563,16 @@ def main() -> None:
         summary=summary,
     )
 
-    if compare_run_name and compare_run_dir:
+    view_mode = st.radio(
+        "View",
+        options=["Overview", "Step replay"],
+        horizontal=True,
+        key="dashboard_view_mode",
+    )
+
+    if view_mode == "Step replay":
+        _render_run_replay_view(primary_run)
+    elif compare_run_name and compare_run_dir:
         compare_run = RunViewData(
             run_dir=compare_run_dir,
             run_name=compare_run_name,
@@ -1216,7 +1585,7 @@ def main() -> None:
             design_state=compare_design_state,
             summary=compare_summary,
         )
-        _render_dual_run_views(primary_run, compare_run, current_step)
+        _render_dual_run_views(primary_run, compare_run, overview_step)
         st.divider()
         _render_run_comparison(
             primary_name=selected_run_name,
@@ -1231,7 +1600,7 @@ def main() -> None:
             compare_events=compare_events,
         )
     else:
-        _render_run_detail_view(primary_run, current_step)
+        _render_run_detail_view(primary_run, overview_step)
 
 
 if __name__ == "__main__":
