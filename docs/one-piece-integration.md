@@ -1,83 +1,199 @@
 # One Piece 連携
 
-最小 JSON SSOT レイヤによる設計変更 provenance。完全な [One Piece](https://github.com/hirototamura/one-piece) Web UI は現 MVP の**スコープ外**。
+設計変更と運用回復の **provenance（来歴）** を、One Piece のデータモデルと互換な JSON で記録する。完全な [One Piece](https://github.com/hirototamura/one-piece) Web UI は現 MVP のスコープ外。
+
+> JSONL スキーマ: [api-contracts.md](api-contracts.md)。未完了項目: [development-plan.md](development-plan.md)。
+
+---
 
 ## 目的
 
-実行中にエージェントが設計変更を提案・適用したとき、**誰が・いつ・何を・なぜ**変えたかを One Piece の provenance モデルと互換な形式で記録する。シミュレーションループはブロックしない。
+自律ハードウェア開発の前段として、次を追跡可能にする:
 
-## 想定レイアウト
+1. **ランタイム回復** — 誰が、いつ、どの EPS ブーストを要求したか
+2. **事後設計提案** — 誰が、なぜ、どのトポロジ変更を推奨したか（`design_proposals.json`）
+3. （将来）One Piece SSOT への取り込みと横断インデックス
+
+シミュレーションループは provenance 生成でブロックしない。失敗時は warning ログのみ。
+
+---
+
+## レイアウト
 
 ```text
-integrations/one_piece/
-├── client.py          # 実行出力から provenance レコードを生成
-└── ssot_schema.json   # MVP サブセット: elements, parameters, traces
+src/integrations/one_piece/
+├── __init__.py        # export_run_provenance
+├── client.py          # events/messages からレコード構築
+└── ssot_schema.json   # MVP サブセット（elements, parameters, traces）
 ```
 
-## トリガー
+---
 
-`scenario/runner.py`（`ScrubberDegradationScenario`）は summary 書き込み後に provenance をエクスポート:
+## トリガーとフロー
 
-1. `events.jsonl` の設計変更行（`/eclss/events/design_change`）を読む
-2. 対応する `messages.jsonl` と結合（`reasoning` / `decision_source`）
-3. `design_state.jsonl` から変更前後のトポロジスナップショットを付与
-4. 同一 run ディレクトリに `provenance.jsonl` を書く
+`ScrubberDegradationScenario.run()` の末尾:
 
-各レコードは以下とリンク:
+```text
+1. team.propose_post_run_design()  → design_proposals.json
+2. log.write_summary(summary)
+3. export_run_provenance(run_dir)  → provenance.jsonl
+4. summary に provenance_path / provenance_record_count を追記
+```
 
-- `summary.json` の run ID と step
-- `events.jsonl` の該当行
-- 該当時は `messages.jsonl` のエージェントロール
+```text
+events.jsonl ──┐
+messages.jsonl ├──► build_provenance_records() ──► provenance.jsonl
+design_state.jsonl ┘
+summary.json
+```
+
+---
+
+## 現状エクスポートされるレコード
+
+| 種別 | ソース | 現 scrubber_degradation |
+| --- | --- | --- |
+| `design_change` | ランタイム `/eclss/events/design_change` | **0 件**（ランタイムで設計適用しないため） |
+| `recovery` | `request_eps_boost` の `recovery_applied` | **1 件以上**（labeled / llm で電力 critical 時） |
+
+### 回復レコード（実装済み）
+
+```json
+{
+  "record_id": "scrubber_degradation_labeled_rule_base:recovery:1",
+  "record_type": "recovery",
+  "run_id": "scrubber_degradation_labeled_rule_base",
+  "scenario": "scrubber_degradation",
+  "step": 28,
+  "actor": "engineer_3",
+  "actor_kind": "ai_agent",
+  "change_kind": "request_eps_boost",
+  "payload": {
+    "support_w": 120.0,
+    "eps": {"bcdu_mode": "discharging"}
+  },
+  "trace": {
+    "event_kind": "/eclss/events/recovery_applied",
+    "decision_source": "rule",
+    "message": "Requesting EPS support boost of 120 W.",
+    "reasoning": "Power margin critical; requesting temporary EPS assist."
+  }
+}
+```
+
+`actor` は `issued_by`（`engineer_*`）。旧データでは `operator` の場合あり。
+
+### 設計変更レコード（プロトコル対応済み・データなし）
+
+ランタイムで `apply_design_change` された場合の形式（将来または他シナリオ用）:
+
+```json
+{
+  "record_id": "run_id:design_change:1",
+  "run_id": "run_id",
+  "scenario": "scrubber_degradation",
+  "step": 35,
+  "actor": "engineer_4",
+  "actor_kind": "ai_agent",
+  "change_kind": "add_edge",
+  "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
+  "before_topology": {"nodes": [], "edges": []},
+  "after_topology": {"nodes": [], "edges": []},
+  "trace": {
+    "event_kind": "/eclss/events/design_change",
+    "decision_source": "rule"
+  }
+}
+```
+
+---
+
+## design_proposals.json との関係
+
+| 成果物 | タイミング | provenance 連携 |
+| --- | --- | --- |
+| `design_proposals.json` | ラン終了後 | **未エクスポート**（開発予定） |
+| `provenance.jsonl` | ラン終了後 | ランタイムイベントのみ |
+
+事後の恒久提案（バイパス弁追加、非常電源、`set_parameter` 等）は `design_proposals.json` にあり、ダッシュボードが Before/After プレビューを描画する。One Piece へは **まだ自動連携しない**。
+
+### 想定される次ステップ（Day 9）
+
+1. `design_proposals.json` を読み、`record_type: design_proposal` レコードを追加
+2. `before_topology` = `baseline_topology`、`after_topology` = 提案適用後の仮想グラフ
+3. `trace.decision_source` = `rule` / `llm`、`trace.reasoning` = 提案理由
+
+---
 
 ## データモデル（MVP サブセット）
 
-One Piece `SsotProvenanceRecord` 概念に準拠:
+One Piece `SsotProvenanceRecord` 概念に準拠。必須フィールド:
 
-| フィールド | 例 |
+| フィールド | 説明 |
 | --- | --- |
-| `actor` | `design_engineer`（rule）または将来の LLM エージェント ID |
+| `record_id` | `{run_id}:{種別}:{連番}` |
+| `run_id` | 実行ディレクトリ名 |
+| `scenario` | `scrubber_degradation` 等 |
+| `step` | イベント step |
+| `actor` | エージェント ID または `operator` |
 | `actor_kind` | `ai_agent` / `logic_automation` |
-| `step` | 35 |
-| `change_kind` | `add_edge` |
-| `payload` | manifold → scrubber の bypass エッジ |
-| `before_topology` | 変更前 `design_state.jsonl` のスナップショット |
-| `after_topology` | 変更後スナップショット |
+| `change_kind` | `request_eps_boost`、`add_edge` 等 |
+| `payload` | コマンド/変更の詳細 |
+| `trace` | message、reasoning、decision_source、parse_status |
 
-保存: 実行出力と同じディレクトリの JSON（`provenance.jsonl`）。スキーマ契約は `integrations/one_piece/ssot_schema.json`。
+任意: `record_type`（`recovery`）、`before_topology` / `after_topology`（設計変更時）。
 
-## SSOS トポロジ取り込み（任意）
+契約: `src/integrations/one_piece/ssot_schema.json`。
 
-One Piece コネクタ [`one_piece_connectors/ssos.py`](https://github.com/hirototamura/one-piece/blob/main/packages/connectors/one_piece_connectors/ssos.py) は実 SSOS リポジトリから初期 `SystemElement` + ICD グラフをシードできる。MVP では `environment/eclss_ops/design_state.py` の Mock ECLSS デフォルトトポロジから `ssot_schema.json` を手書きしてもよい。
+---
+
+## summary.json とのリンク
+
+```json
+{
+  "provenance_path": "src/experiments/results/scrubber_degradation_labeled_rule_base/provenance.jsonl",
+  "provenance_record_count": 2,
+  "design_proposals_path": ".../design_proposals.json",
+  "design_proposal_count": 1
+}
+```
+
+ベースライン（`agents.mode: none`）も **0 件の `provenance.jsonl`** を出力し、ファイル存在契約を安定化。
+
+---
+
+## SSOS トポロジ取り込み（任意・将来）
+
+One Piece コネクタ [`one_piece_connectors/ssos.py`](https://github.com/hirototamura/one-piece/blob/main/packages/connectors/one_piece_connectors/ssos.py) は実 SSOS から初期 `SystemElement` + ICD グラフをシードできる。
+
+MVP では `environment/eclss_ops/design_state.py` の Mock ECLSS デフォルトトポロジを使用。実 SSOS 接合は [development-plan.md](development-plan.md) の SSOS adapter を参照。
+
+---
 
 ## 依存戦略
 
-推奨（[mvp_plan.md](../memo/mvp_plan.md) も参照）:
+- **JSON ファイル + 将来コネクタ** — provenance 形式が安定するまで One Piece パッケージへのハード依存を避ける
+- 取り込み必要時: git submodule または `pip install -e ../one-piece/packages/connectors`
+- 方針詳細: [memo/mvp_plan.md](../memo/mvp_plan.md)
 
-- **JSON ファイル + 将来コネクタ** — provenance が安定するまで One Piece パッケージへのハード依存は避ける
-- 取り込みが必要になったら git submodule または `pip install -e ../one-piece/packages/connectors`
+---
 
-## ステータス
+## ステータスまとめ
 
-**Day5B 完了（MVP スコープ）。**
+| 項目 | 状態 |
+| --- | --- |
+| `export_run_provenance()` | 完了 |
+| EPS 回復 provenance | 完了 |
+| ランタイム design_change provenance | プロトコルあり・現シナリオでは 0 件 |
+| post-run `design_proposals` → provenance | **未実装** |
+| `provenance_index.json`（横断） | **未実装** |
+| One Piece Web UI | スコープ外 |
 
-- `integrations/one_piece/client.py` が `export_run_provenance(run_dir)` を提供
-- `summary.json` に `provenance_path`、`provenance_record_count` を追加
-- `labeled_rule_base` / `llm` 実行で設計変更 provenance を出力（該当時）
-
-## Day5B 振り返り
-
-- エクスポートは run 終了時だが、全 `design_change` ステップを記録（最終状態のみではない）
-- ベースラインも `provenance.jsonl` を 0 件で出力し、ファイル契約を安定化
-- trace に `reasoning`、`decision_source`、`parse_status` を載せられる
-
-## 次の計画（Day5B 以降）
-
-1. run インデックスエクスポート（`provenance_index.json`）— ダッシュボード/CLI の横断比較用
-2. ~~回復コマンドの provenance 拡張~~ — **完了（EPS-4）**: `request_eps_boost` を `record_type: recovery` で記録
-3. One Piece リポジトリがカスタムパースなしで取り込めるハンドオフ shim
+---
 
 ## 関連ドキュメント
 
-- [api-contracts.md](api-contracts.md) — `design_change` イベントスキーマ
-- [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) — 実行出力での設計変更の見方
-- [architecture.md](architecture.md) — `integrations/` のレイヤ配置
+- [api-contracts.md](api-contracts.md) — 全 JSONL スキーマ
+- [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) — 出力の読み方
+- [architecture.md](architecture.md) — 実行フロー
+- [development-plan.md](development-plan.md) — Day 9–10 計画

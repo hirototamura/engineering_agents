@@ -217,7 +217,7 @@
 ## 参考
 
 - **EPS Day 区切り実装プラン**: [eps_implementation_plan.md](eps_implementation_plan.md)
-- ドキュメント索引: [docs/README.md](../docs/README.md)
+- ドキュメント索引: [README.md](../README.md#ドキュメント)、開発プラン: [docs/development-plan.md](../docs/development-plan.md)
 - API 契約: [docs/api-contracts.md](../docs/api-contracts.md)
 - アーキテクチャ: [docs/architecture.md](../docs/architecture.md)
 - シナリオ: [docs/scenario-scrubber-degradation.md](../docs/scenario-scrubber-degradation.md)
