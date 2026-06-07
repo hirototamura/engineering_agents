@@ -23,7 +23,7 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
     run_dir = run_scenario(
         "scrubber_degradation",
         output_dir=tmp_path / "labeled",
-        overrides={"agents": {"mode": "labeled"}},
+        overrides={"agents": {"mode": "labeled_rule_base"}},
         recreate_output=True,
     )
 
@@ -35,7 +35,7 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
     events = _read_jsonl(run_dir / "events.jsonl")
     eps_telemetry = _read_jsonl(run_dir / "eps_telemetry.jsonl")
 
-    assert summary["agents_mode"] == "labeled"
+    assert summary["agents_mode"] == "labeled_rule_base"
     assert summary["team_count"] == 4
     assert summary["agent_ids"] == ["engineer_1", "engineer_2", "engineer_3", "engineer_4"]
     assert summary["message_count"] > 0

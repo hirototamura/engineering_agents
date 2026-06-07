@@ -71,7 +71,7 @@
 | `agents.mode` | チーム | アクションの出所 | メッセージ |
 | --- | --- | --- | --- |
 | `none` | — | — | — |
-| `labeled` | `ScrubberDegradationTeam` | ルール | ルールメッセージのみ |
+| `labeled_rule_base` | `ScrubberDegradationTeam` | ルール | ルールメッセージのみ |
 | `llm` | 同上 | LLM のみ（policy 非参照） | `llm` / `llm_parse_fail` / `llm_no_action` |
 
 将来: `base`（ラベルなし創発ロール）— [memo/backlog.md](../memo/backlog.md) BL-001。
@@ -125,7 +125,7 @@
 
 ### messages.jsonl
 
-`agents.mode` が `labeled` または `llm` のとき出力。
+`agents.mode` が `labeled_rule_base` または `llm` のとき出力。
 
 **ルールメッセージ:**
 
@@ -232,7 +232,7 @@
 {
   "scenario": "scrubber_degradation",
   "simulator": "mock_station",
-  "agents_mode": "labeled",
+  "agents_mode": "labeled_rule_base",
   "steps": 50,
   "peak_co2_ppm": 1016.34,
   "final_co2_ppm": 967.2,
@@ -246,7 +246,7 @@
   "co2_recovered_below_threshold_step": 40,
   "message_count": 59,
   "design_change_count": 1,
-  "provenance_path": "src/experiments/results/scrubber_degradation_labeled/provenance.jsonl",
+  "provenance_path": "src/experiments/results/scrubber_degradation_labeled_rule_base/provenance.jsonl",
   "provenance_record_count": 2
 }
 ```
@@ -257,8 +257,8 @@ One Piece 互換 provenance: **設計変更**と **EPS 回復**（`request_eps_b
 
 ```json
 {
-  "record_id": "scrubber_degradation_labeled:design_change:1",
-  "run_id": "scrubber_degradation_labeled",
+  "record_id": "scrubber_degradation_labeled_rule_base:design_change:1",
+  "run_id": "scrubber_degradation_labeled_rule_base",
   "scenario": "scrubber_degradation",
   "step": 35,
   "actor": "design_engineer",
@@ -275,7 +275,7 @@ One Piece 互換 provenance: **設計変更**と **EPS 回復**（`request_eps_b
 
 ```json
 {
-  "record_id": "scrubber_degradation_labeled:recovery:2",
+  "record_id": "scrubber_degradation_labeled_rule_base:recovery:2",
   "record_type": "recovery",
   "change_kind": "request_eps_boost",
   "step": 28,
@@ -291,8 +291,8 @@ One Piece 互換 provenance: **設計変更**と **EPS 回復**（`request_eps_b
 # ベースライン（agents.mode: none）— scenario.yaml のデフォルト
 python src/scripts/run_mock_eclss.py
 
-# ルールベース labeled チーム
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled'}})"
+# ルールベース labeled_rule_base チーム
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}})"
 
 # Persona + 2ラウンド議論 + ガード付き LLM（Ollama 要）
 python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}})"

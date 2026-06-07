@@ -69,7 +69,7 @@ class ScrubberDegradationScenario(Scenario):
         if not agents_config:
             return None
         mode = agents_config.get("mode")
-        if mode not in {"labeled", "llm"}:
+        if mode not in {"labeled_rule_base", "llm"}:
             return None
         return ScrubberDegradationTeam(agents_config)
 
@@ -88,8 +88,11 @@ class ScrubberDegradationScenario(Scenario):
         results_base = Path(__file__).resolve().parents[2] / "experiments" / "results"
         if output_dir is None:
             run_id = output_cfg.get("run_id", self.name)
-            if agents_config and agents_config.get("mode") == "labeled":
-                run_id = output_cfg.get("run_id_labeled", f"{self.name}_labeled")
+            if agents_config and agents_config.get("mode") == "labeled_rule_base":
+                run_id = output_cfg.get(
+                    "run_id_labeled_rule_base",
+                    f"{self.name}_labeled_rule_base",
+                )
             elif agents_config and agents_config.get("mode") == "llm":
                 run_id = output_cfg.get("run_id_llm", f"{self.name}_llm")
             if recreate_output:

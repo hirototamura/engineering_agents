@@ -200,7 +200,7 @@
 - [x] core 一般化移植
 - [x] scrubber_degradation scenario.yaml + runner + baseline 回帰テスト
 - [x] Mock 物理パラメータ調整（CO2 危険域到達）
-- [x] scrubber_degradation 専用・ルールベース 4 ロール（agents.yaml、`mode: labeled`）
+- [x] scrubber_degradation 専用・ルールベース 4 ロール（agents.yaml、`mode: labeled_rule_base`）
 - [ ] BL-001 創発ロール実験（`mode: base`）— バックログ、Week-1 外
 - [x] Day5A: LLM shadow 統合（`agents.mode: labeled_shadow`、`decision_source`/`parse_status` ログ）
 - [x] Day5B: `src/integrations/one_piece/` provenance（`provenance.jsonl`, `summary.provenance_*`）

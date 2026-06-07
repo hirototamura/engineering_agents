@@ -1,5 +1,5 @@
 """
-Scrubber degradation agent team — rule-based labeled mode + homogeneous LLM mode.
+Scrubber degradation agent team — rule-based labeled_rule_base mode + homogeneous LLM mode.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ class ScrubberTeamState:
 class ScrubberDegradationTeam(Team):
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.mode = config.get("mode", "labeled")
+        self.mode = config.get("mode", "labeled_rule_base")
         self.state = ScrubberTeamState()
         self.llm_mode = self.mode == "llm"
         self.llm_enabled = self.llm_mode
@@ -57,7 +57,9 @@ class ScrubberDegradationTeam(Team):
 
         self.team_cfg: TeamConfig = load_team(config)
         self.personas = build_personas(self.team_cfg)
-        self.policy: Dict[str, Any] = config.get("policy", {}) if self.mode == "labeled" else {}
+        self.policy: Dict[str, Any] = (
+            config.get("policy", {}) if self.mode == "labeled_rule_base" else {}
+        )
 
         self.memory_store = TeamMemoryStore(
             agent_ids=list(self.personas.keys()),

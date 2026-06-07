@@ -127,11 +127,11 @@ def build_agent_team(scenario_name: str, agents_config: Optional[Dict[str, Any]]
     if not agents_config:
         return None
     mode = agents_config.get("mode")
-    if mode not in {"labeled", "llm"}:
+    if mode not in {"labeled_rule_base", "llm"}:
         return None
     if scenario_name == "scrubber_degradation":
         return ScrubberDegradationTeam(agents_config)
-    raise ValueError(f"No labeled agent team for scenario: {scenario_name}")
+    raise ValueError(f"No agent team for scenario: {scenario_name}")
 
 
 def _log_sim_events(log: EventLog, sim: SimulatorProtocol, step: int, logged_event_ids: set) -> None:

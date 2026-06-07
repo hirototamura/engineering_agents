@@ -1229,6 +1229,48 @@ def _render_health_card(
         st.metric("BCDU mode", (current_eps or {}).get("bcdu_mode", "-"))
 
 
+def _summary_agents_mode(summary: Dict[str, Any]) -> str:
+    return str(summary.get("agents_mode", "—"))
+
+
+def _render_run_identity_cards(
+    primary_name: str,
+    primary_summary: Dict[str, Any],
+    compare_name: str,
+    compare_summary: Dict[str, Any],
+) -> None:
+    left_col, right_col = st.columns(2)
+    with left_col:
+        st.markdown("##### Primary run")
+        st.markdown(f"`{primary_name}`")
+        st.caption(f"agents.mode: `{_summary_agents_mode(primary_summary)}`")
+    with right_col:
+        st.markdown("##### Compare run")
+        st.markdown(f"`{compare_name}`")
+        st.caption(f"agents.mode: `{_summary_agents_mode(compare_summary)}`")
+
+
+def _render_metric_comparison_table(
+    primary_name: str,
+    compare_name: str,
+    metrics: List[Tuple[str, Any, Any]],
+) -> None:
+    """One row per metric; primary and compare values in named columns."""
+    rows: List[Dict[str, Any]] = []
+    for label, primary_val, compare_val in metrics:
+        row: Dict[str, Any] = {
+            "Metric": label,
+            primary_name: primary_val,
+            compare_name: compare_val,
+        }
+        if isinstance(primary_val, (int, float)) and isinstance(compare_val, (int, float)):
+            row["Δ (primary − compare)"] = round(primary_val - compare_val, 6)
+        else:
+            row["Δ (primary − compare)"] = None
+        rows.append(row)
+    st.dataframe(rows, use_container_width=True, hide_index=True)
+
+
 def _extract_recovery_commands(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     for event in events:
@@ -1255,41 +1297,47 @@ def _render_power_recovery_comparison(
     compare_events: List[Dict[str, Any]],
     compare_summary: Dict[str, Any],
 ) -> None:
-    st.markdown("**Power recovery commands (rule vs LLM)**")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric(
-            "EPS boost step",
-            f"{primary_summary.get('eps_boost_applied_step', '-')}"
-            f" / {compare_summary.get('eps_boost_applied_step', '-')}",
-        )
-    with col2:
-        st.metric(
-            "Min power margin W",
-            f"{primary_summary.get('min_power_margin_w', '-')}"
-            f" / {compare_summary.get('min_power_margin_w', '-')}",
-        )
-    with col3:
-        st.metric(
-            "Power recovered step",
-            f"{primary_summary.get('power_recovered_above_critical_step', '-')}"
-            f" / {compare_summary.get('power_recovered_above_critical_step', '-')}",
-        )
-    with col4:
-        p_eps = len([r for r in _extract_recovery_commands(primary_events) if r["kind"] == "request_eps_boost"])
-        c_eps = len([r for r in _extract_recovery_commands(compare_events) if r["kind"] == "request_eps_boost"])
-        st.metric("EPS boost commands", f"{p_eps} / {c_eps}")
+    st.markdown("**Power & recovery**")
+    p_eps = len(
+        [r for r in _extract_recovery_commands(primary_events) if r["kind"] == "request_eps_boost"]
+    )
+    c_eps = len(
+        [r for r in _extract_recovery_commands(compare_events) if r["kind"] == "request_eps_boost"]
+    )
+    _render_metric_comparison_table(
+        primary_name,
+        compare_name,
+        [
+            (
+                "EPS boost applied (step)",
+                primary_summary.get("eps_boost_applied_step", "—"),
+                compare_summary.get("eps_boost_applied_step", "—"),
+            ),
+            (
+                "Min power margin (W)",
+                primary_summary.get("min_power_margin_w", "—"),
+                compare_summary.get("min_power_margin_w", "—"),
+            ),
+            (
+                "Power recovered above critical (step)",
+                primary_summary.get("power_recovered_above_critical_step", "—"),
+                compare_summary.get("power_recovered_above_critical_step", "—"),
+            ),
+            ("EPS boost command count", p_eps, c_eps),
+        ],
+    )
 
+    st.markdown("**Recovery command log**")
     _render_paired_columns(
         lambda: (
-            st.caption(f"`{primary_name}` recovery events"),
+            st.markdown(f"**Primary — `{primary_name}`**"),
             _render_dataframe_or_empty(
                 _extract_recovery_commands(primary_events),
                 "No recovery events.",
             ),
         ),
         lambda: (
-            st.caption(f"`{compare_name}` recovery events"),
+            st.markdown(f"**Compare — `{compare_name}`**"),
             _render_dataframe_or_empty(
                 _extract_recovery_commands(compare_events),
                 "No recovery events.",
@@ -1423,7 +1471,49 @@ def _render_run_comparison(
     compare_events: List[Dict[str, Any]],
 ) -> None:
     st.subheader("Run comparison")
-    st.caption(f"Primary: `{primary_name}` vs Compare: `{compare_name}`")
+    st.caption(
+        "Each metric lists Primary and Compare in separate columns "
+        "(sidebar selections). Δ = primary − compare."
+    )
+    _render_run_identity_cards(primary_name, primary_summary, compare_name, compare_summary)
+
+    st.markdown("**Run outcome**")
+    _render_metric_comparison_table(
+        primary_name,
+        compare_name,
+        [
+            (
+                "Design changes (count)",
+                primary_summary.get("design_change_count", 0),
+                compare_summary.get("design_change_count", 0),
+            ),
+            (
+                "Provenance records (count)",
+                len(primary_provenance),
+                len(compare_provenance),
+            ),
+            (
+                "Final CO2 (ppm)",
+                primary_summary.get("final_co2_ppm", "—"),
+                compare_summary.get("final_co2_ppm", "—"),
+            ),
+            (
+                "Final power margin (W)",
+                primary_summary.get("final_power_margin_w", "—"),
+                compare_summary.get("final_power_margin_w", "—"),
+            ),
+            (
+                "Final step",
+                primary_summary.get("final_step", "—"),
+                compare_summary.get("final_step", "—"),
+            ),
+            (
+                "Message count",
+                primary_summary.get("message_count", "—"),
+                compare_summary.get("message_count", "—"),
+            ),
+        ],
+    )
 
     _render_power_recovery_comparison(
         primary_name,
@@ -1433,28 +1523,6 @@ def _render_run_comparison(
         compare_events,
         compare_summary,
     )
-
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric(
-            "Design changes",
-            f"{primary_summary.get('design_change_count', 0)} / {compare_summary.get('design_change_count', 0)}",
-        )
-    with col2:
-        st.metric(
-            "Provenance records",
-            f"{len(primary_provenance)} / {len(compare_provenance)}",
-        )
-    with col3:
-        st.metric(
-            "Final CO2 ppm",
-            f"{primary_summary.get('final_co2_ppm', '-')}/{compare_summary.get('final_co2_ppm', '-')}",
-        )
-    with col4:
-        st.metric(
-            "Final power margin W",
-            f"{primary_summary.get('final_power_margin_w', '-')}/{compare_summary.get('final_power_margin_w', '-')}",
-        )
 
     primary_params = _extract_final_parameters(primary_design_state)
     compare_params = _extract_final_parameters(compare_design_state)
@@ -1474,17 +1542,21 @@ def _render_run_comparison(
                 "delta_primary_minus_compare": delta,
             }
         )
-    st.markdown("**Final design parameters diff**")
+    st.markdown("**Final design parameters**")
+    st.caption(
+        f"End-of-run simulator parameters. "
+        f"Columns `{primary_name}` and `{compare_name}` match the runs above."
+    )
     st.dataframe(diff_rows, use_container_width=True, hide_index=True)
 
-    st.markdown("**Provenance**")
+    st.markdown("**Full provenance log**")
     _render_paired_columns(
         lambda: (
-            st.markdown(f"**{primary_name}**"),
+            st.markdown(f"**Primary — `{primary_name}`**"),
             _render_dataframe_or_empty(primary_provenance, "No provenance records."),
         ),
         lambda: (
-            st.markdown(f"**{compare_name}**"),
+            st.markdown(f"**Compare — `{compare_name}`**"),
             _render_dataframe_or_empty(compare_provenance, "No provenance records."),
         ),
     )

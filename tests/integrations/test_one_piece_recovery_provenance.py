@@ -19,7 +19,7 @@ def test_build_provenance_includes_eps_recovery_record(tmp_path: Path):
     run_dir = run_scenario(
         "scrubber_degradation",
         output_dir=tmp_path / "labeled",
-        overrides={"agents": {"mode": "labeled"}},
+        overrides={"agents": {"mode": "labeled_rule_base"}},
         recreate_output=True,
     )
     records = build_provenance_records(run_dir)

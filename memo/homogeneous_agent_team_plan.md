@@ -33,13 +33,13 @@
 | `agents.mode` | 意味 | チーム構成 |
 | --- | --- | --- |
 | `none` | 物理のみ | エージェントなし |
-| `labeled` | ルールベース（`policy`） | 同種 N 体 |
+| `labeled_rule_base` | ルールベース（`policy`） | 同種 N 体 |
 | `llm` | LLM（Ollama） | 同種 N 体、N+1 LLM/step |
 
 ## policy 分離（固定ルール）
 
 - `build_llm_situation(obs)` / `build_llm_post_run_situation(...)` — policy 引数なし
-- 事後 design の policy ゲートは **labeled 専用**；`llm` はゲートなしで常に LLM 呼び出し
+- 事後 design の policy ゲートは **labeled_rule_base 専用**；`llm` はゲートなしで常に LLM 呼び出し
 
 ## 実装ログ
 
@@ -84,5 +84,5 @@
 ## 振り返り
 
 - **policy 分離**を `llm_mode` 分岐で `self.policy = {}` とすることでコードレベルでも固定できた
-- **labeled 回帰**は `co2_recovery_ppm` 単一閾値で維持（旧 monitor 900ppm アラートは統合）
+- **labeled_rule_base 回帰**は `co2_recovery_ppm` 単一閾値で維持（旧 monitor 900ppm アラートは統合）
 - **テスト**: `HealthStatus.value` は小文字（`warning`）— World state 表記に注意

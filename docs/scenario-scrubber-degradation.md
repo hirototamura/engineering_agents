@@ -8,9 +8,9 @@ ECLSS 仮想運用レジリエンス・ループ MVP の参照シナリオ。
 | ---- | ----- | --------------------------------------------- |
 | 均衡   | 1–19  | CO2 約 800 ppm、スクラバーはベースライン効率                  |
 | 異常   | 20+   | `scrubber_degradation`: 効率低下、電力マージン縮小、CO2 産生増 |
-| 危険帯  | 約 33+ | CO2 が 1000 ppm 超（ベースライン / labeled 実行）         |
+| 危険帯  | 約 33+ | CO2 が 1000 ppm 超（ベースライン / labeled_rule_base 実行）         |
 | 対応   | 33–40 | 代表エンジニアの回復コマンド（ファン、負荷削減、バイパス）                |
-| 回復   | 約 40+ | CO2 が 1000 ppm 未満へ（labeled モード）               |
+| 回復   | 約 40+ | CO2 が 1000 ppm 未満へ（labeled_rule_base モード）               |
 
 物理のみ（`agents.mode: none`）は異常と CO2 上昇を示すが、**回復・設計変更は行わない**。
 
@@ -19,7 +19,7 @@ ECLSS 仮想運用レジリエンス・ループ MVP の参照シナリオ。
 | ファイル                                                                | 用途                                                   |
 | ------------------------------------------------------------------- | ---------------------------------------------------- |
 | [scenario.yaml](../src/scenario/scrubber_degradation/scenario.yaml) | ステップ数、初期状態、設計パラメータ、異常、`agents.mode`、run ID           |
-| [agents.yaml](../src/scenario/scrubber_degradation/agents.yaml)     | チーム構成、Persona、メモリ、`policy`（labeled 専用）、LLM 設定 |
+| [agents.yaml](../src/scenario/scrubber_degradation/agents.yaml)     | チーム構成、Persona、メモリ、`policy`（labeled_rule_base 専用）、LLM 設定 |
 
 ### 主要シミュレーションパラメータ
 
@@ -33,7 +33,7 @@ ECLSS 仮想運用レジリエンス・ループ MVP の参照シナリオ。
 ```yaml
 # scenario.yaml
 agents:
-  mode: none  # none | labeled | llm
+  mode: none  # none | labeled_rule_base | llm
 ```
 
 実行時オーバーライド:
@@ -41,7 +41,7 @@ agents:
 ```python
 from scenario.runner import run_scenario
 
-run_scenario("scrubber_degradation", overrides={"agents": {"mode": "labeled"}})
+run_scenario("scrubber_degradation", overrides={"agents": {"mode": "labeled_rule_base"}})
 ```
 
 ## 同種エンジニアチーム
@@ -51,7 +51,7 @@ run_scenario("scrubber_degradation", overrides={"agents": {"mode": "labeled"}})
 | `team.count` | エージェント数（デフォルト 4） |
 | `team.id_prefix` | ID 接頭辞（`engineer_1` .. `engineer_N`） |
 | `team.persona` | 全員共通の Persona 本文 |
-| `policy` | **labeled 専用** — `co2_recovery_ppm` 等の閾値 |
+| `policy` | **labeled_rule_base 専用** — `co2_recovery_ppm` 等の閾値 |
 
 代表者: `engineer_{(step-1) % N}` が各 step の action rep（回復コマンド発行）。事後 design も最終 step の代表が提案。
 
@@ -96,7 +96,7 @@ run_scenario("scrubber_degradation", overrides={"agents": {"mode": "labeled"}})
 | テスト | モード | 主な検証 |
 | --- | --- | --- |
 | `tests/scenario/test_scrubber_baseline.py` | `none` | 異常・CO2 上昇、エージェントなし |
-| `tests/scenario/test_scrubber_with_agents.py` | `labeled` / `llm` | 同種チーム、回復、事後設計提案、最終 CO2 < 1000（labeled） |
+| `tests/scenario/test_scrubber_with_agents.py` | `labeled_rule_base` / `llm` | 同種チーム、回復、事後設計提案、最終 CO2 < 1000（labeled_rule_base） |
 
 ## 関連ドキュメント
 

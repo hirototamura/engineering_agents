@@ -1,6 +1,6 @@
 # scrubber_degradation — homogeneous engineer team
 
-mode: labeled
+mode: labeled_rule_base
 
 memory_limit: 8
 discourse_window: 12
@@ -14,7 +14,7 @@ team:
     Do not change topology during the simulation — structural changes are post-run recommendations only.
     Cite teammates by agent_id; agree or disagree explicitly.
 
-# policy: labeled mode only — llm code paths must not read these values.
+# policy: labeled_rule_base mode only — llm code paths must not read these values.
 policy:
   co2_recovery_ppm: 1000
   fan_speed: 1.0
