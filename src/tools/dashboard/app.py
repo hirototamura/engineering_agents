@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import streamlit as st
@@ -159,12 +160,290 @@ def _render_step_tables(
             st.caption("No provenance records at this step.")
 
 
+_NODE_ANCHORS: Dict[str, Tuple[float, float]] = {
+    "cabin": (0.0, 0.55),
+    "manifold": (0.45, 0.55),
+    "scrubber": (0.9, 0.55),
+    "power_bus": (0.45, 0.05),
+}
+
+_EDGE_COLORS = {
+    "flow": "#1f77b4",
+    "bypass": "#ff7f0e",
+    "power": "#9467bd",
+    "monitor": "#e377c2",
+}
+
+_NODE_COLORS = {
+    "volume": "#8c564b",
+    "manifold": "#17becf",
+    "scrubber": "#2ca02c",
+    "electrical": "#d62728",
+    "threshold_monitor": "#bcbd22",
+    "monitor": "#bcbd22",
+    "synthetic": "#9aa5b1",
+    "node": "#6c757d",
+}
+
+_BASELINE_NODE_IDS = frozenset({"cabin", "manifold", "scrubber", "power_bus"})
+_BASELINE_EDGE_KEYS = frozenset(
+    {
+        ("cabin", "manifold", "flow"),
+        ("manifold", "scrubber", "flow"),
+        ("scrubber", "cabin", "flow"),
+        ("power_bus", "scrubber", "power"),
+    }
+)
+_DESIGN_EDGE_COLOR = "#c0392b"
+
+
+def _topology_at_step(
+    design_state_rows: List[Dict[str, Any]],
+    current_step: int,
+) -> Dict[str, Any]:
+    row = next((r for r in design_state_rows if int(r.get("step", -1)) == current_step), None)
+    if row is None and design_state_rows:
+        prior = [r for r in design_state_rows if int(r.get("step", -1)) <= current_step]
+        row = prior[-1] if prior else design_state_rows[0]
+    return (row or {}).get("topology", {})
+
+
+def _edge_key(edge: Dict[str, Any]) -> Tuple[str, str, str]:
+    return (
+        str(edge.get("source", "")),
+        str(edge.get("target", "")),
+        str(edge.get("kind", "flow")),
+    )
+
+
+def _prepare_topology_for_display(
+    nodes: List[Dict[str, Any]],
+    edges: List[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], set[Tuple[str, str, str]]]:
+    """Deduplicate edges, synthesize missing endpoints, tag design-engineer additions."""
+    node_by_id: Dict[str, Dict[str, Any]] = {}
+    for node in nodes:
+        node_id = str(node.get("id", ""))
+        if node_id:
+            node_by_id[node_id] = dict(node)
+
+    seen_edges: set[Tuple[str, str, str]] = set()
+    deduped_edges: List[Dict[str, Any]] = []
+    for edge in edges:
+        key = _edge_key(edge)
+        if key in seen_edges:
+            continue
+        seen_edges.add(key)
+        deduped_edges.append(edge)
+        for endpoint in (key[0], key[1]):
+            if endpoint and endpoint not in node_by_id:
+                node_by_id[endpoint] = {
+                    "id": endpoint,
+                    "name": endpoint,
+                    "kind": "synthetic",
+                    "synthetic": True,
+                }
+
+    design_edge_keys = {key for key in seen_edges if key not in _BASELINE_EDGE_KEYS}
+    display_nodes = list(node_by_id.values())
+    return display_nodes, deduped_edges, design_edge_keys
+
+
+def _layout_node_positions(nodes: List[Dict[str, Any]]) -> Dict[str, Tuple[float, float]]:
+    positions: Dict[str, Tuple[float, float]] = {}
+    extras: List[str] = []
+    for node in nodes:
+        node_id = str(node.get("id", ""))
+        if not node_id:
+            continue
+        if node_id in _NODE_ANCHORS:
+            positions[node_id] = _NODE_ANCHORS[node_id]
+        else:
+            extras.append(node_id)
+    for index, node_id in enumerate(extras):
+        angle = (2.0 * math.pi * index) / max(len(extras), 1)
+        positions[node_id] = (0.45 + 0.32 * math.cos(angle), 0.3 + 0.22 * math.sin(angle))
+    return positions
+
+
+_LABEL_BBOX = {
+    "boxstyle": "round,pad=0.25",
+    "facecolor": "white",
+    "edgecolor": "#b0b8c4",
+    "linewidth": 0.8,
+    "alpha": 0.95,
+}
+
+
+def _draw_topology_graph(
+    nodes: List[Dict[str, Any]],
+    edges: List[Dict[str, Any]],
+    design_edge_keys: set[Tuple[str, str, str]],
+) -> None:
+    if not nodes:
+        st.info("No topology nodes at this step.")
+        return
+
+    positions = _layout_node_positions(nodes)
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    fig.patch.set_facecolor("#eef1f5")
+    ax.set_facecolor("#eef1f5")
+
+    for edge in edges:
+        source = str(edge.get("source", ""))
+        target = str(edge.get("target", ""))
+        if source not in positions or target not in positions:
+            continue
+        x1, y1 = positions[source]
+        x2, y2 = positions[target]
+        kind = str(edge.get("kind", "flow"))
+        key = _edge_key(edge)
+        is_design = key in design_edge_keys
+        color = _DESIGN_EDGE_COLOR if is_design else _EDGE_COLORS.get(kind, "#7f7f7f")
+        linestyle = "dashed" if is_design else "solid"
+        ax.annotate(
+            "",
+            xy=(x2, y2),
+            xytext=(x1, y1),
+            arrowprops={
+                "arrowstyle": "->",
+                "color": color,
+                "lw": 2.5 if is_design else 2.0,
+                "linestyle": linestyle,
+                "shrinkA": 14,
+                "shrinkB": 14,
+            },
+            zorder=1 if is_design else 2,
+        )
+        mid_x = (x1 + x2) / 2.0
+        mid_y = (y1 + y2) / 2.0
+        edge_label = f"{kind}*" if is_design else kind
+        ax.text(
+            mid_x,
+            mid_y,
+            edge_label,
+            fontsize=8,
+            color="#1f2933",
+            ha="center",
+            va="center",
+            bbox=_LABEL_BBOX,
+            zorder=3,
+        )
+
+    for node in nodes:
+        node_id = str(node.get("id", ""))
+        if node_id not in positions:
+            continue
+        x, y = positions[node_id]
+        kind = str(node.get("kind", "volume"))
+        is_design_node = node_id not in _BASELINE_NODE_IDS
+        is_synthetic = bool(node.get("synthetic"))
+        if is_synthetic:
+            color = _NODE_COLORS["synthetic"]
+            size = 500
+        else:
+            color = _NODE_COLORS.get(kind, "#7f7f7f")
+            size = 700 if is_design_node else 900
+        edgecolor = _DESIGN_EDGE_COLOR if is_design_node else "#2d3436"
+        marker = "s" if is_synthetic else "o"
+        ax.scatter(
+            [x],
+            [y],
+            s=size,
+            c=color,
+            marker=marker,
+            edgecolors=edgecolor,
+            linewidths=2.0 if is_design_node else 1.5,
+            zorder=4,
+        )
+        label = str(node.get("name", node_id))
+        suffix = " [design]" if is_design_node and not is_synthetic else ""
+        if is_synthetic:
+            suffix = " [ref]"
+        ax.text(
+            x,
+            y,
+            f"{label}\n({node_id}){suffix}",
+            ha="center",
+            va="center",
+            fontsize=8,
+            color="#1f2933",
+            bbox=_LABEL_BBOX,
+            zorder=5,
+        )
+
+    ax.set_xlim(-0.15, 1.05)
+    ax.set_ylim(-0.05, 0.75)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.set_title("ECLSS topology (step snapshot)", color="#1f2933")
+    st.pyplot(fig, use_container_width=True)
+    plt.close(fig)
+
+
+def _render_topology(
+    design_state_rows: List[Dict[str, Any]],
+    current_step: int,
+) -> None:
+    st.subheader("Design topology")
+    st.caption(
+        "Snapshot from design_state.jsonl at this step (recorded before agent actions; "
+        "design changes applied at step N appear from step N+1)."
+    )
+    topology = _topology_at_step(design_state_rows, current_step)
+    raw_nodes = topology.get("nodes", [])
+    raw_edges = topology.get("edges", [])
+    if not raw_nodes and not raw_edges:
+        st.caption("No design_state topology for this step.")
+        return
+
+    nodes, edges, design_edge_keys = _prepare_topology_for_display(raw_nodes, raw_edges)
+    design_node_count = sum(1 for node in nodes if str(node.get("id", "")) not in _BASELINE_NODE_IDS)
+    table_edges = [
+        {**edge, "design_added": _edge_key(edge) in design_edge_keys}
+        for edge in edges
+    ]
+    table_nodes = [
+        {
+            **node,
+            "design_added": str(node.get("id", "")) not in _BASELINE_NODE_IDS,
+            "synthetic": bool(node.get("synthetic")),
+        }
+        for node in nodes
+    ]
+
+    graph_col, table_col = st.columns([1.2, 1.0])
+    with graph_col:
+        _draw_topology_graph(nodes, edges, design_edge_keys)
+        baseline_legend = ", ".join(f"{kind}={color}" for kind, color in _EDGE_COLORS.items())
+        st.caption(
+            f"Baseline edges: {baseline_legend}. "
+            f"Design-engineer edges: dashed {_DESIGN_EDGE_COLOR} (*). "
+            f"Showing {len(edges)} unique edges ({len(design_edge_keys)} design-added), "
+            f"{design_node_count} design-added nodes."
+        )
+    with table_col:
+        st.markdown("**Nodes**")
+        st.dataframe(table_nodes, use_container_width=True, hide_index=True)
+        st.markdown("**Edges**")
+        st.dataframe(table_edges, use_container_width=True, hide_index=True)
+
+
 def _render_summary(summary: Dict[str, Any]) -> None:
     st.subheader("Run summary")
     if not summary:
         st.warning("summary.json not found.")
         return
     st.json(summary, expanded=False)
+
+
+def _render_design_proposals(run_dir: Path) -> None:
+    proposal = _read_json(run_dir / "design_proposals.json")
+    if not proposal:
+        return
+    st.subheader("Post-run design proposals")
+    st.caption("Recommendations from design_engineer — not applied to this simulation run.")
+    st.json(proposal, expanded=False)
 
 
 def _render_health_card(
@@ -372,8 +651,10 @@ def main() -> None:
     st.caption(f"Run directory: `{run_dir}`")
     _render_health_card(telemetry, health, eps_telemetry, current_step)
     _line_plot(telemetry, eps_telemetry, current_step)
+    _render_topology(design_state, current_step)
     _render_step_tables(messages, events, provenance, current_step)
     _render_summary(summary)
+    _render_design_proposals(run_dir)
 
     if compare_run_name and compare_run_dir:
         compare_summary = _read_json(compare_run_dir / "summary.json")
