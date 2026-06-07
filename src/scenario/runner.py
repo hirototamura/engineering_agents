@@ -127,7 +127,7 @@ def build_agent_team(scenario_name: str, agents_config: Optional[Dict[str, Any]]
     if not agents_config:
         return None
     mode = agents_config.get("mode")
-    if mode not in {"labeled", "labeled_llm_guarded"}:
+    if mode not in {"labeled", "labeled_llm"}:
         return None
     if scenario_name == "scrubber_degradation":
         return ScrubberDegradationTeam(agents_config)
