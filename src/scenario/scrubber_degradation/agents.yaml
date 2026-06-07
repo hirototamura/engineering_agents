@@ -29,7 +29,7 @@ policy:
 
 llm:
   base_url: http://localhost:11434
-  model: qwen3.5:2b
+  model: gemma4:e4b
   temperature: 0.45
   max_tokens: 512
   repeat_penalty: 1.1

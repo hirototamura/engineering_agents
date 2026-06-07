@@ -7,14 +7,16 @@
 
 ## 現状整理（EPS フェーズ完了）
 
-| 項目 | 状態 |
-| --- | --- |
-| Day 1–6 + Day5B provenance | [mvp_plan.md](mvp_plan.md) 上 ✅ |
-| ECLSS PR（labeled / guarded） | [PR #1](https://github.com/hirototamura/engineering_agents/pull/1) |
-| **EPS-1〜4** | ✅ コミット `578fb0a`（EPS-1）、`c013600`（EPS-2）+ EPS-3/4 本ブランチ |
-| シミュレータ | `StationSimulator`（ECLSS + `EpsStack`）、`summary.simulator: mock_station` |
-| ログ | `eps_telemetry.jsonl` + recovery `provenance` + dashboard SARJ/BCDU |
-| パッケージ | `src/integrations/one_piece/` — `pip install -e ".[dev]"` 必須 |
+
+| 項目                          | 状態                                                                       |
+| --------------------------- | ------------------------------------------------------------------------ |
+| Day 1–6 + Day5B provenance  | [mvp_plan.md](mvp_plan.md) 上 ✅                                           |
+| ECLSS PR（labeled / guarded） | [PR #1](https://github.com/hirototamura/engineering_agents/pull/1)       |
+| **EPS-1〜4**                 | ✅ コミット `578fb0a`（EPS-1）、`c013600`（EPS-2）+ EPS-3/4 本ブランチ                  |
+| シミュレータ                      | `StationSimulator`（ECLSS + `EpsStack`）、`summary.simulator: mock_station` |
+| ログ                          | `eps_telemetry.jsonl` + recovery `provenance` + dashboard SARJ/BCDU      |
+| パッケージ                       | `src/integrations/one_piece/` — `pip install -e ".[dev]"` 必須             |
+
 
 ```mermaid
 flowchart LR
@@ -25,19 +27,23 @@ flowchart LR
   Station --> ECLSS
 ```
 
+
+
 ---
 
 ## Day 区切りロードマップ
 
-| Day | 名称 | 完了条件（要約） | 状態 |
-| --- | --- | --- | --- |
-| **EPS-1** | 基盤着地 | 未コミット WIP をテスト green のままコミット；`test_scrubber_baseline` 維持 | ✅ 完了 |
-| **EPS-2** | SARJ + BCDU 薄モック | `MockSarj` + `MockBcdu` + `/eps/*` トピック；単体 pytest | ✅ 完了 |
-| **EPS-3** | ECLSS 連動 | `request_eps_boost` が BCDU discharge 経由；インライン `eps_support_*` を facade に移管 | ✅ 完了 |
-| **EPS-4** | 可観測性 | `eps_telemetry.jsonl`、summary 電力指標、dashboard SARJ/BCDU、provenance EPS trace | ✅ 完了 |
-| **Day 8** | CLI（mvp Next-2） | `python -m tools.cli run --scenario ... --agents-mode ...` | 未着手 |
-| **Day 9** | One Piece 拡張（Next-3） | run 横断 provenance index + handoff 仕様 | 未着手 |
-| **Day 10** | SSOS adapter 準備（Next-4） | topic map 契約テスト、`SsosAdapter` スタブ拡張 | 未着手 |
+
+| Day        | 名称                      | 完了条件（要約）                                                                    | 状態   |
+| ---------- | ----------------------- | --------------------------------------------------------------------------- | ---- |
+| **EPS-1**  | 基盤着地                    | 未コミット WIP をテスト green のままコミット；`test_scrubber_baseline` 維持                    | ✅ 完了 |
+| **EPS-2**  | SARJ + BCDU 薄モック        | `MockSarj` + `MockBcdu` + `/eps/`* トピック；単体 pytest                           | ✅ 完了 |
+| **EPS-3**  | ECLSS 連動                | `request_eps_boost` が BCDU discharge 経由；インライン `eps_support_`* を facade に移管  | ✅ 完了 |
+| **EPS-4**  | 可観測性                    | `eps_telemetry.jsonl`、summary 電力指標、dashboard SARJ/BCDU、provenance EPS trace | ✅ 完了 |
+| **Day 8**  | CLI（mvp Next-2）         | `python -m tools.cli run --scenario ... --agents-mode ...`                  | 未着手  |
+| **Day 9**  | One Piece 拡張（Next-3）    | run 横断 provenance index + handoff 仕様                                        | 未着手  |
+| **Day 10** | SSOS adapter 準備（Next-4） | topic map 契約テスト、`SsosAdapter` スタブ拡張                                         | 未着手  |
+
 
 Week-1 でやらないことは [mvp_plan.md](mvp_plan.md) 据え置き: Real ROS2、One Piece Web UI、LLM 必須化。
 
@@ -62,7 +68,7 @@ Week-1 でやらないことは [mvp_plan.md](mvp_plan.md) 据え置き: Real RO
 
 **完了判定**: `labeled` 実行で `events.jsonl` に `request_eps_boost`、CO2 が 1000 ppm 未満に戻る（`tests/scenario/test_scrubber_with_agents.py`）。
 
-**完了メモ（2026-06-02）**: `CommandKind.REQUEST_EPS_BOOST` と MockECLSS 内 `eps_support_*` で電力回復を実装。インライン実装は **EPS-3** で SARJ/BCDU facade へ移管予定。
+**完了メモ（2026-06-02）**: `CommandKind.REQUEST_EPS_BOOST` と MockECLSS 内 `eps_support_`* で電力回復を実装。インライン実装は **EPS-3** で SARJ/BCDU facade へ移管予定。
 
 ---
 
@@ -119,7 +125,7 @@ class StationSimulator:
 
 **移行**
 
-- `mock_eclss.py` から `eps_support_*` を削除（または短期 deprecated ラッパー）
+- `mock_eclss.py` から `eps_support_`* を削除（または短期 deprecated ラッパー）
 - `build_simulator` → `build_station_simulator`
 - `summary.json` の `simulator` を `mock_station` 等に更新
 
@@ -169,28 +175,32 @@ class StationSimulator:
 
 ## サブエージェント（`~/.cursor/agents/`）
 
-| ファイル | 役割 | 委譲タイミング |
-| --- | --- | --- |
-| `eps-mock-engineer.md` | SARJ/BCDU/topics/単体テスト/docs | EPS-2, EPS-3 environment 層 |
-| `eclss-scenario-integrator.md` | runner facade、agents、回帰テスト | EPS-3, EPS-4 scenario 層 |
-| `integration-ops.md` | dashboard、provenance、CLI、mvp_plan | EPS-4, Day 8–10 |
+
+| ファイル                           | 役割                                | 委譲タイミング                    |
+| ------------------------------ | --------------------------------- | -------------------------- |
+| `eps-mock-engineer.md`         | SARJ/BCDU/topics/単体テスト/docs       | EPS-2, EPS-3 environment 層 |
+| `eclss-scenario-integrator.md` | runner facade、agents、回帰テスト        | EPS-3, EPS-4 scenario 層    |
+| `integration-ops.md`           | dashboard、provenance、CLI、mvp_plan | EPS-4, Day 8–10            |
+
 
 ---
 
 ## リスクと切り戻し
 
-| リスク | 対策 |
-| --- | --- |
-| facade 化で baseline 物理が変わる | `agents.mode: none` を先に固定；SARJ 定数電圧モードを追加 |
+
+| リスク                             | 対策                                                     |
+| ------------------------------- | ------------------------------------------------------ |
+| facade 化で baseline 物理が変わる       | `agents.mode: none` を先に固定；SARJ 定数電圧モードを追加              |
 | LLM が `request_eps_boost` を出さない | `labeled_llm_guarded` operator prompt に EPS を明示（EPS-4） |
-| スコープ肥大 | MBSU 多チャネル・24 BMS はパラメータ stub のみ |
+| スコープ肥大                          | MBSU 多チャネル・24 BMS はパラメータ stub のみ                       |
+
 
 ---
 
 ## 実装チェックリスト
 
 - [x] EPS-1: 基盤着地（コミット + 回帰 green）
-- [ ] サブエージェント 3 体（`~/.cursor/agents/`）
+- [x] サブエージェント 3 体（`~/.cursor/agents/`）
 - [x] EPS-2: SARJ + BCDU 薄モック
 - [x] EPS-3: StationSimulator + ECLSS 連動
 - [x] EPS-4: 可観測性（ログ / provenance / dashboard）
@@ -205,3 +215,4 @@ class StationSimulator:
 1. ~~EPS-1〜4~~ ✅
 2. （任意）`~/.cursor/agents/` に 3 サブエージェント
 3. **Day 8** CLI → **Day 9** One Piece index → **Day 10** SSOS adapter 契約テスト
+
