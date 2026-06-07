@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from environment.protocol import HealthMetrics, HealthStatus, TelemetrySnapshot
 
-CO2_SAFE_PPM = 1000.0
-CO2_WARNING_PPM = 2000.0
+CO2_SAFE_PPM = 800.0
+CO2_WARNING_PPM = 1200.0
 POWER_LOW_W = 0.0
-POWER_CRITICAL_W = -100.0
+POWER_CRITICAL_W = -150.0
 
 
 def co2_health(co2_ppm: float) -> HealthStatus:

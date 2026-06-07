@@ -697,6 +697,18 @@ class ScrubberDegradationTeam(Team):
         return {"decision_source": "rule"}
 
 
+# Scenario facility specs (physics / design defaults — not labeled policy).
+_SCRUBBER_RECOVERY_LEVERS = """\
+### Recovery levers (facility reference)
+- set_fan_speed: command value 0.0–1.0 (fraction of max). Full speed draws ~80 W scrubber fan load.
+- enable_bypass: true/false. Temporary bypass adds ~40 W and increases scrub throughput (bypass_flow_bonus).
+- reduce_load: true/false. Cuts cabin metabolic CO2 production to ~60% of normal while active.
+- request_eps_boost: value is support_watts (W). Arms BCDU battery discharge for 5 steps at that wattage;
+  applied support appears in eps_support_w / eps_support_steps_remaining.
+- Plant baseline bus draw ~200 W. power_margin_w is net generation budget minus loads (negative = shortfall).
+- Size EPS support to the shortfall you observe in power_margin_w; token wattages barely move this plant."""
+
+
 def build_llm_situation(obs: AgentObservation) -> str:
     telemetry = (
         f"step={obs.step}, co2_ppm={obs.telemetry.co2_ppm:.2f}, "
@@ -716,7 +728,8 @@ def build_llm_situation(obs: AgentObservation) -> str:
     return (
         "Scenario: scrubber_degradation. Closed-habitat ECLSS ops.\n\n"
         f"### Telemetry\n{telemetry}\n\n"
-        f"### World state\n{world_state}"
+        f"### World state\n{world_state}\n\n"
+        f"{_SCRUBBER_RECOVERY_LEVERS}"
     )
 
 
