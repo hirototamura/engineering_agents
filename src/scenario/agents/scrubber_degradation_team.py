@@ -1,5 +1,5 @@
 """
-Scrubber degradation agent team — rule-based labeled mode + persona LLM guarded mode.
+Scrubber degradation agent team — rule-based labeled mode + homogeneous LLM mode.
 """
 
 from __future__ import annotations
@@ -12,8 +12,10 @@ from core.agents.base import Team
 from core.agents.memory import TeamMemoryStore
 from core.agents.persona import (
     PersonaAgent,
+    TeamConfig,
+    build_personas,
     design_proposal_contract,
-    load_personas,
+    load_team,
     message_contract,
     operator_action_contract,
 )
@@ -28,20 +30,10 @@ from environment.protocol import (
     CommandKind,
     DesignChange,
     DesignChangeKind,
+    HealthMetrics,
     HealthStatus,
     RecoveryCommand,
     SimulatorProtocol,
-)
-
-ROUND1_SPEAKERS: Tuple[Tuple[str, str, str], ...] = (
-    ("monitor", "team", "alert"),
-    ("diagnostician", "operator", "diagnosis"),
-    ("operator", "team", "assessment"),
-    ("design_engineer", "team", "assessment"),
-)
-ROUND2_SPEAKERS: Tuple[Tuple[str, str, str], ...] = (
-    ("monitor", "team", "alert"),
-    ("diagnostician", "operator", "diagnosis"),
 )
 
 
@@ -50,7 +42,6 @@ class ScrubberTeamState:
     fan_boost_applied: bool = False
     bypass_enabled: bool = False
     load_reduced: bool = False
-    design_assessment_sent: bool = False
     alert_sent: bool = False
     eps_boost_requested: bool = False
 
@@ -60,16 +51,14 @@ class ScrubberDegradationTeam(Team):
         self.config = config
         self.mode = config.get("mode", "labeled")
         self.state = ScrubberTeamState()
-        roles = config.get("roles", {})
-        self.monitor_cfg = roles.get("monitor", {})
-        self.diagnostician_cfg = roles.get("diagnostician", {})
-        self.operator_cfg = roles.get("operator", {})
-        self.design_cfg = roles.get("design_engineer", {})
-        self.llm_mode = self.mode == "labeled_llm"
+        self.llm_mode = self.mode == "llm"
         self.llm_enabled = self.llm_mode
         self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_enabled else None
 
-        self.personas = load_personas(config)
+        self.team_cfg: TeamConfig = load_team(config)
+        self.personas = build_personas(self.team_cfg)
+        self.policy: Dict[str, Any] = config.get("policy", {}) if self.mode == "labeled" else {}
+
         self.memory_store = TeamMemoryStore(
             agent_ids=list(self.personas.keys()),
             memory_limit=int(config.get("memory_limit", 8)),
@@ -86,17 +75,10 @@ class ScrubberDegradationTeam(Team):
 
     def run_step(self, sim: SimulatorProtocol, obs: AgentObservation) -> StepAgentOutcome:
         if self.llm_mode:
-            outcome = self._run_step_llm(sim, obs)
+            outcome = self._run_step_llm(obs)
             self.memory_store.commit_step(outcome)
             return outcome
-        outcome = StepAgentOutcome()
-        outcome.messages.extend(self._monitor(obs))
-        outcome.messages.extend(self._diagnostician(obs))
-        op_msgs, op_cmds = self._operator(obs)
-        outcome.messages.extend(op_msgs)
-        outcome.commands.extend(op_cmds)
-        outcome.messages.extend(self._design_engineer_discourse(obs))
-        return outcome
+        return self._run_step_labeled(obs)
 
     def apply_outcome(self, sim: SimulatorProtocol, outcome: StepAgentOutcome) -> None:
         for cmd in outcome.commands:
@@ -104,22 +86,18 @@ class ScrubberDegradationTeam(Team):
         for change in outcome.design_changes:
             sim.apply_design_change(change)
 
-    def _run_step_llm(
-        self,
-        sim: SimulatorProtocol,
-        obs: AgentObservation,
-    ) -> StepAgentOutcome:
+    def _run_step_llm(self, obs: AgentObservation) -> StepAgentOutcome:
         outcome = StepAgentOutcome()
         step_discourse: List[AgentMessage] = []
-        situation = self._situation_context(obs, self.monitor_cfg, self.design_cfg, self.operator_cfg)
+        situation = build_llm_situation(obs)
 
-        for agent_id, to_role, message_type in ROUND1_SPEAKERS:
+        for agent_id in self.team_cfg.agent_ids:
             msg = self._llm_deliberation_turn(
                 obs=obs,
                 agent_id=agent_id,
-                to_role=to_role,
-                message_type=message_type,
-                phase=DeliberationPhase.INITIAL,
+                to_role="team",
+                message_type="comment",
+                phase=DeliberationPhase.DELIBERATION,
                 situation=situation,
                 step_discourse=step_discourse,
                 contract=message_contract(),
@@ -133,42 +111,159 @@ class ScrubberDegradationTeam(Team):
                     self._llm_skip(
                         obs=obs,
                         agent_id=agent_id,
-                        phase=DeliberationPhase.INITIAL,
+                        phase=DeliberationPhase.DELIBERATION,
                         reason="parse_failed_or_empty_message",
                         decision_source="llm_parse_fail",
                     )
                 )
 
-        for agent_id, to_role, message_type in ROUND2_SPEAKERS:
-            msg = self._llm_deliberation_turn(
-                obs=obs,
-                agent_id=agent_id,
-                to_role=to_role,
-                message_type=message_type,
-                phase=DeliberationPhase.REACT,
-                situation=situation,
-                step_discourse=step_discourse,
-                contract=message_contract(),
-                required=("message",),
-            )
-            if msg is not None:
-                outcome.messages.append(msg)
-                step_discourse.append(msg)
-            else:
-                outcome.messages.append(
-                    self._llm_skip(
-                        obs=obs,
-                        agent_id=agent_id,
-                        phase=DeliberationPhase.REACT,
-                        reason="parse_failed_or_empty_message",
-                        decision_source="llm_parse_fail",
-                    )
-                )
-
-        op_msgs, op_cmds = self._llm_operator_action(obs, situation, step_discourse)
-        outcome.messages.extend(op_msgs)
-        outcome.commands.extend(op_cmds)
+        rep = self.team_cfg.action_rep_id(obs.step)
+        action_msgs, action_cmds = self._llm_action_turn(obs, situation, step_discourse, rep)
+        outcome.messages.extend(action_msgs)
+        outcome.commands.extend(action_cmds)
         return outcome
+
+    def _run_step_labeled(self, obs: AgentObservation) -> StepAgentOutcome:
+        outcome = StepAgentOutcome()
+        rep = self.team_cfg.action_rep_id(obs.step)
+        recovery_ppm = float(self.policy.get("co2_recovery_ppm", 1000))
+        agent_ids = self.team_cfg.agent_ids
+        n = len(agent_ids)
+
+        if obs.telemetry.co2_ppm >= recovery_ppm and not self.state.alert_sent:
+            commenter = agent_ids[obs.step % n]
+            self.state.alert_sent = True
+            outcome.messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role=commenter,
+                    to_role="team",
+                    message=(
+                        f"CO2 at {obs.telemetry.co2_ppm:.0f} ppm exceeds recovery band "
+                        f"{recovery_ppm:.0f} ppm."
+                    ),
+                    message_type="alert",
+                    reasoning="Telemetry threshold crossed.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        if obs.telemetry.anomaly_flags:
+            commenter = agent_ids[(obs.step + 1) % n]
+            eff = obs.telemetry.scrubber_efficiency
+            outcome.messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role=commenter,
+                    to_role="team",
+                    message=(
+                        f"Active anomalies: {', '.join(obs.telemetry.anomaly_flags)}. "
+                        f"Scrubber efficiency {eff:.2f}; suspect degradation with rising cabin load."
+                    ),
+                    message_type="diagnosis",
+                    reasoning="Anomaly flags present in telemetry.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        messages, commands = self._labeled_recovery(obs, rep, recovery_ppm)
+        outcome.messages.extend(messages)
+        outcome.commands.extend(commands)
+        return outcome
+
+    def _labeled_recovery(
+        self,
+        obs: AgentObservation,
+        rep: str,
+        recovery_ppm: float,
+    ) -> Tuple[List[AgentMessage], List[RecoveryCommand]]:
+        messages: List[AgentMessage] = []
+        commands: List[RecoveryCommand] = []
+
+        if obs.telemetry.co2_ppm >= recovery_ppm and not self.state.fan_boost_applied:
+            fan = float(self.policy.get("fan_speed", 1.0))
+            commands.append(
+                RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value=fan, issued_by=rep)
+            )
+            self.state.fan_boost_applied = True
+            messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role=rep,
+                    to_role="team",
+                    message=f"Increasing fan speed to {fan} to boost scrub rate.",
+                    message_type="recovery_command",
+                    reasoning=f"CO2 {obs.telemetry.co2_ppm:.0f} ppm >= {recovery_ppm:.0f}.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        if (
+            self.policy.get("reduce_load_on_power_critical", True)
+            and obs.health.power_status == HealthStatus.CRITICAL
+            and not self.state.load_reduced
+        ):
+            commands.append(
+                RecoveryCommand(kind=CommandKind.REDUCE_LOAD, value=True, issued_by=rep)
+            )
+            self.state.load_reduced = True
+            messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role=rep,
+                    to_role="team",
+                    message="Reducing cabin metabolic load to lower CO2 production.",
+                    message_type="recovery_command",
+                    reasoning="Power margin critical; load shedding.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        if (
+            self.policy.get("request_eps_boost_on_power_critical", True)
+            and obs.health.power_status == HealthStatus.CRITICAL
+            and obs.telemetry.eps_support_steps_remaining == 0
+        ):
+            eps_boost_w = float(self.policy.get("eps_boost_w", 120.0))
+            commands.append(
+                RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=eps_boost_w, issued_by=rep)
+            )
+            self.state.eps_boost_requested = True
+            messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role=rep,
+                    to_role="team",
+                    message=f"Requesting EPS support boost of {eps_boost_w:.0f} W.",
+                    message_type="recovery_command",
+                    reasoning="Power margin critical; requesting temporary EPS assist.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        if (
+            self.policy.get("enable_bypass", True)
+            and obs.telemetry.co2_ppm >= recovery_ppm
+            and self.state.fan_boost_applied
+            and not self.state.bypass_enabled
+        ):
+            commands.append(
+                RecoveryCommand(kind=CommandKind.ENABLE_BYPASS, value=True, issued_by=rep)
+            )
+            self.state.bypass_enabled = True
+            messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role=rep,
+                    to_role="team",
+                    message="Enabling temporary bypass flow to increase scrub throughput.",
+                    message_type="recovery_command",
+                    reasoning="Fan boost insufficient; engaging bypass.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        return messages, commands
 
     def propose_post_run_design(
         self,
@@ -176,9 +271,11 @@ class ScrubberDegradationTeam(Team):
         summary: Dict[str, Any],
     ) -> Dict[str, Any]:
         baseline = sim.get_design_state().to_dict()
+        steps = int(summary.get("steps", 0))
+        rep = self.team_cfg.action_rep_id(steps)
         if self.llm_mode:
-            return self._llm_post_run_design_proposal(summary, baseline)
-        return self._rule_post_run_design_proposal(summary, baseline)
+            return self._llm_post_run_design_proposal(summary, baseline, rep)
+        return self._rule_post_run_design_proposal(summary, baseline, rep)
 
     def _llm_deliberation_turn(
         self,
@@ -212,11 +309,9 @@ class ScrubberDegradationTeam(Team):
         message = str(parsed.data.get("message", "")).strip()
         if not message:
             return None
-        persona = self.personas[agent_id]
         metadata: Dict[str, Any] = {
             "decision_source": "llm",
             "deliberation_phase": phase,
-            "main_role": persona.main_role,
             "parse_status": parsed.status,
             "parse_error": parsed.error,
             "raw_response_excerpt": parsed.raw_excerpt,
@@ -234,14 +329,15 @@ class ScrubberDegradationTeam(Team):
             metadata=metadata,
         )
 
-    def _llm_operator_action(
+    def _llm_action_turn(
         self,
         obs: AgentObservation,
         situation: str,
         step_discourse: List[AgentMessage],
+        rep: str,
     ) -> Tuple[List[AgentMessage], List[RecoveryCommand]]:
         contract = operator_action_contract()
-        agent = self.agents["operator"]
+        agent = self.agents[rep]
         ctx = agent.build_context(
             step=obs.step,
             phase=DeliberationPhase.ACTION,
@@ -252,22 +348,21 @@ class ScrubberDegradationTeam(Team):
         parsed = agent.deliberate(
             ctx,
             contract,
-            "Issue recovery commands when discourse and Situation warrant intervention; "
-            "cite named teammates from Round 1. ",
+            PersonaAgent.phase_hint(DeliberationPhase.ACTION),
             ("commands",),
         )
         if parsed is None:
             return [
                 self._llm_skip(
                     obs=obs,
-                    agent_id="operator",
+                    agent_id=rep,
                     phase=DeliberationPhase.ACTION,
                     reason="parse_failed",
                     decision_source="llm_parse_fail",
                 )
             ], []
 
-        message = parsed.data.get("message", "Operator assessed current state.")
+        message = parsed.data.get("message", "Assessed current state.")
         reasoning = parsed.data.get("reasoning", "")
         commands: List[RecoveryCommand] = []
         parse_notes: List[str] = []
@@ -276,17 +371,15 @@ class ScrubberDegradationTeam(Team):
             raw_commands = []
 
         for item in raw_commands:
-            cmd, note = self._parse_llm_operator_command(item)
+            cmd, note = self._parse_llm_operator_command(item, issued_by=rep)
             if note:
                 parse_notes.append(note)
             if cmd is not None:
                 commands.append(cmd)
 
-        persona = self.personas["operator"]
         base_meta: Dict[str, Any] = {
             "decision_source": "llm",
             "deliberation_phase": DeliberationPhase.ACTION,
-            "main_role": persona.main_role,
             "parse_status": parsed.status,
             "parse_error": parsed.error,
             "raw_response_excerpt": parsed.raw_excerpt,
@@ -299,7 +392,7 @@ class ScrubberDegradationTeam(Team):
             return [
                 self._llm_skip(
                     obs=obs,
-                    agent_id="operator",
+                    agent_id=rep,
                     phase=DeliberationPhase.ACTION,
                     reason="empty_commands",
                     decision_source="llm_no_action",
@@ -310,7 +403,7 @@ class ScrubberDegradationTeam(Team):
 
         llm_msg = AgentMessage(
             step=obs.step,
-            from_role="operator",
+            from_role=rep,
             to_role="team",
             message=str(message),
             message_type="recovery_command",
@@ -323,19 +416,24 @@ class ScrubberDegradationTeam(Team):
         self,
         summary: Dict[str, Any],
         baseline: Dict[str, Any],
+        rep: str,
     ) -> Dict[str, Any]:
         steps = int(summary.get("steps", 0))
-        situation = (
-            "Post-run design review. Simulation complete.\n"
-            f"Run summary: steps={steps}, peak_co2_ppm={summary.get('peak_co2_ppm')}, "
-            f"final_co2_ppm={summary.get('final_co2_ppm')}, "
-            f"co2_recovered_below_threshold_step={summary.get('co2_recovered_below_threshold_step')}, "
-            f"anomaly_seen={summary.get('anomaly_seen')}, "
-            f"eps_boost_applied_step={summary.get('eps_boost_applied_step')}.\n"
-            f"Baseline topology at run end: {json.dumps(baseline.get('topology', {}), ensure_ascii=False)}"
+        final_health_raw = summary.get("final_health") or {}
+        final_health = HealthMetrics(
+            step=int(final_health_raw.get("step", steps)),
+            co2_status=HealthStatus(final_health_raw.get("co2_status", "SAFE")),
+            power_status=HealthStatus(final_health_raw.get("power_status", "SAFE")),
+            overall=HealthStatus(final_health_raw.get("overall", "SAFE")),
+        )
+        situation = build_llm_post_run_situation(
+            summary,
+            final_health,
+            self.memory_store.discourse.recent(),
+            baseline,
         )
         contract = design_proposal_contract()
-        agent = self.agents["design_engineer"]
+        agent = self.agents[rep]
         ctx = agent.build_context(
             step=steps,
             phase=DeliberationPhase.POST_RUN,
@@ -351,7 +449,7 @@ class ScrubberDegradationTeam(Team):
         )
         if parsed is None:
             return {
-                "proposed_by": "design_engineer",
+                "proposed_by": rep,
                 "decision_source": "llm_parse_fail",
                 "message": "",
                 "reasoning": "LLM response could not be parsed.",
@@ -359,9 +457,9 @@ class ScrubberDegradationTeam(Team):
                 "baseline_topology": baseline.get("topology", {}),
             }
 
-        changes, parse_notes = self._parse_llm_design_proposals(parsed.data.get("changes", []))
+        changes, parse_notes = self._parse_llm_design_proposals(parsed.data.get("changes", []), rep)
         return {
-            "proposed_by": "design_engineer",
+            "proposed_by": rep,
             "decision_source": "llm",
             "message": str(parsed.data.get("message", "")),
             "reasoning": str(parsed.data.get("reasoning", "")),
@@ -377,24 +475,25 @@ class ScrubberDegradationTeam(Team):
         self,
         summary: Dict[str, Any],
         baseline: Dict[str, Any],
+        rep: str,
     ) -> Dict[str, Any]:
-        co2_threshold = float(self.design_cfg.get("co2_threshold_ppm", 1000))
+        co2_threshold = float(self.policy.get("co2_recovery_ppm", 1000))
         peak = float(summary.get("peak_co2_ppm", 0))
         anomaly_seen = bool(summary.get("anomaly_seen"))
         if peak < co2_threshold and not anomaly_seen:
             return {
-                "proposed_by": "design_engineer",
+                "proposed_by": rep,
                 "decision_source": "rule",
                 "message": "No structural topology changes recommended after this run.",
                 "reasoning": (
-                    f"Peak CO2 {peak:.0f} ppm stayed below design review threshold "
+                    f"Peak CO2 {peak:.0f} ppm stayed below recovery threshold "
                     f"{co2_threshold:.0f} ppm with no sustained anomaly."
                 ),
                 "changes": [],
                 "baseline_topology": baseline.get("topology", {}),
             }
 
-        edge = self.design_cfg.get("bypass_edge", {})
+        edge = self.policy.get("bypass_edge", {})
         changes = [
             {
                 "change_kind": "add_edge",
@@ -406,7 +505,7 @@ class ScrubberDegradationTeam(Team):
             }
         ]
         return {
-            "proposed_by": "design_engineer",
+            "proposed_by": rep,
             "decision_source": "rule",
             "message": "Propose permanent bypass plumbing between manifold and scrubber.",
             "reasoning": (
@@ -420,6 +519,7 @@ class ScrubberDegradationTeam(Team):
     def _parse_llm_design_proposals(
         self,
         raw_changes: Any,
+        proposed_by: str,
     ) -> Tuple[List[Dict[str, Any]], List[str]]:
         if not isinstance(raw_changes, list):
             return [], ["changes is not a list"]
@@ -433,7 +533,11 @@ class ScrubberDegradationTeam(Team):
             payload = item.get("payload", {})
             if not isinstance(payload, dict):
                 payload = {}
-            if self._parse_llm_design_change(change_kind=change_kind, payload=payload) is None:
+            if self._parse_llm_design_change(
+                change_kind=change_kind,
+                payload=payload,
+                proposed_by=proposed_by,
+            ) is None:
                 notes.append(f"unparsed change: {change_kind}")
                 continue
             accepted.append({"change_kind": change_kind, "payload": payload})
@@ -449,14 +553,11 @@ class ScrubberDegradationTeam(Team):
         decision_source: str,
         **extra: Any,
     ) -> AgentMessage:
-        persona = self.personas.get(agent_id)
         metadata: Dict[str, Any] = {
             "decision_source": decision_source,
             "deliberation_phase": phase,
             "skip_reason": reason,
         }
-        if persona is not None:
-            metadata["main_role"] = persona.main_role
         metadata.update(extra)
         return AgentMessage(
             step=obs.step,
@@ -467,17 +568,6 @@ class ScrubberDegradationTeam(Team):
             reasoning=reason,
             metadata=metadata,
         )
-
-    @staticmethod
-    def _attach_metadata(
-        messages: List[AgentMessage],
-        metadata: Dict[str, Any],
-    ) -> List[AgentMessage]:
-        for message in messages:
-            merged = dict(message.metadata)
-            merged.update(metadata)
-            message.metadata = merged
-        return messages
 
     @staticmethod
     def _coerce_boolean(value: Any) -> Tuple[Optional[bool], Optional[str]]:
@@ -491,7 +581,12 @@ class ScrubberDegradationTeam(Team):
                 return False, None
         return None, 'value must be boolean or "true"/"false" string'
 
-    def _parse_llm_operator_command(self, item: Any) -> Tuple[Optional[RecoveryCommand], Optional[str]]:
+    def _parse_llm_operator_command(
+        self,
+        item: Any,
+        *,
+        issued_by: str,
+    ) -> Tuple[Optional[RecoveryCommand], Optional[str]]:
         """Parse LLM operator JSON into a command without team-level policy guards."""
         if not isinstance(item, dict):
             return None, "operator command is not an object"
@@ -503,7 +598,7 @@ class ScrubberDegradationTeam(Team):
             except (TypeError, ValueError):
                 return None, "invalid fan speed value"
             return (
-                RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value=numeric, issued_by="operator"),
+                RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value=numeric, issued_by=issued_by),
                 None,
             )
         if kind == "enable_bypass":
@@ -511,7 +606,7 @@ class ScrubberDegradationTeam(Team):
             if coerce_error is not None:
                 return None, coerce_error
             return (
-                RecoveryCommand(kind=CommandKind.ENABLE_BYPASS, value=coerced, issued_by="operator"),
+                RecoveryCommand(kind=CommandKind.ENABLE_BYPASS, value=coerced, issued_by=issued_by),
                 None,
             )
         if kind == "reduce_load":
@@ -519,7 +614,7 @@ class ScrubberDegradationTeam(Team):
             if coerce_error is not None:
                 return None, coerce_error
             return (
-                RecoveryCommand(kind=CommandKind.REDUCE_LOAD, value=coerced, issued_by="operator"),
+                RecoveryCommand(kind=CommandKind.REDUCE_LOAD, value=coerced, issued_by=issued_by),
                 None,
             )
         if kind == "request_eps_boost":
@@ -528,12 +623,18 @@ class ScrubberDegradationTeam(Team):
             except (TypeError, ValueError):
                 return None, "eps boost value must be numeric"
             return (
-                RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=watts, issued_by="operator"),
+                RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=watts, issued_by=issued_by),
                 None,
             )
         return None, f"unsupported operator command kind: {kind}"
 
-    def _parse_llm_design_change(self, change_kind: str, payload: Dict[str, Any]) -> Optional[DesignChange]:
+    def _parse_llm_design_change(
+        self,
+        change_kind: str,
+        payload: Dict[str, Any],
+        *,
+        proposed_by: str,
+    ) -> Optional[DesignChange]:
         """Parse LLM design JSON into a change without team-level policy guards."""
         if change_kind == "add_node":
             node_id = str(payload.get("id", "")).strip()
@@ -546,7 +647,7 @@ class ScrubberDegradationTeam(Team):
                     "name": str(payload.get("name", node_id)),
                     "kind": str(payload.get("kind", "volume")),
                 },
-                proposed_by="design_engineer",
+                proposed_by=proposed_by,
             )
         if change_kind == "add_edge":
             node_a = payload.get("node_a")
@@ -560,7 +661,7 @@ class ScrubberDegradationTeam(Team):
                     "node_b": node_b,
                     "kind": payload.get("kind", "bypass"),
                 },
-                proposed_by="design_engineer",
+                proposed_by=proposed_by,
             )
         if change_kind == "set_parameter":
             key = str(payload.get("key", "")).strip()
@@ -573,7 +674,7 @@ class ScrubberDegradationTeam(Team):
             return DesignChange(
                 kind=DesignChangeKind.SET_PARAMETER,
                 payload={"key": key, "value": value},
-                proposed_by="design_engineer",
+                proposed_by=proposed_by,
             )
         return None
 
@@ -595,188 +696,58 @@ class ScrubberDegradationTeam(Team):
     def _rule_metadata() -> Dict[str, Any]:
         return {"decision_source": "rule"}
 
-    @staticmethod
-    def _situation_context(
-        obs: AgentObservation,
-        monitor_cfg: Dict[str, Any],
-        design_cfg: Dict[str, Any],
-        operator_cfg: Dict[str, Any],
-    ) -> str:
-        """Scenario briefing + live telemetry — kept separate from persona definitions."""
-        alert_ppm = float(monitor_cfg.get("co2_alert_ppm", 900))
-        recovery_ppm = float(operator_cfg.get("co2_recovery_ppm", 1000))
-        design_min_step = int(design_cfg.get("min_step", 35))
-        design_co2 = float(design_cfg.get("co2_threshold_ppm", 1000))
-        mission = (
-            "Scenario: scrubber_degradation. Closed-habitat ECLSS ops. "
-            "Anomaly may reduce scrubber efficiency and increase CO2 load; "
-            "power margin may shrink. Rule thresholds (for reference): "
-            f"monitor alert {alert_ppm:.0f} ppm, recovery band {recovery_ppm:.0f} ppm, "
-            f"design engineer reviews topology post-run when peak CO2 >= {design_co2:.0f} ppm "
-            f"(reference threshold from step {design_min_step})."
-        )
-        telemetry = (
-            f"step={obs.step}, co2_ppm={obs.telemetry.co2_ppm:.2f}, "
-            f"scrubber_efficiency={obs.telemetry.scrubber_efficiency:.4f}, "
-            f"power_margin_w={obs.telemetry.power_margin_w:.2f}, "
-            f"fan_speed={obs.telemetry.fan_speed:.2f}, bypass_enabled={obs.telemetry.bypass_enabled}, "
-            f"load_reduced={obs.telemetry.load_reduced}, anomaly_flags={obs.telemetry.anomaly_flags}, "
-            f"co2_status={obs.health.co2_status.value}, power_status={obs.health.power_status.value}"
-        )
-        return f"{mission}\nTelemetry: {telemetry}"
 
-    def _monitor(self, obs: AgentObservation) -> List[AgentMessage]:
-        threshold = float(self.monitor_cfg.get("co2_alert_ppm", 900))
-        if obs.telemetry.co2_ppm < threshold:
-            return []
-        msg = (
-            f"CO2 at {obs.telemetry.co2_ppm:.0f} ppm exceeds alert threshold {threshold:.0f}."
-        )
-        self.state.alert_sent = True
-        return [
-            AgentMessage(
-                step=obs.step,
-                from_role="monitor",
-                to_role="team",
-                message=msg,
-                message_type="alert",
-                reasoning="Telemetry threshold crossed.",
-                metadata=self._rule_metadata(),
-            )
-        ]
+def build_llm_situation(obs: AgentObservation) -> str:
+    telemetry = (
+        f"step={obs.step}, co2_ppm={obs.telemetry.co2_ppm:.2f}, "
+        f"scrubber_efficiency={obs.telemetry.scrubber_efficiency:.4f}, "
+        f"power_margin_w={obs.telemetry.power_margin_w:.2f}, "
+        f"fan_speed={obs.telemetry.fan_speed:.2f}, bypass_enabled={obs.telemetry.bypass_enabled}, "
+        f"load_reduced={obs.telemetry.load_reduced}, anomaly_flags={obs.telemetry.anomaly_flags}, "
+        f"eps_support_w={obs.telemetry.eps_support_w:.2f}, "
+        f"eps_support_steps_remaining={obs.telemetry.eps_support_steps_remaining}"
+    )
+    world_state = (
+        f"co2_status={obs.health.co2_status.value}, "
+        f"power_status={obs.health.power_status.value}, "
+        f"overall={obs.health.overall.value}\n"
+        "(Descriptive assessment from the facility monitoring layer — not a command.)"
+    )
+    return (
+        "Scenario: scrubber_degradation. Closed-habitat ECLSS ops.\n\n"
+        f"### Telemetry\n{telemetry}\n\n"
+        f"### World state\n{world_state}"
+    )
 
-    def _diagnostician(self, obs: AgentObservation) -> List[AgentMessage]:
-        flags = obs.telemetry.anomaly_flags
-        if not flags:
-            return []
-        eff = obs.telemetry.scrubber_efficiency
-        msg = (
-            f"Active anomalies: {', '.join(flags)}. "
-            f"Scrubber efficiency {eff:.2f}; suspect degradation with rising cabin load."
-        )
-        return [
-            AgentMessage(
-                step=obs.step,
-                from_role="diagnostician",
-                to_role="operator",
-                message=msg,
-                message_type="diagnosis",
-                reasoning="Anomaly flags present in telemetry.",
-                metadata=self._rule_metadata(),
-            )
-        ]
 
-    def _operator(self, obs: AgentObservation) -> tuple[List[AgentMessage], List[RecoveryCommand]]:
-        messages: List[AgentMessage] = []
-        commands: List[RecoveryCommand] = []
-        recovery_ppm = float(self.operator_cfg.get("co2_recovery_ppm", 1000))
-
-        if obs.telemetry.co2_ppm >= recovery_ppm and not self.state.fan_boost_applied:
-            fan = float(self.operator_cfg.get("fan_speed", 1.0))
-            commands.append(
-                RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value=fan, issued_by="operator")
-            )
-            self.state.fan_boost_applied = True
-            messages.append(
-                AgentMessage(
-                    step=obs.step,
-                    from_role="operator",
-                    to_role="team",
-                    message=f"Increasing fan speed to {fan} to boost scrub rate.",
-                    message_type="recovery_command",
-                    reasoning=f"CO2 {obs.telemetry.co2_ppm:.0f} ppm >= {recovery_ppm:.0f}.",
-                    metadata=self._rule_metadata(),
-                )
-            )
-
-        if (
-            self.operator_cfg.get("reduce_load_on_power_critical", True)
-            and obs.health.power_status == HealthStatus.CRITICAL
-            and not self.state.load_reduced
-        ):
-            commands.append(
-                RecoveryCommand(kind=CommandKind.REDUCE_LOAD, value=True, issued_by="operator")
-            )
-            self.state.load_reduced = True
-            messages.append(
-                AgentMessage(
-                    step=obs.step,
-                    from_role="operator",
-                    to_role="team",
-                    message="Reducing cabin metabolic load to lower CO2 production.",
-                    message_type="recovery_command",
-                    reasoning="Power margin critical; load shedding.",
-                    metadata=self._rule_metadata(),
-                )
-            )
-
-        if (
-            self.operator_cfg.get("request_eps_boost_on_power_critical", True)
-            and obs.health.power_status == HealthStatus.CRITICAL
-            and obs.telemetry.eps_support_steps_remaining == 0
-        ):
-            eps_boost_w = float(self.operator_cfg.get("eps_boost_w", 120.0))
-            commands.append(
-                RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=eps_boost_w, issued_by="operator")
-            )
-            self.state.eps_boost_requested = True
-            messages.append(
-                AgentMessage(
-                    step=obs.step,
-                    from_role="operator",
-                    to_role="team",
-                    message=f"Requesting EPS support boost of {eps_boost_w:.0f} W.",
-                    message_type="recovery_command",
-                    reasoning="Power margin critical; requesting temporary EPS assist.",
-                    metadata=self._rule_metadata(),
-                )
-            )
-
-        if (
-            self.operator_cfg.get("enable_bypass", True)
-            and obs.telemetry.co2_ppm >= recovery_ppm
-            and self.state.fan_boost_applied
-            and not self.state.bypass_enabled
-        ):
-            commands.append(
-                RecoveryCommand(kind=CommandKind.ENABLE_BYPASS, value=True, issued_by="operator")
-            )
-            self.state.bypass_enabled = True
-            messages.append(
-                AgentMessage(
-                    step=obs.step,
-                    from_role="operator",
-                    to_role="team",
-                    message="Enabling temporary bypass flow to increase scrub throughput.",
-                    message_type="recovery_command",
-                    reasoning="Fan boost insufficient; engaging bypass.",
-                    metadata=self._rule_metadata(),
-                )
-            )
-
-        return messages, commands
-
-    def _design_engineer_discourse(self, obs: AgentObservation) -> List[AgentMessage]:
-        if self.state.design_assessment_sent:
-            return []
-
-        min_step = int(self.design_cfg.get("min_step", 35))
-        co2_threshold = float(self.design_cfg.get("co2_threshold_ppm", 1000))
-        if obs.step < min_step or obs.telemetry.co2_ppm < co2_threshold:
-            return []
-
-        self.state.design_assessment_sent = True
-        return [
-            AgentMessage(
-                step=obs.step,
-                from_role="design_engineer",
-                to_role="team",
-                message=(
-                    "Ops may stabilize CO2 short-term; a durable bypass path should be evaluated "
-                    "after this run."
-                ),
-                message_type="assessment",
-                reasoning="High CO2 with anomaly — structural relief may be needed post-simulation.",
-                metadata=self._rule_metadata(),
-            )
-        ]
+def build_llm_post_run_situation(
+    summary: Dict[str, Any],
+    final_health: HealthMetrics,
+    discourse: List[AgentMessage],
+    baseline: Dict[str, Any],
+) -> str:
+    steps = int(summary.get("steps", 0))
+    telemetry_summary = (
+        f"steps={steps}, peak_co2_ppm={summary.get('peak_co2_ppm')}, "
+        f"final_co2_ppm={summary.get('final_co2_ppm')}, "
+        f"min_power_margin_w={summary.get('min_power_margin_w')}, "
+        f"anomaly_seen={summary.get('anomaly_seen')}, "
+        f"eps_boost_applied_step={summary.get('eps_boost_applied_step')}"
+    )
+    world_state = (
+        f"co2_status={final_health.co2_status.value}, "
+        f"power_status={final_health.power_status.value}, "
+        f"overall={final_health.overall.value}\n"
+        "(Descriptive assessment from the facility monitoring layer — not a command.)"
+    )
+    discourse_lines = "\n".join(
+        f"- {msg.from_role}: {msg.message}" for msg in discourse[-8:]
+    ) or "(none)"
+    topology = json.dumps(baseline.get("topology", {}), ensure_ascii=False)
+    return (
+        "Post-run design review. Simulation complete.\n\n"
+        f"### Telemetry\n{telemetry_summary}\n\n"
+        f"### World state\n{world_state}\n\n"
+        f"### Team discourse (recent)\n{discourse_lines}\n\n"
+        f"Baseline topology at run end: {topology}"
+    )
