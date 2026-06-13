@@ -14,6 +14,17 @@ from __future__ import annotations
 
 from typing import Tuple
 
+
+def normalize_ros_name(name: str) -> str:
+    """Strip leading '/' so CLI graph names match our constants."""
+    return name.lstrip("/")
+
+
+def ros_cli_action_name(name: str) -> str:
+    """Absolute action path for ``ros2 action send_goal``."""
+    return f"/{normalize_ros_name(name)}"
+
+
 # --- Actions (ActionClient) -------------------------------------------------
 
 ACTION_AIR_REVITALISATION = "air_revitalisation"

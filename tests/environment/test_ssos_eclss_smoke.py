@@ -27,6 +27,34 @@ def test_match_expected_passes_with_minimal_graph():
     assert errors == []
 
 
+def test_match_expected_accepts_leading_slash_action():
+    errors = _match_expected(
+        topics=["/co2_storage", "/ars/diagnostics"],
+        actions=["/air_revitalisation"],
+    )
+    assert errors == []
+
+
+def test_send_ars_goal_cli_uses_absolute_action_name(monkeypatch):
+    captured: dict[str, list[str]] = {}
+
+    def fake_run(cmd, **_kwargs):
+        captured["cmd"] = list(cmd)
+
+        class Result:
+            returncode = 0
+            stdout = "Goal finished with status: SUCCEEDED\nResult:\n"
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr("scripts.ssos_eclss_ars_smoke.subprocess.run", fake_run)
+    result, err = send_ars_goal_cli(ArsGoal())
+    assert err is None
+    assert result is not None
+    assert captured["cmd"][4] == "/air_revitalisation"
+
+
 def test_send_ars_goal_cli_without_ros2(monkeypatch):
     def fake_run(*_args, **_kwargs):
         raise FileNotFoundError("ros2")

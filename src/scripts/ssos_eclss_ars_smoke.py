@@ -34,6 +34,8 @@ from environment.ssos.eclss_topics import (
     LAUNCH_HEADLESS_ECLSS,
     TOPIC_ARS_DIAGNOSTICS,
     TOPIC_CO2_STORAGE,
+    normalize_ros_name,
+    ros_cli_action_name,
 )
 from environment.ssos.eclss_types import ArsActionResult, ArsGoal, EclssSmokeReport
 
@@ -79,12 +81,16 @@ def discover_ros_graph() -> Tuple[List[str], List[str], Optional[str]]:
         code, out, err = _run_ros2_cli(["topic", "list"])
         if code != 0:
             return [], [], err or f"ros2 topic list exited {code}"
-        topics = [line.strip() for line in out.splitlines() if line.strip()]
+        topics = [
+            normalize_ros_name(line.strip()) for line in out.splitlines() if line.strip()
+        ]
 
         code, out, err = _run_ros2_cli(["action", "list"])
         if code != 0:
             return topics, [], err or f"ros2 action list exited {code}"
-        actions = [line.strip() for line in out.splitlines() if line.strip()]
+        actions = [
+            normalize_ros_name(line.strip()) for line in out.splitlines() if line.strip()
+        ]
         return topics, actions, None
     except FileNotFoundError:
         return [], [], _HOST_DOCKER_HELP.strip()
@@ -98,15 +104,15 @@ def _filter_eclss_topics(topics: List[str]) -> List[str]:
 
 def _match_expected(topics: List[str], actions: List[str]) -> List[str]:
     errors: List[str] = []
-    topic_set = set(topics)
-    action_set = set(actions)
+    topic_set = {normalize_ros_name(t) for t in topics}
+    action_set = {normalize_ros_name(a) for a in actions}
 
-    if TOPIC_CO2_STORAGE not in topic_set:
+    if normalize_ros_name(TOPIC_CO2_STORAGE) not in topic_set:
         errors.append(f"missing topic {TOPIC_CO2_STORAGE}")
-    if TOPIC_ARS_DIAGNOSTICS not in topic_set:
+    if normalize_ros_name(TOPIC_ARS_DIAGNOSTICS) not in topic_set:
         errors.append(f"missing topic {TOPIC_ARS_DIAGNOSTICS}")
 
-    if ACTION_AIR_REVITALISATION not in action_set:
+    if normalize_ros_name(ACTION_AIR_REVITALISATION) not in action_set:
         errors.append(f"missing action {ACTION_AIR_REVITALISATION}")
 
     return errors
@@ -126,7 +132,7 @@ def send_ars_goal_cli(goal: ArsGoal, timeout_s: float = 120.0) -> Tuple[Optional
                 "action",
                 "send_goal",
                 "--feedback",
-                ACTION_AIR_REVITALISATION,
+                ros_cli_action_name(ACTION_AIR_REVITALISATION),
                 ACTION_TYPE_AIR_REVITALISATION,
                 goal_yaml,
             ],
