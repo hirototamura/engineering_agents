@@ -12,6 +12,8 @@ In another shell (same container):
     PYTHONPATH=src python3 -m scripts.ssos_eclss_ars_smoke --json-out /tmp/eclss_smoke.json
 
 Exit code 0 when smoke passes; 1 otherwise.
+
+On host Mac (no ros2): use ./scripts/run_ssos_eclss_smoke.sh from repo root.
 """
 
 from __future__ import annotations
@@ -36,6 +38,28 @@ from environment.ssos.eclss_topics import (
 from environment.ssos.eclss_types import ArsActionResult, ArsGoal, EclssSmokeReport
 
 _ECLSS_TOPIC_PATTERN = re.compile(r"(co2|o2|ars|ogs|wrs|grey)", re.IGNORECASE)
+
+_HOST_DOCKER_HELP = """\
+ros2 CLI not found — Phase 1a smoke must run inside the SSOS Docker container.
+
+From repo root on host Mac:
+  ./scripts/run_ssos_eclss_smoke.sh
+
+Manual (2 terminals):
+  # Terminal 1 — launch headless ECLSS inside container
+  docker exec -it ssos bash
+  bash /root/ssos-eclss-headless.sh
+
+  # Terminal 2 — sync repo and run smoke (container name: ssos)
+  docker exec ssos mkdir -p /tmp/engineering_agents
+  docker cp src/. ssos:/tmp/engineering_agents/src/
+  docker exec -it ssos bash -lc '
+    source /opt/ros/jazzy/setup.bash
+    source ~/ssos_ws/install/setup.bash
+    cd /tmp/engineering_agents
+    PYTHONPATH=/tmp/engineering_agents/src:${PYTHONPATH} python3 -m scripts.ssos_eclss_ars_smoke
+  '
+"""
 
 
 def _run_ros2_cli(args: Sequence[str], timeout_s: float = 30.0) -> Tuple[int, str, str]:
@@ -63,7 +87,7 @@ def discover_ros_graph() -> Tuple[List[str], List[str], Optional[str]]:
         actions = [line.strip() for line in out.splitlines() if line.strip()]
         return topics, actions, None
     except FileNotFoundError:
-        return [], [], "ros2 CLI not found — run inside SSOS container"
+        return [], [], _HOST_DOCKER_HELP.strip()
     except subprocess.TimeoutExpired:
         return [], [], "ros2 CLI timed out"
 
@@ -232,7 +256,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if not report.ok:
         print(f"\nSmoke FAILED. Start ECLSS with: {report.launch_hint}", file=sys.stderr)
         for err in report.errors:
-            print(f"  - {err}", file=sys.stderr)
+            if err.startswith("ros2 CLI not found"):
+                print(f"\n{err}", file=sys.stderr)
+            else:
+                print(f"  - {err}", file=sys.stderr)
         return 1
 
     print("\nSmoke PASSED.", file=sys.stderr)

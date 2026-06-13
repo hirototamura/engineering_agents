@@ -65,9 +65,48 @@ SsosEclssLoopTeam → scenario_run → EclssBackend
 | `src/environment/ssos/eclss_topics.py` | SSOS ECLSS Action/Service/Topic 定数 |
 | `src/environment/ssos/eclss_types.py` | `ArsGoal`, `EclssSmokeReport`, Phase 1b 型 |
 | `src/scripts/ssos_eclss_ars_smoke.py` | コンテナ内スモーク（topic/action 確認 + goal 送信） |
+| `scripts/run_ssos_eclss_smoke.sh` | ホスト Mac から `docker exec` 経由で 1a を実行 |
+
+#### Phase 1a 検証手順（2 ターミナル）
+
+**前提**: SSOS Docker コンテナが起動していること。本機の例: コンテナ名 `ssos`、イメージ `ghcr.io/space-station-os/space_station_os:latest`（`docker ps` で確認）。`engineering_agents` はコンテナに自動マウントされないため、スクリプトが `docker cp` で `src/` を `/tmp/engineering_agents/src` に同期する。
+
+**Terminal 1 — ECLSS ヘッドレス起動（コンテナ内）**
 
 ```bash
-# コンテナ内（ECLSS 起動済み）
+docker exec -it ssos bash
+bash /root/ssos-eclss-headless.sh
+# Ctrl+C で停止。別シェルで smoke を回す間は起動したままにする。
+```
+
+**Terminal 2 — smoke（ホスト Mac の repo ルート）**
+
+```bash
+cd /path/to/engineering_agents
+chmod +x scripts/run_ssos_eclss_smoke.sh   # 初回のみ
+./scripts/run_ssos_eclss_smoke.sh
+# JSON 保存: ./scripts/run_ssos_eclss_smoke.sh --json-out /tmp/eclss_smoke.json
+```
+
+ホスト `.venv` で `PYTHONPATH=src python3 -m scripts.ssos_eclss_ars_smoke` を実行すると **`ros2 CLI not found` で失敗するのは想定どおり**（Mac ホストに ROS 2 がないため）。コンテナ内では `PYTHONPATH=src` だけを設定すると ROS workspace の `PYTHONPATH` を上書きして `ros2` が壊れる — **`PYTHONPATH=/tmp/engineering_agents/src:$PYTHONPATH` のように prepend すること**（ラッパーが自動で行う）。
+
+**手動（ラッパーなし）**
+
+```bash
+docker exec ssos mkdir -p /tmp/engineering_agents
+docker cp src/. ssos:/tmp/engineering_agents/src/
+docker exec -it ssos bash -lc '
+  source /opt/ros/jazzy/setup.bash
+  source ~/ssos_ws/install/setup.bash
+  cd /tmp/engineering_agents
+  PYTHONPATH=/tmp/engineering_agents/src:\${PYTHONPATH} python3 -m scripts.ssos_eclss_ars_smoke
+'
+```
+
+**合格条件**: exit code 0、`/co2_storage` と `/ars/diagnostics` topic、`air_revitalisation` action が存在し、goal が SUCCEEDED。
+
+```bash
+# コンテナ内（ECLSS 起動済み）— 上記ラッパーが同等
 source ~/ssos_ws/install/setup.bash
 cd /path/to/engineering_agents
 PYTHONPATH=src python3 -m scripts.ssos_eclss_ars_smoke
