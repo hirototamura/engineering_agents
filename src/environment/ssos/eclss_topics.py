@@ -1,0 +1,85 @@
+"""ROS 2 topic, action, and service names for space_station_eclss integration.
+
+Names align with SSOS main (space-station-os/space_station_os) as surveyed in Phase 1a.
+Launch headless ECLSS (no crew GUI):
+
+    ros2 launch space_station eclss.launch.py
+
+Package-local launch (includes crew GUI):
+
+    ros2 launch space_station_eclss eclss.launch.py
+"""
+
+from __future__ import annotations
+
+from typing import Tuple
+
+# --- Actions (ActionClient) -------------------------------------------------
+
+ACTION_AIR_REVITALISATION = "air_revitalisation"
+ACTION_WATER_RECOVERY = "water_recovery_systems"
+ACTION_OXYGEN_GENERATION = "oxygen_generation"
+
+ACTION_TYPE_AIR_REVITALISATION = "space_station_eclss/action/AirRevitalisation"
+ACTION_TYPE_WATER_RECOVERY = "space_station_eclss/action/WaterRecoverySystems"
+ACTION_TYPE_OXYGEN_GENERATION = "space_station_eclss/action/OxygenGeneration"
+
+# --- Services (ServiceClient) -----------------------------------------------
+
+SERVICE_OGS_REQUEST_O2 = "/ogs/request_o2"
+SERVICE_WRS_PRODUCT_WATER = "/wrs/product_water_request"
+SERVICE_ARS_REQUEST_CO2 = "/ars/request_co2"
+SERVICE_GREY_WATER = "/grey_water"
+
+# --- Telemetry topics (subscribe) -------------------------------------------
+
+TOPIC_CO2_STORAGE = "/co2_storage"
+TOPIC_O2_STORAGE = "/o2_storage"
+TOPIC_WRS_PRODUCT_WATER_RESERVE = "/wrs/product_water_reserve"
+
+TOPIC_ARS_DIAGNOSTICS = "/ars/diagnostics"
+TOPIC_OGS_DIAGNOSTICS = "/ogs/diagnostics"
+TOPIC_WRS_DIAGNOSTICS = "/wrs/diagnostics"
+
+# --- Failure / diagnostics control (publish Bool) -----------------------------
+
+TOPIC_ARS_SELF_DIAGNOSIS = "/ars/self_diagnosis"
+TOPIC_OGS_SELF_DIAGNOSIS = "/ogs/self_diagnosis"
+TOPIC_WRS_SELF_DIAGNOSIS = "/wrs/self_diagnosis"
+
+# --- Launch / config (Phase 1a+) --------------------------------------------
+
+LAUNCH_HEADLESS_ECLSS = "space_station/eclss.launch.py"
+LAUNCH_ECLSS_WITH_CREW = "space_station_eclss/eclss.launch.py"
+
+CONFIG_ARS_YAML = "ARS.yaml"
+CONFIG_OGS_YAML = "OGS.yaml"
+CONFIG_WRS_YAML = "WRS.yaml"
+
+ALL_ECLSS_ACTIONS: Tuple[str, ...] = (
+    ACTION_AIR_REVITALISATION,
+    ACTION_WATER_RECOVERY,
+    ACTION_OXYGEN_GENERATION,
+)
+
+ALL_ECLSS_SERVICES: Tuple[str, ...] = (
+    SERVICE_OGS_REQUEST_O2,
+    SERVICE_WRS_PRODUCT_WATER,
+    SERVICE_ARS_REQUEST_CO2,
+    SERVICE_GREY_WATER,
+)
+
+ALL_ECLSS_TELEMETRY_TOPICS: Tuple[str, ...] = (
+    TOPIC_CO2_STORAGE,
+    TOPIC_O2_STORAGE,
+    TOPIC_WRS_PRODUCT_WATER_RESERVE,
+    TOPIC_ARS_DIAGNOSTICS,
+    TOPIC_OGS_DIAGNOSTICS,
+    TOPIC_WRS_DIAGNOSTICS,
+)
+
+ALL_ECLSS_SELF_DIAGNOSIS_TOPICS: Tuple[str, ...] = (
+    TOPIC_ARS_SELF_DIAGNOSIS,
+    TOPIC_OGS_SELF_DIAGNOSIS,
+    TOPIC_WRS_SELF_DIAGNOSIS,
+)

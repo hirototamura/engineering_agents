@@ -20,7 +20,7 @@
 | Phase | 内容 | 完了条件 |
 |-------|------|----------|
 | **0** | DesignChange 削除 | scrubber テスト全 pass |
-| **1a** | ARS ヘッドレス smoke | Docker 内 `air_revitalisation` goal + feedback |
+| **1a** | ARS ヘッドレス smoke | Docker 内 `python3 -m scripts.ssos_eclss_ars_smoke` |
 | **1b** | ARS + OGS | O₂/CO₂ Sabatier 競合が telemetry に現れる |
 | **2** | + WRS | 飲料水 vs 電解水、grey water トレードオフ |
 | **3** | EPS 接合 | [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md) |
@@ -57,6 +57,21 @@ SsosEclssLoopTeam → scenario_run → EclssBackend
 ```
 
 起動: `ros2 launch space_station eclss.launch.py`（crew GUI なし）
+
+### Phase 1a 成果物
+
+| ファイル | 役割 |
+|----------|------|
+| `src/environment/ssos/eclss_topics.py` | SSOS ECLSS Action/Service/Topic 定数 |
+| `src/environment/ssos/eclss_types.py` | `ArsGoal`, `EclssSmokeReport` |
+| `src/scripts/ssos_eclss_ars_smoke.py` | コンテナ内スモーク（topic/action 確認 + goal 送信） |
+
+```bash
+# コンテナ内（ECLSS 起動済み）
+source ~/ssos_ws/install/setup.bash
+cd /path/to/engineering_agents
+PYTHONPATH=src python3 -m scripts.ssos_eclss_ars_smoke
+```
 
 ---
 

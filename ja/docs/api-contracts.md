@@ -248,6 +248,16 @@
 | `/eclss/events/recovery_applied` | event | コマンド適用結果 |
 | `/eclss/events/anomaly` | event | 異常フラグ |
 
+### SSOS 実 ECLSS（`environment/ssos/eclss_topics.py`）
+
+Phase 1a で確定した SSOS `space_station_eclss` インターフェース。スモーク: `python3 -m scripts.ssos_eclss_ars_smoke`（SSOS コンテナ内）。
+
+| 種別 | 名前 |
+| --- | --- |
+| Action | `air_revitalisation`, `water_recovery_systems`, `oxygen_generation` |
+| Service | `/ogs/request_o2`, `/wrs/product_water_request`, `/ars/request_co2`, `/grey_water` |
+| Topic | `/co2_storage`, `/o2_storage`, `/wrs/product_water_reserve`, `/*/diagnostics`, `/*/self_diagnosis` |
+
 ---
 
 ## ROS2 風 EPS トピック
