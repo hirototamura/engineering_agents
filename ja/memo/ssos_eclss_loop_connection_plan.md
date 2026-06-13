@@ -63,7 +63,7 @@ SsosEclssLoopTeam → scenario_run → EclssBackend
 | ファイル | 役割 |
 |----------|------|
 | `src/environment/ssos/eclss_topics.py` | SSOS ECLSS Action/Service/Topic 定数 |
-| `src/environment/ssos/eclss_types.py` | `ArsGoal`, `EclssSmokeReport` |
+| `src/environment/ssos/eclss_types.py` | `ArsGoal`, `EclssSmokeReport`, Phase 1b 型 |
 | `src/scripts/ssos_eclss_ars_smoke.py` | コンテナ内スモーク（topic/action 確認 + goal 送信） |
 
 ```bash
@@ -72,6 +72,33 @@ source ~/ssos_ws/install/setup.bash
 cd /path/to/engineering_agents
 PYTHONPATH=src python3 -m scripts.ssos_eclss_ars_smoke
 ```
+
+### Phase 1b 成果物（ARS + OGS）
+
+| ファイル | 役割 |
+|----------|------|
+| `src/environment/ssos/eclss_backend.py` | `EclssBackend` Protocol |
+| `src/environment/ssos/mock_eclss_backend.py` | ローカル dev / 契約テスト用 |
+| `src/environment/ssos/ros2_eclss_bridge.py` | `ros2` CLI ブリッジ（Docker 内 minimum） |
+
+**Phase 1b 完了条件**: O₂/CO₂ Sabatier 競合が `poll_telemetry()` に現れる（SSOS コンテナ + ECLSS 起動時）。
+
+```python
+from environment.ssos.mock_eclss_backend import MockEclssBackend
+from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
+
+backend = MockEclssBackend()  # tests / local
+# backend = Ros2EclssBridge()  # SSOS Docker
+
+snap = backend.poll_telemetry()
+backend.send_air_revitalisation_goal(ArsGoal())
+backend.send_oxygen_generation_goal(OgsGoal())
+backend.request_o2(500.0)
+backend.request_co2(100.0)
+backend.set_subsystem_failure("ars", enabled=True)
+```
+
+WRS Action/Service は Phase 2 で `Ros2EclssBridge` に追加予定。
 
 ---
 

@@ -250,13 +250,32 @@
 
 ### SSOS 実 ECLSS（`environment/ssos/eclss_topics.py`）
 
-Phase 1a で確定した SSOS `space_station_eclss` インターフェース。スモーク: `python3 -m scripts.ssos_eclss_ars_smoke`（SSOS コンテナ内）。
+Phase 1b: `EclssBackend` プロトコル + `MockEclssBackend` / `Ros2EclssBridge`（ARS+OGS）。スモーク: `python3 -m scripts.ssos_eclss_ars_smoke`（SSOS コンテナ内）。
 
 | 種別 | 名前 |
 | --- | --- |
 | Action | `air_revitalisation`, `water_recovery_systems`, `oxygen_generation` |
 | Service | `/ogs/request_o2`, `/wrs/product_water_request`, `/ars/request_co2`, `/grey_water` |
 | Topic | `/co2_storage`, `/o2_storage`, `/wrs/product_water_reserve`, `/*/diagnostics`, `/*/self_diagnosis` |
+
+#### EclssBackend（Phase 1b）
+
+| モジュール | 役割 |
+| --- | --- |
+| `environment/ssos/eclss_backend.py` | `EclssBackend` Protocol（全 subsystem メソッド定義） |
+| `environment/ssos/mock_eclss_backend.py` | ローカル dev / 契約テスト用スタブ |
+| `environment/ssos/ros2_eclss_bridge.py` | SSOS Docker 向け `ros2` CLI ブリッジ（ARS+OGS 実装、WRS は Phase 2） |
+
+| メソッド | Phase 1b | 備考 |
+| --- | --- | --- |
+| `poll_telemetry()` | ✓ | `ros2 topic echo --once` |
+| `send_air_revitalisation_goal()` | ✓ | Action |
+| `send_oxygen_generation_goal()` | ✓ | Action |
+| `request_o2()` / `request_co2()` | ✓ | Service |
+| `set_subsystem_failure()` | ✓ | `/*/self_diagnosis` Bool publish |
+| WRS メソッド | Phase 2 | `NotImplementedError` |
+
+型: `environment/ssos/eclss_types.py` — `EclssTelemetrySnapshot`, `OgsGoal`, `ActionResult`, `ServiceResult`。
 
 ---
 

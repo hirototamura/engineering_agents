@@ -31,6 +31,14 @@ SERVICE_WRS_PRODUCT_WATER = "/wrs/product_water_request"
 SERVICE_ARS_REQUEST_CO2 = "/ars/request_co2"
 SERVICE_GREY_WATER = "/grey_water"
 
+SERVICE_TYPE_O2_REQUEST = "space_station_interfaces/srv/O2Request"
+SERVICE_TYPE_CO2_REQUEST = "space_station_interfaces/srv/Co2Request"
+SERVICE_TYPE_PRODUCT_WATER = "space_station_interfaces/srv/RequestProductWater"
+SERVICE_TYPE_GREY_WATER = "space_station_interfaces/srv/GreyWater"
+
+MSG_TYPE_FLOAT64 = "std_msgs/msg/Float64"
+MSG_TYPE_BOOL = "std_msgs/msg/Bool"
+
 # --- Telemetry topics (subscribe) -------------------------------------------
 
 TOPIC_CO2_STORAGE = "/co2_storage"

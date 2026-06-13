@@ -17,12 +17,78 @@ class ArsGoal:
 
 
 @dataclass
+class ActionResult:
+    """Generic action outcome (ARS, OGS, WRS)."""
+
+    success: bool
+    summary_message: str = ""
+    details: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class ArsActionResult:
     success: bool
     cycles_completed: int = 0
     total_vents: int = 0
     total_co2_vented: float = 0.0
     summary_message: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    def to_action_result(self) -> ActionResult:
+        return ActionResult(
+            success=self.success,
+            summary_message=self.summary_message,
+            details={
+                "cycles_completed": self.cycles_completed,
+                "total_vents": self.total_vents,
+                "total_co2_vented": self.total_co2_vented,
+            },
+        )
+
+
+@dataclass
+class OgsGoal:
+    input_water_mass: float = 15.0
+    iodine_concentration: float = 2.0
+
+    def to_dict(self) -> Dict[str, float]:
+        return asdict(self)
+
+
+@dataclass
+class WrsGoal:
+    urine_volume: float = 2.0
+
+    def to_dict(self) -> Dict[str, float]:
+        return asdict(self)
+
+
+@dataclass
+class ServiceResult:
+    success: bool
+    response_value: float = 0.0
+    message: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class EclssTelemetrySnapshot:
+    """Latest ECLSS storage/diagnostic readings from SSOS topics."""
+
+    co2_storage_kg: Optional[float] = None
+    o2_storage_kg: Optional[float] = None
+    product_water_reserve_l: Optional[float] = None
+    ars_failure_enabled: Optional[bool] = None
+    ogs_failure_enabled: Optional[bool] = None
+    wrs_failure_enabled: Optional[bool] = None
+    raw_topics: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
