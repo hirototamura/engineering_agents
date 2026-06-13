@@ -23,6 +23,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
@@ -35,6 +36,7 @@ from environment.ssos.eclss_topics import (
     TOPIC_ARS_DIAGNOSTICS,
     TOPIC_CO2_STORAGE,
     normalize_ros_name,
+    parse_ros_graph_line,
     ros_cli_action_name,
 )
 from environment.ssos.eclss_types import ArsActionResult, ArsGoal, EclssSmokeReport
@@ -75,22 +77,24 @@ def _run_ros2_cli(args: Sequence[str], timeout_s: float = 30.0) -> Tuple[int, st
     return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
 
 
-def discover_ros_graph() -> Tuple[List[str], List[str], Optional[str]]:
-    """Return (topics, actions, error)."""
+def _discover_ros_graph_snapshot() -> Tuple[List[str], List[str], Optional[str]]:
+    """Return (topics, actions, error) from a single ros2 graph snapshot."""
     try:
         code, out, err = _run_ros2_cli(["topic", "list"])
         if code != 0:
             return [], [], err or f"ros2 topic list exited {code}"
         topics = [
-            normalize_ros_name(line.strip()) for line in out.splitlines() if line.strip()
+            parse_ros_graph_line(line) for line in out.splitlines() if line.strip()
         ]
+        topics = [t for t in topics if t]
 
         code, out, err = _run_ros2_cli(["action", "list"])
         if code != 0:
             return topics, [], err or f"ros2 action list exited {code}"
         actions = [
-            normalize_ros_name(line.strip()) for line in out.splitlines() if line.strip()
+            parse_ros_graph_line(line) for line in out.splitlines() if line.strip()
         ]
+        actions = [a for a in actions if a]
         return topics, actions, None
     except FileNotFoundError:
         return [], [], _HOST_DOCKER_HELP.strip()
@@ -98,14 +102,51 @@ def discover_ros_graph() -> Tuple[List[str], List[str], Optional[str]]:
         return [], [], "ros2 CLI timed out"
 
 
+def discover_ros_graph(
+    *,
+    wait_timeout_s: float = 30.0,
+    poll_interval_s: float = 2.0,
+) -> Tuple[List[str], List[str], Optional[str]]:
+    """Poll ros2 graph until required ECLSS interfaces appear or timeout."""
+    deadline = time.monotonic() + wait_timeout_s
+    topics: List[str] = []
+    actions: List[str] = []
+
+    while True:
+        topics, actions, discover_err = _discover_ros_graph_snapshot()
+        if discover_err:
+            return topics, actions, discover_err
+
+        missing = _match_expected(topics, actions)
+        if missing:
+            if time.monotonic() >= deadline:
+                return (
+                    topics,
+                    actions,
+                    (
+                        f"ECLSS not ready / not launched "
+                        f"(required interfaces missing after {wait_timeout_s:.0f}s: "
+                        f"{'; '.join(missing)})"
+                    ),
+                )
+            time.sleep(poll_interval_s)
+            continue
+
+        return topics, actions, None
+
+
 def _filter_eclss_topics(topics: List[str]) -> List[str]:
-    return sorted(t for t in topics if _ECLSS_TOPIC_PATTERN.search(t))
+    return sorted(
+        normalize_ros_name(t)
+        for t in topics
+        if _ECLSS_TOPIC_PATTERN.search(normalize_ros_name(t))
+    )
 
 
 def _match_expected(topics: List[str], actions: List[str]) -> List[str]:
     errors: List[str] = []
-    topic_set = {normalize_ros_name(t) for t in topics}
-    action_set = {normalize_ros_name(a) for a in actions}
+    topic_set = {parse_ros_graph_line(t) for t in topics if t}
+    action_set = {parse_ros_graph_line(a) for a in actions if a}
 
     if normalize_ros_name(TOPIC_CO2_STORAGE) not in topic_set:
         errors.append(f"missing topic {TOPIC_CO2_STORAGE}")
@@ -203,19 +244,29 @@ def run_ars_smoke(
     *,
     send_goal: bool = True,
     goal_timeout_s: float = 120.0,
+    wait_timeout_s: float = 30.0,
 ) -> EclssSmokeReport:
     """Execute Phase 1a smoke checks against a running SSOS ECLSS stack."""
     goal = goal or ArsGoal()
-    launch_hint = f"ros2 launch {LAUNCH_HEADLESS_ECLSS}"
+    launch_hint = f"bash /root/ssos-eclss-headless.sh  # or: ros2 launch {LAUNCH_HEADLESS_ECLSS}"
     report = EclssSmokeReport(ok=False, launch_hint=launch_hint)
 
-    topics, actions, discover_err = discover_ros_graph()
+    topics, actions, discover_err = discover_ros_graph(wait_timeout_s=wait_timeout_s)
     if discover_err:
         report.errors.append(discover_err)
+        if topics or actions:
+            report.topics_found = _filter_eclss_topics(topics)
+            report.actions_found = sorted(
+                normalize_ros_name(a)
+                for a in actions
+                if normalize_ros_name(a) in ALL_ECLSS_ACTIONS
+            )
         return report
 
     report.topics_found = _filter_eclss_topics(topics)
-    report.actions_found = sorted(a for a in actions if a in ALL_ECLSS_ACTIONS or "revital" in a)
+    report.actions_found = sorted(
+        normalize_ros_name(a) for a in actions if normalize_ros_name(a) in ALL_ECLSS_ACTIONS
+    )
 
     report.errors.extend(_match_expected(topics, actions))
 
@@ -241,6 +292,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--moisture", type=float, default=25.0)
     parser.add_argument("--contaminants", type=float, default=5.0)
     parser.add_argument("--goal-timeout", type=float, default=120.0)
+    parser.add_argument(
+        "--wait-timeout",
+        type=float,
+        default=30.0,
+        help="Seconds to retry DDS discovery for required topics/actions (default: 30)",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     goal = ArsGoal(
@@ -252,6 +309,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         goal,
         send_goal=not args.no_goal,
         goal_timeout_s=args.goal_timeout,
+        wait_timeout_s=args.wait_timeout,
     )
     payload = report.to_dict()
 

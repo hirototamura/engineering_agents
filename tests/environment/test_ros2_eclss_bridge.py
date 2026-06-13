@@ -74,7 +74,7 @@ def test_request_co2_parses_service_response(monkeypatch):
 
 def test_send_oxygen_generation_goal_parses_action_result(monkeypatch):
     def fake_run(args, **_kwargs):
-        assert "oxygen_generation" in args
+        assert "/oxygen_generation" in args
         return subprocess.CompletedProcess(
             args,
             0,

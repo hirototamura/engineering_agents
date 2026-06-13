@@ -28,6 +28,7 @@ from environment.ssos.eclss_topics import (
     TOPIC_OGS_SELF_DIAGNOSIS,
     TOPIC_WRS_PRODUCT_WATER_RESERVE,
     TOPIC_WRS_SELF_DIAGNOSIS,
+    ros_cli_action_name,
 )
 from environment.ssos.eclss_types import (
     ActionResult,
@@ -244,7 +245,7 @@ class Ros2EclssBridge:
                     "action",
                     "send_goal",
                     "--feedback",
-                    action_name,
+                    ros_cli_action_name(action_name),
                     action_type,
                     goal_yaml,
                 ],

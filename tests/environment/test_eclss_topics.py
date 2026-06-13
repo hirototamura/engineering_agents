@@ -28,3 +28,21 @@ def test_action_type_strings_use_ssos_package():
 def test_self_diagnosis_topics_are_absolute():
     for name in topics.ALL_ECLSS_SELF_DIAGNOSIS_TOPICS:
         assert name.startswith("/")
+
+
+def test_parse_ros_graph_line_with_leading_slash():
+    assert topics.parse_ros_graph_line("/co2_storage") == "co2_storage"
+
+
+def test_parse_ros_graph_line_without_leading_slash():
+    assert topics.parse_ros_graph_line("ars/diagnostics") == "ars/diagnostics"
+
+
+def test_parse_ros_graph_line_strips_jazzy_type_suffix():
+    line = "/air_revitalisation space_station_eclss/action/AirRevitalisation"
+    assert topics.parse_ros_graph_line(line) == "air_revitalisation"
+
+
+def test_parse_ros_graph_line_strips_bracketed_type_suffix():
+    line = "/air_revitalisation [space_station_eclss/action/AirRevitalisation]"
+    assert topics.parse_ros_graph_line(line) == "air_revitalisation"

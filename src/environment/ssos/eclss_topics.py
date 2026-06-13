@@ -20,6 +20,22 @@ def normalize_ros_name(name: str) -> str:
     return name.lstrip("/")
 
 
+def parse_ros_graph_line(line: str) -> str:
+    """Extract entity name from a ``ros2 topic list`` / ``ros2 action list`` line.
+
+    Jazzy may emit ``/air_revitalisation space_station_eclss/action/AirRevitalisation``
+    or ``/air_revitalisation [space_station_eclss/action/AirRevitalisation]`` — only the
+    graph name (before whitespace or ``[``) is returned, without a leading slash.
+    """
+    stripped = line.strip()
+    if not stripped:
+        return ""
+    name = stripped.split(None, 1)[0]
+    if "[" in name:
+        name = name.split("[", 1)[0]
+    return normalize_ros_name(name)
+
+
 def ros_cli_action_name(name: str) -> str:
     """Absolute action path for ``ros2 action send_goal``."""
     return f"/{normalize_ros_name(name)}"

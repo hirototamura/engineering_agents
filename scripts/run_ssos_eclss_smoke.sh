@@ -55,6 +55,25 @@ echo "==> Syncing src/ to $CONTAINER:$CONTAINER_REPO/src"
 docker exec "$CONTAINER" mkdir -p "$CONTAINER_REPO"
 docker cp "$REPO_ROOT/src/." "$CONTAINER:$CONTAINER_REPO/src/"
 
+_ros_env='
+  set +u
+  source /opt/ros/jazzy/setup.bash
+  source ~/ssos_ws/install/setup.bash
+  set -u 2>/dev/null || true
+'
+
+topic_count="$(docker exec "$CONTAINER" bash -lc "${_ros_env}
+  ros2 topic list 2>/dev/null | grep -c . || true
+" || echo 0)"
+action_count="$(docker exec "$CONTAINER" bash -lc "${_ros_env}
+  ros2 action list 2>/dev/null | grep -c . || true
+" || echo 0)"
+if [ "${topic_count:-0}" -eq 0 ] && [ "${action_count:-0}" -eq 0 ]; then
+  echo "WARNING: ros2 graph is empty — ECLSS may not be running yet." >&2
+  echo "Launch ECLSS first: bash /root/ssos-eclss-headless.sh" >&2
+  echo "(smoke will retry discovery for --wait-timeout seconds)" >&2
+fi
+
 quoted_args=""
 for arg in "$@"; do
   quoted_args+=" $(printf '%q' "$arg")"
