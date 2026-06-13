@@ -20,7 +20,6 @@
 | --- | --- | --- |
 | `step()` | `TelemetrySnapshot` | 生命維持プラントを 1 ティック進める |
 | `apply_command(cmd)` | `CommandResult` | 一時的な回復アクション |
-| `apply_design_change(change)` | `DesignState` | 恒久変更（**現シナリオではランタイム未使用**） |
 | `get_topology()` | `TopologyGraph` | ノード/エッジ |
 | `get_design_parameters()` | `dict[str, float]` | 可変パラメータ |
 | `get_design_state()` | `DesignState` | トポロジ + パラメータ |
@@ -81,29 +80,35 @@
 
 ---
 
-## DesignChange（プロトコル型）
+## design_proposals.json（scrubber_degradation 専用・凍結）
 
-シミュレータが理解する恒久変更。**現行 scrubber_degradation ではランタイム apply されない**。事後提案は `design_proposals.json` で表現し、ダッシュボードがプレビュー用に仮適用する。
+ラン終了後に 1 ファイル。シミュレーション結果のトポロジは**変更されない**。ダッシュボードが dict を直接解釈して After プレビューを描画する（`DesignStateManager.apply_dict_change` と同等ロジック）。
 
-```json
-{
-  "kind": "add_edge",
-  "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
-  "proposed_by": "engineer_4"
-}
-```
-
-| `kind` | 用途 |
+| `change_kind` | 用途 |
 | --- | --- |
 | `add_edge` | 新規エッジ（flow / bypass / power） |
 | `add_node` | 新規ノード（valve、electrical 等） |
 | `set_parameter` | 設計パラメータ変更 |
 
+**ランタイム `apply_design_change` は Phase 0 で削除済み。** 恒久変更はラン中に適用しない。
+
 ---
 
-## design_proposals.json（事後提案）
+## operational_proposals.json（ssos_eclss_loop 予定）
 
-ラン終了後に 1 ファイル。シミュレーション結果のトポロジは**変更されない**。
+新シナリオ `ssos_eclss_loop` 向け。トポロジ変更なし。次ラン入力として適用:
+
+| `change_kind` | 用途 |
+| --- | --- |
+| `set_parameter` | 起動時 YAML パラメータ（`ARS.yaml` 等） |
+| `action_profile` | 既存 Action goal フィールド・頻度 |
+| `service_config` | 既存 Service 呼び出し量・間隔 |
+
+詳細: [memo/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop_connection_plan.md)
+
+---
+
+## design_proposals.json スキーマ例
 
 ```json
 {
@@ -239,7 +244,7 @@
 | `/eclss/command/enable_bypass` | sub | bool |
 | `/eclss/command/reduce_load` | sub | bool |
 | `/eclss/command/request_eps_boost` | sub | float W |
-| `/eclss/events/design_change` | event | DesignChange dict |
+| `/eclss/events/design_change` | event | **レガシー** — ランタイム発行なし（scrubber 過去 run 互換） |
 | `/eclss/events/recovery_applied` | event | コマンド適用結果 |
 | `/eclss/events/anomaly` | event | 異常フラグ |
 

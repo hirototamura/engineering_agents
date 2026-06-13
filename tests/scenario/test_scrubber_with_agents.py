@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from environment.eclss_ops.telemetry import CO2_SAFE_PPM, CO2_WARNING_PPM
-from environment.protocol import DesignChangeKind, HealthMetrics, HealthStatus, TelemetrySnapshot
+from environment.protocol import HealthMetrics, HealthStatus, TelemetrySnapshot
 from scenario.runner import run_scenario
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
 from scenario.agents.types import AgentObservation
@@ -253,21 +253,19 @@ def test_llm_design_parse_supports_add_node_and_unrestricted_parameter():
         }
     )
 
-    node_change = team._parse_llm_design_change(
+    node_change = team._validate_proposal_change(
         "add_node",
         {"id": "aux_scrubber", "name": "Aux Scrubber", "kind": "scrubber"},
-        proposed_by="engineer_2",
     )
     assert node_change is not None
-    assert node_change.kind == DesignChangeKind.ADD_NODE
+    assert node_change["change_kind"] == "add_node"
 
-    param_change = team._parse_llm_design_change(
+    param_change = team._validate_proposal_change(
         "set_parameter",
         {"key": "custom_gain", "value": 0.42},
-        proposed_by="engineer_2",
     )
     assert param_change is not None
-    assert param_change.payload["key"] == "custom_gain"
+    assert param_change["payload"]["key"] == "custom_gain"
 
 
 def test_co2_recovery_summary_uses_warning_threshold():

@@ -9,7 +9,6 @@ from environment.protocol import (
     AnomalySpec,
     CommandKind,
     CommandResult,
-    DesignChange,
     DesignState,
     RecoveryCommand,
     TelemetrySnapshot,
@@ -108,9 +107,6 @@ class StationSimulator:
             message=discharge.message,
             telemetry=snap,
         )
-
-    def apply_design_change(self, change: DesignChange) -> DesignState:
-        return self.eclss.apply_design_change(change)
 
     def get_topology(self) -> TopologyGraph:
         return self.eclss.get_topology()

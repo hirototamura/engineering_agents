@@ -14,7 +14,7 @@
 | シナリオ | `scrubber_degradation` — 50 step、step 20 から異常注入 |
 | エージェント | `none` / `labeled_rule_base` / `llm`、同種エンジニア N 体（デフォルト 4） |
 | 回復 | ファン加速、負荷削減、EPS ブースト、一時バイパス |
-| 事後設計 | `design_proposals.json`（ランタイム中はトポロジ変更しない） |
+| 事後設計 | `design_proposals.json`（scrubber 凍結。ランタイムトポロジ変更なし） |
 | provenance | `provenance.jsonl` — **ランタイム回復**（主に `request_eps_boost`） |
 | ダッシュボード | Overview / Step replay / 2 run 比較 / 設計提案トポロジ可視化 |
 | テスト | ベースライン・labeled・llm（モック LLM）の回帰 |
@@ -28,10 +28,11 @@
 
 ### 次の実装（優先順）
 
-1. **CLI 統合** — `python -m tools.cli run --scenario scrubber_degradation --agents-mode llm` などの単一エントリポイント（[memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md) Day 8）
-2. **provenance 拡張** — `design_proposals.json` を One Piece レコードへエクスポート（現状はランタイム `design_change` イベントのみ。post-run 提案は未連携）
-3. **provenance インデックス** — 複数 run 横断の `provenance_index.json`（ダッシュボード / CLI 比較用）
-4. **SSOS 実機アダプタ** — `SsosAdapter` の契約テストと ROS2 ブリッジ（Day 10）
+1. **ssos_eclss_loop** — SSOS ECLSS 段階接合（Phase 1a ARS smoke → 1b ARS+OGS → 2 +WRS → 3 EPS）— [memo/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop_connection_plan.md)
+2. **CLI 統合** — `python -m tools.cli run --scenario scrubber_degradation --agents-mode llm` などの単一エントリポイント（[memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md) Day 8）
+3. **provenance 拡張** — `design_proposals.json` を One Piece レコードへエクスポート
+4. **provenance インデックス** — 複数 run 横断の `provenance_index.json`（ダッシュボード / CLI 比較用）
+5. **SSOS 実機アダプタ** — `Ros2EclssBridge` + EPS ブリッジ（[memo/ssos_eps_ros2_connection_plan.md](../memo/ssos_eps_ros2_connection_plan.md)）
 
 ### その後（スコープ外に近い）
 

@@ -20,12 +20,6 @@ class CommandKind(str, Enum):
     REQUEST_EPS_BOOST = "request_eps_boost"
 
 
-class DesignChangeKind(str, Enum):
-    ADD_NODE = "add_node"
-    ADD_EDGE = "add_edge"
-    SET_PARAMETER = "set_parameter"
-
-
 @dataclass
 class TopologyNode:
     id: str
@@ -100,20 +94,6 @@ class RecoveryCommand:
 
 
 @dataclass
-class DesignChange:
-    kind: DesignChangeKind
-    payload: Dict[str, Any]
-    proposed_by: str = "design_engineer"
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "kind": self.kind.value,
-            "payload": self.payload,
-            "proposed_by": self.proposed_by,
-        }
-
-
-@dataclass
 class DesignState:
     topology: TopologyGraph
     parameters: Dict[str, float]
@@ -156,8 +136,6 @@ class SimulatorProtocol(Protocol):
     def step(self) -> TelemetrySnapshot: ...
 
     def apply_command(self, cmd: RecoveryCommand) -> CommandResult: ...
-
-    def apply_design_change(self, change: DesignChange) -> DesignState: ...
 
     def get_topology(self) -> TopologyGraph: ...
 

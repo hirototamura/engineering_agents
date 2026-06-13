@@ -11,13 +11,12 @@ from environment.protocol import (
     AnomalySpec,
     CommandKind,
     CommandResult,
-    DesignChange,
     DesignState,
     RecoveryCommand,
     TelemetrySnapshot,
     TopologyGraph,
 )
-from environment.ssos.topics import EVENT_ANOMALY, EVENT_DESIGN_CHANGE, EVENT_RECOVERY
+from environment.ssos.topics import EVENT_ANOMALY, EVENT_RECOVERY
 
 
 class MockEclssSimulator:
@@ -115,19 +114,6 @@ class MockEclssSimulator:
             }
         )
         return CommandResult(success=True, message=msg, telemetry=snap)
-
-    def apply_design_change(self, change: DesignChange) -> DesignState:
-        state = self.design.apply_change(change)
-        if change.payload.get("key") == "scrubber_base_efficiency":
-            self.scrubber_efficiency = state.parameters["scrubber_base_efficiency"]
-        self._event_log.append(
-            {
-                "step": self.step_count,
-                "kind": EVENT_DESIGN_CHANGE,
-                "change": change.to_dict(),
-            }
-        )
-        return state
 
     def get_topology(self) -> TopologyGraph:
         return self.design.snapshot().topology

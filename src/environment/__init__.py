@@ -3,7 +3,6 @@
 from environment.protocol import (
     AnomalySpec,
     CommandResult,
-    DesignChange,
     DesignState,
     RecoveryCommand,
     SimulatorProtocol,
@@ -14,7 +13,6 @@ from environment.ssos.mock_eclss import MockEclssSimulator
 __all__ = [
     "AnomalySpec",
     "CommandResult",
-    "DesignChange",
     "DesignState",
     "MockEclssSimulator",
     "RecoveryCommand",

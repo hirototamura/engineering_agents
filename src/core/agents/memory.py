@@ -75,8 +75,3 @@ class TeamMemoryStore:
             memory = self.agent_memories.get(issuer)
             if memory is not None:
                 memory.append(f"step action: {cmd.kind.value} value={cmd.value}")
-        for change in outcome.design_changes:
-            proposer = change.proposed_by or "design_engineer"
-            memory = self.agent_memories.get(proposer)
-            if memory is not None:
-                memory.append(f"step design: {change.kind.value} {change.payload}")

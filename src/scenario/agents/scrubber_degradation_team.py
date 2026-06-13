@@ -28,8 +28,6 @@ from core.agents.types import (
 from core.llm.ollama import OllamaClient
 from environment.protocol import (
     CommandKind,
-    DesignChange,
-    DesignChangeKind,
     HealthMetrics,
     HealthStatus,
     RecoveryCommand,
@@ -85,8 +83,6 @@ class ScrubberDegradationTeam(Team):
     def apply_outcome(self, sim: SimulatorProtocol, outcome: StepAgentOutcome) -> None:
         for cmd in outcome.commands:
             sim.apply_command(cmd)
-        for change in outcome.design_changes:
-            sim.apply_design_change(change)
 
     def _run_step_llm(self, obs: AgentObservation) -> StepAgentOutcome:
         outcome = StepAgentOutcome()
@@ -535,10 +531,9 @@ class ScrubberDegradationTeam(Team):
             payload = item.get("payload", {})
             if not isinstance(payload, dict):
                 payload = {}
-            if self._parse_llm_design_change(
+            if self._validate_proposal_change(
                 change_kind=change_kind,
                 payload=payload,
-                proposed_by=proposed_by,
             ) is None:
                 notes.append(f"unparsed change: {change_kind}")
                 continue
@@ -630,41 +625,37 @@ class ScrubberDegradationTeam(Team):
             )
         return None, f"unsupported operator command kind: {kind}"
 
-    def _parse_llm_design_change(
+    def _validate_proposal_change(
         self,
         change_kind: str,
         payload: Dict[str, Any],
-        *,
-        proposed_by: str,
-    ) -> Optional[DesignChange]:
-        """Parse LLM design JSON into a change without team-level policy guards."""
+    ) -> Optional[Dict[str, Any]]:
+        """Validate post-run proposal dict (scrubber frozen schema)."""
         if change_kind == "add_node":
             node_id = str(payload.get("id", "")).strip()
             if not node_id:
                 return None
-            return DesignChange(
-                kind=DesignChangeKind.ADD_NODE,
-                payload={
+            return {
+                "change_kind": change_kind,
+                "payload": {
                     "id": node_id,
                     "name": str(payload.get("name", node_id)),
                     "kind": str(payload.get("kind", "volume")),
                 },
-                proposed_by=proposed_by,
-            )
+            }
         if change_kind == "add_edge":
             node_a = payload.get("node_a")
             node_b = payload.get("node_b")
             if not node_a or not node_b:
                 return None
-            return DesignChange(
-                kind=DesignChangeKind.ADD_EDGE,
-                payload={
+            return {
+                "change_kind": change_kind,
+                "payload": {
                     "node_a": node_a,
                     "node_b": node_b,
                     "kind": payload.get("kind", "bypass"),
                 },
-                proposed_by=proposed_by,
-            )
+            }
         if change_kind == "set_parameter":
             key = str(payload.get("key", "")).strip()
             if not key:
@@ -673,11 +664,10 @@ class ScrubberDegradationTeam(Team):
                 value = float(payload.get("value"))
             except (TypeError, ValueError):
                 return None
-            return DesignChange(
-                kind=DesignChangeKind.SET_PARAMETER,
-                payload={"key": key, "value": value},
-                proposed_by=proposed_by,
-            )
+            return {
+                "change_kind": change_kind,
+                "payload": {"key": key, "value": value},
+            }
         return None
 
     @staticmethod

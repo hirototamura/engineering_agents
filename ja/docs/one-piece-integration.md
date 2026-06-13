@@ -85,26 +85,7 @@ summary.json
 
 ### 設計変更レコード（プロトコル対応済み・データなし）
 
-ランタイムで `apply_design_change` された場合の形式（将来または他シナリオ用）:
-
-```json
-{
-  "record_id": "run_id:design_change:1",
-  "run_id": "run_id",
-  "scenario": "scrubber_degradation",
-  "step": 35,
-  "actor": "engineer_4",
-  "actor_kind": "ai_agent",
-  "change_kind": "add_edge",
-  "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
-  "before_topology": {"nodes": [], "edges": []},
-  "after_topology": {"nodes": [], "edges": []},
-  "trace": {
-    "event_kind": "/eclss/events/design_change",
-    "decision_source": "rule"
-  }
-}
-```
+ランタイム設計変更は Phase 0 で削除済み。scrubber の事後 `design_proposals.json` は One Piece 未エクスポート。
 
 ---
 

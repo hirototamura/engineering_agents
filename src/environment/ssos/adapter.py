@@ -7,7 +7,6 @@ from typing import Dict, List
 from environment.protocol import (
     AnomalySpec,
     CommandResult,
-    DesignChange,
     DesignState,
     RecoveryCommand,
     TelemetrySnapshot,
@@ -29,9 +28,6 @@ class SsosAdapter:
         raise NotImplementedError
 
     def apply_command(self, cmd: RecoveryCommand) -> CommandResult:
-        raise NotImplementedError
-
-    def apply_design_change(self, change: DesignChange) -> DesignState:
         raise NotImplementedError
 
     def get_topology(self) -> TopologyGraph:
