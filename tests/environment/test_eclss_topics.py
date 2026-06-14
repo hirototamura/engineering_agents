@@ -22,7 +22,7 @@ def test_headless_launch_constant():
 
 
 def test_action_type_strings_use_ssos_package():
-    assert topics.ACTION_TYPE_AIR_REVITALISATION.startswith("space_station_eclss/action/")
+    assert topics.ACTION_TYPE_AIR_REVITALISATION.startswith("space_station_interfaces/action/")
 
 
 def test_self_diagnosis_topics_are_absolute():
@@ -39,10 +39,10 @@ def test_parse_ros_graph_line_without_leading_slash():
 
 
 def test_parse_ros_graph_line_strips_jazzy_type_suffix():
-    line = "/air_revitalisation space_station_eclss/action/AirRevitalisation"
+    line = "/air_revitalisation space_station_interfaces/action/AirRevitalisation"
     assert topics.parse_ros_graph_line(line) == "air_revitalisation"
 
 
 def test_parse_ros_graph_line_strips_bracketed_type_suffix():
-    line = "/air_revitalisation [space_station_eclss/action/AirRevitalisation]"
+    line = "/air_revitalisation [space_station_interfaces/action/AirRevitalisation]"
     assert topics.parse_ros_graph_line(line) == "air_revitalisation"

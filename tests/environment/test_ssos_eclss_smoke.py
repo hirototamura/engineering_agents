@@ -43,7 +43,7 @@ def test_match_expected_accepts_leading_slash_action():
 def test_match_expected_accepts_jazzy_action_list_line():
     errors = _match_expected(
         topics=["co2_storage", "ars/diagnostics"],
-        actions=["air_revitalisation space_station_eclss/action/AirRevitalisation"],
+        actions=["air_revitalisation space_station_interfaces/action/AirRevitalisation"],
     )
     assert errors == []
 

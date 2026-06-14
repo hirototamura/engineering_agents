@@ -23,9 +23,9 @@ def normalize_ros_name(name: str) -> str:
 def parse_ros_graph_line(line: str) -> str:
     """Extract entity name from a ``ros2 topic list`` / ``ros2 action list`` line.
 
-    Jazzy may emit ``/air_revitalisation space_station_eclss/action/AirRevitalisation``
-    or ``/air_revitalisation [space_station_eclss/action/AirRevitalisation]`` — only the
-    graph name (before whitespace or ``[``) is returned, without a leading slash.
+    Jazzy may emit ``/air_revitalisation space_station_interfaces/action/AirRevitalisation``
+    (or legacy ``space_station_eclss/...`` in ``ros2 action list -t``) — only the graph name
+    (before whitespace or ``[``) is returned, without a leading slash.
     """
     stripped = line.strip()
     if not stripped:
@@ -47,9 +47,9 @@ ACTION_AIR_REVITALISATION = "air_revitalisation"
 ACTION_WATER_RECOVERY = "water_recovery_systems"
 ACTION_OXYGEN_GENERATION = "oxygen_generation"
 
-ACTION_TYPE_AIR_REVITALISATION = "space_station_eclss/action/AirRevitalisation"
-ACTION_TYPE_WATER_RECOVERY = "space_station_eclss/action/WaterRecoverySystems"
-ACTION_TYPE_OXYGEN_GENERATION = "space_station_eclss/action/OxygenGeneration"
+ACTION_TYPE_AIR_REVITALISATION = "space_station_interfaces/action/AirRevitalisation"
+ACTION_TYPE_WATER_RECOVERY = "space_station_interfaces/action/WaterRecovery"
+ACTION_TYPE_OXYGEN_GENERATION = "space_station_interfaces/action/OxygenGeneration"
 
 # --- Services (ServiceClient) -----------------------------------------------
 

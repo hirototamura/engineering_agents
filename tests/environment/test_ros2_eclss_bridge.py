@@ -72,6 +72,60 @@ def test_request_co2_parses_service_response(monkeypatch):
     assert result.response_value == 120.0
 
 
+def test_request_co2_parses_jazzy_repr_service_response(monkeypatch):
+    def fake_run(args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            (
+                "response:\n"
+                "space_station_interfaces.srv.Co2Request_Response("
+                "co2_resp=50.0, success=True, message='CO2 successfully delivered')\n"
+            ),
+            "",
+        )
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    result = Ros2EclssBridge().request_co2(50.0)
+    assert result.success
+    assert result.response_value == 50.0
+    assert result.message == "CO2 successfully delivered"
+
+
+def test_request_o2_parses_jazzy_repr_insufficient_storage(monkeypatch):
+    def fake_run(args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            (
+                "response:\n"
+                "space_station_interfaces.srv.O2Request_Response("
+                "o2_resp=0.0, success=False, message='Insufficient O2 in storage')\n"
+            ),
+            "",
+        )
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    result = Ros2EclssBridge().request_o2(100.0)
+    assert result.success is False
+    assert result.response_value == 0.0
+    assert "Insufficient" in result.message
+
+
+def test_poll_telemetry_includes_failure_flags_after_set(monkeypatch):
+    def fake_run(args, **_kwargs):
+        if len(args) > 3 and args[1] == "topic" and args[2] == "echo":
+            return subprocess.CompletedProcess(args, 0, "data: 100.0\n", "")
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    bridge = Ros2EclssBridge()
+    bridge.set_subsystem_failure("ogs", True)
+    snap = bridge.poll_telemetry()
+    assert snap.ogs_failure_enabled is True
+    assert snap.ars_failure_enabled is False
+
+
 def test_send_oxygen_generation_goal_parses_action_result(monkeypatch):
     def fake_run(args, **_kwargs):
         assert "/oxygen_generation" in args

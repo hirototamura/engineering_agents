@@ -105,6 +105,8 @@ docker exec -it ssos bash -lc '
 
 **合格条件**: exit code 0、`/co2_storage` と `/ars/diagnostics` topic、`air_revitalisation` action が存在し、goal が SUCCEEDED。
 
+**トラブルシュート**: `send_goal` が "Waiting for an action server..." で止まる場合、action **名前**は見えていても **型**が違うことがある。現行 SSOS イメージでは `ros2 action send_goal` の型は `space_station_interfaces/action/AirRevitalisation`（`space_station_eclss/action/...` ではない）。確認: `ros2 node info /air_revitalisation | grep -A1 'Action Servers'`。
+
 ```bash
 # コンテナ内（ECLSS 起動済み）— 上記ラッパーが同等
 source ~/ssos_ws/install/setup.bash

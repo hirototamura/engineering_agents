@@ -68,7 +68,7 @@ def _extract_float(text: str, pattern: str) -> Optional[float]:
 
 
 def _extract_bool(text: str, pattern: str) -> Optional[bool]:
-    match = re.search(pattern, text)
+    match = re.search(pattern, text, flags=re.IGNORECASE)
     if not match:
         return None
     token = match.group(1).strip().lower()
@@ -76,6 +76,36 @@ def _extract_bool(text: str, pattern: str) -> Optional[bool]:
         return True
     if token in {"false", "0"}:
         return False
+    return None
+
+
+def _extract_service_success(text: str) -> Optional[bool]:
+    """Parse ``success`` from ros2 service call output (YAML or Jazzy Python repr)."""
+    return _extract_bool(text, r"success:\s*(true|false)") or _extract_bool(
+        text, r"success=(true|false)"
+    )
+
+
+def _extract_service_field_float(text: str, field: str) -> Optional[float]:
+    """Parse a numeric response field (``field: 1.0`` or ``field=1.0``)."""
+    pattern = rf"{re.escape(field)}:\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)"
+    value = _extract_float(text, pattern)
+    if value is not None:
+        return value
+    return _extract_float(text, rf"{re.escape(field)}=([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)")
+
+
+def _extract_service_message(text: str) -> Optional[str]:
+    """Parse ``message`` from ros2 service call output."""
+    for pattern in (
+        r"message:\s*'([^']*)'",
+        r'message:\s*"([^"]*)"',
+        r"message='([^']*)'",
+        r'message="([^"]*)"',
+    ):
+        value = _extract_string(text, pattern)
+        if value is not None:
+            return value
     return None
 
 
@@ -111,6 +141,11 @@ class Ros2EclssBridge:
         self.action_timeout_s = action_timeout_s
         self.service_timeout_s = service_timeout_s
         self.topic_timeout_s = topic_timeout_s
+        self._failure_flags: dict[str, bool] = {
+            "ars": False,
+            "ogs": False,
+            "wrs": False,
+        }
 
     @staticmethod
     def ros2_available() -> bool:
@@ -135,6 +170,9 @@ class Ros2EclssBridge:
             co2_storage_kg=co2,
             o2_storage_kg=o2,
             product_water_reserve_l=water,
+            ars_failure_enabled=self._failure_flags["ars"],
+            ogs_failure_enabled=self._failure_flags["ogs"],
+            wrs_failure_enabled=self._failure_flags["wrs"],
             raw_topics=raw,
         )
 
@@ -231,6 +269,7 @@ class Ros2EclssBridge:
         )
         if code != 0:
             raise RuntimeError(err or out or f"ros2 topic pub exited {code}")
+        self._failure_flags[key] = enabled
 
     def _send_action_goal(
         self,
@@ -286,9 +325,7 @@ class Ros2EclssBridge:
         if code != 0:
             return ServiceResult(success=False, message=combined.strip() or f"ros2 service call exited {code}")
 
-        success = _extract_bool(combined, r"success:\s*(true|false)") or False
-        response_value = _extract_float(combined, rf"{response_field}:\s*([-+]?[0-9]*\.?[0-9]+)") or 0.0
-        message = _extract_string(combined, r"message:\s*'([^']*)'") or _extract_string(
-            combined, r'message:\s*"([^"]*)"'
-        )
+        success = _extract_service_success(combined) or False
+        response_value = _extract_service_field_float(combined, response_field) or 0.0
+        message = _extract_service_message(combined)
         return ServiceResult(success=success, response_value=response_value, message=message or "")
