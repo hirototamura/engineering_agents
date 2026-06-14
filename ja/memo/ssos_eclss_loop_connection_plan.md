@@ -9,11 +9,14 @@
 | 項目 | 値 |
 |------|-----|
 | ブランチ | `feat/ssos-eclss-loop` |
-| 最新コミット | `2c62f15` — docs(memo): SSOS phases 2–4 complete, Phase 5 plan |
-| Phase コミット | `2700fda` Phase 2 WRS / `3b4b0b4` Phase 3 EPS / `7196812` Phase 4 シナリオ / `12267a4` ドキュメント / `2c62f15` プラン更新 |
+| 最新コミット | （統合ブランチ HEAD — memo 更新コミット） |
+| Phase コミット | `2700fda` Phase 2 WRS / `3b4b0b4` Phase 3 EPS / `7196812` Phase 4 シナリオ / `2c62f15` プラン更新 |
 | テスト | `pytest` → **104 passed**, 3 skipped（2026-06-14） |
 | Phase 0–4 | **完了** |
 | Phase 5 | **未着手** — 次のプラン参照 |
+
+| ユーザ向けドキュメント | ブランチ **`docs/ssos-mkdocs`**（MkDocs。`12267a4` は本ブランチから revert 済み） |
+| ドキュメント保守 | 別エージェント — `docs/ssos-mkdocs` 上の `docs/MAINTENANCE.md` |
 
 ---
 
@@ -262,7 +265,7 @@ WRS Action/Service は Phase 2 で `Ros2EclssBridge` に追加済み（`2700fda`
 python -c "from scenario.runner import run_scenario; run_scenario('ssos_eclss_loop', overrides={'agents': {'mode': 'labeled_rule_base'}})"
 ```
 
-ユーザ向け手順は [docs/ssos/scenario-eclss-loop.md](../docs/ssos/scenario-eclss-loop.md)。
+ユーザ向け手順は **`docs/ssos-mkdocs`** ブランチの `docs/ssos/scenario-eclss-loop.md`（`git checkout docs/ssos-mkdocs` → `docs/MAINTENANCE.md` / `mkdocs serve`）。
 
 ---
 
@@ -275,7 +278,7 @@ python -c "from scenario.runner import run_scenario; run_scenario('ssos_eclss_lo
 | 出力 | `operational_proposals.json` — `set_parameter` / `action_profile` / `service_config` のみ（ランタイム恒久トポロジ変更なし） |
 | CLI | `--apply-proposals` で**次 run**に提案を反映（scrubber の `design_proposals.json` パターンに準拠） |
 | 検証 | 適用前後の telemetry diff + 決定論的 health で pass/fail |
-| 参照 | [docs/ssos/roadmap.md](../docs/ssos/roadmap.md) |
+| 参照 | `docs/ssos-mkdocs` の `docs/ssos/roadmap.md` |
 
 ### バックログ（Phase 5 以降）
 
@@ -284,7 +287,7 @@ python -c "from scenario.runner import run_scenario; run_scenario('ssos_eclss_lo
 | **3b — EPS BCDU action** | `Ros2EpsBridge` で discharge/boost の Action 経路（現状は topic + command のみ） |
 | **WRS in scenario team** | `SsosEclssLoopTeam` が WRS goal / 水サービスを labeled_rule_base で操作 |
 | **ECLSS + EPS 単一 ros2 シナリオ** | `ssos_eclss_loop` で `eclss.backend=ros2` と `eps.backend=ssos_eps` を同時に smoke |
-| **MkDocs CI deploy** | `mkdocs gh-deploy` または Pages ワークフロー（`12267a4` でローカル閲覧のみ） |
+| **MkDocs CI deploy** | `docs/ssos-mkdocs` ブランチで実施（`mkdocs gh-deploy` / Pages） |
 | **rclpy ネイティブクライアント** | CLI ブリッジからの移行（レイテンシ・CI 安定性） |
 | **upstream** | SSOS ECLSS への CO₂ スクラバノード追加 → 別 Mock シナリオ |
 
@@ -299,6 +302,6 @@ python -c "from scenario.runner import run_scenario; run_scenario('ssos_eclss_lo
 ## 関連
 
 - [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md)
-- [docs/ssos/index.md](../docs/ssos/index.md)
+- SSOS MkDocs 入口 — `docs/ssos-mkdocs` の `docs/ssos/index.md`
 - [docs/api-contracts.md](../docs/api-contracts.md)
 - Cursor plan: `ssos_ars_agent_plan_e6782b7f.plan.md`
