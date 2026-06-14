@@ -10,6 +10,7 @@ ENV/
 env/
 
 # Packaging / build
+site/
 build/
 dist/
 *.egg-info/
