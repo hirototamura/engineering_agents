@@ -9,8 +9,8 @@
 | 項目 | 値 |
 |------|-----|
 | ブランチ | `feat/ssos-eclss-loop` |
-| 最新コミット | `fb87f53` — docs(memo): SSOS phases 2–4 complete, Phase 5 plan |
-| Phase コミット | `2700fda` Phase 2 WRS / `3b4b0b4` Phase 3 EPS / `7196812` Phase 4 シナリオ / `12267a4` ドキュメント / `fb87f53` プラン更新 |
+| 最新コミット | `2c62f15` — docs(memo): SSOS phases 2–4 complete, Phase 5 plan |
+| Phase コミット | `2700fda` Phase 2 WRS / `3b4b0b4` Phase 3 EPS / `7196812` Phase 4 シナリオ / `12267a4` ドキュメント / `2c62f15` プラン更新 |
 | テスト | `pytest` → **104 passed**, 3 skipped（2026-06-14） |
 | Phase 0–4 | **完了** |
 | Phase 5 | **未着手** — 次のプラン参照 |
