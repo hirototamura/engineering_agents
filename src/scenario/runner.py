@@ -14,8 +14,9 @@ from environment.eclss_ops.design_state import DesignStateManager
 from environment.protocol import AnomalySpec, SimulatorProtocol
 from environment.ssos.mock_eclss import MockEclssSimulator
 from environment.ssos.station_simulator import StationSimulator
-from environment.ssos.eps_stack import EpsStack
-from environment.ssos.mock_sarj import MockSarj
+from environment.ssos.eps_backend import EpsBackend
+from environment.ssos.mock_eps_backend import build_mock_eps_backend
+from environment.ssos.ros2_eps_bridge import Ros2EpsBridge
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
 
 SCENARIO_ROOT = Path(__file__).resolve().parent
@@ -103,19 +104,21 @@ def build_eclss(config: Dict[str, Any]) -> MockEclssSimulator:
     return eclss
 
 
-def build_eps_stack(config: Dict[str, Any]) -> EpsStack:
+def build_eps_backend(config: Dict[str, Any]) -> EpsBackend:
     eps_cfg = config.get("eps", {}) or {}
+    backend = str(eps_cfg.get("backend", "mock")).lower()
+    if backend in {"ssos_eps", "ros2", "ssos"}:
+        return Ros2EpsBridge()
     sarj_cfg = eps_cfg.get("sarj", {}) or {}
     eclipse_window = sarj_cfg.get("eclipse_window")
-    sarj = MockSarj(
+    return build_mock_eps_backend(
         beta_angle_deg=float(sarj_cfg.get("beta_angle_deg", 45.0)),
         eclipse_window=tuple(eclipse_window) if eclipse_window else None,
     )
-    return EpsStack(sarj=sarj)
 
 
 def build_station_simulator(config: Dict[str, Any]) -> StationSimulator:
-    return StationSimulator(eclss=build_eclss(config), eps=build_eps_stack(config))
+    return StationSimulator(eclss=build_eclss(config), eps=build_eps_backend(config))
 
 
 def build_simulator(config: Dict[str, Any]) -> StationSimulator:

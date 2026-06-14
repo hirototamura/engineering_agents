@@ -14,15 +14,16 @@ from environment.protocol import (
     TelemetrySnapshot,
     TopologyGraph,
 )
-from environment.ssos.eps_stack import EpsStack
+from environment.ssos.eps_backend import EpsBackend
 from environment.ssos.eps_types import BcduStatus, SarjReading
 from environment.ssos.mock_eclss import MockEclssSimulator
+from environment.ssos.mock_eps_backend import MockEpsBackend
 from environment.ssos.topics import EVENT_RECOVERY
 
 
 class StationSimulator:
     """
-    Implements SimulatorProtocol by coupling MockEclssSimulator with EpsStack.
+    Implements SimulatorProtocol by coupling MockEclssSimulator with an EpsBackend.
 
     request_eps_boost routes to BCDU discharge; support watts are applied to
     ECLSS power_margin at the start of each step (matching pre-EPS-3 timing).
@@ -31,10 +32,10 @@ class StationSimulator:
     def __init__(
         self,
         eclss: MockEclssSimulator,
-        eps: Optional[EpsStack] = None,
+        eps: Optional[EpsBackend] = None,
     ):
         self.eclss = eclss
-        self.eps = eps or EpsStack()
+        self.eps: EpsBackend = eps or MockEpsBackend()
         self._last_solar: Optional[SarjReading] = None
         self._last_bcdu: Optional[BcduStatus] = None
 
@@ -50,8 +51,7 @@ class StationSimulator:
         self.eclss.inject_anomaly(spec)
 
     def step(self) -> TelemetrySnapshot:
-        solar = self.eps.sarj.step()
-        self.eps.bcdu.update_solar(solar.solar_voltage_v)
+        solar = self.eps.poll_solar()
         self._last_solar = solar
 
         support = self.eps.consume_scheduled_support()
@@ -60,8 +60,8 @@ class StationSimulator:
             snap = replace(
                 snap,
                 power_margin_w=round(snap.power_margin_w + support, 2),
-                eps_support_w=round(self.eps.bcdu.support_w, 2),
-                eps_support_steps_remaining=self.eps.bcdu.support_steps_remaining,
+                eps_support_w=round(self.eps.support_w, 2),
+                eps_support_steps_remaining=self.eps.support_steps_remaining,
             )
         else:
             snap = replace(
@@ -70,7 +70,7 @@ class StationSimulator:
                 eps_support_steps_remaining=0,
             )
 
-        self._last_bcdu = self.eps.bcdu.step()
+        self._last_bcdu = self.eps.tick_bcdu()
         return snap
 
     def apply_command(self, cmd: RecoveryCommand) -> CommandResult:
@@ -97,7 +97,7 @@ class StationSimulator:
                     "kind": EVENT_RECOVERY,
                     "command": cmd.to_dict(),
                     "message": discharge.message,
-                    "eps": {"bcdu_mode": self.eps.bcdu.mode.value},
+                    "eps": {"bcdu_mode": self.eps.bcdu_mode.value},
                 }
             )
 
@@ -140,11 +140,10 @@ class StationSimulator:
     def _current_telemetry(self) -> TelemetrySnapshot:
         flags = self.eclss.anomalies.on_step(self.eclss.step_count)
         snap = self.eclss._snapshot(flags)
-        bcdu = self.eps.bcdu
-        if bcdu.support_steps_remaining > 0 and bcdu.support_w > 0:
+        if self.eps.support_steps_remaining > 0 and self.eps.support_w > 0:
             return replace(
                 snap,
-                eps_support_w=round(bcdu.support_w, 2),
-                eps_support_steps_remaining=bcdu.support_steps_remaining,
+                eps_support_w=round(self.eps.support_w, 2),
+                eps_support_steps_remaining=self.eps.support_steps_remaining,
             )
         return snap
