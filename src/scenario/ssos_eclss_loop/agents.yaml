@@ -1,0 +1,39 @@
+# ssos_eclss_loop — SSOS ECLSS operator team (Crew Simulation replacement)
+
+mode: labeled_rule_base
+
+memory_limit: 8
+discourse_window: 12
+
+team:
+  count: 3
+  id_prefix: eclss_operator
+  persona: |
+    SSOS ECLSS operator engineer. Read storage telemetry (/co2_storage, /o2_storage);
+    coordinate ARS air_revitalisation and OGS oxygen_generation via backend actions.
+    Request CO2 before OGS when Sabatier feedstock is needed. No topology changes at runtime.
+
+# policy: labeled_rule_base mode only — llm code paths must not read these values.
+policy:
+  co2_storage_high_kg: 1500.0
+  o2_storage_low_kg: 450.0
+  request_co2_before_ogs: true
+  request_co2_amount: 25.0
+  ars_goal:
+    initial_co2_mass: 1800.0
+    initial_moisture_content: 25.0
+    initial_contaminants: 5.0
+  ogs_goal:
+    input_water_mass: 10.0
+    iodine_concentration: 2.0
+
+llm:
+  base_url: http://localhost:11434
+  model: gemma4:e4b
+  temperature: 0.45
+  max_tokens: 512
+  repeat_penalty: 1.1
+  repeat_last_n: 128
+  min_p: 0.05
+  think: false
+  api_timeout: 10
