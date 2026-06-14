@@ -33,6 +33,32 @@ logger = logging.getLogger(__name__)
 BACKEND_ENV_VAR = "SSOS_ECLSS_BACKEND"
 
 
+def _omit_nulls(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return {key: value for key, value in payload.items() if value is not None}
+
+
+def _telemetry_summary_fields(
+    last_snap: Optional[EclssTelemetrySnapshot],
+    peak_co2: Optional[float],
+    min_o2: Optional[float],
+) -> Dict[str, Any]:
+    fields: Dict[str, Any] = {}
+    if peak_co2 is not None:
+        fields["peak_co2_storage_kg"] = round(peak_co2, 2)
+    if last_snap is not None:
+        if last_snap.co2_storage_kg is not None:
+            fields["final_co2_storage_kg"] = last_snap.co2_storage_kg
+        if last_snap.o2_storage_kg is not None:
+            fields["final_o2_storage_kg"] = last_snap.o2_storage_kg
+        if last_snap.product_water_reserve_l is not None:
+            fields["final_product_water_reserve_l"] = last_snap.product_water_reserve_l
+        if last_snap.raw_topics:
+            fields["telemetry_topics_read"] = sorted(last_snap.raw_topics.keys())
+    if min_o2 is not None:
+        fields["min_o2_storage_kg"] = round(min_o2, 2)
+    return fields
+
+
 def resolve_backend_kind(
     config: Dict[str, Any],
     overrides: Optional[Dict[str, Any]] = None,
@@ -184,17 +210,20 @@ class SsosEclssLoopScenario(Scenario):
             "backend": backend_kind,
             "agents_mode": (agents_config or {}).get("mode", "none"),
             "steps": steps,
-            "peak_co2_storage_kg": round(peak_co2, 2) if peak_co2 is not None else None,
-            "final_co2_storage_kg": last_snap.co2_storage_kg if last_snap else None,
-            "final_o2_storage_kg": last_snap.o2_storage_kg if last_snap else None,
-            "min_o2_storage_kg": round(min_o2, 2) if min_o2 is not None else None,
+            **_telemetry_summary_fields(last_snap, peak_co2, min_o2),
             "final_health": last_health,
             "message_count": message_count,
             "operational_command_count": operational_command_count,
-            "ars_invoked_step": ars_invoked_step,
-            "ogs_invoked_step": ogs_invoked_step,
-            "co2_requested_step": co2_requested_step,
         }
+        summary.update(
+            _omit_nulls(
+                {
+                    "ars_invoked_step": ars_invoked_step,
+                    "ogs_invoked_step": ogs_invoked_step,
+                    "co2_requested_step": co2_requested_step,
+                }
+            )
+        )
 
         if isinstance(team, SsosEclssLoopTeam):
             summary["team_count"] = team.team_cfg.count

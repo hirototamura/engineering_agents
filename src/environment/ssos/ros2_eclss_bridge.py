@@ -1,15 +1,20 @@
 """ROS 2 bridge to SSOS ECLSS (ARS + OGS + WRS).
 
-Uses ``ros2`` CLI subprocess calls so the bridge works in the SSOS Docker
-container without extra Python dependencies. When ``rclpy`` is importable, future
-phases may switch hot paths to native clients; Phase 1b stays CLI-first.
+Telemetry uses a persistent ``rclpy`` subscriber when available; otherwise
+parallel ``ros2 topic echo`` CLI calls. Actions and services stay CLI-based so
+the bridge works in the SSOS Docker container without extra pip dependencies.
 """
 
 from __future__ import annotations
 
+import os
 import re
+import shlex
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Sequence, Tuple
+
+from environment.ssos.ros2_eclss_telemetry import get_rclpy_telemetry_reader
 
 from environment.ssos.eclss_topics import (
     ACTION_AIR_REVITALISATION,
@@ -52,14 +57,47 @@ _SELF_DIAGNOSIS_BY_SUBSYSTEM = {
 }
 
 
+def _ros2_shell_preamble() -> str:
+    """Re-source ROS in a subshell (``PYTHONPATH`` from the parent breaks ``ros2cli``)."""
+    distro = os.environ.get("ROS_DISTRO", "jazzy")
+    parts = [f"source /opt/ros/{distro}/setup.bash"]
+    for candidate in (
+        os.environ.get("SSOS_WS_SETUP"),
+        os.path.expanduser("~/ssos_ws/install/setup.bash"),
+        "/root/ssos_ws/install/setup.bash",
+    ):
+        if candidate and os.path.isfile(candidate):
+            parts.append(f"source {candidate}")
+            break
+    return " && ".join(parts)
+
+
+def _should_wrap_ros2_cli() -> bool:
+    return bool(os.environ.get("PYTHONPATH"))
+
+
 def _run_ros2_cli(args: Sequence[str], timeout_s: float = 30.0) -> Tuple[int, str, str]:
-    proc = subprocess.run(
-        ["ros2", *args],
-        capture_output=True,
-        text=True,
-        timeout=timeout_s,
-        check=False,
-    )
+    if _should_wrap_ros2_cli():
+        quoted = " ".join(shlex.quote(a) for a in ["ros2", *args])
+        cmd = f"{_ros2_shell_preamble()} && {quoted}"
+        proc = subprocess.run(
+            ["bash", "-c", cmd],
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            check=False,
+        )
+    else:
+        env = os.environ.copy()
+        env.pop("PYTHONPATH", None)
+        proc = subprocess.run(
+            ["ros2", *args],
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            check=False,
+            env=env,
+        )
     return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
 
 
@@ -120,6 +158,18 @@ def _extract_string(text: str, pattern: str) -> Optional[str]:
     return match.group(1) if match else None
 
 
+def _extract_float64_data(text: str) -> Optional[float]:
+    """Parse ``data`` from ``ros2 topic echo`` (YAML or Jazzy Python repr)."""
+    for pattern in (
+        r"data:\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)",
+        r"data=([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)",
+    ):
+        value = _extract_float(text, pattern)
+        if value is not None:
+            return value
+    return None
+
+
 def _echo_float_topic(topic: str, timeout_s: float = 10.0) -> Optional[float]:
     try:
         code, out, err = _run_ros2_cli(
@@ -131,7 +181,33 @@ def _echo_float_topic(topic: str, timeout_s: float = 10.0) -> Optional[float]:
     if code != 0:
         return None
     combined = f"{out}\n{err}"
-    return _extract_float(combined, r"data:\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)")
+    return _extract_float64_data(combined)
+
+
+def _echo_float_topics_parallel(
+    topics: Sequence[str],
+    timeout_s: float,
+) -> dict[str, Optional[float]]:
+    """Fetch multiple float topics concurrently via ``ros2 topic echo``."""
+    if not topics:
+        return {}
+    if len(topics) == 1:
+        topic = topics[0]
+        return {topic: _echo_float_topic(topic, timeout_s=timeout_s)}
+
+    results: dict[str, Optional[float]] = {}
+    with ThreadPoolExecutor(max_workers=len(topics)) as pool:
+        futures = {pool.submit(_echo_float_topic, topic, timeout_s): topic for topic in topics}
+        for future, topic in futures.items():
+            try:
+                results[topic] = future.result()
+            except Exception:
+                results[topic] = None
+    return results
+
+
+def _force_cli_telemetry() -> bool:
+    return os.environ.get("SSOS_ECLSS_FORCE_CLI_TELEMETRY", "").lower() in {"1", "true", "yes"}
 
 
 class Ros2EclssBridge:
@@ -162,10 +238,20 @@ class Ros2EclssBridge:
             return False
 
     def poll_telemetry(self) -> EclssTelemetrySnapshot:
+        co2: Optional[float]
+        o2: Optional[float]
+        water: Optional[float]
+
+        if not _force_cli_telemetry():
+            reader = get_rclpy_telemetry_reader()
+            if reader is not None:
+                co2, o2, water = reader.read(wait_timeout_s=self.topic_timeout_s)
+            else:
+                co2, o2, water = self._poll_telemetry_cli()
+        else:
+            co2, o2, water = self._poll_telemetry_cli()
+
         raw: dict[str, object] = {}
-        co2 = _echo_float_topic(TOPIC_CO2_STORAGE, timeout_s=self.topic_timeout_s)
-        o2 = _echo_float_topic(TOPIC_O2_STORAGE, timeout_s=self.topic_timeout_s)
-        water = _echo_float_topic(TOPIC_WRS_PRODUCT_WATER_RESERVE, timeout_s=self.topic_timeout_s)
         if co2 is not None:
             raw[TOPIC_CO2_STORAGE] = co2
         if o2 is not None:
@@ -180,6 +266,17 @@ class Ros2EclssBridge:
             ogs_failure_enabled=self._failure_flags["ogs"],
             wrs_failure_enabled=self._failure_flags["wrs"],
             raw_topics=raw,
+        )
+
+    def _poll_telemetry_cli(self) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+        values = _echo_float_topics_parallel(
+            (TOPIC_CO2_STORAGE, TOPIC_O2_STORAGE, TOPIC_WRS_PRODUCT_WATER_RESERVE),
+            timeout_s=self.topic_timeout_s,
+        )
+        return (
+            values.get(TOPIC_CO2_STORAGE),
+            values.get(TOPIC_O2_STORAGE),
+            values.get(TOPIC_WRS_PRODUCT_WATER_RESERVE),
         )
 
     def send_air_revitalisation_goal(self, goal: ArsGoal) -> ActionResult:
@@ -314,9 +411,8 @@ class Ros2EclssBridge:
         goal_yaml: str,
     ) -> Tuple[str, Optional[str]]:
         try:
-            proc = subprocess.run(
+            code, out, err = _run_ros2_cli(
                 [
-                    "ros2",
                     "action",
                     "send_goal",
                     "--feedback",
@@ -324,19 +420,16 @@ class Ros2EclssBridge:
                     action_type,
                     goal_yaml,
                 ],
-                capture_output=True,
-                text=True,
-                timeout=self.action_timeout_s,
-                check=False,
+                timeout_s=self.action_timeout_s,
             )
         except FileNotFoundError:
             return "", "ros2 CLI not found"
         except subprocess.TimeoutExpired:
             return "", f"action goal timed out after {self.action_timeout_s}s"
 
-        combined = f"{proc.stdout}\n{proc.stderr}"
-        if proc.returncode != 0:
-            return combined, combined.strip() or f"ros2 action send_goal exited {proc.returncode}"
+        combined = f"{out}\n{err}"
+        if code != 0:
+            return combined, combined.strip() or f"ros2 action send_goal exited {code}"
         return combined, None
 
     def _call_service(

@@ -1,12 +1,19 @@
 """Contract and integration tests for Ros2EclssBridge (Phase 1b)."""
 
 import subprocess
+import threading
 
 import pytest
 
 from environment.ssos.eclss_backend import EclssBackend
 from environment.ssos.eclss_types import ArsGoal, OgsGoal, WrsGoal
 from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge, _echo_float_topic, _run_ros2_cli
+
+
+@pytest.fixture(autouse=True)
+def _force_cli_telemetry(monkeypatch):
+    """Keep existing CLI mocks effective when rclpy is installed on the host."""
+    monkeypatch.setenv("SSOS_ECLSS_FORCE_CLI_TELEMETRY", "1")
 
 
 def test_ros2_bridge_satisfies_protocol():
@@ -19,6 +26,45 @@ def test_ros2_available_false_when_cli_missing(monkeypatch):
 
     monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
     assert Ros2EclssBridge.ros2_available() is False
+
+
+def test_poll_telemetry_parses_jazzy_repr_float_topics(monkeypatch):
+    responses = {
+        ("/co2_storage",): "std_msgs.msg.Float64(data=1234.5)\n",
+        ("/o2_storage",): "std_msgs.msg.Float64(data=678.0)\n",
+        ("/wrs/product_water_reserve",): "std_msgs.msg.Float64(data=42.0)\n",
+    }
+
+    def fake_run(args, **_kwargs):
+        topic = args[3] if len(args) > 3 and args[1] == "topic" else ""
+        body = responses.get((topic,), "")
+        return subprocess.CompletedProcess(args, 0, body, "")
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    snap = Ros2EclssBridge().poll_telemetry()
+    assert snap.co2_storage_kg == 1234.5
+    assert snap.o2_storage_kg == 678.0
+    assert snap.product_water_reserve_l == 42.0
+
+
+def test_run_ros2_cli_wraps_when_pythonpath_set(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_run(cmd, **_kwargs):
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, "ok", "")
+
+    monkeypatch.setenv("PYTHONPATH", "/tmp/engineering_agents/src")
+    monkeypatch.setenv("ROS_DISTRO", "jazzy")
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    code, out, _err = _run_ros2_cli(["topic", "list"], timeout_s=5.0)
+    assert code == 0
+    assert out == "ok"
+    assert captured["cmd"][0] == "bash"
+    assert captured["cmd"][1] == "-c"
+    script = captured["cmd"][2]
+    assert "source /opt/ros/jazzy/setup.bash" in script
+    assert "ros2 topic list" in script
 
 
 def test_poll_telemetry_parses_float_topics(monkeypatch):
@@ -38,6 +84,75 @@ def test_poll_telemetry_parses_float_topics(monkeypatch):
     assert snap.co2_storage_kg == 1234.5
     assert snap.o2_storage_kg == 678.0
     assert snap.product_water_reserve_l == 42.0
+
+
+def test_parallel_cli_poll_runs_echoes_concurrently(monkeypatch):
+    import time
+
+    active = 0
+    peak = 0
+    lock = threading.Lock()
+
+    def fake_run(args, **_kwargs):
+        nonlocal active, peak
+        cmd = args
+        if cmd and cmd[0] == "bash" and len(cmd) > 2:
+            script = cmd[2]
+            is_echo = "ros2 topic echo" in script
+            topic = ""
+            if is_echo:
+                for candidate in ("/co2_storage", "/o2_storage", "/wrs/product_water_reserve"):
+                    if candidate in script:
+                        topic = candidate
+                        break
+        elif len(args) > 3 and args[1] == "topic" and args[2] == "echo":
+            is_echo = True
+            topic = args[3]
+        else:
+            is_echo = False
+            topic = ""
+
+        if is_echo:
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            try:
+                time.sleep(0.05)
+                value = {
+                    "/co2_storage": 1.0,
+                    "/o2_storage": 2.0,
+                    "/wrs/product_water_reserve": 3.0,
+                }[topic]
+                return subprocess.CompletedProcess(args, 0, f"data: {value}\n", "")
+            finally:
+                with lock:
+                    active -= 1
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    snap = Ros2EclssBridge().poll_telemetry()
+    assert peak >= 2
+    assert snap.co2_storage_kg == 1.0
+    assert snap.o2_storage_kg == 2.0
+    assert snap.product_water_reserve_l == 3.0
+
+
+def test_poll_uses_rclpy_reader_when_available(monkeypatch):
+    monkeypatch.delenv("SSOS_ECLSS_FORCE_CLI_TELEMETRY", raising=False)
+
+    class _FakeReader:
+        def read(self, wait_timeout_s: float):
+            assert wait_timeout_s == 7.5
+            return 10.0, 20.0, 30.0
+
+    monkeypatch.setattr(
+        "environment.ssos.ros2_eclss_bridge.get_rclpy_telemetry_reader",
+        lambda: _FakeReader(),
+    )
+    snap = Ros2EclssBridge(topic_timeout_s=7.5).poll_telemetry()
+    assert snap.co2_storage_kg == 10.0
+    assert snap.o2_storage_kg == 20.0
+    assert snap.product_water_reserve_l == 30.0
 
 
 def test_request_o2_parses_service_response(monkeypatch):

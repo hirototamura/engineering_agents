@@ -5,7 +5,7 @@ description: >
 
 simulation:
   steps: 8
-  initial_co2_storage_kg: 1650.0
+  initial_co2_storage_kg: 1500.0
   initial_o2_storage_kg: 480.0
   initial_product_water_l: 100.0
 

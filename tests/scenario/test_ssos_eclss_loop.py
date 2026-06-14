@@ -46,13 +46,13 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     assert len(health) == 8
     assert summary["operational_command_count"] == 0
     assert summary["message_count"] == 0
-    assert summary["ars_invoked_step"] is None
+    assert summary.get("ars_invoked_step") is None
     assert (run_dir / "provenance.jsonl").exists()
     assert (run_dir / "design_state.jsonl").exists() is False
     assert (run_dir / "design_proposals.json").exists() is False
 
     co2_series = [row["co2_storage_kg"] for row in telemetry]
-    assert co2_series[0] == pytest.approx(1650.0)
+    assert co2_series[0] == pytest.approx(1500.0)
     assert co2_series[-1] > co2_series[0], "CO2 should rise without agent intervention"
 
 
@@ -90,7 +90,7 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
         (e.get("command") or {}).get("kind") == "air_revitalisation" for e in applied
     )
 
-    assert telemetry[0]["co2_storage_kg"] == pytest.approx(1650.0)
+    assert telemetry[0]["co2_storage_kg"] == pytest.approx(1500.0)
     assert telemetry[1]["co2_storage_kg"] < telemetry[0]["co2_storage_kg"], (
         "ARS should reduce CO2 storage after step 0"
     )

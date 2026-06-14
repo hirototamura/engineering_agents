@@ -34,7 +34,7 @@ def compute_eclss_storage_health(
 
 def _co2_status(value: Optional[float], high: float, critical: float) -> HealthStatus:
     if value is None:
-        return HealthStatus.WARNING
+        return HealthStatus.UNKNOWN
     if value >= critical:
         return HealthStatus.CRITICAL
     if value >= high:
@@ -44,7 +44,7 @@ def _co2_status(value: Optional[float], high: float, critical: float) -> HealthS
 
 def _o2_status(value: Optional[float], low: float) -> HealthStatus:
     if value is None:
-        return HealthStatus.WARNING
+        return HealthStatus.UNKNOWN
     if value <= low * 0.75:
         return HealthStatus.CRITICAL
     if value <= low:
@@ -54,7 +54,7 @@ def _o2_status(value: Optional[float], low: float) -> HealthStatus:
 
 def _water_status(value: Optional[float], low: float) -> HealthStatus:
     if value is None:
-        return HealthStatus.SAFE
+        return HealthStatus.UNKNOWN
     if value <= low * 0.5:
         return HealthStatus.CRITICAL
     if value <= low:
@@ -63,5 +63,10 @@ def _water_status(value: Optional[float], low: float) -> HealthStatus:
 
 
 def _worst_status(*statuses: HealthStatus) -> HealthStatus:
-    order = {HealthStatus.SAFE: 0, HealthStatus.WARNING: 1, HealthStatus.CRITICAL: 2}
+    order = {
+        HealthStatus.SAFE: 0,
+        HealthStatus.UNKNOWN: 1,
+        HealthStatus.WARNING: 2,
+        HealthStatus.CRITICAL: 3,
+    }
     return max(statuses, key=lambda s: order[s])

@@ -92,7 +92,10 @@ class EclssTelemetrySnapshot:
     raw_topics: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        payload = {key: value for key, value in asdict(self).items() if value is not None}
+        if not payload.get("raw_topics"):
+            payload.pop("raw_topics", None)
+        return payload
 
 
 @dataclass

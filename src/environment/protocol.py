@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 class HealthStatus(str, Enum):
     SAFE = "safe"
+    UNKNOWN = "unknown"
     WARNING = "warning"
     CRITICAL = "critical"
 
