@@ -158,14 +158,95 @@ def test_set_subsystem_failure_publishes_bool(monkeypatch):
     assert "{data: true}" in captured["args"][-1]
 
 
-def test_wrs_methods_raise_not_implemented():
-    bridge = Ros2EclssBridge()
-    with pytest.raises(NotImplementedError):
-        bridge.send_water_recovery_goal(WrsGoal())
-    with pytest.raises(NotImplementedError):
-        bridge.request_product_water(1.0)
-    with pytest.raises(NotImplementedError):
-        bridge.submit_grey_water(1.0)
+def test_send_water_recovery_goal_parses_action_result(monkeypatch):
+    def fake_run(args, **_kwargs):
+        assert "/water_recovery_systems" in args
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            "Goal finished with status: SUCCEEDED\n"
+            "Result:\n  success: true\n"
+            "  total_purified_water: 1.68\n"
+            "  total_cycles: 1\n"
+            "  summary_message: 'done'\n",
+            "",
+        )
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    result = Ros2EclssBridge().send_water_recovery_goal(WrsGoal(urine_volume=2.0))
+    assert result.success
+    assert result.details.get("total_purified_water") == 1.68
+    assert result.details.get("total_cycles") == 1.0
+
+
+def test_request_product_water_parses_service_response(monkeypatch):
+    def fake_run(args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            "response:\n  water_granted: 4.5\n  success: true\n  message: 'ok'\n",
+            "",
+        )
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    result = Ros2EclssBridge().request_product_water(5.0)
+    assert result.success
+    assert result.response_value == 4.5
+
+
+def test_request_product_water_parses_jazzy_repr(monkeypatch):
+    def fake_run(args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            (
+                "response:\n"
+                "space_station_interfaces.srv.RequestProductWater_Response("
+                "water_granted=3.0, success=True, message='Water delivered')\n"
+            ),
+            "",
+        )
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    result = Ros2EclssBridge().request_product_water(3.0)
+    assert result.success
+    assert result.response_value == 3.0
+    assert result.message == "Water delivered"
+
+
+def test_submit_grey_water_parses_service_response(monkeypatch):
+    def fake_run(args, **_kwargs):
+        assert "gray_water_liters" in args[-1]
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            "response:\n  success: true\n  message: 'accepted'\n",
+            "",
+        )
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    result = Ros2EclssBridge().submit_grey_water(2.5)
+    assert result.success
+    assert result.message == "accepted"
+
+
+def test_submit_grey_water_parses_jazzy_repr(monkeypatch):
+    def fake_run(args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            (
+                "response:\n"
+                "space_station_interfaces.srv.GreyWater_Response("
+                "success=True, message='Grey water received')\n"
+            ),
+            "",
+        )
+
+    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    result = Ros2EclssBridge().submit_grey_water(1.0)
+    assert result.success
+    assert result.message == "Grey water received"
 
 
 @pytest.mark.skipif(not Ros2EclssBridge.ros2_available(), reason="ros2 CLI not available")

@@ -1,4 +1,4 @@
-"""ROS 2 bridge to SSOS ECLSS (ARS + OGS in Phase 1b).
+"""ROS 2 bridge to SSOS ECLSS (ARS + OGS + WRS).
 
 Uses ``ros2`` CLI subprocess calls so the bridge works in the SSOS Docker
 container without extra Python dependencies. When ``rclpy`` is importable, future
@@ -14,14 +14,20 @@ from typing import Optional, Sequence, Tuple
 from environment.ssos.eclss_topics import (
     ACTION_AIR_REVITALISATION,
     ACTION_OXYGEN_GENERATION,
+    ACTION_WATER_RECOVERY,
     ACTION_TYPE_AIR_REVITALISATION,
     ACTION_TYPE_OXYGEN_GENERATION,
+    ACTION_TYPE_WATER_RECOVERY,
     MSG_TYPE_BOOL,
     MSG_TYPE_FLOAT64,
     SERVICE_ARS_REQUEST_CO2,
+    SERVICE_GREY_WATER,
     SERVICE_OGS_REQUEST_O2,
+    SERVICE_WRS_PRODUCT_WATER,
     SERVICE_TYPE_CO2_REQUEST,
+    SERVICE_TYPE_GREY_WATER,
     SERVICE_TYPE_O2_REQUEST,
+    SERVICE_TYPE_PRODUCT_WATER,
     TOPIC_ARS_SELF_DIAGNOSIS,
     TOPIC_CO2_STORAGE,
     TOPIC_O2_STORAGE,
@@ -233,7 +239,28 @@ class Ros2EclssBridge:
         )
 
     def send_water_recovery_goal(self, goal: WrsGoal) -> ActionResult:
-        raise NotImplementedError("WRS actions are Phase 2")
+        goal_yaml = f"{{urine_volume: {goal.urine_volume}}}"
+        combined, err = self._send_action_goal(
+            ACTION_WATER_RECOVERY,
+            ACTION_TYPE_WATER_RECOVERY,
+            goal_yaml,
+        )
+        if err:
+            return ActionResult(success=False, summary_message=err)
+        success = "Goal finished with status: SUCCEEDED" in combined or "Result:" in combined
+        summary = _extract_string(combined, r"summary_message:\s*'([^']*)'") or _extract_string(
+            combined, r'summary_message:\s*"([^"]*)"'
+        )
+        return ActionResult(
+            success=success,
+            summary_message=summary or "",
+            details={
+                "total_purified_water": _extract_float(
+                    combined, r"total_purified_water:\s*([-+]?[0-9]*\.?[0-9]+)"
+                ),
+                "total_cycles": _extract_float(combined, r"total_cycles:\s*([-+]?[0-9]*\.?[0-9]+)"),
+            },
+        )
 
     def request_o2(self, amount: float) -> ServiceResult:
         return self._call_service(
@@ -252,10 +279,19 @@ class Ros2EclssBridge:
         )
 
     def request_product_water(self, liters: float) -> ServiceResult:
-        raise NotImplementedError("WRS product water is Phase 2")
+        return self._call_service(
+            SERVICE_WRS_PRODUCT_WATER,
+            SERVICE_TYPE_PRODUCT_WATER,
+            f"{{amount: {liters}}}",
+            response_field="water_granted",
+        )
 
     def submit_grey_water(self, liters: float) -> ServiceResult:
-        raise NotImplementedError("grey water service is Phase 2")
+        return self._call_service(
+            SERVICE_GREY_WATER,
+            SERVICE_TYPE_GREY_WATER,
+            f"{{gray_water_liters: {liters}}}",
+        )
 
     def set_subsystem_failure(self, subsystem: str, enabled: bool) -> None:
         key = subsystem.lower().removesuffix("_failure")
@@ -309,7 +345,7 @@ class Ros2EclssBridge:
         service_type: str,
         request_yaml: str,
         *,
-        response_field: str,
+        response_field: Optional[str] = None,
     ) -> ServiceResult:
         try:
             code, out, err = _run_ros2_cli(
@@ -326,6 +362,10 @@ class Ros2EclssBridge:
             return ServiceResult(success=False, message=combined.strip() or f"ros2 service call exited {code}")
 
         success = _extract_service_success(combined) or False
-        response_value = _extract_service_field_float(combined, response_field) or 0.0
+        response_value = (
+            _extract_service_field_float(combined, response_field) or 0.0
+            if response_field
+            else 0.0
+        )
         message = _extract_service_message(combined)
         return ServiceResult(success=success, response_value=response_value, message=message or "")

@@ -13,6 +13,10 @@ from environment.ssos.eclss_types import (
     WrsGoal,
 )
 
+# Approximate WRS pipeline recovery (UPA × filter × ionization from SSOS defaults).
+_WRS_URINE_RECOVERY = 0.95 * 0.90 * 0.98
+_GREY_WATER_RECOVERY = 0.50
+
 
 class MockEclssBackend:
     """No-op backend that satisfies EclssBackend without ROS or SSOS."""
@@ -23,6 +27,7 @@ class MockEclssBackend:
             o2_storage_kg=500.0,
             product_water_reserve_l=100.0,
         )
+        self._grey_water_buffer_l = 0.0
         self._failure_flags: dict[str, bool] = {
             "ars": False,
             "ogs": False,
@@ -30,12 +35,14 @@ class MockEclssBackend:
         }
         self.last_ars_goal: Optional[ArsGoal] = None
         self.last_ogs_goal: Optional[OgsGoal] = None
+        self.last_wrs_goal: Optional[WrsGoal] = None
 
     def poll_telemetry(self) -> EclssTelemetrySnapshot:
         return EclssTelemetrySnapshot(
             co2_storage_kg=self._telemetry.co2_storage_kg,
             o2_storage_kg=self._telemetry.o2_storage_kg,
             product_water_reserve_l=self._telemetry.product_water_reserve_l,
+            grey_water_collected_l=self._grey_water_buffer_l,
             ars_failure_enabled=self._failure_flags["ars"],
             ogs_failure_enabled=self._failure_flags["ogs"],
             wrs_failure_enabled=self._failure_flags["wrs"],
@@ -47,14 +54,28 @@ class MockEclssBackend:
 
     def send_oxygen_generation_goal(self, goal: OgsGoal) -> ActionResult:
         self.last_ogs_goal = goal
+        water_used = goal.input_water_mass
+        reserve = self._telemetry.product_water_reserve_l or 0.0
+        self._telemetry.product_water_reserve_l = max(0.0, reserve - water_used)
         return ActionResult(
             success=True,
             summary_message="mock oxygen_generation complete",
-            details={"total_o2_generated": 120.0},
+            details={"total_o2_generated": 120.0, "input_water_mass": water_used},
         )
 
     def send_water_recovery_goal(self, goal: WrsGoal) -> ActionResult:
-        raise NotImplementedError("WRS actions are Phase 2")
+        self.last_wrs_goal = goal
+        purified_from_urine = goal.urine_volume * _WRS_URINE_RECOVERY
+        grey_recovered = self._grey_water_buffer_l * _GREY_WATER_RECOVERY
+        self._grey_water_buffer_l = max(0.0, self._grey_water_buffer_l - grey_recovered)
+        total_purified = purified_from_urine + grey_recovered
+        reserve = self._telemetry.product_water_reserve_l or 0.0
+        self._telemetry.product_water_reserve_l = reserve + total_purified
+        return ActionResult(
+            success=True,
+            summary_message="mock water_recovery complete",
+            details={"total_purified_water": total_purified, "total_cycles": 1},
+        )
 
     def request_o2(self, amount: float) -> ServiceResult:
         return ServiceResult(success=True, response_value=amount, message="mock o2 delivered")
@@ -63,10 +84,19 @@ class MockEclssBackend:
         return ServiceResult(success=True, response_value=amount, message="mock co2 delivered")
 
     def request_product_water(self, liters: float) -> ServiceResult:
-        raise NotImplementedError("WRS product water is Phase 2")
+        reserve = self._telemetry.product_water_reserve_l or 0.0
+        granted = min(liters, reserve)
+        self._telemetry.product_water_reserve_l = reserve - granted
+        success = granted >= liters
+        return ServiceResult(
+            success=success,
+            response_value=granted,
+            message="mock water delivered" if success else "insufficient product water reserve",
+        )
 
     def submit_grey_water(self, liters: float) -> ServiceResult:
-        raise NotImplementedError("grey water service is Phase 2")
+        self._grey_water_buffer_l += liters
+        return ServiceResult(success=True, message="mock grey water accepted")
 
     def set_subsystem_failure(self, subsystem: str, enabled: bool) -> None:
         key = subsystem.lower().removesuffix("_failure")

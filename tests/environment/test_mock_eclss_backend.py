@@ -44,11 +44,37 @@ def test_mock_set_subsystem_failure():
     assert snap.ars_failure_enabled is True
 
 
-def test_mock_wrs_methods_raise_not_implemented():
+def test_mock_wrs_water_tradeoffs():
     backend = MockEclssBackend()
-    with pytest.raises(NotImplementedError):
-        backend.send_water_recovery_goal(WrsGoal())
-    with pytest.raises(NotImplementedError):
-        backend.request_product_water(1.0)
-    with pytest.raises(NotImplementedError):
-        backend.submit_grey_water(1.0)
+    before = backend.poll_telemetry()
+    assert before.product_water_reserve_l == 100.0
+    assert before.grey_water_collected_l == 0.0
+
+    backend.submit_grey_water(4.0)
+    assert backend.poll_telemetry().grey_water_collected_l == 4.0
+
+    wrs = backend.send_water_recovery_goal(WrsGoal(urine_volume=2.0))
+    assert wrs.success
+    assert backend.last_wrs_goal.urine_volume == 2.0
+    after_recovery = backend.poll_telemetry()
+    assert after_recovery.product_water_reserve_l > before.product_water_reserve_l
+
+    product = backend.request_product_water(10.0)
+    assert product.success
+    assert product.response_value == 10.0
+    after_drink = backend.poll_telemetry()
+    assert after_drink.product_water_reserve_l == after_recovery.product_water_reserve_l - 10.0
+
+    ogs = backend.send_oxygen_generation_goal(OgsGoal(input_water_mass=5.0))
+    assert ogs.success
+    after_ogs = backend.poll_telemetry()
+    assert after_ogs.product_water_reserve_l == after_drink.product_water_reserve_l - 5.0
+
+
+def test_mock_request_product_water_insufficient_reserve():
+    backend = MockEclssBackend()
+    backend._telemetry.product_water_reserve_l = 2.0
+    result = backend.request_product_water(5.0)
+    assert result.success is False
+    assert result.response_value == 2.0
+    assert backend.poll_telemetry().product_water_reserve_l == 0.0

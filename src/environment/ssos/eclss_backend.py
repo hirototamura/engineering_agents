@@ -18,7 +18,7 @@ from environment.ssos.eclss_types import (
 class EclssBackend(Protocol):
     """Backend for SSOS ECLSS closed-loop ops (Crew Simulation replacement).
 
-    Phase 1b implements ARS + OGS; WRS methods are stubs until Phase 2.
+    Phase 1b implements ARS + OGS; Phase 2 adds WRS.
     """
 
     def poll_telemetry(self) -> EclssTelemetrySnapshot: ...

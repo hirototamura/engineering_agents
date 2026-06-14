@@ -85,6 +85,7 @@ class EclssTelemetrySnapshot:
     co2_storage_kg: Optional[float] = None
     o2_storage_kg: Optional[float] = None
     product_water_reserve_l: Optional[float] = None
+    grey_water_collected_l: Optional[float] = None
     ars_failure_enabled: Optional[bool] = None
     ogs_failure_enabled: Optional[bool] = None
     wrs_failure_enabled: Optional[bool] = None
