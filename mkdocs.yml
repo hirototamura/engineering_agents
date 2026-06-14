@@ -1,0 +1,57 @@
+site_name: Engineering Agents
+site_description: SSOS ECLSS + EPS integration documentation
+docs_dir: docs
+theme:
+  name: material
+  language: ja
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: ダークモード
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: ライトモード
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+plugins:
+  - search
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+nav:
+  - ホーム: index.md
+  - ドキュメント索引: catalog.md
+  - SSOS 接合:
+    - 概要: ssos/index.md
+    - クイックスタート: ssos/quickstart.md
+    - ECLSS 統合: ssos/eclss-integration.md
+    - EPS 統合: ssos/eps-integration.md
+    - ssos_eclss_loop シナリオ: ssos/scenario-eclss-loop.md
+    - トラブルシューティング: ssos/troubleshooting.md
+    - ロードマップ: ssos/roadmap.md
+    - API リファレンス: ssos/api-reference.md
+  - 既存ドキュメント:
+    - アーキテクチャ: architecture.md
+    - API 契約: api-contracts.md
+    - 開発プラン: development-plan.md

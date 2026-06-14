@@ -20,10 +20,13 @@ Research repository that simulates **agent teams** detecting, responding to, and
 | Development plan | [en/docs/development-plan.md](en/docs/development-plan.md) | [ja/docs/development-plan.md](ja/docs/development-plan.md) |
 | One Piece integration | [en/docs/one-piece-integration.md](en/docs/one-piece-integration.md) | [ja/docs/one-piece-integration.md](ja/docs/one-piece-integration.md) |
 | Scenario: scrubber_degradation | [en/docs/scenario-scrubber-degradation.md](en/docs/scenario-scrubber-degradation.md) | [ja/docs/scenario-scrubber-degradation.md](ja/docs/scenario-scrubber-degradation.md) |
+| **SSOS ECLSS + EPS (MkDocs)** | [docs/ssos/index.md](docs/ssos/index.md) | [docs/ssos/index.md](docs/ssos/index.md) |
 
 Research memos live under [en/memo/](en/memo/) and [ja/memo/](ja/memo/).
 
 Shared dashboard screenshots: [docs/images/](docs/images/).
+
+MkDocs catalog and preview: [docs/catalog.md](docs/catalog.md) (`mkdocs serve`).
 
 ---
 
