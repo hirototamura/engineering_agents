@@ -9,7 +9,7 @@
 | 項目 | 値 |
 |------|-----|
 | ブランチ | `feat/ssos-eclss-loop` |
-| 最新コミット | `c82b9c3` — docs(memo): SSOS docs branch split |
+| 最新コミット | `7cd0568` 以降 — `git log -1 --oneline` で確認 |
 | Phase コミット | `2700fda` Phase 2 WRS / `3b4b0b4` Phase 3 EPS / `7196812` Phase 4 シナリオ / `2c62f15` プラン更新 |
 | テスト | `pytest` → **104 passed**, 3 skipped（2026-06-14） |
 | Phase 0–4 | **完了** |
