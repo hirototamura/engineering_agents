@@ -27,6 +27,12 @@ from scenario.runner import (
 )
 from scenario.ssos_eclss_loop.health import compute_eclss_storage_health
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
+from scenario.ssos_eclss_loop.operational_proposals import (
+    apply_operational_proposals,
+    build_operational_proposals_from_run,
+    load_operational_proposals,
+    write_operational_proposals,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -118,8 +124,12 @@ class SsosEclssLoopScenario(Scenario):
         output_dir: Optional[Path] = None,
         overrides: Optional[Dict[str, Any]] = None,
         recreate_output: bool = True,
+        apply_proposals_path: Optional[Path] = None,
     ) -> Path:
         config = self.load_config(overrides)
+        if apply_proposals_path is not None:
+            proposals = load_operational_proposals(apply_proposals_path)
+            config = apply_operational_proposals(config, proposals)
         agents_config = load_agents_config(self.name, config)
         sim_cfg = config.get("simulation", {})
         steps = int(sim_cfg.get("steps", 8))
@@ -228,6 +238,16 @@ class SsosEclssLoopScenario(Scenario):
         if isinstance(team, SsosEclssLoopTeam):
             summary["team_count"] = team.team_cfg.count
             summary["agent_ids"] = list(team.team_cfg.agent_ids)
+            if team.mode == "labeled_rule_base" and team.policy:
+                proposals = build_operational_proposals_from_run(
+                    proposed_by=team.team_cfg.action_rep_id(steps - 1),
+                    decision_source="rule",
+                    policy=team.policy,
+                )
+                proposals_path = run_dir / "operational_proposals.json"
+                write_operational_proposals(proposals_path, proposals)
+                summary["operational_proposals_path"] = str(proposals_path)
+                summary["operational_proposal_count"] = len(proposals.get("changes", []))
 
         log.write_summary(summary)
 
@@ -264,6 +284,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Override agents.mode from scenario.yaml",
     )
     parser.add_argument("--steps", type=int, help="Override simulation.steps")
+    parser.add_argument(
+        "--apply-proposals",
+        type=Path,
+        metavar="PATH",
+        help="Apply operational_proposals.json from a prior run before executing",
+    )
     args = parser.parse_args(argv)
 
     overrides: Dict[str, Any] = {}
@@ -273,8 +299,16 @@ def main(argv: Optional[list[str]] = None) -> int:
         overrides["agents"] = {"mode": args.agents_mode}
     if args.steps is not None:
         overrides["simulation"] = {"steps": args.steps}
+    if args.apply_proposals:
+        apply_path = args.apply_proposals
+    else:
+        apply_path = None
 
-    run_dir = SsosEclssLoopScenario().run(output_dir=args.output_dir, overrides=overrides or None)
+    run_dir = SsosEclssLoopScenario().run(
+        output_dir=args.output_dir,
+        overrides=overrides or None,
+        apply_proposals_path=apply_path,
+    )
     print(json.dumps(json.loads((run_dir / "summary.json").read_text(encoding="utf-8")), indent=2))
     return 0
 

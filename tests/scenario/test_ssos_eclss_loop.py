@@ -94,6 +94,29 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     assert telemetry[1]["co2_storage_kg"] < telemetry[0]["co2_storage_kg"], (
         "ARS should reduce CO2 storage after step 0"
     )
+    assert (run_dir / "operational_proposals.json").exists()
+    assert summary.get("operational_proposal_count", 0) >= 1
+
+
+def test_ssos_eclss_loop_apply_proposals(tmp_path: Path):
+    first = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "first",
+        overrides={"agents": {"mode": "labeled_rule_base"}},
+        recreate_output=True,
+    )
+    proposals_path = first / "operational_proposals.json"
+    assert proposals_path.exists()
+
+    from scenario.ssos_eclss_loop.scenario_run import SsosEclssLoopScenario
+
+    second = SsosEclssLoopScenario().run(
+        output_dir=tmp_path / "second",
+        overrides={"agents": {"mode": "labeled_rule_base"}},
+        apply_proposals_path=proposals_path,
+    )
+    summary = json.loads((second / "summary.json").read_text(encoding="utf-8"))
+    assert summary["operational_command_count"] >= 1
 
 
 def test_ssos_eclss_loop_labeled_agents_ogs_when_o2_low(tmp_path: Path):

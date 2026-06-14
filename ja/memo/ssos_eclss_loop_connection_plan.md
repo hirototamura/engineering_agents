@@ -13,7 +13,8 @@
 | Phase コミット | `2700fda` Phase 2 WRS / `3b4b0b4` Phase 3 EPS / `7196812` Phase 4 シナリオ / `2c62f15` プラン更新 |
 | テスト | `pytest` → **104 passed**, 3 skipped（2026-06-14） |
 | Phase 0–4 | **完了** |
-| Phase 5 | **未着手** — 次のプラン参照 |
+| Phase 5 | **完了** — `operational_proposals.json` + `--apply-proposals` |
+| Phase 6 | **未着手** — LLM エージェント（次のプラン参照） |
 
 | ユーザ向けドキュメント | ブランチ **`docs/ssos-mkdocs`**（MkDocs。`12267a4` は本ブランチから revert 済み） |
 | ドキュメント保守 | 別エージェント — `docs/ssos-mkdocs` 上の `docs/MAINTENANCE.md` |
@@ -27,7 +28,7 @@
 | ランタイム `DesignChange` | **削除済み** — `SimulatorProtocol.apply_design_change` なし |
 | scrubber_degradation | **凍結** — 事後 `design_proposals.json`（dict）とダッシュボード After プレビューは維持 |
 | 新シナリオ | `ssos_eclss_loop` — **実装済み**（`7196812`） |
-| 事後提案（新） | `operational_proposals.json` — `set_parameter` / `action_profile` / `service_config` のみ |
+| 事後提案（新） | `operational_proposals.json` — **実装済み**（Phase 5） |
 
 ---
 
@@ -41,7 +42,8 @@
 | **2** | + WRS | **完了** (`2700fda`) | `run_ssos_eclss_2_smoke.sh`、水トレードオフ信号 |
 | **3** | EPS 接合 | **完了** (`3b4b0b4`) | [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md)、`run_ssos_eps_smoke.sh` |
 | **4** | `ssos_eclss_loop` + `SsosEclssLoopTeam` | **完了** (`7196812`) | mock/ros2 シナリオ、telemetry JSONL |
-| **5** | `operational_proposals.json` + 次 run 適用 | 未着手 | `--apply-proposals` |
+| **5** | `operational_proposals.json` + 次 run 適用 | **完了** | `--apply-proposals`、ラン終了時に JSON 出力 |
+| **6** | LLM エージェント（`SsosEclssLoopTeam`） | 未着手 | `agents-mode llm` + Ollama で operational コマンド |
 
 ---
 
@@ -269,18 +271,40 @@ python -c "from scenario.runner import run_scenario; run_scenario('ssos_eclss_lo
 
 ---
 
-## 次のプラン（Phase 5+）
+## 次のプラン（Phase 6+）
 
-### Phase 5 — operational_proposals（優先）
+### Phase 6 — LLM エージェント（優先）
 
 | 項目 | 内容 |
 |------|------|
-| 出力 | `operational_proposals.json` — `set_parameter` / `action_profile` / `service_config` のみ（ランタイム恒久トポロジ変更なし） |
-| CLI | `--apply-proposals` で**次 run**に提案を反映（scrubber の `design_proposals.json` パターンに準拠） |
-| 検証 | 適用前後の telemetry diff + 決定論的 health で pass/fail |
-| 参照 | `docs/ssos-mkdocs` の `docs/ssos/roadmap.md` |
+| 対象 | `SsosEclssLoopTeam._run_step_llm`（現状スタブ） |
+| 推論 | `OllamaClient` — `agents.yaml` の `llm` 設定（scrubber パターン準拠） |
+| 出力 | operational コマンド（ARS / OGS / request_co2）+ `operational_proposals.json`（`decision_source: llm`） |
+| 検証 | mock バックエンドで pytest；ros2 はコンテナ内 + `host.docker.internal:11434` 等 |
+| 完了条件 | `agents-mode llm` で `operational_command_count` > 0、提案 JSON が valid |
 
-### バックログ（Phase 5 以降）
+```bash
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
+```
+
+### Phase 5 成果物（完了）
+
+| ファイル | 役割 |
+|----------|------|
+| `src/scenario/ssos_eclss_loop/operational_proposals.py` | 読込・検証・適用・ビルド |
+| `scenario_run.py` | ラン終了時に `operational_proposals.json` 出力、`--apply-proposals` |
+
+```bash
+# 1 回目
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
+
+# 2 回目 — 前 run の提案を適用
+python -m scenario.ssos_eclss_loop.scenario_run \
+  --backend mock --agents-mode labeled_rule_base \
+  --apply-proposals src/experiments/results/ssos_eclss_loop_labeled_rule_base/operational_proposals.json
+```
+
+### バックログ（Phase 6 以降）
 
 | 項目 | 説明 |
 |------|------|
