@@ -198,7 +198,7 @@ ollama pull gemma4:e4b
 ollama list
 ```
 
-デフォルトの LLM 設定は [`src/scenario/scrubber_degradation/agents.yaml`](../../src/scenario/scrubber_degradation/agents.yaml)（`base_url: http://localhost:11434`）です。Ollama が起動していないと `llm` モードは失敗します。
+デフォルトの LLM 設定は [`src/scenario/scrubber_degradation/agents.yaml`](../src/scenario/scrubber_degradation/agents.yaml)（`base_url: http://localhost:11434`）です。Ollama が起動していないと `llm` モードは失敗します。
 
 ---
 

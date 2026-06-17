@@ -198,7 +198,7 @@ ollama pull gemma4:e4b
 ollama list
 ```
 
-Default LLM settings are in [`src/scenario/scrubber_degradation/agents.yaml`](../../src/scenario/scrubber_degradation/agents.yaml) (`base_url: http://localhost:11434`). LLM mode fails if Ollama is not running.
+Default LLM settings are in [`src/scenario/scrubber_degradation/agents.yaml`](../src/scenario/scrubber_degradation/agents.yaml) (`base_url: http://localhost:11434`). LLM mode fails if Ollama is not running.
 
 ---
 
