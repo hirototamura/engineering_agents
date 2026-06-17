@@ -28,6 +28,47 @@
 
 ---
 
+## scenario.yaml 設定
+
+`src/scenario/runner.py` が `scenario.yaml` から `StationSimulator` を構築する。`run_scenario(..., overrides={...})` の overrides は読み込み後の YAML に deep-merge される。
+
+### design_parameters
+
+ECLSS プラントの可変係数（`DesignStateManager`）。省略したキーは `src/environment/eclss_ops/design_state.py` の `default_parameters()` にフォールバックする。
+
+| キー | デフォルト | 説明 |
+| --- | --- | --- |
+| `scrubber_base_efficiency` | 0.95 | 名目スクラバー除去効率 |
+| `co2_production_ppm_per_step` | 32.0 | フル代謝負荷時の step あたり CO2 上昇 |
+| `scrub_rate_coefficient` | 0.06 | ファン速度に対する除去レート係数 |
+| `fan_power_w` | 80.0 | フルファン時の追加消費電力 |
+| `bypass_power_w` | 40.0 | 一時バイパス有効時の消費電力 |
+| `bypass_flow_bonus` | 0.15 | 一時バイパスによる流量ボーナス |
+| `permanent_bypass_power_w` | 20.0 | 恒久バイパスエッジの消費電力（事後提案用） |
+| `load_reduction_factor` | 0.6 | `reduce_load` 後の CO2 産生倍率 |
+| `base_power_draw_w` | 200.0 | ECLSS ベースライン消費電力 |
+| `eps_support_duration_steps` | 5.0 | `request_eps_boost` 支援の持続 step 数（`StationSimulator` が design parameters から参照） |
+
+### eps（任意）
+
+`build_eps_stack()` に渡される。省略時は SARJ は `beta_angle_deg: 45.0`、食期間なし。
+
+```yaml
+eps:
+  sarj:
+    beta_angle_deg: 45.0
+    eclipse_window: [10, 15]   # 任意。含む step 範囲。食中は太陽電圧が低下
+```
+
+| キー | デフォルト | 説明 |
+| --- | --- | --- |
+| `eps.sarj.beta_angle_deg` | 45.0 | 発電モデル用太陽ベータ角（`MockSarj`） |
+| `eps.sarj.eclipse_window` | なし | 2 要素 `[start_step, end_step]`。範囲内は食電圧 |
+
+`agents.yaml` の `policy.eps_boost_w` は別物 — `request_eps_boost` が要求するワット数であり、SARJ の食スケジュールではない。
+
+---
+
 ## TelemetrySnapshot
 
 `telemetry.jsonl` の 1 行。
@@ -266,6 +307,22 @@
 ## JSONL 出力ディレクトリ
 
 `src/experiments/results/<run_id>/`
+
+### EventLog ストリーム
+
+`src/core/event_log.py` の `EventLog.STREAMS` が有効なストリーム名を定義する。各ストリームはレコード追加時に `<stream>.jsonl` へ書き込む。
+
+| ストリーム | MVP で書き込み | 説明 |
+| --- | --- | --- |
+| `telemetry` | あり | step ごとの ECLSS `TelemetrySnapshot` |
+| `health_metrics` | あり | 決定論的 CO2 / 電力 / overall 状態 |
+| `eps_telemetry` | あり | SARJ + BCDU 状態（`StationSimulator` のみ） |
+| `design_state` | あり | 各 step のエージェント行動前トポロジ + パラメータ |
+| `events` | あり | 異常注入、回復適用 |
+| `messages` | あり | エージェント発話（`agents.mode` ≠ `none` 時） |
+| `memory_reasoning` | **なし** | 将来のエージェント別メモリトレース用に予約。ストリーム名は登録済みだが現状の writer はない |
+
+`summary.json`、`design_proposals.json`、`provenance.jsonl` は `EventLog.append()` 外で書き込まれる。
 
 ### events.jsonl
 

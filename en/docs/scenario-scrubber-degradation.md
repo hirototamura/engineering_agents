@@ -72,6 +72,16 @@ simulation:
   initial_co2_ppm: 800.0
   initial_power_margin_w: 150.0
 
+design_parameters:
+  scrubber_base_efficiency: 0.95
+  co2_production_ppm_per_step: 32.0
+  eps_support_duration_steps: 5.0   # optional; default 5 — BCDU support window length
+
+eps:                               # optional; SARJ mock defaults when omitted
+  sarj:
+    beta_angle_deg: 45.0
+    # eclipse_window: [10, 15]     # optional inclusive step range
+
 anomalies:
   - name: scrubber_degradation
     start_step: 20
@@ -187,7 +197,7 @@ run_scenario(
 | `set_fan_speed` | Faster scrubber airflow → higher removal rate, higher power draw |
 | `enable_bypass` | Temporary bypass path → flow bonus |
 | `reduce_load` | Reduce metabolic load → lower CO2 production |
-| `request_eps_boost` | BCDU discharge → grant `eps_support_w` for a fixed number of steps |
+| `request_eps_boost` | BCDU discharge → grant `eps_support_w` for `eps_support_duration_steps` (default 5; see `design_parameters`) |
 
 None of these **change permanent topology**. `enable_bypass` is an operational flag, separate from `add_edge` in `design_proposals` (permanent bypass plumbing).
 

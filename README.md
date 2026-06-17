@@ -23,7 +23,7 @@ Research repository that simulates **agent teams** detecting, responding to, and
 
 Research memos live under [en/memo/](en/memo/) and [ja/memo/](ja/memo/).
 
-Shared dashboard screenshots: [docs/images/](docs/images/).
+Dashboard screenshots: [docs/images/](docs/images/) (see [docs/images/README.md](docs/images/README.md) for capture instructions).
 
 ---
 

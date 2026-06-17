@@ -175,7 +175,7 @@ pip install -U pip
 pip install -e ".[dev]"
 ```
 
-`pip install -e ".[dev]"` により `src/` 配下の `scenario`, `environment`, `core` などが import 可能になります。
+`pip install -e ".[dev]"` により `src/` 配下の `scenario`, `environment`, `core` などが import 可能になります。依存関係の正本は `pyproject.toml` です。ルートの `requirements.txt` は部分ミラーで、`streamlit` と `pytest` を含みません。
 
 ### 3. 動作確認（テスト）
 

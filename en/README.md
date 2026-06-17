@@ -175,7 +175,7 @@ pip install -U pip
 pip install -e ".[dev]"
 ```
 
-`pip install -e ".[dev]"` makes packages under `src/` (`scenario`, `environment`, `core`, etc.) importable.
+`pip install -e ".[dev]"` makes packages under `src/` (`scenario`, `environment`, `core`, etc.) importable. Use `pyproject.toml` as the authoritative dependency list; root `requirements.txt` is a partial mirror (it omits `streamlit` and `pytest`).
 
 ### 3. Smoke test
 

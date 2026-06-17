@@ -30,6 +30,47 @@ Implementations:
 
 ---
 
+## scenario.yaml configuration
+
+`src/scenario/runner.py` builds `StationSimulator` from `scenario.yaml`. Overrides passed to `run_scenario(..., overrides={...})` are deep-merged into the loaded YAML.
+
+### design_parameters
+
+Mutable ECLSS plant coefficients (`DesignStateManager`). Omitted keys fall back to `default_parameters()` in `src/environment/eclss_ops/design_state.py`.
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `scrubber_base_efficiency` | 0.95 | Nominal scrubber removal efficiency |
+| `co2_production_ppm_per_step` | 32.0 | CO2 rise per step at full metabolic load |
+| `scrub_rate_coefficient` | 0.06 | Scrub rate scaling with fan speed |
+| `fan_power_w` | 80.0 | Additional power draw at full fan |
+| `bypass_power_w` | 40.0 | Power draw when temporary bypass is enabled |
+| `bypass_flow_bonus` | 0.15 | Flow bonus from temporary bypass |
+| `permanent_bypass_power_w` | 20.0 | Power draw for a permanent bypass edge (post-run proposals) |
+| `load_reduction_factor` | 0.6 | CO2 production multiplier after `reduce_load` |
+| `base_power_draw_w` | 200.0 | Baseline ECLSS power draw |
+| `eps_support_duration_steps` | 5.0 | Steps that `request_eps_boost` support lasts (`StationSimulator` reads this from design parameters) |
+
+### eps (optional)
+
+Passed to `build_eps_stack()`. When omitted, SARJ uses `beta_angle_deg: 45.0` and no eclipse window.
+
+```yaml
+eps:
+  sarj:
+    beta_angle_deg: 45.0
+    eclipse_window: [10, 15]   # optional inclusive step range; solar voltage drops during eclipse
+```
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `eps.sarj.beta_angle_deg` | 45.0 | Solar beta angle for generation model (`MockSarj`) |
+| `eps.sarj.eclipse_window` | none | Two-element `[start_step, end_step]`; steps inside use eclipse voltage |
+
+`eps_boost_w` in `agents.yaml` `policy` is separate — it sets the watts requested by `request_eps_boost`, not the SARJ eclipse schedule.
+
+---
+
 ## TelemetrySnapshot
 
 One line of `telemetry.jsonl`.
@@ -268,6 +309,22 @@ Future: `base` (emergent roles) — [memo/backlog.md](../memo/backlog.md) BL-001
 ## JSONL output directory
 
 `src/experiments/results/<run_id>/`
+
+### EventLog streams
+
+`EventLog.STREAMS` in `src/core/event_log.py` defines valid stream names. Each stream writes to `<stream>.jsonl` when records are appended.
+
+| Stream | Written in MVP | Description |
+| --- | --- | --- |
+| `telemetry` | yes | Per-step ECLSS `TelemetrySnapshot` |
+| `health_metrics` | yes | Deterministic CO2 / power / overall status |
+| `eps_telemetry` | yes | SARJ + BCDU state (`StationSimulator` only) |
+| `design_state` | yes | Topology + parameters before agent action each step |
+| `events` | yes | Anomalies, recovery application |
+| `messages` | yes | Agent utterances (when `agents.mode` ≠ `none`) |
+| `memory_reasoning` | **no** | Reserved for future per-agent memory traces; stream name is registered but no writer exists yet |
+
+`summary.json`, `design_proposals.json`, and `provenance.jsonl` are written outside `EventLog.append()`.
 
 ### events.jsonl
 

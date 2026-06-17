@@ -70,6 +70,16 @@ simulation:
   initial_co2_ppm: 800.0
   initial_power_margin_w: 150.0
 
+design_parameters:
+  scrubber_base_efficiency: 0.95
+  co2_production_ppm_per_step: 32.0
+  eps_support_duration_steps: 5.0   # 任意。デフォルト 5 — BCDU 支援の持続 step 数
+
+eps:                               # 任意。省略時は SARJ モックのデフォルト
+  sarj:
+    beta_angle_deg: 45.0
+    # eclipse_window: [10, 15]     # 任意。含む step 範囲
+
 anomalies:
   - name: scrubber_degradation
     start_step: 20
@@ -185,7 +195,7 @@ run_scenario(
 | `set_fan_speed` | スクラバー送風加速 → 除去レート UP、消費電力 UP |
 | `enable_bypass` | 一時バイパス流路 → 流量ボーナス |
 | `reduce_load` | 代謝負荷削減 → CO2 産生 DOWN |
-| `request_eps_boost` | BCDU 放電 → `eps_support_w` を一定 step 付与 |
+| `request_eps_boost` | BCDU 放電 → `eps_support_duration_steps`（デフォルト 5、`design_parameters` 参照）分 `eps_support_w` を付与 |
 
 いずれも **恒久トポロジは変えない**。`enable_bypass` は運用フラグであり、`design_proposals` の `add_edge`（恒久バイパス配管）とは別。
 

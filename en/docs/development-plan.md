@@ -28,9 +28,22 @@ This document aggregates **features not yet complete** and the **research backlo
 | LLM comparison experiments | Trajectory comparison across models, temperature, and run_id (dashboard compare) | [architecture.md](architecture.md) |
 | Documentation | Updating `ja/docs/` and `en/docs/` in this repository | — |
 
+### Run entry points today
+
+The unified `tools.cli` module is not implemented yet. Use these entry points instead:
+
+| Entry point | Purpose |
+| --- | --- |
+| `scenario.runner.run_scenario(name, overrides=...)` | Primary API — loads YAML, runs registered scenario, returns run directory |
+| `python src/scripts/run_mock_eclss.py` | Baseline `scrubber_degradation` with `--steps`, `--no-anomaly`, `--output` |
+| `python src/scripts/run_tests.py` | Thin `pytest` wrapper |
+| `python -m streamlit run src/tools/dashboard/app.py` | Dashboard over `src/experiments/results/` |
+
+Install dependencies from `pyproject.toml` (`pip install -e ".[dev]"`). Root `requirements.txt` mirrors core runtime packages but omits `streamlit` and `pytest`; treat `pyproject.toml` as authoritative.
+
 ### Next implementation (priority order)
 
-1. **CLI integration** — single entry point such as `python -m tools.cli run --scenario scrubber_degradation --agents-mode llm` ([memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md) Day 8)
+1. **CLI integration** — single entry point such as `python -m tools.cli run --scenario scrubber_degradation --agents-mode llm` ([memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md) Day 8). Until then, use the table above.
 2. **provenance extension** — export `design_proposals.json` to One Piece records (currently only runtime `design_change` events; post-run proposals not linked)
 3. **provenance index** — cross-run `provenance_index.json` (for dashboard / CLI comparison)
 4. **Real SSOS adapter** — contract tests and ROS2 bridge for `SsosAdapter` (Day 10)
@@ -114,3 +127,20 @@ When adding a feature:
 2. If you add agent modes, update [architecture.md](architecture.md) and the scenario doc
 3. Regression: `pytest tests/scenario/test_scrubber_baseline.py` (always), `test_scrubber_with_agents.py` (with agents)
 4. Move completed items to “Complete” in this file and keep the README roadmap short
+
+### Adding a new scenario
+
+Follow `scrubber_degradation` as the reference implementation. Dependency direction stays `tools → scenario → environment → core`.
+
+1. **Package** — create `src/scenario/<name>/` with at least `scenario.yaml`. Add `agents.yaml` when agent modes are needed.
+2. **Scenario class** — subclass `core.scenario.Scenario` (see `scrubber_degradation/scenario_run.py`):
+   - `load_config()` — YAML load + optional overrides
+   - `build_simulator()` — usually `runner.build_simulator(config)` or a custom `SimulatorProtocol`
+   - `build_team()` — return a `Team` subclass or `None` when `agents.mode: none`
+   - `run()` — step loop, `EventLog` writes, `summary.json`, optional provenance export
+3. **Registry** — add the instance to `SCENARIO_REGISTRY` in `<name>/scenario_run.py`. `runner.run_scenario()` dispatches through this dict; `list_scenarios()` still discovers directories that contain `scenario.yaml`.
+4. **Team** (optional) — implement under `src/scenario/agents/` or inside the scenario package. Register in `runner.build_agent_team()` or resolve inside your `Scenario.build_team()`.
+5. **Tests** — add `tests/scenario/test_<name>_*.py` with at least a no-agent baseline and one agent path.
+6. **Docs** — add `en/docs/scenario-<name>.md` and `ja/docs/scenario-<name>.md`; link from [architecture.md](architecture.md) and both README indexes.
+
+Keep runtime recovery commands separate from post-run `design_proposals.json` unless you intentionally change that contract.
