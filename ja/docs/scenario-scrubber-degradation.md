@@ -59,8 +59,8 @@
 
 | ファイル | 用途 |
 | --- | --- |
-| [scenario.yaml](../src/scenario/scrubber_degradation/scenario.yaml) | ステップ数、初期状態、設計パラメータ、異常、`agents.mode`、run ID |
-| [agents.yaml](../src/scenario/scrubber_degradation/agents.yaml) | チーム、Persona、メモリ、`policy`（labeled のみ）、Ollama 設定 |
+| [scenario.yaml](../../src/scenario/scrubber_degradation/scenario.yaml) | ステップ数、初期状態、設計パラメータ、異常、`agents.mode`、run ID |
+| [agents.yaml](../../src/scenario/scrubber_degradation/agents.yaml) | チーム、Persona、メモリ、`policy`（labeled のみ）、Ollama 設定 |
 
 ### scenario.yaml（主要項目）
 
