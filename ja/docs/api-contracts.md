@@ -94,17 +94,18 @@
 
 ---
 
-## operational_proposals.json（ssos_eclss_loop 予定）
+## design_proposals.json — ssos_eclss_loop（`design_domain: ssos_graph`）
 
-新シナリオ `ssos_eclss_loop` 向け。トポロジ変更なし。次ラン入力として適用:
+ラン終了後に 1 ファイル。**ランタイム中は SSOS グラフを変えない**。次 run の `scenario.yaml` / `ssos_graph.rewires` に `--apply-proposals` で反映。
 
 | `change_kind` | 用途 |
 | --- | --- |
-| `set_parameter` | 起動時 YAML パラメータ（`ARS.yaml` 等） |
-| `action_profile` | 既存 Action goal フィールド・頻度 |
-| `service_config` | 既存 Service 呼び出し量・間隔 |
+| `action_profile` | 既存 Action goal フィールド（ARS / OGS / WRS） |
+| `service_config` | 既存 Service 呼び出し量・順序 |
+| `set_parameter` | 閾値・policy・起動パラメータ |
+| `graph_rewire` | launch remapping / rclpy ゲートウェイ manifest（`ssos_graph.rewires`） |
 
-詳細: [memo/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop_connection_plan.md)
+実装: `src/scenario/ssos_eclss_loop/design_proposals.py`
 
 ---
 

@@ -147,7 +147,7 @@ The dashboard **After (if proposals applied)** is a preview of proposals, **not 
  Currently: stubbed in scenario.yaml (this repo not yet integrated)
  ↓
 [Design] AI (LLM) — primary scope of this repository
- → design proposals (`design_proposals.json` — scrubber frozen / `operational_proposals.json` — ssos_eclss_loop)
+ → design proposals (`design_proposals.json` — scrubber uses `add_edge` etc. / ssos_eclss_loop uses `design_domain: ssos_graph`)
  → requirement-change proposals to supervision when needed
  ↓
 [Verification · virtual world] Physics simulation + AI (verification bridge)

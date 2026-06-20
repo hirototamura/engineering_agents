@@ -147,7 +147,7 @@
        現状: scenario.yaml でスタブ（本リポジトリは未連携）
         ↓
 [設計] AI（LLM）— 本リポジトリの主スコープ
-  → 設計提案（`design_proposals.json` — scrubber 凍結 / `operational_proposals.json` — ssos_eclss_loop）
+  → 設計提案（`design_proposals.json` — scrubber は `add_edge` 等 / ssos_eclss_loop は `design_domain: ssos_graph`）
   → 必要なら監督への要求変更提案
         ↓
 [検証・仮想世界] 物理シミュレーション + AI（検証ブリッジ）

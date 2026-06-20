@@ -2,7 +2,7 @@
 
 > **調査日**: 2026-06-14  
 > **問い**: `engineering_agents` から SSOS の DDS 接続にノードを追加し、電力・物質フローにエンジニアとして手を加えられるか。C++ 全再ビルドを避けられるか。  
-> **前提**: ランタイム恒久トポロジ変更は行わず、**1 Run 後の提案を次 Run に反映**する設計思想（`design_proposals` / `operational_proposals`）に準拠。
+> **前提**: ランタイム恒久トポロジ変更は行わず、**1 Run 後の提案を次 Run に反映**する設計思想（`design_proposals.json`）に準拠。
 
 ---
 
@@ -117,7 +117,7 @@ load_client_ = create_client<Load>("/ddcu/load_request");
 
 ### 3.4 パラメータ（`set_parameter`）
 
-起動時 YAML / 動的 `ros2 param set` で効率・閾値を変える。**内部配線は変わらない**が、**次 Run 入力**として `operational_proposals` の `set_parameter` に載せやすい（Phase 5 済）。
+起動時 YAML / 動的 `ros2 param set` で効率・閾値を変える。**内部配線は変わらない**が、**次 Run 入力**として `design_proposals` の `set_parameter` に載せやすい（Phase 5 済）。
 
 ---
 
@@ -126,11 +126,11 @@ load_client_ = create_client<Load>("/ddcu/load_request");
 | レイヤ | scrubber_degradation | ssos_eclss_loop（現状） | SSOS 実グラフへの拡張余地 |
 |--------|---------------------|-------------------------|---------------------------|
 | ランタイム操作 | RecoveryCommand | ARS/OGS Action, CO₂ Service | 同左 + 外部リレーノード |
-| 事後提案 | `design_proposals`（add_edge, add_node） | `operational_proposals`（action_profile 等） | **`graph_rewire` 提案**（新規） |
+| 事後提案 | `design_proposals`（scrubber: add_edge, add_node） | `design_proposals`（ssos_graph: action_profile 等） | **`graph_rewire`**（実装済み apply プラグイン） |
 | 次 Run 反映 | ダッシュボード仮適用 | `--apply-proposals` | remapping manifest + 外部ノード launch |
 | トポロジモデル | `DesignStateManager` | なし | `RosGraphModel`（要実装） |
 
-**重要**: ユーザーの意図（ランタイム設計変更なし・次 Run 反映）は、`operational_proposals` と **整合している**。不足しているのは「**配線変更の提案と適用**」の表現力。
+**重要**: ユーザーの意図（ランタイム設計変更なし・次 Run 反映）は、`design_proposals.json`（`design_domain: ssos_graph`）と **整合している**。
 
 ---
 
@@ -179,7 +179,7 @@ flowchart TB
   end
 
   subgraph post [Run N 終了]
-    Props[operational_proposals.json<br/>+ graph_rewire manifest]
+    Props[design_proposals.json<br/>design_domain: ssos_graph]
   end
 
   subgraph run_n1 [Run N+1 — 次の検証]
@@ -218,7 +218,7 @@ flowchart TB
 
 ### Tier 3 — 事後提案スキーマ拡張（中〜高工数）
 
-`operational_proposals.json` に **`graph_rewire`** を追加:
+`design_proposals.json`（`change_kind: graph_rewire`）例:
 
 ```json
 {
@@ -275,10 +275,10 @@ flowchart TB
 
 | 優先 | 項目 | 成果物 |
 |------|------|--------|
-| P0 | Phase 6 LLM + post-run 提案の**内容**を Run 結果から生成 | 現 `build_operational_proposals_from_run` の強化 |
+| P0 | Phase 6 LLM + post-run 提案の**内容**を Run 結果から生成 | 現 `build_design_proposals_from_run` の強化 |
 | P1 | **グラフ観測** | `scripts/ssos_graph_snapshot.sh` → `graph_snapshot.json` |
 | P2 | **grey_water ゲートウェイ PoC** | `src/environment/ssos/gateways/grey_water_router.py` + smoke |
-| P3 | **operational_proposals に `graph_rewire`** | apply が launch/remap まで担当 |
+| P3 | **`graph_rewire` の launch 適用** | apply が launch/remap まで担当 |
 | P4 | EPS `/ddcu/load_request` ゲートウェイ | 電力フロー設計の実証 |
 | P5 | upstream 提案（新サブシステムが ARS に組込まれる場合のみ） | SSOS PR |
 
@@ -291,7 +291,7 @@ flowchart TB
 - **DDS ネットワークに新ノードを追加すること自体は可能**（rclpy、同一コンテナ・同一 `ROS_DOMAIN_ID`）。
 - **既存 SSOS C++ ノードの「内部配線」をビルドなしで書き換えることはできない**。
 - **接続を変える**ことは、**(1) launch remapping、(2) 外部ゲートウェイノード、(3) エージェントによる呼び出し先の変更**の組み合わせで **近似可能**。
-- これは scrubber の `add_edge` を **ROS グラフ操作**として再解釈したものであり、**`operational_proposals` の拡張（`graph_rewire`）として次 Run に反映する**のが、リポジトリの設計思想に最も合う。
+- これは scrubber の `add_edge` を **ROS グラフ操作**として再解釈したものであり、**`design_proposals` の `graph_rewire` として次 Run に反映する**のが、リポジトリの設計思想に最も合う。
 
 > **SSOS 全ビルドを避けられるか？**
 

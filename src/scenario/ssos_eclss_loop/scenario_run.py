@@ -27,11 +27,11 @@ from scenario.runner import (
 )
 from scenario.ssos_eclss_loop.health import compute_eclss_storage_health
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
-from scenario.ssos_eclss_loop.operational_proposals import (
-    apply_operational_proposals,
-    build_operational_proposals_from_run,
-    load_operational_proposals,
-    write_operational_proposals,
+from scenario.ssos_eclss_loop.design_proposals import (
+    apply_design_proposals,
+    build_design_proposals_from_run,
+    load_design_proposals,
+    write_design_proposals,
 )
 
 logger = logging.getLogger(__name__)
@@ -128,8 +128,8 @@ class SsosEclssLoopScenario(Scenario):
     ) -> Path:
         config = self.load_config(overrides)
         if apply_proposals_path is not None:
-            proposals = load_operational_proposals(apply_proposals_path)
-            config = apply_operational_proposals(config, proposals)
+            proposals = load_design_proposals(apply_proposals_path)
+            config = apply_design_proposals(config, proposals)
         agents_config = load_agents_config(self.name, config)
         sim_cfg = config.get("simulation", {})
         steps = int(sim_cfg.get("steps", 8))
@@ -239,15 +239,15 @@ class SsosEclssLoopScenario(Scenario):
             summary["team_count"] = team.team_cfg.count
             summary["agent_ids"] = list(team.team_cfg.agent_ids)
             if team.mode == "labeled_rule_base" and team.policy:
-                proposals = build_operational_proposals_from_run(
+                proposals = build_design_proposals_from_run(
                     proposed_by=team.team_cfg.action_rep_id(steps - 1),
                     decision_source="rule",
                     policy=team.policy,
                 )
-                proposals_path = run_dir / "operational_proposals.json"
-                write_operational_proposals(proposals_path, proposals)
-                summary["operational_proposals_path"] = str(proposals_path)
-                summary["operational_proposal_count"] = len(proposals.get("changes", []))
+                proposals_path = run_dir / "design_proposals.json"
+                write_design_proposals(proposals_path, proposals)
+                summary["design_proposals_path"] = str(proposals_path)
+                summary["design_proposal_count"] = len(proposals.get("changes", []))
 
         log.write_summary(summary)
 
@@ -288,7 +288,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--apply-proposals",
         type=Path,
         metavar="PATH",
-        help="Apply operational_proposals.json from a prior run before executing",
+        help="Apply design_proposals.json from a prior run before executing",
     )
     args = parser.parse_args(argv)
 

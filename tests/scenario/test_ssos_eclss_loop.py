@@ -49,7 +49,7 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     assert summary.get("ars_invoked_step") is None
     assert (run_dir / "provenance.jsonl").exists()
     assert (run_dir / "design_state.jsonl").exists() is False
-    assert (run_dir / "design_proposals.json").exists() is False
+    assert not (run_dir / "design_proposals.json").exists()
 
     co2_series = [row["co2_storage_kg"] for row in telemetry]
     assert co2_series[0] == pytest.approx(1500.0)
@@ -94,8 +94,10 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     assert telemetry[1]["co2_storage_kg"] < telemetry[0]["co2_storage_kg"], (
         "ARS should reduce CO2 storage after step 0"
     )
-    assert (run_dir / "operational_proposals.json").exists()
-    assert summary.get("operational_proposal_count", 0) >= 1
+    assert (run_dir / "design_proposals.json").exists()
+    assert summary.get("design_proposal_count", 0) >= 1
+    proposals = json.loads((run_dir / "design_proposals.json").read_text(encoding="utf-8"))
+    assert proposals.get("design_domain") == "ssos_graph"
 
 
 def test_ssos_eclss_loop_apply_proposals(tmp_path: Path):
@@ -105,7 +107,7 @@ def test_ssos_eclss_loop_apply_proposals(tmp_path: Path):
         overrides={"agents": {"mode": "labeled_rule_base"}},
         recreate_output=True,
     )
-    proposals_path = first / "operational_proposals.json"
+    proposals_path = first / "design_proposals.json"
     assert proposals_path.exists()
 
     from scenario.ssos_eclss_loop.scenario_run import SsosEclssLoopScenario
