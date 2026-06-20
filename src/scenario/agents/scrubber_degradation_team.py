@@ -25,7 +25,7 @@ from core.agents.types import (
     DeliberationPhase,
     StepAgentOutcome,
 )
-from core.llm.ollama import OllamaClient
+from core.llm.ollama import OllamaClient, resolve_ollama_base_url
 from environment.protocol import (
     CommandKind,
     HealthMetrics,
@@ -673,7 +673,7 @@ class ScrubberDegradationTeam(Team):
     @staticmethod
     def _build_llm_client(llm_cfg: Dict[str, Any]) -> OllamaClient:
         return OllamaClient(
-            base_url=str(llm_cfg.get("base_url", "http://localhost:11434")),
+            base_url=resolve_ollama_base_url(llm_cfg),
             model=str(llm_cfg.get("model", "llama3.2")),
             temperature=float(llm_cfg.get("temperature", 0.45)),
             max_tokens=int(llm_cfg.get("max_tokens", 512)),

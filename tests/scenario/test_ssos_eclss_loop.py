@@ -166,3 +166,92 @@ def test_build_eclss_backend_mock():
 def test_build_eclss_backend_unknown_raises():
     with pytest.raises(ValueError, match="Unknown ECLSS backend"):
         build_eclss_backend({}, kind="invalid")
+
+
+def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
+    from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
+
+    class FakeClient:
+        def generate(self, prompt: str) -> str:
+            lower = prompt.lower()
+            if "phase: deliberation" in lower and "eclss_operator_1" in lower:
+                return json.dumps(
+                    {
+                        "message": "CO2 storage at band edge; ARS may be warranted.",
+                        "reasoning": "co2_storage_kg telemetry elevated",
+                    }
+                )
+            if "phase: deliberation" in lower and "eclss_operator_2" in lower:
+                return json.dumps(
+                    {
+                        "message": "Agree — vent CO2 before reserve fills further.",
+                        "reasoning": "storage trend unfavorable",
+                    }
+                )
+            if "phase: deliberation" in lower and "eclss_operator_3" in lower:
+                return json.dumps(
+                    {
+                        "message": "Monitoring O2; focus ARS this step.",
+                        "reasoning": "o2 still adequate",
+                    }
+                )
+            if "phase: action" in lower:
+                return json.dumps(
+                    {
+                        "message": "LLM action rep: start ARS air_revitalisation.",
+                        "reasoning": "team consensus on high CO2 storage",
+                        "commands": [
+                            {
+                                "kind": "air_revitalisation",
+                                "payload": {
+                                    "initial_co2_mass": 1800.0,
+                                    "initial_moisture_content": 25.0,
+                                    "initial_contaminants": 5.0,
+                                },
+                            }
+                        ],
+                    }
+                )
+            if "phase: post_run_proposal" in lower:
+                return json.dumps(
+                    {
+                        "message": "LLM design: raise ARS CO2 mass setpoint for next run.",
+                        "reasoning": "operational intervention indicates margin gap",
+                        "changes": [
+                            {
+                                "change_kind": "action_profile",
+                                "payload": {
+                                    "subsystem": "ars",
+                                    "action": "air_revitalisation",
+                                    "fields": {"initial_co2_mass": 2000.0},
+                                },
+                            }
+                        ],
+                    }
+                )
+            return "{}"
+
+    monkeypatch.setattr(SsosEclssLoopTeam, "_build_llm_client", staticmethod(lambda _: FakeClient()))
+
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "llm",
+        overrides={"agents": {"mode": "llm"}},
+        recreate_output=True,
+    )
+
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    messages = _read_jsonl(run_dir / "messages.jsonl")
+    design_proposals = json.loads((run_dir / "design_proposals.json").read_text(encoding="utf-8"))
+
+    assert summary["agents_mode"] == "llm"
+    assert summary["team_count"] == 3
+    assert summary["operational_command_count"] >= 1
+    assert summary["ars_invoked_step"] == 0
+    assert any(m.get("decision_source") == "llm" for m in messages)
+    assert any(m.get("deliberation_phase") == "deliberation" for m in messages)
+    assert any(m.get("deliberation_phase") == "action" for m in messages)
+    assert design_proposals.get("decision_source") == "llm"
+    assert design_proposals.get("design_domain") == "ssos_graph"
+    assert any(c.get("change_kind") == "action_profile" for c in design_proposals.get("changes", []))
+

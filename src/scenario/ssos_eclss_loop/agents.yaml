@@ -28,6 +28,7 @@ policy:
     iodine_concentration: 2.0
 
 llm:
+  # Host mock: localhost. In SSOS Docker use host.docker.internal (ea-loop sets OLLAMA_BASE_URL).
   base_url: http://localhost:11434
   model: gemma4:e4b
   temperature: 0.45

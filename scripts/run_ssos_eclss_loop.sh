@@ -72,6 +72,19 @@ run_in_container() {
     quoted_args=" --backend ros2 --agents-mode labeled_rule_base"
   fi
 
+  # Ensure ros2 when caller passes only --agents-mode (ea-loop defaults via SSOS_ECLSS_BACKEND too).
+  has_backend=0
+  for arg in "$@"; do
+    if [ "$arg" = "--backend" ]; then
+      has_backend=1
+      break
+    fi
+  done
+  if [ "$has_backend" -eq 0 ]; then
+    set -- --backend ros2 "$@"
+    quoted_args=" --backend ros2${quoted_args}"
+  fi
+
   echo "==> Running ssos_eclss_loop in '$CONTAINER'"
   if [ -t 0 ]; then
     docker exec -it "$CONTAINER" bash -lc "SSOS_CONTAINER_REPO='$CONTAINER_REPO' ea-loop${quoted_args}"
@@ -126,7 +139,9 @@ case "$mode" in
     sync_to_container
     echo
     echo "Inside container, run:"
-    echo "  ea-loop --backend ros2 --agents-mode labeled_rule_base"
+    echo "  ea-loop --agents-mode labeled_rule_base   # backend defaults to ros2"
+    echo "  ea-loop --agents-mode llm                 # ros2 + host Ollama"
+    echo "  ea-loop --backend mock --agents-mode llm  # mock override"
     echo
     echo "Optional args: --apply-proposals /path/design_proposals.json"
     ;;

@@ -1,5 +1,6 @@
 import logging
-from typing import Optional
+import os
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -8,6 +9,7 @@ from core.llm.base import LLMClient
 logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "http://localhost:11434"
+OLLAMA_BASE_URL_ENV = "OLLAMA_BASE_URL"
 API_TIMEOUT = 300
 CONNECTION_CHECK_TIMEOUT = 5
 
@@ -25,6 +27,15 @@ def _default_concurrency(model: str) -> int:
         if any(k in lower for k in keywords):
             return limit
     return _CONCURRENCY_FALLBACK
+
+
+def resolve_ollama_base_url(llm_cfg: Optional[Dict[str, Any]] = None) -> str:
+    """Resolve Ollama URL: env OLLAMA_BASE_URL overrides agents.yaml llm.base_url."""
+    env_url = os.environ.get(OLLAMA_BASE_URL_ENV, "").strip()
+    if env_url:
+        return env_url.rstrip("/")
+    cfg_url = str((llm_cfg or {}).get("base_url", DEFAULT_BASE_URL)).strip()
+    return cfg_url.rstrip("/") or DEFAULT_BASE_URL
 
 
 class OllamaClient(LLMClient):

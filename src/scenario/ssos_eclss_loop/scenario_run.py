@@ -29,7 +29,6 @@ from scenario.ssos_eclss_loop.health import compute_eclss_storage_health
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 from scenario.ssos_eclss_loop.design_proposals import (
     apply_design_proposals,
-    build_design_proposals_from_run,
     load_design_proposals,
     write_design_proposals,
 )
@@ -235,19 +234,14 @@ class SsosEclssLoopScenario(Scenario):
             )
         )
 
-        if isinstance(team, SsosEclssLoopTeam):
+        if isinstance(team, SsosEclssLoopTeam) and team.mode in {"labeled_rule_base", "llm"}:
             summary["team_count"] = team.team_cfg.count
             summary["agent_ids"] = list(team.team_cfg.agent_ids)
-            if team.mode == "labeled_rule_base" and team.policy:
-                proposals = build_design_proposals_from_run(
-                    proposed_by=team.team_cfg.action_rep_id(steps - 1),
-                    decision_source="rule",
-                    policy=team.policy,
-                )
-                proposals_path = run_dir / "design_proposals.json"
-                write_design_proposals(proposals_path, proposals)
-                summary["design_proposals_path"] = str(proposals_path)
-                summary["design_proposal_count"] = len(proposals.get("changes", []))
+            proposals = team.propose_post_run_design(summary)
+            proposals_path = run_dir / "design_proposals.json"
+            write_design_proposals(proposals_path, proposals)
+            summary["design_proposals_path"] = str(proposals_path)
+            summary["design_proposal_count"] = len(proposals.get("changes", []))
 
         log.write_summary(summary)
 

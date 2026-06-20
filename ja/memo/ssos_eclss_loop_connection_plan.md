@@ -4,20 +4,32 @@
 
 ---
 
-## 実装状況
+## 実装状況（2026-06-14 更新）
 
 | 項目 | 値 |
 |------|-----|
-| ブランチ | `feat/ssos-eclss-loop` |
-| 最新コミット | `git log -1 --oneline`（ドキュメント分離後） |
-| Phase コミット | `2700fda` Phase 2 WRS / `3b4b0b4` Phase 3 EPS / `7196812` Phase 4 シナリオ / `2c62f15` プラン更新 |
-| テスト | `pytest` → **104 passed**, 3 skipped（2026-06-14） |
-| Phase 0–4 | **完了** |
-| Phase 5 | **完了** — `design_proposals.json`（`design_domain: ssos_graph`）+ `--apply-proposals` |
-| Phase 6 | **未着手** — LLM エージェント（次のプラン参照） |
+| ブランチ | `feat/ssos-eclss-loop`（draft PR #9 vs `main`） |
+| 最新コミット（push 済） | `d5bf9af` — design_proposals 統一 + Docker runner（`ea-loop`） |
+| 作業ツリー（未コミット） | Phase 6 LLM + コンテナ ros2/Ollama デフォルト（下記「Phase 6.1」） |
+| Phase コミット列 | `e18e79a` 1a/1b → `2700fda` WRS → `3b4b0b4` EPS → `7196812`/`b2b64f9` シナリオ → `797b589`/`d5bf9af` design_proposals |
+| テスト | `pytest` → **110+ passed**, 3 skipped（ROS2 統合は SSOS コンテナ外 skip） |
+| **Phase 0–6** | **コード完了**（Phase 6 の ros2+E2E はコンテナ手動確認待ち） |
 
 | ユーザ向けドキュメント | ブランチ **`docs/ssos-mkdocs`**（MkDocs。`12267a4` は本ブランチから revert 済み） |
 | ドキュメント保守 | 別エージェント — `docs/ssos-mkdocs` 上の `docs/MAINTENANCE.md` |
+
+### マイルストーン一覧
+
+| Phase | 内容 | 状態 |
+|-------|------|------|
+| **0** | DesignChange 削除 | ✅ 完了 |
+| **1a–1b** | ARS / OGS smoke + `EclssBackend` | ✅ 完了 |
+| **2** | WRS ブリッジ | ✅ 完了 |
+| **3** | EPS 接合（scrubber 電力） | ✅ 完了 |
+| **4** | `ssos_eclss_loop` + `SsosEclssLoopTeam`（labeled_rule_base） | ✅ 完了 |
+| **5** | `design_proposals.json` + `--apply-proposals` | ✅ 完了 |
+| **6** | LLM エージェント（deliberation + operational + 事後 design） | ✅ コード完了 |
+| **6.1** | Docker 実行 UX（`ea-loop` デフォルト ros2 + Ollama `host.docker.internal`） | ✅ 未コミット |
 
 ---
 
@@ -42,8 +54,9 @@
 | **2** | + WRS | **完了** (`2700fda`) | `run_ssos_eclss_2_smoke.sh`、水トレードオフ信号 |
 | **3** | EPS 接合 | **完了** (`3b4b0b4`) | [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md)、`run_ssos_eps_smoke.sh` |
 | **4** | `ssos_eclss_loop` + `SsosEclssLoopTeam` | **完了** (`7196812`) | mock/ros2 シナリオ、telemetry JSONL |
-| **5** | `design_proposals.json` + 次 run 適用 | **完了** | `--apply-proposals`、ラン終了時に JSON 出力 |
-| **6** | LLM エージェント（`SsosEclssLoopTeam`） | 未着手 | `agents-mode llm` + Ollama で operational コマンド |
+| **5** | `design_proposals.json` + 次 run 適用 | **完了** (`d5bf9af`) | `--apply-proposals`、ラン終了時に JSON 出力 |
+| **6** | LLM エージェント（`SsosEclssLoopTeam`） | **完了**（未コミット） | mock pytest + コンテナ ros2 手動 E2E |
+| **6.1** | Docker 実行 UX | **完了**（未コミット） | `ea-loop` デフォルト `ros2`、Ollama ホスト到達 |
 
 ---
 
@@ -263,77 +276,175 @@ WRS Action/Service は Phase 2 で `Ros2EclssBridge` に追加済み（`2700fda`
 | `src/scenario/agents/eclss_loop_types.py` | 提案・コマンド型 |
 | `src/scenario/runner.py` | `_scenario_registry()` + `SsosEclssLoopTeam` |
 
-#### Phase 4 / 5 実行（簡略）
+#### Phase 4 / 5 / 6 実行（推奨手順）
 
-**ホストから 1 コマンド**（sync + コンテナ内実行）:
+**前提（コンテナ ros2）**: Terminal 1 で `bash /root/ssos-eclss-headless.sh`。Terminal 2 で loop。
+
+**ホストから 1 コマンド**（sync + コンテナ内実行、backend は自動で ros2）:
 
 ```bash
 ./scripts/run_ssos_eclss_loop.sh --agents-mode labeled_rule_base
+./scripts/run_ssos_eclss_loop.sh --agents-mode llm   # Mac 上 Ollama 必須
 ```
 
 **コンテナに入って 1 コマンド**（初回のみホストで sync）:
 
 ```bash
-# ホスト（1 回）
+# ホスト（1 回 — コード更新のたびに再実行）
 ./scripts/run_ssos_eclss_loop.sh --sync-only
 
-# コンテナ内
+# コンテナ内（ea-loop = /usr/local/bin/ea-loop → run.sh）
 docker exec -it ssos bash
-ea-loop --agents-mode labeled_rule_base
+ea-loop --agents-mode labeled_rule_base    # backend デフォルト ros2
+ea-loop --agents-mode llm                  # ros2 + host.docker.internal:11434
+ea-loop --backend mock --agents-mode llm   # mock 上書き（開発用）
 ```
 
-**mock（Docker 不要）**:
+**mock（Docker / ROS 不要 — ホスト Mac）**:
 
 ```bash
 ./scripts/run_ssos_eclss_loop.sh --mock --agents-mode labeled_rule_base
+./scripts/run_ssos_eclss_loop.sh --mock --agents-mode llm
+# または
+PYTHONPATH=src python3 -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 ```
 
 **2 回目 — 前 run の design_proposals を適用**:
 
 ```bash
 ea-loop --agents-mode labeled_rule_base \
-  --apply-proposals /tmp/engineering_agents/src/experiments/results/.../design_proposals.json
-# またはホストから ./scripts/run_ssos_eclss_loop.sh --apply-proposals ...
+  --apply-proposals /tmp/engineering_agents/src/experiments/results/ssos_eclss_loop_labeled_rule_base/design_proposals.json
 ```
 
-ECLSS ヘッドレス起動（別ターミナル）: `bash /root/ssos-eclss-headless.sh`
+**環境変数（コンテナ内 `ea-loop` が自動設定）**:
+
+| 変数 | デフォルト（コンテナ） | 用途 |
+|------|------------------------|------|
+| `SSOS_ECLSS_BACKEND` | `ros2` | mock 上書き: `--backend mock` |
+| `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Mac ホスト Ollama（llm モード） |
+
+ECLSS 未起動時は `ea-loop` が即エラー（空 ros2 グラフ検出）。
 
 ---
 
-## 次のプラン（Phase 6+）
-
-### Phase 6 — LLM エージェント（優先）
-
-| 項目 | 内容 |
-|------|------|
-| 対象 | `SsosEclssLoopTeam._run_step_llm`（現状スタブ） |
-| 推論 | `OllamaClient` — `agents.yaml` の `llm` 設定（scrubber パターン準拠） |
-| 出力 | operational コマンド（ARS / OGS / request_co2）+ `design_proposals.json`（`decision_source: llm`） |
-| 検証 | mock バックエンドで pytest；ros2 はコンテナ内 + `host.docker.internal:11434` 等 |
-| 完了条件 | `agents-mode llm` で `operational_command_count` > 0、提案 JSON が valid |
-
-```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
-```
-
-### Phase 5 成果物（完了）
+## Phase 5 成果物（完了 — `d5bf9af`）
 
 | ファイル | 役割 |
 |----------|------|
-| `src/scenario/ssos_eclss_loop/design_proposals.py` | 読込・検証・apply プラグイン・ビルド |
+| `src/scenario/ssos_eclss_loop/design_proposals.py` | 読込・検証・apply プラグイン（`design_domain: ssos_graph`） |
 | `scenario_run.py` | ラン終了時に `design_proposals.json` 出力、`--apply-proposals` |
+| `scripts/run_ssos_eclss_loop.sh` | ホストラッパ（sync + exec / `--mock`） |
+| `scripts/ssos_container_run.sh` | コンテナ内 `ea-loop` エントリ |
+
+`change_kind`: `action_profile` | `service_config` | `set_parameter` | `graph_rewire`
+
+---
+
+## Phase 6 成果物（完了 — 作業ツリー、未コミット）
+
+| ファイル | 役割 |
+|----------|------|
+| `src/scenario/agents/ssos_eclss_loop_team.py` | `_run_step_llm`（deliberation + action）、`propose_post_run_design` |
+| `src/core/agents/persona.py` | `eclss_operational_action_contract` / `eclss_design_proposal_contract` |
+| `src/core/llm/ollama.py` | `resolve_ollama_base_url()` — `OLLAMA_BASE_URL` 環境変数 |
+| `src/core/agents/memory.py` | `EclssOperationalCommand` の payload 記録 |
+| `tests/scenario/test_ssos_eclss_loop.py` | `test_ssos_eclss_loop_llm_agents_invoke_ars`（Fake LLM） |
+| `tests/scenario/test_ssos_eclss_loop_team.py` | LLM パース単体テスト |
+
+**LLM フロー**（scrubber パターン準拠）:
+
+1. 全員 deliberation（`message_contract`）
+2. action rep が operational コマンド（`eclss_operational_action_contract`）
+3. ラン終了後 post-run design（`eclss_design_proposal_contract` → `design_proposals.json`、`decision_source: llm`）
+
+**pytest（mock）**:
 
 ```bash
-# 1 回目
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
-
-# 2 回目 — 前 run の提案を適用
-python -m scenario.ssos_eclss_loop.scenario_run \
-  --backend mock --agents-mode labeled_rule_base \
-  --apply-proposals src/experiments/results/ssos_eclss_loop_labeled_rule_base/design_proposals.json
+PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_loop_llm_agents_invoke_ars -q
 ```
 
-### バックログ（Phase 6 以降）
+**コンテナ E2E（ros2 + llm）— 手動確認待ち**:
+
+```bash
+# Terminal 1
+bash /root/ssos-eclss-headless.sh
+
+# Terminal 2（sync 後）
+ea-loop --agents-mode llm
+# 期待: summary.backend=ros2, operational_command_count>0, design_proposals decision_source=llm
+# 前提: Mac で ollama serve + gemma4:e4b pull
+```
+
+---
+
+## 振り返り（2026-06-14）
+
+### 達成したこと
+
+1. **Mock → SSOS 実機への段階接合** — ARS/OGS/WRS smoke → `Ros2EclssBridge` → シナリオループまで一気通貫。
+2. **scrubber との設計分離** — ランタイム topology 変更を廃止し、事後 `design_proposals.json` に統一（scrubber は mock topology、SSOS は `ssos_graph` ドメイン）。
+3. **Crew Simulation 代替** — `SsosEclssLoopTeam` が labeled_rule_base と LLM の両方で ARS/OGS/CO₂ サービスを操作。
+4. **Docker 開発 UX** — `ea-loop` 1 コマンド、sync スクリプト、ros2/Ollama のコンテナ向けデフォルト。
+
+### 学んだこと / ハマりどころ
+
+| 問題 | 原因 | 対策 |
+|------|------|------|
+| コンテナ内 `ModuleNotFoundError: scenario` | `src/` 未 sync | `run_ssos_eclss_loop.sh --sync-only` |
+| `ea-loop` が mock のまま | `--backend` 未指定 + scenario.yaml デフォルト mock | `SSOS_ECLSS_BACKEND=ros2` を `ea-loop` に組込 |
+| LLM 全部失敗・command 0 | コンテナ内 `localhost:11434` はホスト Ollama に届かない | `OLLAMA_BASE_URL=http://host.docker.internal:11434` |
+| Mac ホストで ros2 smoke 失敗 | ホストに ROS 2 なし | **想定どおり** — コンテナ内実行 |
+| SSOS トピック名 ≠ 初期契約 | 実機は `/solar_controller/ssu_voltage_v` 等 | `topic_map.py` / `eclss_topics.py` で定数化 |
+
+### 未検証 / リスク
+
+- **ros2 + llm の E2E** — pytest は Fake LLM + mock のみ。実コンテナでの ARS goal 成功ログは未記録。
+- **Ollama モデル** — `agents.yaml` の `gemma4:e4b` がホストに無いと LLM 失敗。
+- **action 待ち** — ros2 ブリッジは CLI ベースで action timeout 120s。ステップ数が多いと遅い。
+- **One Piece provenance** — ssos_eclss_loop では record 0 の報告あり（統合は別途）。
+
+---
+
+## 次へのアクション
+
+### 即時（PR マージ前）
+
+| # | アクション | 担当 / 備考 |
+|---|-----------|-------------|
+| 1 | **Phase 6 + 6.1 をコミット & push** | 作業ツリー 12 ファイル |
+| 2 | **コンテナ E2E 記録** | `ea-loop --agents-mode llm` → summary を PR に貼る |
+| 3 | **labeled_rule_base ros2 E2E** | CO₂ 閾値超え → ARS 発火を events.jsonl で確認 |
+| 4 | **draft PR #9 を Ready for review** | Phase 0–6 完了を description に反映 |
+
+### 短期バックログ（Phase 7 候補）
+
+| 優先 | 項目 | 説明 |
+|------|------|------|
+| P1 | **ros2 E2E pytest（optional）** | SSOS コンテナ CI または `@pytest.mark.integration` |
+| P1 | **LLM 接続 preflight** | llm モード開始時に `OllamaClient.check_connection()` で早期 fail |
+| P2 | **WRS in scenario team** | labeled/LLM が WRS goal・水サービスを操作 |
+| P2 | **ECLSS + EPS 単一 ros2 シナリオ** | 電力危機と ECLSS を同一 run |
+| P2 | **3b — EPS BCDU action** | discharge/boost の Action 経路 |
+| P3 | **rclpy ネイティブクライアント** | CLI ブリッジからの移行 |
+| P3 | **MkDocs CI deploy** | `docs/ssos-mkdocs` ブランチ |
+| P3 | **upstream CO₂ スクラバ** | SSOS ECLSS 拡張 → 新 Mock シナリオ |
+
+### 推奨デモシナリオ（ハッカソン展示）
+
+```bash
+# 1. rule ベースで SSOS 実機操作 + design 提案
+ea-loop --agents-mode labeled_rule_base
+
+# 2. 提案を次 run に適用
+ea-loop --agents-mode labeled_rule_base --apply-proposals .../design_proposals.json
+
+# 3. LLM が同じ plant を判断（Ollama 起動済み）
+ea-loop --agents-mode llm
+```
+
+---
+
+## 次のプラン（Phase 7+）— 旧バックログ
 
 | 項目 | 説明 |
 |------|------|

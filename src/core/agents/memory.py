@@ -71,7 +71,14 @@ class TeamMemoryStore:
                 summary += f" ({msg.reasoning})"
             memory.append(summary)
         for cmd in outcome.commands:
-            issuer = cmd.issued_by or "operator"
+            issuer = getattr(cmd, "issued_by", None) or "operator"
             memory = self.agent_memories.get(issuer)
             if memory is not None:
-                memory.append(f"step action: {cmd.kind.value} value={cmd.value}")
+                kind = getattr(cmd.kind, "value", cmd.kind)
+                payload = getattr(cmd, "payload", None)
+                if isinstance(payload, dict) and payload:
+                    memory.append(f"step action: {kind} payload={payload}")
+                elif hasattr(cmd, "value"):
+                    memory.append(f"step action: {kind} value={cmd.value}")
+                else:
+                    memory.append(f"step action: {kind}")
