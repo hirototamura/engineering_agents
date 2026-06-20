@@ -9,11 +9,11 @@
 | 項目 | 値 |
 |------|-----|
 | ブランチ | `feat/ssos-eclss-loop`（draft PR #9 vs `main`） |
-| 最新コミット（push 済） | `d5bf9af` — design_proposals 統一 + Docker runner（`ea-loop`） |
-| 作業ツリー（未コミット） | Phase 6 LLM + コンテナ ros2/Ollama デフォルト（下記「Phase 6.1」） |
+| 作業ツリー（未コミット） | — |
+| 最新コミット | `d62ca77` — Phase 6 LLM + コンテナ ros2/Ollama デフォルト |
 | Phase コミット列 | `e18e79a` 1a/1b → `2700fda` WRS → `3b4b0b4` EPS → `7196812`/`b2b64f9` シナリオ → `797b589`/`d5bf9af` design_proposals |
 | テスト | `pytest` → **110+ passed**, 3 skipped（ROS2 統合は SSOS コンテナ外 skip） |
-| **Phase 0–6** | **コード完了**（Phase 6 の ros2+E2E はコンテナ手動確認待ち） |
+| **Phase 0–6** | **コード完了** — ros2 E2E 記録済（`ja/memo/e2e_records/`） |
 
 | ユーザ向けドキュメント | ブランチ **`docs/ssos-mkdocs`**（MkDocs。`12267a4` は本ブランチから revert 済み） |
 | ドキュメント保守 | 別エージェント — `docs/ssos-mkdocs` 上の `docs/MAINTENANCE.md` |
@@ -28,8 +28,8 @@
 | **3** | EPS 接合（scrubber 電力） | ✅ 完了 |
 | **4** | `ssos_eclss_loop` + `SsosEclssLoopTeam`（labeled_rule_base） | ✅ 完了 |
 | **5** | `design_proposals.json` + `--apply-proposals` | ✅ 完了 |
-| **6** | LLM エージェント（deliberation + operational + 事後 design） | ✅ コード完了 |
-| **6.1** | Docker 実行 UX（`ea-loop` デフォルト ros2 + Ollama `host.docker.internal`） | ✅ 未コミット |
+| **6** | LLM エージェント（deliberation + operational + 事後 design） | ✅ 完了 (`d62ca77`) |
+| **6.1** | Docker 実行 UX（`ea-loop` デフォルト ros2 + Ollama `host.docker.internal`） | ✅ 完了 (`d62ca77`) |
 
 ---
 
@@ -363,17 +363,12 @@ ECLSS 未起動時は `ea-loop` が即エラー（空 ros2 グラフ検出）。
 PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_loop_llm_agents_invoke_ars -q
 ```
 
-**コンテナ E2E（ros2 + llm）— 手動確認待ち**:
+**コンテナ E2E（ros2）— 記録済（2026-06-14）**: 詳細は [`ja/memo/e2e_records/README.md`](e2e_records/README.md)
 
-```bash
-# Terminal 1
-bash /root/ssos-eclss-headless.sh
-
-# Terminal 2（sync 後）
-ea-loop --agents-mode llm
-# 期待: summary.backend=ros2, operational_command_count>0, design_proposals decision_source=llm
-# 前提: Mac で ollama serve + gemma4:e4b pull
-```
+| run | 結果 |
+|-----|------|
+| `labeled_rule_base` | `operational_command_count=2`、OGS SUCCEEDED |
+| `llm`（3 steps） | Ollama 接続 OK、`decision_source=llm`、operational hold（CO₂=0） |
 
 ---
 
@@ -398,7 +393,7 @@ ea-loop --agents-mode llm
 
 ### 未検証 / リスク
 
-- **ros2 + llm の E2E** — pytest は Fake LLM + mock のみ。実コンテナでの ARS goal 成功ログは未記録。
+- **ARS 経路 on 実機** — SSOS 初期 CO₂=0 のため labeled/LLM とも ARS 未発火（OGS 経路で検証）
 - **Ollama モデル** — `agents.yaml` の `gemma4:e4b` がホストに無いと LLM 失敗。
 - **action 待ち** — ros2 ブリッジは CLI ベースで action timeout 120s。ステップ数が多いと遅い。
 - **One Piece provenance** — ssos_eclss_loop では record 0 の報告あり（統合は別途）。
@@ -409,12 +404,12 @@ ea-loop --agents-mode llm
 
 ### 即時（PR マージ前）
 
-| # | アクション | 担当 / 備考 |
-|---|-----------|-------------|
-| 1 | **Phase 6 + 6.1 をコミット & push** | 作業ツリー 12 ファイル |
-| 2 | **コンテナ E2E 記録** | `ea-loop --agents-mode llm` → summary を PR に貼る |
-| 3 | **labeled_rule_base ros2 E2E** | CO₂ 閾値超え → ARS 発火を events.jsonl で確認 |
-| 4 | **draft PR #9 を Ready for review** | Phase 0–6 完了を description に反映 |
+| # | アクション | 状態 |
+|---|-----------|------|
+| 1 | Phase 6 + 6.1 コミット & push | ✅ `d62ca77` |
+| 2 | コンテナ E2E 記録 | ✅ `ja/memo/e2e_records/` |
+| 3 | labeled_rule_base ros2 E2E | ✅ OGS + request_co2（events.jsonl） |
+| 4 | draft PR #9 Ready for review | 実施中 |
 
 ### 短期バックログ（Phase 7 候補）
 

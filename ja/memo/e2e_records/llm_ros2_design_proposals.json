@@ -1,0 +1,15 @@
+{
+  "design_domain": "ssos_graph",
+  "proposed_by": "eclss_operator_3",
+  "decision_source": "llm",
+  "message": "The zero CO2 storage is a persistent bottleneck. Future designs must integrate metabolic load characterization before committing to OGS cycles.",
+  "reasoning": "Telemetry shows final_co2_storage_kg=0. The team consistently identified this as the primary constraint (e.g., eclss_operator_3's repeated statements). We need a mechanism to estimate or measure crew $\\text{CO}_2$ production rates proactively.",
+  "changes": [],
+  "baseline_graph": {},
+  "parse_status": "ok",
+  "parse_error": null,
+  "parse_notes": [
+    "invalid payload for service_config"
+  ],
+  "raw_response_excerpt": "{\"message\": \"The zero CO2 storage is a persistent bottleneck. Future designs must integrate metabolic load characterization before committing to OGS cycles.\", \"reasoning\": \"Telemetry shows final_co2_storage_kg=0. The team consistently ident … [truncated 81 chars] … s). We need a mechanism to estimate or measure crew $\\\\text{CO}_2$ production rates proactively.\", \"changes\": [{\"change_kind\": \"service_config\", \"payload\": {\"service\": \"estimate_metabolic_load\"}}], \"memory\": \"Need metabolic rate estimate.\"}"
+}
