@@ -197,6 +197,21 @@ class SsosEclssLoopTeam:
         outcome.commands.extend(commands)
         return outcome
 
+    def _rearm_labeled_recovery(
+        self,
+        co2: Optional[float],
+        o2: Optional[float],
+        co2_high: float,
+        o2_low: float,
+    ) -> None:
+        """Re-arm one-shot flags when telemetry returns to the safe band."""
+        if co2 is not None and co2 < co2_high:
+            self.state.ars_invoked = False
+            self.state.alert_sent = False
+        if o2 is not None and o2 > o2_low:
+            self.state.ogs_invoked = False
+            self.state.co2_requested = False
+
     def _labeled_recovery(
         self,
         obs: EclssLoopObservation,
@@ -206,6 +221,7 @@ class SsosEclssLoopTeam:
         co2: Optional[float],
         o2: Optional[float],
     ) -> Tuple[List[AgentMessage], List[EclssOperationalCommand]]:
+        self._rearm_labeled_recovery(co2, o2, co2_high, o2_low)
         messages: List[AgentMessage] = []
         commands: List[EclssOperationalCommand] = []
 
@@ -675,8 +691,9 @@ def build_llm_situation(obs: EclssLoopObservation) -> str:
     health = obs.health if isinstance(obs.health, dict) else {}
     world_state = (
         f"overall={health.get('overall', 'unknown')}, "
-        f"co2_storage={health.get('co2_storage', 'unknown')}, "
-        f"o2_storage={health.get('o2_storage', 'unknown')}\n"
+        f"co2_status={health.get('co2_status', 'unknown')}, "
+        f"o2_status={health.get('o2_status', 'unknown')}, "
+        f"water_status={health.get('water_status', 'unknown')}\n"
         "(Descriptive assessment from the facility monitoring layer — not a command.)"
     )
     return (

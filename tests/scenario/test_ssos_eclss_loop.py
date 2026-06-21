@@ -100,6 +100,47 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     assert proposals.get("design_domain") == "ssos_graph"
 
 
+def test_ssos_eclss_loop_labeled_reinvokes_ars_when_co2_reexceeds(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "labeled_rearm",
+        overrides={"agents": {"mode": "labeled_rule_base"}},
+        recreate_output=True,
+    )
+
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    events = _read_jsonl(run_dir / "events.jsonl")
+    ars_steps = [
+        e["step"]
+        for e in events
+        if e.get("kind") == "/eclss/events/operational_applied"
+        and (e.get("command") or {}).get("kind") == "air_revitalisation"
+    ]
+
+    assert summary["operational_command_count"] >= 2
+    assert 0 in ars_steps
+    assert any(step > 0 for step in ars_steps), "ARS should re-fire after CO2 regrows past threshold"
+
+
+def test_ssos_eclss_loop_provenance_includes_operational_records(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "labeled_prov",
+        overrides={"agents": {"mode": "labeled_rule_base"}},
+        recreate_output=True,
+    )
+
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    provenance = _read_jsonl(run_dir / "provenance.jsonl")
+    operational = [p for p in provenance if p.get("record_type") == "operational"]
+
+    assert summary["provenance_record_count"] >= 1
+    assert operational, "expected SSOS operational provenance records"
+    assert any(p.get("change_kind") == "air_revitalisation" for p in operational)
+    assert operational[0]["trace"]["event_kind"] == "/eclss/events/operational_applied"
+    assert operational[0]["trace"]["decision_source"] == "rule"
+
+
 def test_ssos_eclss_loop_apply_proposals(tmp_path: Path):
     first = run_scenario(
         "ssos_eclss_loop",

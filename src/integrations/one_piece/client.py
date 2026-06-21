@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 DESIGN_CHANGE_EVENT_KIND = "/eclss/events/design_change"
 RECOVERY_EVENT_KIND = "/eclss/events/recovery_applied"
+OPERATIONAL_EVENT_KIND = "/eclss/events/operational_applied"
 EPS_BOOST_COMMAND_KIND = "request_eps_boost"
 
 
@@ -80,6 +81,31 @@ def _find_design_message(
         if row.get("from_role") != actor:
             continue
         return row
+    return None
+
+
+def _find_operational_message(
+    step: int,
+    actor: str,
+    command_kind: str,
+    messages: List[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    for row in messages:
+        if int(row.get("step", -1)) != step:
+            continue
+        if row.get("message_type") != "operational_command":
+            continue
+        if row.get("from_role") != actor:
+            continue
+        text = str(row.get("message", "")).lower()
+        if command_kind == "air_revitalisation" and "ars" in text:
+            return row
+        if command_kind == "oxygen_generation" and "ogs" in text:
+            return row
+        if command_kind == "request_co2" and "co2" in text:
+            return row
+        if command_kind == "request_o2" and "o2" in text:
+            return row
     return None
 
 
@@ -162,6 +188,48 @@ def build_provenance_records(run_dir: Path) -> List[Dict[str, Any]]:
                 "decision_source": (msg or {}).get("decision_source"),
                 "parse_status": (msg or {}).get("parse_status"),
                 "event_message": event.get("message"),
+            },
+        }
+        records.append(record)
+
+    for idx, event in enumerate(events):
+        if event.get("kind") != OPERATIONAL_EVENT_KIND:
+            continue
+        command = event.get("command") or {}
+        command_kind = command.get("kind")
+        if not command_kind:
+            continue
+
+        step = int(event.get("step", -1))
+        actor = command.get("issued_by") or "unknown"
+        msg = _find_operational_message(
+            step=step,
+            actor=actor,
+            command_kind=str(command_kind),
+            messages=messages,
+        )
+        result = event.get("result") or {}
+
+        record = {
+            "record_id": f"{run_id}:operational:{len(records) + 1}",
+            "run_id": run_id,
+            "scenario": scenario,
+            "step": step,
+            "record_type": "operational",
+            "actor": actor,
+            "actor_kind": "ai_agent",
+            "change_kind": command_kind,
+            "payload": command.get("payload", {}),
+            "trace": {
+                "event_kind": event.get("kind"),
+                "event_index": idx,
+                "message": (msg or {}).get("message"),
+                "reasoning": (msg or {}).get("reasoning"),
+                "decision_source": (msg or {}).get("decision_source")
+                or ((msg or {}).get("metadata") or {}).get("decision_source"),
+                "parse_status": (msg or {}).get("parse_status"),
+                "event_message": event.get("message"),
+                "result_success": result.get("success"),
             },
         }
         records.append(record)
