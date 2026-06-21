@@ -169,3 +169,20 @@ def test_integration_poll_topics_when_eps_running():
     """Requires SSOS EPS stack running (Docker). Skips on dev machines without ros2."""
     payload = Ros2EpsBridge(topic_timeout_s=5.0).poll_topics()
     assert "solar_voltage_v" in payload
+
+
+def test_poll_topics_reports_none_when_topics_missing(monkeypatch):
+    def fake_echo(topic, **_kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "environment.ssos.ros2_eps_bridge._echo_float_topic",
+        fake_echo,
+    )
+    monkeypatch.setattr(
+        "environment.ssos.ros2_eps_bridge._echo_topic_once",
+        lambda *_args, **_kwargs: (None, "timeout"),
+    )
+    payload = Ros2EpsBridge().poll_topics()
+    assert payload["solar_voltage_v"] is None
+    assert payload["bcdu_mode"] is None

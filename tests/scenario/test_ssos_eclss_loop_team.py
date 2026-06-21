@@ -152,3 +152,23 @@ def test_llm_design_parse_accepts_ssos_change_kinds():
     assert len(changes) == 2
     assert changes[0]["change_kind"] == "action_profile"
 
+
+def test_llm_design_parse_rejects_unknown_action_profile_fields():
+    team = SsosEclssLoopTeam({"mode": "llm", "team": {"count": 1, "id_prefix": "op"}, "llm": {}})
+    changes, notes = team._parse_llm_design_proposals(
+        [
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ogs",
+                    "fields": {
+                        "input_water_mass": 10.0,
+                        "duration_steps": 5,
+                    },
+                },
+            }
+        ]
+    )
+    assert changes == []
+    assert notes
+

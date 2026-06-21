@@ -44,3 +44,25 @@ def test_run_eps_smoke_with_fake_bridge(monkeypatch):
     assert report.ok is True
     assert report.topics["solar_voltage_v"] == 130.0
     assert report.discharge_armed is not None
+
+
+def test_run_eps_smoke_reports_missing_topics(monkeypatch):
+    class FakeBridge:
+        @staticmethod
+        def ros2_available() -> bool:
+            return True
+
+        def __init__(self, **_kwargs):
+            pass
+
+        def poll_topics(self):
+            return {
+                "solar_voltage_v": None,
+                "bcdu_mode": None,
+            }
+
+    monkeypatch.setattr("scripts.ssos_eps_smoke.Ros2EpsBridge", FakeBridge)
+    report = run_eps_smoke()
+    assert report.ok is False
+    assert any("solar voltage" in err for err in report.errors)
+    assert any("BCDU" in err for err in report.errors)

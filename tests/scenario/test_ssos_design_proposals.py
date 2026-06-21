@@ -109,3 +109,23 @@ def test_round_trip_via_json_file(tmp_path):
     loaded = json.loads(path.read_text(encoding="utf-8"))
     merged = apply_design_proposals({"agents": {"policy": {}}}, loaded)
     assert merged["agents"]["policy"]["ogs_goal"]["input_water_mass"] == 9.0
+
+
+def test_apply_action_profile_rejects_unknown_fields():
+    proposals = {
+        "design_domain": DESIGN_DOMAIN,
+        "changes": [
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ars",
+                    "fields": {
+                        "initial_co2_mass": 1800.0,
+                        "duration_steps": 3,
+                    },
+                },
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="unsupported keys"):
+        apply_design_proposals({"agents": {"policy": {}}}, proposals)

@@ -167,13 +167,34 @@ class Ros2EpsBridge:
         return 0.0
 
     def poll_topics(self) -> dict[str, object]:
-        """Read solar + BCDU topics once (smoke / observability)."""
-        solar = self.poll_solar()
-        bcdu = self.poll_bcdu()
+        """Read solar + BCDU topics once (smoke / observability).
+
+        Missing topics are reported as ``None`` so smoke tests can fail loudly
+        instead of masking absent publishers with cached zero defaults.
+        """
+        voltage = _echo_float_topic(SSOS_TOPIC_SOLAR_VOLTAGE, timeout_s=self.topic_timeout_s)
+        beta = _echo_float_topic(SSOS_TOPIC_SUN_BETA, timeout_s=self.topic_timeout_s)
+        if voltage is not None:
+            self._last_solar_voltage_v = voltage
+        if beta is not None:
+            self._last_beta_deg = beta
+
+        solar = sarj_reading_from_topics(
+            step=self._step_count + 1,
+            solar_voltage_v=self._last_solar_voltage_v if voltage is not None else 0.0,
+            beta_angle_deg=self._last_beta_deg if beta is not None else 0.0,
+            eclipse_threshold_v=self.eclipse_threshold_v,
+        )
+        self._step_count = solar.step
+
+        bcdu = self._read_bcdu_status()
+        if bcdu is not None:
+            self._last_bcdu = bcdu
+
         payload: dict[str, object] = {
-            "solar_voltage_v": solar.solar_voltage_v,
-            "beta_angle_deg": solar.beta_angle_deg,
-            "in_eclipse": solar.in_eclipse,
+            "solar_voltage_v": voltage,
+            "beta_angle_deg": beta,
+            "in_eclipse": solar.in_eclipse if voltage is not None else None,
         }
         if bcdu is not None:
             payload.update(
@@ -185,6 +206,8 @@ class Ros2EpsBridge:
                     "fault": bcdu.fault,
                 }
             )
+        else:
+            payload["bcdu_mode"] = None
         return payload
 
     def _read_bcdu_status(self) -> Optional[BcduStatus]:

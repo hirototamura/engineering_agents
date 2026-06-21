@@ -23,6 +23,12 @@ SSOS_CHANGE_KINDS = frozenset(
     }
 )
 
+ACTION_PROFILE_FIELDS_BY_SUBSYSTEM = {
+    "ars": frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"}),
+    "ogs": frozenset({"input_water_mass", "iodine_concentration"}),
+    "wrs": frozenset({"urine_volume"}),
+}
+
 ApplyHandler = Callable[[Dict[str, Any], Dict[str, Any]], None]
 
 
@@ -59,18 +65,34 @@ def validate_design_proposals(data: Dict[str, Any]) -> List[str]:
     return errors
 
 
+def _filter_action_profile_fields(subsystem: str, fields: Dict[str, Any]) -> Dict[str, Any]:
+    allowed = ACTION_PROFILE_FIELDS_BY_SUBSYSTEM.get(subsystem.lower())
+    if allowed is None:
+        raise ValueError(f"action_profile subsystem must be ars, ogs, or wrs, got {subsystem!r}")
+    unknown = sorted(set(fields) - allowed)
+    if unknown:
+        raise ValueError(
+            f"action_profile.fields contains unsupported keys for {subsystem}: {unknown}"
+        )
+    filtered = {key: fields[key] for key in fields if key in allowed}
+    if not filtered:
+        raise ValueError(f"action_profile.fields must include at least one known field for {subsystem!r}")
+    return filtered
+
+
 def _apply_action_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> None:
     subsystem = str(payload.get("subsystem", "")).lower()
     fields = payload.get("fields") or {}
     if not isinstance(fields, dict):
         raise ValueError("action_profile.fields must be an object")
+    filtered = _filter_action_profile_fields(subsystem, fields)
     policy = config.setdefault("agents", {}).setdefault("policy", {})
     if subsystem == "ars":
-        policy.setdefault("ars_goal", {}).update(fields)
+        policy.setdefault("ars_goal", {}).update(filtered)
     elif subsystem == "ogs":
-        policy.setdefault("ogs_goal", {}).update(fields)
+        policy.setdefault("ogs_goal", {}).update(filtered)
     elif subsystem == "wrs":
-        policy.setdefault("wrs_goal", {}).update(fields)
+        policy.setdefault("wrs_goal", {}).update(filtered)
     else:
         raise ValueError(f"action_profile subsystem must be ars, ogs, or wrs, got {subsystem!r}")
 

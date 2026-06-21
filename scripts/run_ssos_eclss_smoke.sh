@@ -29,6 +29,7 @@ run_smoke() {
 
 if command -v ros2 >/dev/null 2>&1; then
   run_smoke "$REPO_ROOT" "$@"
+  exit $?
 fi
 
 if ! command -v docker >/dev/null 2>&1; then

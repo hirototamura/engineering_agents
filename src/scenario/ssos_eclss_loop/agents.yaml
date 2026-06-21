@@ -13,10 +13,10 @@ team:
     coordinate ARS air_revitalisation and OGS oxygen_generation via backend actions.
     Request CO2 before OGS when Sabatier feedstock is needed. No topology changes at runtime.
 
-# policy: labeled_rule_base mode only — llm code paths must not read these values.
+# policy: labeled_rule_base operational profiles only.
+# Band thresholds (co2_storage_high_kg, o2_storage_low_kg, …) are derived from
+# scenario.yaml thresholds at run time — do not duplicate them here.
 policy:
-  co2_storage_high_kg: 1500.0
-  o2_storage_low_kg: 450.0
   request_co2_before_ogs: true
   request_co2_amount: 25.0
   ars_goal:

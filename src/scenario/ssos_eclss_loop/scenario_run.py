@@ -32,6 +32,7 @@ from scenario.ssos_eclss_loop.design_proposals import (
     load_design_proposals,
     write_design_proposals,
 )
+from scenario.ssos_eclss_loop.policy import merge_labeled_policy_from_thresholds
 
 logger = logging.getLogger(__name__)
 
@@ -109,8 +110,13 @@ class SsosEclssLoopScenario(Scenario):
     def build_simulator(self, config: Dict[str, Any]):
         raise NotImplementedError("ssos_eclss_loop uses EclssBackend, not SimulatorProtocol")
 
-    def build_team(self, config: Dict[str, Any]) -> Optional[SsosEclssLoopTeam]:
-        agents_config = load_agents_config(self.name, config)
+    def build_team(
+        self,
+        config: Dict[str, Any],
+        agents_config: Optional[Dict[str, Any]] = None,
+    ) -> Optional[SsosEclssLoopTeam]:
+        if agents_config is None:
+            agents_config = load_agents_config(self.name, config)
         if not agents_config:
             return None
         mode = agents_config.get("mode")
@@ -129,11 +135,13 @@ class SsosEclssLoopScenario(Scenario):
         if apply_proposals_path is not None:
             proposals = load_design_proposals(apply_proposals_path)
             config = apply_design_proposals(config, proposals)
+        thresholds = config.get("thresholds", {}) or {}
         agents_config = load_agents_config(self.name, config)
+        if agents_config:
+            agents_config = merge_labeled_policy_from_thresholds(agents_config, thresholds)
         sim_cfg = config.get("simulation", {})
         steps = int(sim_cfg.get("steps", 8))
         output_cfg = config.get("output", {})
-        thresholds = config.get("thresholds", {}) or {}
         backend_kind = resolve_backend_kind(config, overrides)
 
         results_base = Path(__file__).resolve().parents[2] / "experiments" / "results"
@@ -158,7 +166,7 @@ class SsosEclssLoopScenario(Scenario):
             run_dir.mkdir(parents=True, exist_ok=True)
 
         backend = build_eclss_backend(config, kind=backend_kind)
-        team = self.build_team(config)
+        team = self.build_team(config, agents_config=agents_config)
         log = EventLog(run_dir)
 
         message_count = 0

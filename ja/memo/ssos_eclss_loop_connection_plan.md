@@ -424,6 +424,57 @@ PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_lo
 | P3 | **MkDocs CI deploy** | `docs/ssos-mkdocs` ブランチ |
 | P3 | **upstream CO₂ スクラバ** | SSOS ECLSS 拡張 → 新 Mock シナリオ |
 
+### Phase 7 — 将来フェーズ（レビュー指摘の明文化）
+
+#### 7a — `graph_rewire` のランタイム適用（ROS remapping）
+
+**現状（Phase 5）:** `design_proposals.json` の `graph_rewire` は `ssos_graph.rewires` に **保存のみ**。`--apply-proposals` で scenario config にマージされるが、`build_eclss_backend()` も Docker `ea-loop` も rewires を **消費しない**。
+
+**目標:** 次 run 起動時に remapping を SSOS ROS グラフへ反映する。
+
+| ステップ | 内容 |
+|----------|------|
+| 1 | `ssos_graph.rewires` スキーマを固定（`component`, `public`, `backend`, 任意 `remap_rules[]`） |
+| 2 | `Ros2EclssBridge` / コンテナ runner が rewires を読み、既知コンポーネント（`rclpy_gateway` 等）へ env または launch 引数で渡す |
+| 3 | `ea-loop` preflight で rewires 適用後に `ros2 topic list` で public トピック到達を確認 |
+| 4 | pytest: apply → mock remapping handler が config を受け取ること（ros2 E2E は optional） |
+
+**参照:** [ssos_ros2_graph_design_investigation.md](ssos_ros2_graph_design_investigation.md) の gateway / remapping 調査。
+
+#### 7b — `Team` ABC 統一（`SsosEclssLoopTeam`）
+
+**現状（Phase 4–6）:** `scrubber_degradation` は `Team.run_step(sim, obs)` + `SimulatorProtocol`。`ssos_eclss_loop` は `EclssBackend` 向けに **別 API**（`run_step(obs)` + `apply_outcome(backend, outcome)`）を使用。`build_simulator()` は `NotImplementedError`。
+
+**目標:** 第三シナリオ追加前に共通チーム抽象を整理する。
+
+| 案 | 内容 |
+|----|------|
+| A | `Team` Protocol を `run_step(context, obs)` に一般化し、`SimulatorProtocol` / `EclssBackend` を context で渡す |
+| B | `OperationalTeam` ミックスインで SSOS 系のみ `apply_outcome` を追加 |
+| C | シナリオ registry が team 型ごとに step ループを分岐（現状維持を明文化） |
+
+**推奨:** Phase 7b では案 A を設計メモ化し、scrubber を壊さない形で `SsosEclssLoopTeam` を段階移行。
+
+#### 7c — その他レビュー項目（参考・コード変更なし）
+
+| # | 項目 | 内容 |
+|---|------|------|
+| 6 | `LoopMockEclssBackend` の配置 | 物理ダイナミクス mock が `scenario/` にある。AGENTS.md 的には `environment/` が自然。テスト専用なら `tests/fixtures/` も可。**Phase 7c で移動検討。** |
+| 7 | diagnosis 未接続 | labeled は `ars_failure_enabled` 等で diagnosis メッセージを出すが、`Ros2EclssBridge.poll_telemetry()` は **ローカル `set_subsystem_failure` フラグのみ**反映。SSOS `/ars/self_diagnosis` 等は未購読。**Phase 7c で telemetry 購読を追加。** |
+| 8 | `request_o2` mock 挙動 | `LoopMockEclssBackend.request_o2` が O2 を **減らす**（`amount * 0.01` kg）実装。サービス名と逆で、量も極小。**Phase 7c で mock セマンティクス修正または WRS 接続時に整理。** |
+
+### レビュー修正（2026-06-20）
+
+| 項目 | 対応 |
+|------|------|
+| labeled policy ← thresholds 派生 | `merge_labeled_policy_from_thresholds()` |
+| Codex: LLM health キー | `co2_status` / `o2_status` に修正済 |
+| Codex: labeled リカバリ再発火 | safe band で re-arm |
+| Codex: One Piece operational provenance | `/eclss/events/operational_applied` エクスポート |
+| Codex: EPS smoke 欠落トピック | `poll_topics()` が `None` を返す |
+| Codex: smoke スクリプト fall-through | ローカル ros2 実行後 `exit` |
+| Codex: action_profile 未知フィールド | `ACTION_PROFILE_FIELDS_BY_SUBSYSTEM` で検証 |
+
 ### 推奨デモシナリオ（ハッカソン展示）
 
 ```bash

@@ -100,6 +100,21 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     assert proposals.get("design_domain") == "ssos_graph"
 
 
+def test_ssos_eclss_loop_labeled_policy_matches_thresholds(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "policy_thresholds",
+        overrides={
+            "agents": {"mode": "labeled_rule_base"},
+            "thresholds": {"co2_storage_high_kg": 1600.0, "o2_storage_low_kg": 430.0},
+            "simulation": {"initial_co2_storage_kg": 1650.0},
+        },
+        recreate_output=True,
+    )
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["ars_invoked_step"] == 0
+
+
 def test_ssos_eclss_loop_labeled_reinvokes_ars_when_co2_reexceeds(tmp_path: Path):
     run_dir = run_scenario(
         "ssos_eclss_loop",

@@ -28,6 +28,7 @@ from scenario.agents.eclss_loop_types import (
 from scenario.ssos_eclss_loop.design_proposals import (
     DESIGN_DOMAIN,
     SSOS_CHANGE_KINDS,
+    ACTION_PROFILE_FIELDS_BY_SUBSYSTEM,
     build_design_proposals_from_run,
 )
 
@@ -514,9 +515,12 @@ class SsosEclssLoopTeam:
         if change_kind == "action_profile":
             subsystem = str(payload.get("subsystem", "")).lower()
             fields = payload.get("fields")
-            if subsystem not in {"ars", "ogs", "wrs"}:
+            if subsystem not in ACTION_PROFILE_FIELDS_BY_SUBSYSTEM:
                 return None
             if not isinstance(fields, dict) or not fields:
+                return None
+            allowed = ACTION_PROFILE_FIELDS_BY_SUBSYSTEM[subsystem]
+            if any(key not in allowed for key in fields):
                 return None
             return payload
         if change_kind == "service_config":
