@@ -59,8 +59,10 @@ class LoopMockEclssBackend(MockEclssBackend):
         return result
 
     def request_o2(self, amount: float) -> ServiceResult:
+        """Withdraw O2 from plant storage (/o2_storage) when the service succeeds."""
         result = super().request_o2(amount)
-        self._o2 = max(0.0, self._o2 - min(self._o2, amount * 0.01))
+        if result.success:
+            self._o2 = max(0.0, self._o2 - min(self._o2, amount))
         return result
 
     def send_water_recovery_goal(self, goal: WrsGoal) -> ActionResult:

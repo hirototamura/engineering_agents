@@ -170,29 +170,6 @@ class SsosEclssLoopTeam:
                 )
             )
 
-        failures = [
-            name
-            for name, flag in (
-                ("ars", obs.telemetry.ars_failure_enabled),
-                ("ogs", obs.telemetry.ogs_failure_enabled),
-                ("wrs", obs.telemetry.wrs_failure_enabled),
-            )
-            if flag
-        ]
-        if failures:
-            commenter = agent_ids[(obs.step + 1) % n]
-            outcome.messages.append(
-                AgentMessage(
-                    step=obs.step,
-                    from_role=commenter,
-                    to_role="team",
-                    message=f"Subsystem failure flags active: {', '.join(failures)}.",
-                    message_type="diagnosis",
-                    reasoning="Self-diagnosis topics report failure injection.",
-                    metadata=self._rule_metadata(),
-                )
-            )
-
         messages, commands = self._labeled_recovery(obs, rep, co2_high, o2_low, co2, o2)
         outcome.messages.extend(messages)
         outcome.commands.extend(commands)
@@ -679,7 +656,7 @@ _ECLSS_OPERATIONAL_LEVERS = """\
 - air_revitalisation: ARS action — payload fields initial_co2_mass, initial_moisture_content, initial_contaminants (kg / % as plant expects).
 - oxygen_generation: OGS action — payload fields input_water_mass, iodine_concentration.
 - request_co2: Service call — payload {"amount": <kg>} Sabatier feedstock before OGS when needed.
-- request_o2: Service call — payload {"amount": <kg>} direct O2 reserve top-up.
+- request_o2: Service call — payload {"amount": <kg>} withdraw O2 from plant /o2_storage reserve.
 Actions are asynchronous; issue only commands justified by Telemetry and team discourse."""
 
 

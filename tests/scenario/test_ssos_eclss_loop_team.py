@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from scenario.agents.eclss_loop_types import EclssLoopObservation
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
@@ -105,6 +107,17 @@ def test_team_rearms_ars_after_co2_drops_below_threshold():
     obs_high = EclssLoopObservation(step=5, telemetry=snap_high, health={"overall": "warning"})
     outcome_high = team.run_step(obs_high)
     assert any(cmd.kind == "air_revitalisation" for cmd in outcome_high.commands)
+
+
+def test_loop_mock_request_o2_withdraws_plant_storage():
+    backend = LoopMockEclssBackend(
+        {
+            "simulation": {"initial_o2_storage_kg": 100.0},
+            "mock_dynamics": {},
+        }
+    )
+    backend.request_o2(25.0)
+    assert backend.poll_telemetry().o2_storage_kg == pytest.approx(75.0)
 
 
 def test_llm_operational_parse_air_revitalisation_and_request_co2():

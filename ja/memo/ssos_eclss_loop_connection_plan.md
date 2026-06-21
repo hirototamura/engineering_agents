@@ -455,13 +455,13 @@ PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_lo
 
 **推奨:** Phase 7b では案 A を設計メモ化し、scrubber を壊さない形で `SsosEclssLoopTeam` を段階移行。
 
-#### 7c — その他レビュー項目（参考・コード変更なし）
+#### 7c — その他レビュー項目（整理済み）
 
-| # | 項目 | 内容 |
+| # | 項目 | 方針 |
 |---|------|------|
-| 6 | `LoopMockEclssBackend` の配置 | 物理ダイナミクス mock が `scenario/` にある。AGENTS.md 的には `environment/` が自然。テスト専用なら `tests/fixtures/` も可。**Phase 7c で移動検討。** |
-| 7 | diagnosis 未接続 | labeled は `ars_failure_enabled` 等で diagnosis メッセージを出すが、`Ros2EclssBridge.poll_telemetry()` は **ローカル `set_subsystem_failure` フラグのみ**反映。SSOS `/ars/self_diagnosis` 等は未購読。**Phase 7c で telemetry 購読を追加。** |
-| 8 | `request_o2` mock 挙動 | `LoopMockEclssBackend.request_o2` が O2 を **減らす**（`amount * 0.01` kg）実装。サービス名と逆で、量も極小。**Phase 7c で mock セマンティクス修正または WRS 接続時に整理。** |
+| 6 | `LoopMockEclssBackend` の配置 | **現状維持** — `scenario/` 配下のまま問題なし（シナリオ専用 dynamics）。 |
+| 7 | diagnosis / self_diagnosis | **スコープ外** — labeled の diagnosis メッセージパスは削除。failure フラグは bridge テスト用に telemetry 型のみ残す。 |
+| 8 | `request_o2` mock 挙動 | `/o2_storage` は **OGS 供給側貯蔵**。`request_o2` で減少は正しい（引き出し）。修正済: `amount * 0.01` → `amount` kg で減算。 |
 
 ### レビュー修正（2026-06-20）
 
