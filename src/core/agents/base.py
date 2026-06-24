@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from core.agents.types import AgentMessage, AgentObservation, StepAgentOutcome
-    from environment.protocol import SimulatorProtocol
+    from core.agents.types import AgentMessage
 
 
 @dataclass(frozen=True)
@@ -28,8 +27,10 @@ class DeliberationContext:
 
 
 class Team(ABC):
-    @abstractmethod
-    def run_step(self, sim: SimulatorProtocol, obs: AgentObservation) -> StepAgentOutcome: ...
+    """Scenario agent team — ``context`` is ``SimulatorProtocol`` or ``EclssBackend``."""
 
     @abstractmethod
-    def apply_outcome(self, sim: SimulatorProtocol, outcome: StepAgentOutcome) -> None: ...
+    def run_step(self, context: Any, observation: Any) -> Any: ...
+
+    @abstractmethod
+    def apply_outcome(self, context: Any, outcome: Any) -> Any: ...

@@ -32,6 +32,8 @@ from scenario.ssos_eclss_loop.design_proposals import (
     load_design_proposals,
     write_design_proposals,
 )
+from environment.ssos.graph_rewire import build_topic_remap
+
 from scenario.ssos_eclss_loop.policy import merge_labeled_policy_from_thresholds
 
 logger = logging.getLogger(__name__)
@@ -88,9 +90,11 @@ def build_eclss_backend(config: Dict[str, Any], kind: Optional[str] = None) -> E
         from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
 
         ros2_cfg = config.get("backend", {}).get("ros2", {}) or {}
+        rewires = (config.get("ssos_graph") or {}).get("rewires") or []
         return Ros2EclssBridge(
             action_timeout_s=float(ros2_cfg.get("action_timeout_s", 120.0)),
             topic_timeout_s=float(ros2_cfg.get("topic_timeout_s", 15.0)),
+            topic_remap=build_topic_remap(rewires),
         )
     raise ValueError(f"Unknown ECLSS backend kind: {backend_kind!r} (expected mock or ros2)")
 
@@ -205,7 +209,7 @@ class SsosEclssLoopScenario(Scenario):
 
             if team is not None:
                 obs = EclssLoopObservation(step=step, telemetry=snap, health=health)
-                outcome = team.run_step(obs)
+                outcome = team.run_step(backend, obs)
                 events = team.apply_outcome(backend, outcome)
                 operational_command_count += len(outcome.commands)
                 for msg in outcome.messages:

@@ -12,8 +12,9 @@ import re
 import shlex
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, Sequence, Tuple
+from typing import Mapping, Optional, Sequence, Tuple
 
+from environment.ssos.graph_rewire import remap_name
 from environment.ssos.ros2_eclss_telemetry import get_rclpy_telemetry_reader
 
 from environment.ssos.eclss_topics import (
@@ -219,15 +220,20 @@ class Ros2EclssBridge:
         action_timeout_s: float = 120.0,
         service_timeout_s: float = 30.0,
         topic_timeout_s: float = 10.0,
+        topic_remap: Optional[Mapping[str, str]] = None,
     ) -> None:
         self.action_timeout_s = action_timeout_s
         self.service_timeout_s = service_timeout_s
         self.topic_timeout_s = topic_timeout_s
+        self._topic_remap = dict(topic_remap or {})
         self._failure_flags: dict[str, bool] = {
             "ars": False,
             "ogs": False,
             "wrs": False,
         }
+
+    def _ros_name(self, public_name: str) -> str:
+        return remap_name(public_name, self._topic_remap)
 
     @staticmethod
     def ros2_available() -> bool:
@@ -242,7 +248,7 @@ class Ros2EclssBridge:
         o2: Optional[float]
         water: Optional[float]
 
-        if not _force_cli_telemetry():
+        if not _force_cli_telemetry() and not self._topic_remap:
             reader = get_rclpy_telemetry_reader()
             if reader is not None:
                 co2, o2, water = reader.read(wait_timeout_s=self.topic_timeout_s)
@@ -269,14 +275,16 @@ class Ros2EclssBridge:
         )
 
     def _poll_telemetry_cli(self) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-        values = _echo_float_topics_parallel(
-            (TOPIC_CO2_STORAGE, TOPIC_O2_STORAGE, TOPIC_WRS_PRODUCT_WATER_RESERVE),
-            timeout_s=self.topic_timeout_s,
+        backend_topics = (
+            self._ros_name(TOPIC_CO2_STORAGE),
+            self._ros_name(TOPIC_O2_STORAGE),
+            self._ros_name(TOPIC_WRS_PRODUCT_WATER_RESERVE),
         )
+        values = _echo_float_topics_parallel(backend_topics, timeout_s=self.topic_timeout_s)
         return (
-            values.get(TOPIC_CO2_STORAGE),
-            values.get(TOPIC_O2_STORAGE),
-            values.get(TOPIC_WRS_PRODUCT_WATER_RESERVE),
+            values.get(backend_topics[0]),
+            values.get(backend_topics[1]),
+            values.get(backend_topics[2]),
         )
 
     def send_air_revitalisation_goal(self, goal: ArsGoal) -> ActionResult:
@@ -286,7 +294,7 @@ class Ros2EclssBridge:
             f"initial_contaminants: {goal.initial_contaminants}}}"
         )
         combined, err = self._send_action_goal(
-            ACTION_AIR_REVITALISATION,
+            self._ros_name(ACTION_AIR_REVITALISATION),
             ACTION_TYPE_AIR_REVITALISATION,
             goal_yaml,
         )
@@ -312,7 +320,7 @@ class Ros2EclssBridge:
             f"iodine_concentration: {goal.iodine_concentration}}}"
         )
         combined, err = self._send_action_goal(
-            ACTION_OXYGEN_GENERATION,
+            self._ros_name(ACTION_OXYGEN_GENERATION),
             ACTION_TYPE_OXYGEN_GENERATION,
             goal_yaml,
         )
@@ -338,7 +346,7 @@ class Ros2EclssBridge:
     def send_water_recovery_goal(self, goal: WrsGoal) -> ActionResult:
         goal_yaml = f"{{urine_volume: {goal.urine_volume}}}"
         combined, err = self._send_action_goal(
-            ACTION_WATER_RECOVERY,
+            self._ros_name(ACTION_WATER_RECOVERY),
             ACTION_TYPE_WATER_RECOVERY,
             goal_yaml,
         )
@@ -361,7 +369,7 @@ class Ros2EclssBridge:
 
     def request_o2(self, amount: float) -> ServiceResult:
         return self._call_service(
-            SERVICE_OGS_REQUEST_O2,
+            self._ros_name(SERVICE_OGS_REQUEST_O2),
             SERVICE_TYPE_O2_REQUEST,
             f"{{o2_req: {amount}}}",
             response_field="o2_resp",
@@ -369,7 +377,7 @@ class Ros2EclssBridge:
 
     def request_co2(self, amount: float) -> ServiceResult:
         return self._call_service(
-            SERVICE_ARS_REQUEST_CO2,
+            self._ros_name(SERVICE_ARS_REQUEST_CO2),
             SERVICE_TYPE_CO2_REQUEST,
             f"{{co2_req: {amount}}}",
             response_field="co2_resp",
@@ -377,7 +385,7 @@ class Ros2EclssBridge:
 
     def request_product_water(self, liters: float) -> ServiceResult:
         return self._call_service(
-            SERVICE_WRS_PRODUCT_WATER,
+            self._ros_name(SERVICE_WRS_PRODUCT_WATER),
             SERVICE_TYPE_PRODUCT_WATER,
             f"{{amount: {liters}}}",
             response_field="water_granted",
@@ -385,7 +393,7 @@ class Ros2EclssBridge:
 
     def submit_grey_water(self, liters: float) -> ServiceResult:
         return self._call_service(
-            SERVICE_GREY_WATER,
+            self._ros_name(SERVICE_GREY_WATER),
             SERVICE_TYPE_GREY_WATER,
             f"{{gray_water_liters: {liters}}}",
         )
@@ -395,9 +403,10 @@ class Ros2EclssBridge:
         topic = _SELF_DIAGNOSIS_BY_SUBSYSTEM.get(key)
         if topic is None:
             raise ValueError(f"unknown subsystem: {subsystem!r}")
+        ros_topic = self._ros_name(topic)
         payload = f"{{data: {'true' if enabled else 'false'}}}"
         code, out, err = _run_ros2_cli(
-            ["topic", "pub", "--once", topic, MSG_TYPE_BOOL, payload],
+            ["topic", "pub", "--once", ros_topic, MSG_TYPE_BOOL, payload],
             timeout_s=self.service_timeout_s,
         )
         if code != 0:

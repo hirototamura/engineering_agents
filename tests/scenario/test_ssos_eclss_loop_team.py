@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from core.agents.base import Team
 from scenario.agents.eclss_loop_types import EclssLoopObservation
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
@@ -37,7 +38,7 @@ def test_team_applies_ars_to_backend():
     )
     snap = backend.poll_telemetry()
     obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
-    outcome = team.run_step(obs)
+    outcome = team.run_step(backend, obs)
     assert len(outcome.commands) == 1
     assert outcome.commands[0].kind == "air_revitalisation"
 
@@ -50,9 +51,10 @@ def test_team_applies_ars_to_backend():
 
 def test_team_no_design_change_commands():
     team = SsosEclssLoopTeam(_team_config())
+    backend = LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}})
     snap = EclssTelemetrySnapshot(co2_storage_kg=800.0, o2_storage_kg=600.0)
     obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "safe"})
-    outcome = team.run_step(obs)
+    outcome = team.run_step(backend, obs)
     assert outcome.commands == []
 
 
@@ -77,6 +79,33 @@ def test_llm_situation_uses_health_status_keys():
     assert "co2_storage=unknown" not in situation
 
 
+def test_ssos_eclss_loop_team_is_team_subclass():
+    team = SsosEclssLoopTeam(_team_config())
+    assert isinstance(team, Team)
+
+
+def test_team_rearms_ars_when_ineffective():
+    team = SsosEclssLoopTeam(_team_config())
+    backend = LoopMockEclssBackend(
+        {
+            "simulation": {"initial_co2_storage_kg": 1600.0, "initial_o2_storage_kg": 500.0},
+            "mock_dynamics": {"co2_growth_kg_per_step": 0.0, "ars_co2_reduction_kg": 0.0},
+        }
+    )
+    snap0 = backend.poll_telemetry()
+    obs0 = EclssLoopObservation(step=0, telemetry=snap0, health={"overall": "warning"})
+    outcome0 = team.run_step(backend, obs0)
+    team.apply_outcome(backend, outcome0)
+    assert team.state.ars_invoked is True
+    assert snap0.co2_storage_kg == backend.poll_telemetry().co2_storage_kg
+
+    backend.advance_step()
+    snap1 = backend.poll_telemetry()
+    obs1 = EclssLoopObservation(step=1, telemetry=snap1, health={"overall": "warning"})
+    outcome1 = team.run_step(backend, obs1)
+    assert any(cmd.kind == "air_revitalisation" for cmd in outcome1.commands)
+
+
 def test_team_rearms_ars_after_co2_drops_below_threshold():
     team = SsosEclssLoopTeam(_team_config())
     backend = LoopMockEclssBackend(
@@ -89,7 +118,7 @@ def test_team_rearms_ars_after_co2_drops_below_threshold():
 
     snap = backend.poll_telemetry()
     obs0 = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
-    outcome0 = team.run_step(obs0)
+    outcome0 = team.run_step(backend, obs0)
     team.apply_outcome(backend, outcome0)
     assert team.state.ars_invoked is True
 
@@ -97,7 +126,7 @@ def test_team_rearms_ars_after_co2_drops_below_threshold():
     snap1 = backend.poll_telemetry()
     assert snap1.co2_storage_kg < co2_high
     obs1 = EclssLoopObservation(step=1, telemetry=snap1, health={"overall": "safe"})
-    team.run_step(obs1)
+    team.run_step(backend, obs1)
     assert team.state.ars_invoked is False
 
     for _ in range(4):
@@ -105,7 +134,7 @@ def test_team_rearms_ars_after_co2_drops_below_threshold():
     snap_high = backend.poll_telemetry()
     assert snap_high.co2_storage_kg >= co2_high
     obs_high = EclssLoopObservation(step=5, telemetry=snap_high, health={"overall": "warning"})
-    outcome_high = team.run_step(obs_high)
+    outcome_high = team.run_step(backend, obs_high)
     assert any(cmd.kind == "air_revitalisation" for cmd in outcome_high.commands)
 
 

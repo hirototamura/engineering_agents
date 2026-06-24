@@ -6,6 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.agents.base import Team
 from core.agents.memory import TeamMemoryStore
 from core.agents.persona import (
     PersonaAgent,
@@ -46,9 +47,11 @@ class EclssLoopTeamState:
     ars_invoked: bool = False
     co2_requested: bool = False
     ogs_invoked: bool = False
+    co2_at_ars_dispatch: Optional[float] = None
+    o2_at_ogs_dispatch: Optional[float] = None
 
 
-class SsosEclssLoopTeam:
+class SsosEclssLoopTeam(Team):
     """Crew Simulation replacement — sends ARS/OGS goals and O2/CO2 service calls."""
 
     def __init__(self, config: Dict[str, Any]):
@@ -78,7 +81,8 @@ class SsosEclssLoopTeam:
             for agent_id, persona in self.personas.items()
         }
 
-    def run_step(self, obs: EclssLoopObservation) -> StepEclssOutcome:
+    def run_step(self, backend: EclssBackend, obs: EclssLoopObservation) -> StepEclssOutcome:
+        _ = backend
         if self.llm_mode:
             outcome = self._run_step_llm(obs)
             self.memory_store.commit_step(outcome)
@@ -186,9 +190,26 @@ class SsosEclssLoopTeam:
         if co2 is not None and co2 < co2_high:
             self.state.ars_invoked = False
             self.state.alert_sent = False
+            self.state.co2_at_ars_dispatch = None
+        elif (
+            self.state.ars_invoked
+            and co2 is not None
+            and self.state.co2_at_ars_dispatch is not None
+            and co2 >= self.state.co2_at_ars_dispatch
+        ):
+            # ARS had no effect — allow retry on the next step.
+            self.state.ars_invoked = False
         if o2 is not None and o2 > o2_low:
             self.state.ogs_invoked = False
             self.state.co2_requested = False
+            self.state.o2_at_ogs_dispatch = None
+        elif (
+            self.state.ogs_invoked
+            and o2 is not None
+            and self.state.o2_at_ogs_dispatch is not None
+            and o2 <= self.state.o2_at_ogs_dispatch
+        ):
+            self.state.ogs_invoked = False
 
     def _labeled_recovery(
         self,
@@ -213,6 +234,7 @@ class SsosEclssLoopTeam:
                 )
             )
             self.state.ars_invoked = True
+            self.state.co2_at_ars_dispatch = co2
             messages.append(
                 AgentMessage(
                     step=obs.step,
@@ -257,6 +279,7 @@ class SsosEclssLoopTeam:
                 )
             )
             self.state.ogs_invoked = True
+            self.state.o2_at_ogs_dispatch = o2
             messages.append(
                 AgentMessage(
                     step=obs.step,
