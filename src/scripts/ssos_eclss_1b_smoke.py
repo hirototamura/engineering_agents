@@ -26,8 +26,22 @@ from environment.ssos.eclss_topics import (
     TOPIC_CO2_STORAGE,
     TOPIC_O2_STORAGE,
 )
-from environment.ssos.eclss_types import OgsGoal
+from environment.ssos.eclss_types import OgsGoal, ServiceResult
 from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
+
+
+def _expected_insufficient_co2(
+    result: ServiceResult,
+    co2_storage_kg: Optional[float],
+    requested_kg: float,
+) -> bool:
+    """Headless SSOS often starts with /co2_storage=0; service rejection is valid."""
+    if result.success or co2_storage_kg is None:
+        return False
+    if co2_storage_kg >= requested_kg:
+        return False
+    message = (result.message or "").lower()
+    return "insufficient" in message and "co" in message
 
 
 @dataclass
@@ -38,6 +52,7 @@ class Eclss1bSmokeReport:
     telemetry_after: Optional[Dict[str, Any]] = None
     ogs_action: Optional[Dict[str, Any]] = None
     request_co2: Optional[Dict[str, Any]] = None
+    request_co2_expected_insufficient: bool = False
     co2_storage_delta: Optional[float] = None
     o2_storage_delta: Optional[float] = None
     sabatier_signal: bool = False
@@ -78,7 +93,14 @@ def run_1b_smoke(
 
     co2_result = bridge.request_co2(request_co2_amount)
     report.request_co2 = co2_result.to_dict()
-    if not co2_result.success:
+    report.request_co2_expected_insufficient = _expected_insufficient_co2(
+        co2_result,
+        before.co2_storage_kg,
+        request_co2_amount,
+    )
+    if report.request_co2_expected_insufficient:
+        report.request_co2["expected_insufficient"] = True
+    elif not co2_result.success:
         report.errors.append(f"request_co2 failed: {co2_result.message or 'unknown'}")
 
     ogs_result = bridge.send_oxygen_generation_goal(ogs_goal)
@@ -139,7 +161,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(f"  - {err}", file=sys.stderr)
         return 1
 
-    print("\nPhase 1b smoke PASSED.", file=sys.stderr)
+    if report.request_co2_expected_insufficient:
+        co2 = (report.telemetry_before or {}).get("co2_storage_kg")
+        print(
+            f"\nPhase 1b smoke PASSED (request_co2 rejected as expected: CO₂ storage={co2} kg).",
+            file=sys.stderr,
+        )
+    else:
+        print("\nPhase 1b smoke PASSED.", file=sys.stderr)
     return 0
 
 

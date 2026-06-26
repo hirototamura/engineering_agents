@@ -208,9 +208,11 @@ docker exec -it ssos bash -lc '
 '
 ```
 
-**合格条件**: exit code 0、`poll_telemetry()` で `/co2_storage` と `/o2_storage` が取得でき、`oxygen_generation` goal が SUCCEEDED、`request_co2` が成功し、O₂/CO₂ の Sabatier 競合信号（`sabatier_signal: true`）が JSON レポートに含まれる。
+**合格条件**: exit code 0、`poll_telemetry()` で `/co2_storage` と `/o2_storage` が取得でき、`oxygen_generation` goal が SUCCEEDED、O₂/CO₂ の Sabatier 競合信号（`sabatier_signal: true`）。`request_co2` は **成功** または **CO₂ 不足による想定内拒否**（`request_co2_expected_insufficient: true` — headless 実機は `/co2_storage=0 kg` が典型）。
 
-**トラブルシュート**: `request_co2` や `request_o2` が常に失敗する場合、Jazzy の `ros2 service call` 出力が YAML ではなく Python repr になることがある。`Ros2EclssBridge` は両形式をパースする（`067c576` で修正）。手動確認: `ros2 service call /ars/request_co2 space_station_interfaces/srv/Co2Request "{amount: 25.0}"`。
+**トラブルシュート — `Insufficient CO₂ in storage`**: 本リポジトリの mock 初期値ではなく **SSOS プラントの実ストレージ**が 0 kg のときに返る正常応答。Crew Simulation なしの headless では CO₂ が溜まらない。smoke はサービス到達＋OGS 成功を検証する（不足時も `request_co2_expected_insufficient` で PASS）。CO₂ ありで `request_co2` 成功まで見たい場合は Crew 稼働後に再実行する。
+
+**トラブルシュート — パース**: Jazzy の `ros2 service call` 出力が YAML ではなく Python repr のときがある。`Ros2EclssBridge` は両形式をパースする。手動: `ros2 service call /ars/request_co2 space_station_interfaces/srv/Co2Request "{amount: 25.0}"`。
 
 WRS Action/Service は Phase 2 で `Ros2EclssBridge` に追加済み（`2700fda`）。
 
