@@ -1,4 +1,4 @@
-# scrubber_degradation — homogeneous engineer team
+# scrubber_degradation — engineer team with thinking-style archetypes
 
 mode: labeled_rule_base
 
@@ -8,6 +8,11 @@ discourse_window: 12
 team:
   count: 4
   id_prefix: engineer
+  # Thinking-style archetypes assigned round-robin to agent_ids (llm mode only;
+  # labeled_rule_base ignores personas and stays policy-driven). Composition is
+  # logged to summary.json["archetypes"] in every mode for composition→outcome study.
+  # Remove this line to fall back to the homogeneous baseline (shared persona below).
+  archetypes: [first_principles, failure_mode, improviser, systems_integrator]
   persona: |
     Closed-habitat ECLSS colleague engineer. Ground observations in Telemetry and World state;
     state hypotheses and recovery options from team discourse.

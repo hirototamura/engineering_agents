@@ -23,6 +23,29 @@ DEFAULT_TEAM_PERSONA = (
     "Cite teammates by agent_id; agree or disagree explicitly."
 )
 
+# Archetype lenses — scenario-independent *ways of thinking*, not role scripts.
+# Each lens text is composed on top of the shared team persona (see build_personas);
+# it must never encode scenario names, thresholds, or a catalogue of fixed actions.
+ARCHETYPE_LENSES: Dict[str, str] = {
+    "first_principles": (
+        "Thinking lens — First principles: reason from conservation laws and mass/energy "
+        "balances. Reconstruct the numbers from the ground up and distrust figures that do "
+        "not reconcile."
+    ),
+    "failure_mode": (
+        "Thinking lens — Failure mode: think like FMEA. Hunt for what breaks next, secondary "
+        "failures, and worst-case interactions before endorsing any course of action."
+    ),
+    "improviser": (
+        "Thinking lens — Improviser: look for unexpected reuse of resources already on hand "
+        "and the smallest intervention that gets meaningful effect."
+    ),
+    "systems_integrator": (
+        "Thinking lens — Systems integrator: watch cross-subsystem coupling (e.g. power vs. "
+        "life-support) and the side-effects a local fix imposes on the rest of the station."
+    ),
+}
+
 
 @dataclass(frozen=True)
 class TeamConfig:
@@ -30,6 +53,8 @@ class TeamConfig:
     id_prefix: str
     shared_persona: str
     agent_ids: Tuple[str, ...]
+    # (agent_id, lens_name) pairs. Empty tuple => homogeneous team (backward compatible).
+    archetypes: Tuple[Tuple[str, str], ...] = ()
 
     def action_rep_index(self, step: int) -> int:
         return (step - 1) % self.count
@@ -38,25 +63,64 @@ class TeamConfig:
         return self.agent_ids[self.action_rep_index(step)]
 
 
+def _resolve_archetypes(
+    raw: Any, agent_ids: Tuple[str, ...]
+) -> Tuple[Tuple[str, str], ...]:
+    """Map a list of lens names onto agent_ids (round-robin). Empty/missing => ()."""
+    if not raw:
+        return ()
+    if not isinstance(raw, (list, tuple)):
+        raise ValueError(
+            f"team.archetypes must be a list of lens names, got {type(raw).__name__}"
+        )
+    lens_names = [str(name).strip() for name in raw if str(name).strip()]
+    if not lens_names:
+        return ()
+    unknown = [name for name in lens_names if name not in ARCHETYPE_LENSES]
+    if unknown:
+        raise ValueError(
+            f"Unknown archetype lens(es): {unknown}. "
+            f"Known lenses: {sorted(ARCHETYPE_LENSES)}"
+        )
+    return tuple(
+        (agent_id, lens_names[i % len(lens_names)])
+        for i, agent_id in enumerate(agent_ids)
+    )
+
+
 def load_team(config: Dict[str, Any]) -> TeamConfig:
     team_raw = config.get("team") or {}
     count = max(1, int(team_raw.get("count", 4)))
     id_prefix = str(team_raw.get("id_prefix", "engineer"))
     persona_text = str(team_raw.get("persona") or DEFAULT_TEAM_PERSONA).strip()
     agent_ids = tuple(f"{id_prefix}_{i}" for i in range(1, count + 1))
+    archetypes = _resolve_archetypes(team_raw.get("archetypes"), agent_ids)
     return TeamConfig(
         count=count,
         id_prefix=id_prefix,
         shared_persona=persona_text,
         agent_ids=agent_ids,
+        archetypes=archetypes,
     )
 
 
 def build_personas(team: TeamConfig) -> Dict[str, Persona]:
-    return {
-        agent_id: Persona(agent_id=agent_id, persona=team.shared_persona)
-        for agent_id in team.agent_ids
-    }
+    # Homogeneous fallback: identical to pre-archetype behaviour.
+    if not team.archetypes:
+        return {
+            agent_id: Persona(agent_id=agent_id, persona=team.shared_persona)
+            for agent_id in team.agent_ids
+        }
+    lens_by_agent = dict(team.archetypes)
+    personas: Dict[str, Persona] = {}
+    for agent_id in team.agent_ids:
+        lens_name = lens_by_agent.get(agent_id)
+        if lens_name:
+            persona_text = f"{ARCHETYPE_LENSES[lens_name]}\n\n{team.shared_persona}"
+        else:
+            persona_text = team.shared_persona
+        personas[agent_id] = Persona(agent_id=agent_id, persona=persona_text)
+    return personas
 
 
 @dataclass
