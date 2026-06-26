@@ -31,3 +31,17 @@ def test_build_provenance_includes_eps_recovery_record(tmp_path: Path):
     assert recovery[0]["trace"]["message"]
     assert recovery[0]["trace"]["reasoning"]
     assert recovery[0]["trace"]["decision_source"] == "rule"
+
+
+def test_build_provenance_includes_ssos_operational_records(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "labeled",
+        overrides={"agents": {"mode": "labeled_rule_base"}},
+        recreate_output=True,
+    )
+    records = build_provenance_records(run_dir)
+    operational = [r for r in records if r.get("record_type") == "operational"]
+    assert operational, "expected SSOS operational provenance"
+    assert operational[0]["change_kind"] == "air_revitalisation"
+    assert operational[0]["trace"]["event_kind"] == "/eclss/events/operational_applied"

@@ -147,7 +147,7 @@
        現状: scenario.yaml でスタブ（本リポジトリは未連携）
         ↓
 [設計] AI（LLM）— 本リポジトリの主スコープ
-  → 設計提案（DesignChange / design_proposals）
+  → 設計提案（`design_proposals.json` — scrubber は `add_edge` 等 / ssos_eclss_loop は `design_domain: ssos_graph`）
   → 必要なら監督への要求変更提案
         ↓
 [検証・仮想世界] 物理シミュレーション + AI（検証ブリッジ）
@@ -208,7 +208,7 @@ integrations/one_piece  ← scenario から呼び出し
 - 仮想世界の「物理シミュレーション + AI」を、**LLM の主観による合否**で実装する（自作自演）。
 - 検証ブリッジがシミュレータをバイパスし、設計内容から「期待どおり」と推論する。
 - 物理世界が N/A の本デモで、仮想合格を**物理検証済み**と表現する。
-- ランタイム中に `apply_design_change` で恒久トポロジを変え、設計と検証の分離を壊す（意図的な仕様変更を除く）。
+- ランタイム中に恒久トポロジを変え、設計と検証の分離を壊す（`apply_design_change` は Phase 0 で削除済み）。
 - `environment` にエージェントロジックや Ollama 依存を入れる。
 - テレメトリや閾値を「だいたい」で丸めて合格扱いにする。
 

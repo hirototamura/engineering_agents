@@ -1,0 +1,35 @@
+name: ssos_eclss_loop
+description: >
+  SSOS ECLSS closed loop. Agents operate ARS/OGS via EclssBackend (Crew Simulation
+  replacement). Mock backend for local dev; Ros2EclssBridge for SSOS Docker.
+
+simulation:
+  steps: 8
+  initial_co2_storage_kg: 1500.0
+  initial_o2_storage_kg: 480.0
+  initial_product_water_l: 100.0
+
+backend:
+  kind: mock  # mock | ros2 — override via SSOS_ECLSS_BACKEND env or run overrides
+  ros2:
+    action_timeout_s: 120.0
+    topic_timeout_s: 15.0
+
+mock_dynamics:
+  co2_growth_kg_per_step: 60.0
+  ars_co2_reduction_kg: 350.0
+  ogs_o2_gain_kg: 100.0
+
+thresholds:
+  co2_storage_high_kg: 1500.0
+  co2_storage_critical_kg: 2200.0
+  o2_storage_low_kg: 450.0
+  product_water_low_l: 50.0
+
+agents:
+  mode: none  # none | labeled_rule_base | llm
+
+output:
+  run_id: ssos_eclss_loop_baseline
+  run_id_labeled_rule_base: ssos_eclss_loop_labeled_rule_base
+  run_id_llm: ssos_eclss_loop_llm

@@ -1,22 +1,15 @@
 from environment.eclss_ops.design_state import DesignStateManager
-from environment.protocol import DesignChange, DesignChangeKind
 
 
-def test_apply_change_add_node_and_edge():
+def test_apply_dict_change_add_node_and_edge():
     manager = DesignStateManager()
-    manager.apply_change(
-        DesignChange(
-            kind=DesignChangeKind.ADD_NODE,
-            payload={"id": "aux_scrubber", "name": "Aux Scrubber", "kind": "scrubber"},
-            proposed_by="design_engineer",
-        )
+    manager.apply_dict_change(
+        "add_node",
+        {"id": "aux_scrubber", "name": "Aux Scrubber", "kind": "scrubber"},
     )
-    manager.apply_change(
-        DesignChange(
-            kind=DesignChangeKind.ADD_EDGE,
-            payload={"node_a": "manifold", "node_b": "aux_scrubber", "kind": "flow"},
-            proposed_by="design_engineer",
-        )
+    manager.apply_dict_change(
+        "add_edge",
+        {"node_a": "manifold", "node_b": "aux_scrubber", "kind": "flow"},
     )
 
     state = manager.snapshot()

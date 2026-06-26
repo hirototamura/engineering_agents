@@ -8,11 +8,10 @@ from environment.eclss_ops.telemetry import compute_health_metrics, co2_health
 from environment.protocol import (
     AnomalySpec,
     CommandKind,
-    DesignChange,
-    DesignChangeKind,
     HealthStatus,
     RecoveryCommand,
 )
+from environment.eclss_ops.design_state import DesignStateManager
 from environment.ssos.mock_eclss import MockEclssSimulator
 
 
@@ -64,13 +63,11 @@ def test_invalid_fan_speed_command_returns_failure_instead_of_crashing():
     assert "fan_speed must be numeric" in result.message
 
 
-def test_design_change_adds_bypass_edge():
-    sim = MockEclssSimulator()
-    state = sim.apply_design_change(
-        DesignChange(
-            kind=DesignChangeKind.ADD_EDGE,
-            payload={"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
-        )
+def test_design_dict_change_adds_bypass_edge():
+    manager = DesignStateManager()
+    state = manager.apply_dict_change(
+        "add_edge",
+        {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
     )
     assert any(e.kind == "bypass" for e in state.topology.edges)
 

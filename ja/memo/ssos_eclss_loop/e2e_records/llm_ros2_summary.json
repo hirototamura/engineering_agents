@@ -1,0 +1,35 @@
+{
+  "scenario": "ssos_eclss_loop",
+  "backend": "ros2",
+  "agents_mode": "llm",
+  "steps": 3,
+  "peak_co2_storage_kg": 0.0,
+  "final_co2_storage_kg": 0.0,
+  "final_o2_storage_kg": 35.6,
+  "final_product_water_reserve_l": 1720.0,
+  "telemetry_topics_read": [
+    "/co2_storage",
+    "/o2_storage",
+    "/wrs/product_water_reserve"
+  ],
+  "min_o2_storage_kg": 35.6,
+  "final_health": {
+    "step": 2,
+    "co2_status": "safe",
+    "o2_status": "critical",
+    "water_status": "safe",
+    "overall": "critical"
+  },
+  "message_count": 12,
+  "operational_command_count": 0,
+  "team_count": 3,
+  "agent_ids": [
+    "eclss_operator_1",
+    "eclss_operator_2",
+    "eclss_operator_3"
+  ],
+  "design_proposals_path": "/tmp/e2e_llm_ros2/design_proposals.json",
+  "design_proposal_count": 0,
+  "provenance_path": "/tmp/e2e_llm_ros2/provenance.jsonl",
+  "provenance_record_count": 0
+}

@@ -125,6 +125,38 @@ def design_proposal_contract() -> str:
     )
 
 
+def eclss_operational_action_contract() -> str:
+    return (
+        f"{json_envelope_preamble()}"
+        'Required keys: "message", "reasoning", "commands". '
+        'Optional key: "memory". '
+        f"{output_word_limits_clause()} "
+        '"commands" is a list of {"kind","payload"} objects. '
+        'kind in ["air_revitalisation","oxygen_generation","request_co2","request_o2"]. '
+        'air_revitalisation payload fields: initial_co2_mass, initial_moisture_content, '
+        'initial_contaminants (numeric). '
+        'oxygen_generation payload fields: input_water_mass, iodine_concentration (numeric). '
+        'request_co2 / request_o2 payload: {"amount": <kg>}. '
+        "Empty commands when you and teammates agree to hold this step."
+    )
+
+
+def eclss_design_proposal_contract() -> str:
+    return (
+        f"{json_envelope_preamble()}"
+        'Required keys: "message", "reasoning", "changes". '
+        'Optional key: "memory". '
+        f"{output_word_limits_clause()} "
+        '"changes" is a list of {"change_kind","payload"} objects. '
+        'change_kind in ["action_profile","service_config","set_parameter","graph_rewire"]. '
+        'action_profile payload: {"subsystem":"ars|ogs|wrs","action":"...","fields":{...}}. '
+        'service_config payload: {"service":"request_co2|request_o2", ...}. '
+        'set_parameter payload: {"target":"dotted.config.path","value":...}. '
+        "graph_rewire payload: ROS remapping manifest for the next launch. "
+        "Proposals are post-run only — they will NOT be applied during this simulation."
+    )
+
+
 def design_action_contract() -> str:
     """Deprecated alias — runtime design actions are no longer applied."""
     return design_proposal_contract()

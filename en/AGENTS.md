@@ -147,7 +147,7 @@ The dashboard **After (if proposals applied)** is a preview of proposals, **not 
  Currently: stubbed in scenario.yaml (this repo not yet integrated)
  ↓
 [Design] AI (LLM) — primary scope of this repository
- → design proposals (DesignChange / design_proposals)
+ → design proposals (`design_proposals.json` — scrubber uses `add_edge` etc. / ssos_eclss_loop uses `design_domain: ssos_graph`)
  → requirement-change proposals to supervision when needed
  ↓
 [Verification · virtual world] Physics simulation + AI (verification bridge)
@@ -208,7 +208,7 @@ Do not import upper layers from lower layers. Do not put LLM or Persona in `envi
 - Implement virtual-world “physics simulation + AI” with **LLM subjective pass/fail** (self-dealing).
 - Let the verification bridge bypass the simulator and infer “as expected” from design content.
 - In this demo where physical world is N/A, describe virtual pass as **physically verified**.
-- Change permanent topology at runtime with `apply_design_change`, breaking design–verification separation (except intentional spec changes).
+- Change permanent topology at runtime, breaking design–verification separation (`apply_design_change` removed in Phase 0).
 - Put agent logic or Ollama dependencies in `environment`.
 - Round telemetry or thresholds loosely to force pass.
 

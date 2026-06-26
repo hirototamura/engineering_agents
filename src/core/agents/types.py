@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from environment.protocol import DesignChange, HealthMetrics, RecoveryCommand, TelemetrySnapshot
+from environment.protocol import HealthMetrics, RecoveryCommand, TelemetrySnapshot
 
 
 class DeliberationPhase:
@@ -41,7 +41,6 @@ class AgentMessage:
 class StepAgentOutcome:
     messages: List[AgentMessage] = field(default_factory=list)
     commands: List[RecoveryCommand] = field(default_factory=list)
-    design_changes: List[DesignChange] = field(default_factory=list)
 
 
 @dataclass

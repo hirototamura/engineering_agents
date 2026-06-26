@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import streamlit.components.v1 as components
 
+from tools.dashboard import ssos_views
+
 RESULTS_ROOT = Path(__file__).resolve().parents[2] / "experiments" / "results"
 
 
@@ -1397,22 +1399,41 @@ def _render_dual_run_views(primary: RunViewData, compare: RunViewData, current_s
         ),
     )
 
-    _render_paired_columns(
-        lambda: _render_health_card(
-            primary.telemetry, primary.health, primary.eps_telemetry, current_step
-        ),
-        lambda: _render_health_card(
-            compare.telemetry, compare.health, compare.eps_telemetry, current_step
-        ),
-    )
+    if ssos_views.is_ssos_eclss_loop(primary.summary):
+        _render_paired_columns(
+            lambda: ssos_views.render_ssos_health_card(
+                primary.telemetry, primary.health, current_step
+            ),
+            lambda: ssos_views.render_ssos_health_card(
+                compare.telemetry, compare.health, current_step
+            ),
+        )
+        _render_paired_columns(
+            lambda: ssos_views.render_ssos_storage_plot(
+                primary.telemetry, highlight_step=current_step
+            ),
+            lambda: ssos_views.render_ssos_storage_plot(
+                compare.telemetry, highlight_step=current_step
+            ),
+        )
+    else:
+        _render_paired_columns(
+            lambda: _render_health_card(
+                primary.telemetry, primary.health, primary.eps_telemetry, current_step
+            ),
+            lambda: _render_health_card(
+                compare.telemetry, compare.health, compare.eps_telemetry, current_step
+            ),
+        )
 
-    _render_paired_columns(
-        lambda: _line_plot(primary.telemetry, primary.eps_telemetry, current_step),
-        lambda: _line_plot(compare.telemetry, compare.eps_telemetry, current_step),
-    )
+        _render_paired_columns(
+            lambda: _line_plot(primary.telemetry, primary.eps_telemetry, current_step),
+            lambda: _line_plot(compare.telemetry, compare.eps_telemetry, current_step),
+        )
 
-    st.subheader("Design topology — proposal comparison")
-    _render_dual_topology_proposal(primary, compare)
+    if not ssos_views.is_ssos_eclss_loop(primary.summary):
+        st.subheader("Design topology — proposal comparison")
+        _render_dual_topology_proposal(primary, compare)
 
     st.subheader(f"Step {current_step} detail")
     primary_messages = _select_rows_at_step(primary.messages, current_step)
@@ -1451,6 +1472,16 @@ def _render_run_detail_view(run: RunViewData, current_step: int) -> None:
     """Health, trajectories, topology, step tables, and summary for a single run."""
     st.markdown(f"**`{run.run_name}`**")
     st.caption(f"`{run.run_dir}`")
+    if ssos_views.is_ssos_eclss_loop(run.summary):
+        ssos_views.render_ssos_summary_highlights(run.summary)
+        ssos_views.render_ssos_health_card(run.telemetry, run.health, current_step)
+        ssos_views.render_ssos_storage_plot(run.telemetry, highlight_step=current_step)
+        st.subheader("Operational commands")
+        ssos_views.render_ssos_operational_timeline(run.events)
+        ssos_views.render_ssos_design_proposals(run.run_dir)
+        _render_step_tables(run.messages, run.events, run.provenance, current_step)
+        _render_summary(run.summary)
+        return
     _render_health_card(run.telemetry, run.health, run.eps_telemetry, current_step)
     _line_plot(run.telemetry, run.eps_telemetry, current_step)
     _render_topology_proposal_comparison(run.run_dir, run.design_state)
@@ -1613,6 +1644,10 @@ def main() -> None:
         compare_summary = _read_json(compare_run_dir / "summary.json")
 
     max_step = _max_telemetry_step(telemetry)
+    if max_step < 1 and telemetry:
+        max_step = max(int(r.get("step", 0)) for r in telemetry)
+    if max_step < 1:
+        max_step = 1
     if compare_run_name and compare_telemetry:
         max_step = min(max_step, _max_telemetry_step(compare_telemetry))
     overview_step = st.sidebar.slider(

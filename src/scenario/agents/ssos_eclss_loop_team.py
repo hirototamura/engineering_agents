@@ -1,0 +1,738 @@
+"""SSOS ECLSS loop agent team — operates EclssBackend instead of Mock ECLSS simulator."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
+from core.agents.base import Team
+from core.agents.memory import TeamMemoryStore
+from core.agents.persona import (
+    PersonaAgent,
+    TeamConfig,
+    build_personas,
+    eclss_design_proposal_contract,
+    eclss_operational_action_contract,
+    load_team,
+    message_contract,
+)
+from core.agents.types import AgentMessage, DeliberationPhase
+from core.llm.ollama import OllamaClient, resolve_ollama_base_url
+from environment.ssos.eclss_backend import EclssBackend
+from environment.ssos.eclss_types import ArsGoal, OgsGoal
+from scenario.agents.eclss_loop_types import (
+    EclssLoopObservation,
+    EclssOperationalCommand,
+    StepEclssOutcome,
+)
+from scenario.ssos_eclss_loop.design_proposals import (
+    DESIGN_DOMAIN,
+    SSOS_CHANGE_KINDS,
+    ACTION_PROFILE_FIELDS_BY_SUBSYSTEM,
+    build_design_proposals_from_run,
+)
+
+_ECLSS_OPERATIONAL_KINDS = frozenset(
+    {"air_revitalisation", "oxygen_generation", "request_co2", "request_o2"}
+)
+
+_ARS_GOAL_FIELDS = frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"})
+_OGS_GOAL_FIELDS = frozenset({"input_water_mass", "iodine_concentration"})
+
+
+@dataclass
+class EclssLoopTeamState:
+    alert_sent: bool = False
+    ars_invoked: bool = False
+    co2_requested: bool = False
+    ogs_invoked: bool = False
+    co2_at_ars_dispatch: Optional[float] = None
+    o2_at_ogs_dispatch: Optional[float] = None
+
+
+class SsosEclssLoopTeam(Team):
+    """Crew Simulation replacement — sends ARS/OGS goals and O2/CO2 service calls."""
+
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.mode = config.get("mode", "labeled_rule_base")
+        self.state = EclssLoopTeamState()
+        self.llm_mode = self.mode == "llm"
+        self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_mode else None
+
+        self.team_cfg: TeamConfig = load_team(config)
+        self.personas = build_personas(self.team_cfg)
+        self.policy: Dict[str, Any] = (
+            config.get("policy", {}) if self.mode == "labeled_rule_base" else {}
+        )
+
+        self.memory_store = TeamMemoryStore(
+            agent_ids=list(self.personas.keys()),
+            memory_limit=int(config.get("memory_limit", 8)),
+            discourse_window=int(config.get("discourse_window", 12)),
+        )
+        self.agents: Dict[str, PersonaAgent] = {
+            agent_id: PersonaAgent(
+                persona=persona,
+                memory=self.memory_store.agent_memories[agent_id],
+                llm_client=self.llm_client,
+            )
+            for agent_id, persona in self.personas.items()
+        }
+
+    def run_step(self, backend: EclssBackend, obs: EclssLoopObservation) -> StepEclssOutcome:
+        _ = backend
+        if self.llm_mode:
+            outcome = self._run_step_llm(obs)
+            self.memory_store.commit_step(outcome)
+            return outcome
+        return self._run_step_labeled(obs)
+
+    def apply_outcome(self, backend: EclssBackend, outcome: StepEclssOutcome) -> List[Dict[str, Any]]:
+        events: List[Dict[str, Any]] = []
+        for cmd in outcome.commands:
+            event = self._apply_command(backend, cmd)
+            if event is not None:
+                events.append(event)
+        return events
+
+    def propose_post_run_design(self, summary: Dict[str, Any]) -> Dict[str, Any]:
+        baseline_graph = dict(self.config.get("ssos_graph") or {})
+        steps = int(summary.get("steps", 0))
+        rep = self.team_cfg.action_rep_id(steps if steps > 0 else 1)
+        if self.llm_mode:
+            return self._llm_post_run_design_proposal(summary, baseline_graph, rep)
+        return build_design_proposals_from_run(
+            proposed_by=rep,
+            decision_source="rule",
+            policy=self.policy,
+            baseline_graph=baseline_graph or None,
+        )
+
+    def _run_step_llm(self, obs: EclssLoopObservation) -> StepEclssOutcome:
+        outcome = StepEclssOutcome()
+        step_discourse: List[AgentMessage] = []
+        situation = build_llm_situation(obs)
+
+        for agent_id in self.team_cfg.agent_ids:
+            msg = self._llm_deliberation_turn(
+                obs=obs,
+                agent_id=agent_id,
+                to_role="team",
+                message_type="comment",
+                phase=DeliberationPhase.DELIBERATION,
+                situation=situation,
+                step_discourse=step_discourse,
+                contract=message_contract(),
+                required=("message",),
+            )
+            if msg is not None:
+                outcome.messages.append(msg)
+                step_discourse.append(msg)
+            else:
+                outcome.messages.append(
+                    self._llm_skip(
+                        obs=obs,
+                        agent_id=agent_id,
+                        phase=DeliberationPhase.DELIBERATION,
+                        reason="parse_failed_or_empty_message",
+                        decision_source="llm_parse_fail",
+                    )
+                )
+
+        rep = self.team_cfg.action_rep_id(obs.step)
+        action_msgs, action_cmds = self._llm_action_turn(obs, situation, step_discourse, rep)
+        outcome.messages.extend(action_msgs)
+        outcome.commands.extend(action_cmds)
+        return outcome
+
+    def _run_step_labeled(self, obs: EclssLoopObservation) -> StepEclssOutcome:
+        outcome = StepEclssOutcome()
+        rep = self.team_cfg.action_rep_id(obs.step)
+        agent_ids = self.team_cfg.agent_ids
+        n = len(agent_ids)
+        co2_high = float(self.policy.get("co2_storage_high_kg", 1500.0))
+        o2_low = float(self.policy.get("o2_storage_low_kg", 450.0))
+        co2 = obs.telemetry.co2_storage_kg
+        o2 = obs.telemetry.o2_storage_kg
+
+        if co2 is not None and co2 >= co2_high and not self.state.alert_sent:
+            commenter = agent_ids[obs.step % n]
+            self.state.alert_sent = True
+            outcome.messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role=commenter,
+                    to_role="team",
+                    message=(
+                        f"CO2 storage {co2:.1f} kg exceeds high band {co2_high:.1f} kg."
+                    ),
+                    message_type="alert",
+                    reasoning="Storage telemetry threshold crossed.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        messages, commands = self._labeled_recovery(obs, rep, co2_high, o2_low, co2, o2)
+        outcome.messages.extend(messages)
+        outcome.commands.extend(commands)
+        return outcome
+
+    def _rearm_labeled_recovery(
+        self,
+        co2: Optional[float],
+        o2: Optional[float],
+        co2_high: float,
+        o2_low: float,
+    ) -> None:
+        """Re-arm one-shot flags when telemetry returns to the safe band."""
+        if co2 is not None and co2 < co2_high:
+            self.state.ars_invoked = False
+            self.state.alert_sent = False
+            self.state.co2_at_ars_dispatch = None
+        elif (
+            self.state.ars_invoked
+            and co2 is not None
+            and self.state.co2_at_ars_dispatch is not None
+            and co2 >= self.state.co2_at_ars_dispatch
+        ):
+            # ARS had no effect — allow retry on the next step.
+            self.state.ars_invoked = False
+        if o2 is not None and o2 > o2_low:
+            self.state.ogs_invoked = False
+            self.state.co2_requested = False
+            self.state.o2_at_ogs_dispatch = None
+        elif (
+            self.state.ogs_invoked
+            and o2 is not None
+            and self.state.o2_at_ogs_dispatch is not None
+            and o2 <= self.state.o2_at_ogs_dispatch
+        ):
+            self.state.ogs_invoked = False
+
+    def _labeled_recovery(
+        self,
+        obs: EclssLoopObservation,
+        rep: str,
+        co2_high: float,
+        o2_low: float,
+        co2: Optional[float],
+        o2: Optional[float],
+    ) -> Tuple[List[AgentMessage], List[EclssOperationalCommand]]:
+        self._rearm_labeled_recovery(co2, o2, co2_high, o2_low)
+        messages: List[AgentMessage] = []
+        commands: List[EclssOperationalCommand] = []
+
+        if co2 is not None and co2 >= co2_high and not self.state.ars_invoked:
+            ars_payload = dict(self.policy.get("ars_goal", {}))
+            commands.append(
+                EclssOperationalCommand(
+                    kind="air_revitalisation",
+                    payload=ars_payload,
+                    issued_by=rep,
+                )
+            )
+            self.state.ars_invoked = True
+            self.state.co2_at_ars_dispatch = co2
+            messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role=rep,
+                    to_role="team",
+                    message="Starting ARS air_revitalisation to vent CO2 from storage.",
+                    message_type="operational_command",
+                    reasoning=f"CO2 storage {co2:.1f} kg >= {co2_high:.1f} kg.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        if o2 is not None and o2 <= o2_low and not self.state.ogs_invoked:
+            if self.policy.get("request_co2_before_ogs", True) and not self.state.co2_requested:
+                amount = float(self.policy.get("request_co2_amount", 25.0))
+                commands.append(
+                    EclssOperationalCommand(
+                        kind="request_co2",
+                        payload={"amount": amount},
+                        issued_by=rep,
+                    )
+                )
+                self.state.co2_requested = True
+                messages.append(
+                    AgentMessage(
+                        step=obs.step,
+                        from_role=rep,
+                        to_role="team",
+                        message=f"Requesting {amount:.1f} kg CO2 feedstock for Sabatier (OGS).",
+                        message_type="operational_command",
+                        reasoning=f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg.",
+                        metadata=self._rule_metadata(),
+                    )
+                )
+
+            ogs_payload = dict(self.policy.get("ogs_goal", {}))
+            commands.append(
+                EclssOperationalCommand(
+                    kind="oxygen_generation",
+                    payload=ogs_payload,
+                    issued_by=rep,
+                )
+            )
+            self.state.ogs_invoked = True
+            self.state.o2_at_ogs_dispatch = o2
+            messages.append(
+                AgentMessage(
+                    step=obs.step,
+                    from_role=rep,
+                    to_role="team",
+                    message="Starting OGS oxygen_generation cycle.",
+                    message_type="operational_command",
+                    reasoning=f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg.",
+                    metadata=self._rule_metadata(),
+                )
+            )
+
+        return messages, commands
+
+    def _llm_deliberation_turn(
+        self,
+        *,
+        obs: EclssLoopObservation,
+        agent_id: str,
+        to_role: str,
+        message_type: str,
+        phase: str,
+        situation: str,
+        step_discourse: List[AgentMessage],
+        contract: str,
+        required: tuple[str, ...],
+    ) -> Optional[AgentMessage]:
+        agent = self.agents[agent_id]
+        ctx = agent.build_context(
+            step=obs.step,
+            phase=phase,
+            situation=situation,
+            step_discourse=step_discourse,
+            team_discourse=self.memory_store.discourse.recent(),
+        )
+        parsed = agent.deliberate(
+            ctx,
+            contract,
+            PersonaAgent.phase_hint(phase),
+            required,
+        )
+        if parsed is None:
+            return None
+        message = str(parsed.data.get("message", "")).strip()
+        if not message:
+            return None
+        metadata: Dict[str, Any] = {
+            "decision_source": "llm",
+            "deliberation_phase": phase,
+            "parse_status": parsed.status,
+            "parse_error": parsed.error,
+            "raw_response_excerpt": parsed.raw_excerpt,
+        }
+        llm_memory = parsed.data.get("memory")
+        if llm_memory:
+            metadata["llm_memory"] = str(llm_memory)
+        return AgentMessage(
+            step=obs.step,
+            from_role=agent_id,
+            to_role=to_role,
+            message=message,
+            message_type=message_type,
+            reasoning=str(parsed.data.get("reasoning", "")),
+            metadata=metadata,
+        )
+
+    def _llm_action_turn(
+        self,
+        obs: EclssLoopObservation,
+        situation: str,
+        step_discourse: List[AgentMessage],
+        rep: str,
+    ) -> Tuple[List[AgentMessage], List[EclssOperationalCommand]]:
+        contract = eclss_operational_action_contract()
+        agent = self.agents[rep]
+        ctx = agent.build_context(
+            step=obs.step,
+            phase=DeliberationPhase.ACTION,
+            situation=situation,
+            step_discourse=step_discourse,
+            team_discourse=self.memory_store.discourse.recent(),
+        )
+        parsed = agent.deliberate(
+            ctx,
+            contract,
+            PersonaAgent.phase_hint(DeliberationPhase.ACTION),
+            ("commands",),
+        )
+        if parsed is None:
+            return [
+                self._llm_skip(
+                    obs=obs,
+                    agent_id=rep,
+                    phase=DeliberationPhase.ACTION,
+                    reason="parse_failed",
+                    decision_source="llm_parse_fail",
+                )
+            ], []
+
+        message = parsed.data.get("message", "Assessed current state.")
+        reasoning = parsed.data.get("reasoning", "")
+        commands: List[EclssOperationalCommand] = []
+        parse_notes: List[str] = []
+        raw_commands = parsed.data.get("commands", [])
+        if not isinstance(raw_commands, list):
+            raw_commands = []
+
+        for item in raw_commands:
+            cmd, note = self._parse_llm_operational_command(item, issued_by=rep)
+            if note:
+                parse_notes.append(note)
+            if cmd is not None:
+                commands.append(cmd)
+
+        base_meta: Dict[str, Any] = {
+            "decision_source": "llm",
+            "deliberation_phase": DeliberationPhase.ACTION,
+            "parse_status": parsed.status,
+            "parse_error": parsed.error,
+            "raw_response_excerpt": parsed.raw_excerpt,
+            "parse_notes": parse_notes,
+        }
+        if parsed.data.get("memory"):
+            base_meta["llm_memory"] = str(parsed.data["memory"])
+
+        if not commands:
+            return [
+                self._llm_skip(
+                    obs=obs,
+                    agent_id=rep,
+                    phase=DeliberationPhase.ACTION,
+                    reason="empty_commands",
+                    decision_source="llm_no_action",
+                    parse_status=parsed.status,
+                    parse_error=parsed.error,
+                )
+            ], []
+
+        llm_msg = AgentMessage(
+            step=obs.step,
+            from_role=rep,
+            to_role="team",
+            message=str(message),
+            message_type="operational_command",
+            reasoning=str(reasoning),
+            metadata=base_meta,
+        )
+        return [llm_msg], commands
+
+    def _llm_post_run_design_proposal(
+        self,
+        summary: Dict[str, Any],
+        baseline_graph: Dict[str, Any],
+        rep: str,
+    ) -> Dict[str, Any]:
+        situation = build_llm_post_run_situation(
+            summary,
+            self.memory_store.discourse.recent(),
+            baseline_graph,
+        )
+        contract = eclss_design_proposal_contract()
+        agent = self.agents[rep]
+        ctx = agent.build_context(
+            step=int(summary.get("steps", 0)),
+            phase=DeliberationPhase.POST_RUN,
+            situation=situation,
+            step_discourse=[],
+            team_discourse=self.memory_store.discourse.recent(),
+        )
+        parsed = agent.deliberate(
+            ctx,
+            contract,
+            PersonaAgent.phase_hint(DeliberationPhase.POST_RUN),
+            ("message", "reasoning", "changes"),
+        )
+        if parsed is None:
+            return {
+                "design_domain": DESIGN_DOMAIN,
+                "proposed_by": rep,
+                "decision_source": "llm_parse_fail",
+                "message": "",
+                "reasoning": "LLM response could not be parsed.",
+                "changes": [],
+                "baseline_graph": baseline_graph,
+                "parse_notes": [],
+            }
+
+        changes, parse_notes = self._parse_llm_design_proposals(parsed.data.get("changes", []))
+        return {
+            "design_domain": DESIGN_DOMAIN,
+            "proposed_by": rep,
+            "decision_source": "llm",
+            "message": str(parsed.data.get("message", "")),
+            "reasoning": str(parsed.data.get("reasoning", "")),
+            "changes": changes,
+            "baseline_graph": baseline_graph,
+            "parse_status": parsed.status,
+            "parse_error": parsed.error,
+            "parse_notes": parse_notes,
+            "raw_response_excerpt": parsed.raw_excerpt,
+        }
+
+    def _parse_llm_design_proposals(
+        self,
+        raw_changes: Any,
+    ) -> Tuple[List[Dict[str, Any]], List[str]]:
+        if not isinstance(raw_changes, list):
+            return [], ["changes is not a list"]
+        accepted: List[Dict[str, Any]] = []
+        notes: List[str] = []
+        for item in raw_changes:
+            if not isinstance(item, dict):
+                notes.append("change item is not an object")
+                continue
+            change_kind = str(item.get("change_kind", "")).strip()
+            payload = item.get("payload", {})
+            if not isinstance(payload, dict):
+                payload = {}
+            if change_kind not in SSOS_CHANGE_KINDS:
+                notes.append(f"unsupported change_kind: {change_kind}")
+                continue
+            if self._validate_ssos_proposal_change(change_kind, payload) is None:
+                notes.append(f"invalid payload for {change_kind}")
+                continue
+            accepted.append({"change_kind": change_kind, "payload": payload})
+        return accepted, notes
+
+    def _validate_ssos_proposal_change(
+        self,
+        change_kind: str,
+        payload: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        if change_kind == "action_profile":
+            subsystem = str(payload.get("subsystem", "")).lower()
+            fields = payload.get("fields")
+            if subsystem not in ACTION_PROFILE_FIELDS_BY_SUBSYSTEM:
+                return None
+            if not isinstance(fields, dict) or not fields:
+                return None
+            allowed = ACTION_PROFILE_FIELDS_BY_SUBSYSTEM[subsystem]
+            if any(key not in allowed for key in fields):
+                return None
+            return payload
+        if change_kind == "service_config":
+            service = str(payload.get("service", "")).lower()
+            if service not in {"request_co2", "request_o2"}:
+                return None
+            return payload
+        if change_kind == "set_parameter":
+            if not str(payload.get("target", "")).strip():
+                return None
+            return payload
+        if change_kind == "graph_rewire":
+            return payload if payload else None
+        return None
+
+    def _parse_llm_operational_command(
+        self,
+        item: Any,
+        *,
+        issued_by: str,
+    ) -> Tuple[Optional[EclssOperationalCommand], Optional[str]]:
+        if not isinstance(item, dict):
+            return None, "operational command is not an object"
+        kind = str(item.get("kind", "")).strip()
+        payload = item.get("payload", {})
+        if not isinstance(payload, dict):
+            payload = {}
+
+        if kind not in _ECLSS_OPERATIONAL_KINDS:
+            return None, f"unsupported operational kind: {kind}"
+
+        if kind == "air_revitalisation":
+            normalized = self._normalize_numeric_fields(payload, _ARS_GOAL_FIELDS)
+            if normalized is None:
+                return None, "air_revitalisation payload needs numeric ARS goal fields"
+            return EclssOperationalCommand(kind=kind, payload=normalized, issued_by=issued_by), None
+
+        if kind == "oxygen_generation":
+            normalized = self._normalize_numeric_fields(payload, _OGS_GOAL_FIELDS)
+            if normalized is None:
+                return None, "oxygen_generation payload needs numeric OGS goal fields"
+            return EclssOperationalCommand(kind=kind, payload=normalized, issued_by=issued_by), None
+
+        if kind in {"request_co2", "request_o2"}:
+            try:
+                amount = float(payload.get("amount"))
+            except (TypeError, ValueError):
+                return None, f"{kind} payload.amount must be numeric"
+            return (
+                EclssOperationalCommand(kind=kind, payload={"amount": amount}, issued_by=issued_by),
+                None,
+            )
+
+        return None, f"unsupported operational kind: {kind}"
+
+    @staticmethod
+    def _normalize_numeric_fields(
+        payload: Dict[str, Any],
+        allowed: frozenset[str],
+    ) -> Optional[Dict[str, float]]:
+        if not payload:
+            return None
+        normalized: Dict[str, float] = {}
+        for key, value in payload.items():
+            if key not in allowed:
+                continue
+            try:
+                normalized[key] = float(value)
+            except (TypeError, ValueError):
+                return None
+        return normalized or None
+
+    def _llm_skip(
+        self,
+        *,
+        obs: EclssLoopObservation,
+        agent_id: str,
+        phase: str,
+        reason: str,
+        decision_source: str,
+        **extra: Any,
+    ) -> AgentMessage:
+        metadata: Dict[str, Any] = {
+            "decision_source": decision_source,
+            "deliberation_phase": phase,
+            "skip_reason": reason,
+        }
+        metadata.update(extra)
+        return AgentMessage(
+            step=obs.step,
+            from_role=agent_id,
+            to_role="team",
+            message="",
+            message_type="skip",
+            reasoning=reason,
+            metadata=metadata,
+        )
+
+    def _apply_command(
+        self,
+        backend: EclssBackend,
+        cmd: EclssOperationalCommand,
+    ) -> Optional[Dict[str, Any]]:
+        kind = cmd.kind
+        payload = cmd.payload
+        if kind == "air_revitalisation":
+            result = backend.send_air_revitalisation_goal(ArsGoal(**payload))
+        elif kind == "oxygen_generation":
+            result = backend.send_oxygen_generation_goal(OgsGoal(**payload))
+        elif kind == "request_co2":
+            result = backend.request_co2(float(payload["amount"]))
+        elif kind == "request_o2":
+            result = backend.request_o2(float(payload["amount"]))
+        elif kind == "set_subsystem_failure":
+            backend.set_subsystem_failure(str(payload["subsystem"]), bool(payload["enabled"]))
+            return {
+                "kind": "/eclss/events/operational_applied",
+                "command": cmd.to_dict(),
+                "message": f"failure flag {payload['subsystem']}={payload['enabled']}",
+            }
+        else:
+            return {
+                "kind": "/eclss/events/operational_rejected",
+                "command": cmd.to_dict(),
+                "message": f"unsupported command kind: {kind}",
+            }
+
+        return {
+            "kind": "/eclss/events/operational_applied",
+            "command": cmd.to_dict(),
+            "result": result.to_dict(),
+            "message": getattr(result, "summary_message", None) or getattr(result, "message", ""),
+        }
+
+    @staticmethod
+    def _rule_metadata() -> Dict[str, Any]:
+        return {"decision_source": "rule"}
+
+    @staticmethod
+    def _build_llm_client(llm_cfg: Dict[str, Any]) -> OllamaClient:
+        return OllamaClient(
+            base_url=resolve_ollama_base_url(llm_cfg),
+            model=str(llm_cfg.get("model", "llama3.2")),
+            temperature=float(llm_cfg.get("temperature", 0.45)),
+            max_tokens=int(llm_cfg.get("max_tokens", 512)),
+            repeat_penalty=float(llm_cfg.get("repeat_penalty", 1.1)),
+            repeat_last_n=int(llm_cfg.get("repeat_last_n", 128)),
+            min_p=float(llm_cfg.get("min_p", 0.05)),
+            think=llm_cfg.get("think", False),
+            api_timeout=int(llm_cfg.get("api_timeout", 10)),
+        )
+
+
+_ECLSS_OPERATIONAL_LEVERS = """\
+### Operational levers (facility reference)
+- air_revitalisation: ARS action — payload fields initial_co2_mass, initial_moisture_content, initial_contaminants (kg / % as plant expects).
+- oxygen_generation: OGS action — payload fields input_water_mass, iodine_concentration.
+- request_co2: Service call — payload {"amount": <kg>} Sabatier feedstock before OGS when needed.
+- request_o2: Service call — payload {"amount": <kg>} withdraw O2 from plant /o2_storage reserve.
+Actions are asynchronous; issue only commands justified by Telemetry and team discourse."""
+
+
+def build_llm_situation(obs: EclssLoopObservation) -> str:
+    t = obs.telemetry
+    telemetry = (
+        f"step={obs.step}, co2_storage_kg={t.co2_storage_kg}, o2_storage_kg={t.o2_storage_kg}, "
+        f"product_water_reserve_l={t.product_water_reserve_l}, "
+        f"grey_water_collected_l={t.grey_water_collected_l}, "
+        f"ars_failure_enabled={t.ars_failure_enabled}, "
+        f"ogs_failure_enabled={t.ogs_failure_enabled}, wrs_failure_enabled={t.wrs_failure_enabled}"
+    )
+    health = obs.health if isinstance(obs.health, dict) else {}
+    world_state = (
+        f"overall={health.get('overall', 'unknown')}, "
+        f"co2_status={health.get('co2_status', 'unknown')}, "
+        f"o2_status={health.get('o2_status', 'unknown')}, "
+        f"water_status={health.get('water_status', 'unknown')}\n"
+        "(Descriptive assessment from the facility monitoring layer — not a command.)"
+    )
+    return (
+        "Scenario: ssos_eclss_loop. SSOS ECLSS storage and subsystem ops.\n\n"
+        f"### Telemetry\n{telemetry}\n\n"
+        f"### World state\n{world_state}\n\n"
+        f"{_ECLSS_OPERATIONAL_LEVERS}"
+    )
+
+
+def build_llm_post_run_situation(
+    summary: Dict[str, Any],
+    discourse: List[AgentMessage],
+    baseline_graph: Dict[str, Any],
+) -> str:
+    telemetry_summary = (
+        f"steps={summary.get('steps')}, peak_co2_storage_kg={summary.get('peak_co2_storage_kg')}, "
+        f"min_o2_storage_kg={summary.get('min_o2_storage_kg')}, "
+        f"final_co2_storage_kg={summary.get('final_co2_storage_kg')}, "
+        f"final_o2_storage_kg={summary.get('final_o2_storage_kg')}, "
+        f"operational_command_count={summary.get('operational_command_count')}, "
+        f"ars_invoked_step={summary.get('ars_invoked_step')}, "
+        f"ogs_invoked_step={summary.get('ogs_invoked_step')}, "
+        f"co2_requested_step={summary.get('co2_requested_step')}"
+    )
+    final_health = summary.get("final_health") or {}
+    world_state = json.dumps(final_health, ensure_ascii=False)
+    discourse_lines = "\n".join(
+        f"- {msg.from_role}: {msg.message}" for msg in discourse[-8:]
+    ) or "(none)"
+    graph = json.dumps(baseline_graph, ensure_ascii=False)
+    return (
+        "Post-run SSOS graph design review. Simulation complete.\n\n"
+        f"### Telemetry\n{telemetry_summary}\n\n"
+        f"### World state\n{world_state}\n\n"
+        f"### Team discourse (recent)\n{discourse_lines}\n\n"
+        f"Baseline ssos_graph at run end: {graph}"
+    )

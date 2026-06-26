@@ -3,16 +3,9 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
-from environment.protocol import (
-    DesignChange,
-    DesignChangeKind,
-    DesignState,
-    TopologyEdge,
-    TopologyGraph,
-    TopologyNode,
-)
+from environment.protocol import DesignState, TopologyEdge, TopologyGraph, TopologyNode
 
 
 def default_topology() -> TopologyGraph:
@@ -62,28 +55,27 @@ class DesignStateManager:
             parameters=dict(self.parameters),
         )
 
-    def apply_change(self, change: DesignChange) -> DesignState:
-        if change.kind == DesignChangeKind.ADD_NODE:
-            payload = change.payload
+    def apply_dict_change(self, change_kind: str, payload: Dict[str, Any]) -> DesignState:
+        """Apply a post-run proposal dict (scrubber dashboard preview / tests)."""
+        if change_kind == "add_node":
             node = TopologyNode(
                 id=payload["id"],
                 name=payload.get("name", payload["id"]),
                 kind=payload.get("kind", "volume"),
             )
             self.topology.nodes.append(node)
-        elif change.kind == DesignChangeKind.ADD_EDGE:
-            payload = change.payload
+        elif change_kind == "add_edge":
             edge = TopologyEdge(
                 source=payload["node_a"],
                 target=payload["node_b"],
                 kind=payload.get("kind", "bypass"),
             )
             self.topology.edges.append(edge)
-        elif change.kind == DesignChangeKind.SET_PARAMETER:
-            key = change.payload["key"]
-            self.parameters[key] = float(change.payload["value"])
+        elif change_kind == "set_parameter":
+            key = payload["key"]
+            self.parameters[key] = float(payload["value"])
         else:
-            raise ValueError(f"Unsupported design change: {change.kind}")
+            raise ValueError(f"Unsupported design change kind: {change_kind}")
         return self.snapshot()
 
     def has_bypass_edge(self) -> bool:
