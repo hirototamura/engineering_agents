@@ -133,7 +133,11 @@ done
 
 case "$mode" in
   mock)
-    run_mock_on_host "${main_args[@]}"
+    if ((${#main_args[@]})); then
+      run_mock_on_host "${main_args[@]}"
+    else
+      run_mock_on_host
+    fi
     ;;
   sync)
     sync_to_container
@@ -146,6 +150,10 @@ case "$mode" in
     echo "Optional args: --apply-proposals /path/design_proposals.json"
     ;;
   container)
-    run_in_container "${main_args[@]}"
+    if ((${#main_args[@]})); then
+      run_in_container "${main_args[@]}"
+    else
+      run_in_container
+    fi
     ;;
 esac
