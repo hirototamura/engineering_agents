@@ -201,6 +201,7 @@ class ScrubberDegradationScenario(Scenario):
         if isinstance(team, ScrubberDegradationTeam):
             summary["team_count"] = team.team_cfg.count
             summary["agent_ids"] = list(team.team_cfg.agent_ids)
+            summary["archetypes"] = {aid: lens for aid, lens in team.team_cfg.archetypes}
             design_proposal = team.propose_post_run_design(sim, summary)
             design_proposals_path.write_text(
                 json.dumps(design_proposal, ensure_ascii=False, indent=2),
