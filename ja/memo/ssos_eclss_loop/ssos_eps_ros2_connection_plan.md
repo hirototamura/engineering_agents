@@ -281,7 +281,7 @@ python3 -c "from space_station_interfaces.msg import BCDUStatus; print(BCDUStatu
 | **PR-2** `Ros2EpsBridge` 読み取り + スモーク | ✅ 完了 | `ros2_eps_bridge.py`, `scripts/ssos_eps_smoke.py`, `scripts/run_ssos_eps_smoke.sh` |
 | **PR-3** `eps.backend: mock \| ssos_eps` 切替 | ✅ 完了 | `scenario/runner.py` の `build_eps_backend()` |
 | **PR-4** `request_eps_boost` interim 3a | ✅ 完了 | bridge 側タイマー + BCDU `discharging` 時 `current_draw * bus_voltage` |
-| **PR-5** 運用ドキュメント | ⏳ 未着手 | `docs/ssos-eps-integration.md` は別 PR |
+| **PR-5** 運用ドキュメント | 📋 backlog | `docs/ssos-eps-integration.md` → [backlog BL-005](../backlog.md#bl-005-ssos-eps-ros2-ブリッジ--フォローアップ) |
 
 ### 追加・変更ファイル
 
@@ -334,6 +334,10 @@ pytest tests/environment/test_ros2_eps_bridge.py \
 ```
 
 全 `tests/environment/` — **78 passed, 3 skipped**（2026-06-14 時点）。
+
+### フォローアップ（未着手）
+
+PR-5、Phase 3b/3c、BCDU action、運用ドキュメント等は **[backlog.md BL-005](../backlog.md#bl-005-ssos-eps-ros2-ブリッジ--フォローアップ)** に移管。
 
 ### 既知の制限（3a interim）
 

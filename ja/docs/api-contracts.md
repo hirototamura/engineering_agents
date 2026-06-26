@@ -1,35 +1,110 @@
-# API 契約 — SimulatorProtocol とイベントログ
+# API 契約 — シミュレータ境界とイベントログ
 
-**ECLSS**（Environmental Control and Life Support System / 生命維持装置）と **EPS**（Electrical Power System / 電力系）のシミュレータ境界、回復コマンド、JSONL スキーマのリファレンス。プロトコルやログ形式を変更したら **本ドキュメントを同時に更新**する。
+プロトコルや JSONL 形式を変更したら **本ドキュメントを同時に更新**する。
 
-> シナリオの叙事: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md)
+本リポジトリは **独立した二系統** を持つ。バックエンド・テレメトリ・ランタイムコマンド・事後提案のスキーマは**共有しない**（ファイル名だけ同じ）。
+
+| | `scrubber_degradation` | `ssos_eclss_loop` |
+| --- | --- | --- |
+| 叙事 | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) |
+| バックエンド | `SimulatorProtocol` | `EclssBackend` |
+| チーム | `ScrubberDegradationTeam` | `SsosEclssLoopTeam` |
+| テレメトリ | CO₂ ppm、電力マージン | CO₂/O₂/水ストレージ（kg / L） |
+| ランタイム | `RecoveryCommand` | `EclssOperationalCommand` |
+| イベント | `recovery_applied` | `operational_applied` |
+| 事後提案 | scrubber トポロジ（`add_edge` 等） | `design_domain: ssos_graph` |
+| provenance | `record_type: recovery` | `record_type: operational` |
 
 ---
 
-## SimulatorProtocol
+## 共通
 
-実装:
+### 出力ディレクトリ
+
+`src/experiments/results/<run_id>/` — `summary.json` の `scenario` でどちらの系統か判別する。
+
+両系統で出るファイル名:
+
+| ファイル | 役割 |
+| --- | --- |
+| `telemetry.jsonl` | 毎 step のテレメトリ（**スキーマは系統ごとに異なる**） |
+| `health_metrics.jsonl` | 毎 step のヘルス区分（**閾値定義も系統ごとに異なる**） |
+| `messages.jsonl` | エージェント発言（`message_type` が系統で異なる） |
+| `events.jsonl` | ランタイムイベント（`kind` が系統で異なる） |
+| `design_state.jsonl` | 各 step 開始時点の設計スナップショット |
+| `design_proposals.json` | ラン終了後の恒久提案（**change_kind が系統で異なる**） |
+| `summary.json` | 実行サマリ |
+| `provenance.jsonl` | One Piece 互換来歴（[one-piece-integration.md](one-piece-integration.md)） |
+
+### design_proposals.json — 共通フィールド
+
+どちらの系統もラン終了後に 1 ファイル。ランタイム中はシミュレータ／SSOS グラフを**変更しない**。
+
+| フィールド | 説明 |
+| --- | --- |
+| `proposed_by` | 最終 step の action 代表 ID |
+| `decision_source` | `rule` または `llm` |
+| `message` / `reasoning` | 提案の説明 |
+| `changes` | 恒久変更のリスト（各要素に `change_kind` + `payload`） |
+| `parse_notes` | LLM パース時の警告（任意） |
+
+`summary.json` の `design_proposals_path`、`design_proposal_count` と対応。
+
+### messages.jsonl — 共通と系統差
+
+| フィールド | 説明 |
+| --- | --- |
+| `step` | step 番号 |
+| `from_role` / `to_role` | 発言者・宛先 |
+| `message` / `reasoning` | 本文・根拠 |
+| `decision_source` | `rule` / `llm` / `llm_parse_fail` 等 |
+| `deliberation_phase` | `deliberation` / `action` / `post_run_proposal`（llm） |
+
+| `message_type` | scrubber | ssos |
+| --- | --- | --- |
+| `alert` | ✓ 閾値超過 | — |
+| `diagnosis` | ✓ 異常フラグ | — |
+| `recovery_command` | ✓ 回復判断 | — |
+| `operational_command` | — | ✓ 運用判断 |
+| `comment` | ✓ deliberation | ✓ deliberation |
+| `skip` | ✓ パース失敗等 | ✓ パース失敗等 |
+
+代表 ID: scrubber は `engineer_*`、ssos は `eclss_operator_*`。Persona 全文や `policy` 値はログに含めない。
+
+### provenance.jsonl — 概要
+
+`src/integrations/one_piece/client.py` が run 終了時に生成。スキーマ: `src/integrations/one_piece/ssot_schema.json`。
+
+| `record_type` | 系統 | ソースイベント |
+| --- | --- | --- |
+| `recovery` | scrubber | `/eclss/events/recovery_applied`（`request_eps_boost`） |
+| `operational` | ssos | `/eclss/events/operational_applied` |
+
+事後 `design_proposals.json` → provenance は**未エクスポート**（両系統共通の開発予定）。
+
+---
+
+## scrubber_degradation
+
+Python モック（`StationSimulator`）上の CO₂ スクラバー異常シナリオ。凍結済み。
+
+### SimulatorProtocol
 
 | クラス | 用途 |
 | --- | --- |
 | `StationSimulator` | **デフォルト** — ECLSS + EPS |
 | `MockEclssSimulator` | プラントのみ（単体テスト） |
-| `SsosAdapter` | 将来の実 SSOS ブリッジ（スタブ） |
 
 | メソッド | 戻り値 | 説明 |
 | --- | --- | --- |
-| `step()` | `TelemetrySnapshot` | 生命維持プラントを 1 ティック進める |
+| `step()` | `TelemetrySnapshot` | プラントを 1 ティック進める |
 | `apply_command(cmd)` | `CommandResult` | 一時的な回復アクション |
 | `get_topology()` | `TopologyGraph` | ノード/エッジ |
 | `get_design_parameters()` | `dict[str, float]` | 可変パラメータ |
 | `get_design_state()` | `DesignState` | トポロジ + パラメータ |
 | `inject_anomaly(spec)` | `None` | 異常スケジュール |
 
----
-
-## TelemetrySnapshot
-
-`telemetry.jsonl` の 1 行。
+### TelemetrySnapshot — `telemetry.jsonl`
 
 ```json
 {
@@ -48,18 +123,15 @@
 
 | フィールド | 説明 |
 | --- | --- |
-| `co2_ppm` | 居住空間 CO2 濃度 |
-| `scrubber_efficiency` | 有効除去効率（異常で低下） |
-| `power_margin_w` | ECLSS ネット電力マージン（正=余裕、負=不足） |
-| `eps_support_w` | EPS からの一時支援ワット |
-| `eps_support_steps_remaining` | 支援残り step 数 |
-| `anomaly_flags` | 有効な異常名のリスト |
+| `co2_ppm` | 居住空間 CO₂ 濃度 |
+| `scrubber_efficiency` | 有効除去効率 |
+| `power_margin_w` | ECLSS ネット電力マージン |
+| `eps_support_w` | EPS 一時支援ワット |
+| `anomaly_flags` | 有効な異常名 |
 
----
+### RecoveryCommand — ランタイム
 
-## RecoveryCommand
-
-ランタイムで `apply_command` される一時操作。
+`apply_command()` で適用される一時操作。
 
 ```json
 {
@@ -72,117 +144,60 @@
 | `kind` | `value` 型 | 説明 |
 | --- | --- | --- |
 | `set_fan_speed` | float 0–1 | ファン速度 |
-| `enable_bypass` | bool | 一時バイパス有効化 |
+| `enable_bypass` | bool | 一時バイパス |
 | `reduce_load` | bool | 代謝負荷削減 |
-| `request_eps_boost` | float W (0, 500] | EPS 放電支援要求 |
+| `request_eps_boost` | float W (0, 500] | EPS 放電支援 |
 
-`issued_by` は代表エンジニア ID（`engineer_*`）またはレガシー `operator`。
+### ヘルス — `health_metrics.jsonl`
 
----
+`compute_health_metrics()` — `src/environment/eclss_ops/telemetry.py`
 
-## design_proposals.json（scrubber_degradation 専用・凍結）
+```json
+{"step": 5, "co2_status": "safe", "power_status": "safe", "overall": "safe"}
+```
 
-ラン終了後に 1 ファイル。シミュレーション結果のトポロジは**変更されない**。ダッシュボードが dict を直接解釈して After プレビューを描画する（`DesignStateManager.apply_dict_change` と同等ロジック）。
+| 指標 | safe | warning | critical |
+| --- | --- | --- | --- |
+| CO₂ (ppm) | < 800 | 800 〜 1200 未満 | ≥ 1200 |
+| 電力マージン (W) | > 0 | 0 〜 −150 未満 | ≤ −150 |
+
+`policy.co2_recovery_ppm`（デフォルト 1000）等は**回復トリガー**であり、上表のヘルス区分とは別。
+
+### design_proposals.json — scrubber ドメイン
 
 | `change_kind` | 用途 |
 | --- | --- |
 | `add_edge` | 新規エッジ（flow / bypass / power） |
-| `add_node` | 新規ノード（valve、electrical 等） |
-| `set_parameter` | 設計パラメータ変更 |
-
-**ランタイム `apply_design_change` は Phase 0 で削除済み。** 恒久変更はラン中に適用しない。
-
----
-
-## design_proposals.json — ssos_eclss_loop（`design_domain: ssos_graph`）
-
-ラン終了後に 1 ファイル。**ランタイム中は SSOS グラフを変えない**。次 run の `scenario.yaml` / `ssos_graph.rewires` に `--apply-proposals` で反映。
-
-| `change_kind` | 用途 |
-| --- | --- |
-| `action_profile` | 既存 Action goal フィールド（ARS / OGS / WRS） |
-| `service_config` | 既存 Service 呼び出し量・順序 |
-| `set_parameter` | 閾値・policy・起動パラメータ |
-| `graph_rewire` | launch remapping / rclpy ゲートウェイ manifest（`ssos_graph.rewires`） |
-
-実装: `src/scenario/ssos_eclss_loop/design_proposals.py`
-
----
-
-## design_proposals.json スキーマ例
+| `add_node` | 新規ノード |
+| `set_parameter` | 設計パラメータ |
 
 ```json
 {
   "proposed_by": "engineer_2",
   "decision_source": "rule",
   "message": "Propose permanent bypass plumbing between manifold and scrubber.",
-  "reasoning": "Repeated anomaly and high CO2 during the run; ...",
   "changes": [
     {
       "change_kind": "add_edge",
-      "payload": {
-        "node_a": "manifold",
-        "node_b": "scrubber",
-        "kind": "bypass"
-      }
+      "payload": {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"}
     }
   ],
   "baseline_topology": {
-    "nodes": [{"id": "cabin", "name": "Cabin", "kind": "volume"}, "..."],
-    "edges": [{"source": "manifold", "target": "scrubber", "kind": "flow"}, "..."]
-  },
-  "parse_notes": []
+    "nodes": [{"id": "cabin", "name": "Cabin", "kind": "volume"}],
+    "edges": [{"source": "manifold", "target": "scrubber", "kind": "flow"}]
+  }
 }
 ```
 
-| フィールド | 説明 |
-| --- | --- |
-| `proposed_by` | 最終 step の action rep |
-| `decision_source` | `rule` または `llm` |
-| `changes` | 提案された恒久変更のリスト |
-| `baseline_topology` | ラン終了時点のグラフ（変更前） |
-| `parse_notes` | LLM パース時の警告（任意） |
+### エージェントモード
 
-`summary.json` の `design_proposals_path`、`design_proposal_count` と対応。
-
----
-
-## ヘルス閾値
-
-`health_metrics.jsonl` — `compute_health_metrics()`（`src/environment/eclss_ops/telemetry.py`）:
-
-```json
-{"step": 5, "co2_status": "safe", "power_status": "safe", "overall": "safe"}
-```
-
-| 定数 | 値 |
-| --- | --- |
-| `CO2_SAFE_PPM` | 800 |
-| `CO2_WARNING_PPM` | 1200 |
-| `POWER_LOW_W` | 0 |
-| `POWER_CRITICAL_W` | −150 |
-
-| 指標 | safe | warning | critical |
+| `agents.mode` | チーム | ランタイム | 事後提案 |
 | --- | --- | --- | --- |
-| CO2 (ppm) | < 800 | 800 〜 1200 未満 | ≥ 1200 |
-| 電力マージン (W) | > 0 | 0 〜 −150 未満 | ≤ −150 |
-| `overall` | 両方 safe | より悪い方が warning | より悪い方が critical |
+| `none` | — | シミュのみ | — |
+| `labeled_rule_base` | `ScrubberDegradationTeam` | `policy` 駆動回復 | rule |
+| `llm` | 同上 | LLM `commands` | llm |
 
-エージェントの `policy.co2_recovery_ppm`（デフォルト 1000）などは**回復コマンドのトリガー**であり、上表のヘルス区分とは別。
-
----
-
-## エージェントモード
-
-| `agents.mode` | チーム | メッセージ | ランタイムコマンド | 事後提案 |
-| --- | --- | --- | --- | --- |
-| `none` | — | — | — | — |
-| `labeled_rule_base` | `ScrubberDegradationTeam` | `decision_source: rule` | policy 駆動 | rule |
-| `llm` | 同上 | `llm` / `llm_parse_fail` / `llm_no_action` | LLM `commands` | llm |
-
-将来: `base`（創発ロール）— [memo/backlog.md](../memo/backlog.md) BL-001。
-
-### messages.jsonl — ルール例
+#### messages.jsonl 例
 
 ```json
 {
@@ -191,116 +206,20 @@
   "to_role": "team",
   "message": "CO2 at 1016 ppm exceeds recovery band 1000 ppm.",
   "message_type": "alert",
-  "reasoning": "Telemetry threshold crossed.",
   "decision_source": "rule"
 }
 ```
-
-### messages.jsonl — LLM 例
 
 ```json
 {
   "step": 17,
   "from_role": "engineer_1",
-  "to_role": "team",
   "message": "EPS boost critical for CO2 reduction.",
   "message_type": "recovery_command",
-  "reasoning": "Power margin remains low, bypass ineffective.",
   "decision_source": "llm",
-  "deliberation_phase": "action",
-  "parse_status": "ok",
-  "parse_error": null,
-  "raw_response_excerpt": "{...}"
+  "deliberation_phase": "action"
 }
 ```
-
-| `message_type` | 説明 |
-| --- | --- |
-| `alert` | 閾値超過通知 |
-| `diagnosis` | 異常フラグに基づく所見 |
-| `recovery_command` | 回復判断の説明 |
-| `comment` | llm deliberation の発言 |
-| `skip` | パース失敗・空 action（`llm_no_action` 等） |
-
-| `deliberation_phase` | 説明 |
-| --- | --- |
-| `deliberation` | 全員議論ラウンド |
-| `action` | 代表のコマンド決定 |
-| `post_run_proposal` | 事後設計（messages に載る場合） |
-
-`from_role` は `engineer_1` … `engineer_N`。Persona 全文や `policy` 値はログに含めない。
-
----
-
-## ROS2 風 ECLSS トピック
-
-`environment/ssos/topics.py` — モック／将来アダプタの契約。
-
-| トピック | 方向 | ペイロード |
-| --- | --- | --- |
-| `/eclss/telemetry/co2_ppm` | pub | float |
-| `/eclss/telemetry/scrubber_efficiency` | pub | float |
-| `/eclss/telemetry/power_margin_w` | pub | float |
-| `/eclss/command/set_fan_speed` | sub | float 0–1 |
-| `/eclss/command/enable_bypass` | sub | bool |
-| `/eclss/command/reduce_load` | sub | bool |
-| `/eclss/command/request_eps_boost` | sub | float W |
-| `/eclss/events/design_change` | event | **レガシー** — ランタイム発行なし（scrubber 過去 run 互換） |
-| `/eclss/events/recovery_applied` | event | コマンド適用結果 |
-| `/eclss/events/anomaly` | event | 異常フラグ |
-
-### SSOS 実 ECLSS（`environment/ssos/eclss_topics.py`）
-
-Phase 1b: `EclssBackend` プロトコル + `MockEclssBackend` / `Ros2EclssBridge`（ARS+OGS）。スモーク: `python3 -m scripts.ssos_eclss_ars_smoke`（SSOS コンテナ内）。
-
-| 種別 | 名前 |
-| --- | --- |
-| Action | `air_revitalisation`, `water_recovery_systems`, `oxygen_generation` |
-| Service | `/ogs/request_o2`, `/wrs/product_water_request`, `/ars/request_co2`, `/grey_water` |
-| Topic | `/co2_storage`, `/o2_storage`, `/wrs/product_water_reserve`, `/*/diagnostics`, `/*/self_diagnosis` |
-
-#### EclssBackend（Phase 1b）
-
-| モジュール | 役割 |
-| --- | --- |
-| `environment/ssos/eclss_backend.py` | `EclssBackend` Protocol（全 subsystem メソッド定義） |
-| `environment/ssos/mock_eclss_backend.py` | ローカル dev / 契約テスト用スタブ |
-| `environment/ssos/ros2_eclss_bridge.py` | SSOS Docker 向け `ros2` CLI ブリッジ（ARS+OGS 実装、WRS は Phase 2） |
-
-| メソッド | Phase 1b | 備考 |
-| --- | --- | --- |
-| `poll_telemetry()` | ✓ | `ros2 topic echo --once` |
-| `send_air_revitalisation_goal()` | ✓ | Action |
-| `send_oxygen_generation_goal()` | ✓ | Action |
-| `request_o2()` / `request_co2()` | ✓ | Service |
-| `set_subsystem_failure()` | ✓ | `/*/self_diagnosis` Bool publish |
-| WRS メソッド | Phase 2 | `NotImplementedError` |
-
-型: `environment/ssos/eclss_types.py` — `EclssTelemetrySnapshot`, `OgsGoal`, `ActionResult`, `ServiceResult`。
-
----
-
-## ROS2 風 EPS トピック
-
-**EPS**（Electrical Power System）— 発電・蓄電・配電。MVP では **SARJ**（Solar Alpha Rotary Joint）と **BCDU**（Battery Charge/Discharge Unit）をモック。実系では **MBSU**（Main Bus Switching Unit）、**DDCU**（Direct Current-to-Direct Current Converter Unit）も含まれる。
-
-`environment/ssos/eps_topics.py`。参考: [space_station_eps](https://github.com/space-station-os/space_station_os/tree/main/space_station_eps)。
-
-| トピック | 方向 | ペイロード |
-| --- | --- | --- |
-| `/solar/voltage` | pub | float V |
-| `/bcdu/operation` | sub | `{support_w, duration_steps}` |
-| `/bcdu/status` | pub | `BcduStatus` |
-| `/eps/diagnostics` | pub | `EpsDiagnostics` |
-| `/eps/eclss/load_request_w` | pub | float W |
-
-**BCDU `mode`**: `idle`、`charging`、`discharging`、`fault`、`safe`。
-
----
-
-## JSONL 出力ディレクトリ
-
-`src/experiments/results/<run_id>/`
 
 ### events.jsonl
 
@@ -309,11 +228,11 @@ Phase 1b: `EclssBackend` プロトコル + `MockEclssBackend` / `Ros2EclssBridge
 {"step": 33, "kind": "/eclss/events/recovery_applied", "command": {"kind": "set_fan_speed", "value": 1.0, "issued_by": "engineer_2"}, "message": "fan_speed set to 1.0"}
 ```
 
-現行フローでは **`/eclss/events/design_change` はランタイムに発生しない**（事後提案は `design_proposals.json`）。
+`/eclss/events/design_change` はランタイムに発生しない（事後提案は `design_proposals.json`）。
 
 ### design_state.jsonl
 
-毎 step、エージェント行動**前**のスナップショット。ランタイム中トポロジ不変のため `topology` は run 全体で同一。
+毎 step、エージェント行動**前**。ランタイム中トポロジは不変。
 
 ```json
 {
@@ -328,20 +247,15 @@ Phase 1b: `EclssBackend` プロトコル + `MockEclssBackend` / `Ros2EclssBridge
 
 ### eps_telemetry.jsonl
 
-`StationSimulator` 実行時のみ。1 行/step。
+`StationSimulator` 実行時のみ。
 
 ```json
 {
   "step": 22,
   "solar_voltage_v": 113.14,
-  "beta_angle_deg": 45.0,
-  "in_eclipse": false,
   "bcdu_mode": "discharging",
-  "bus_voltage_v": 110.0,
   "support_w": 120.0,
-  "support_steps_remaining": 3,
-  "fault": false,
-  "fault_message": ""
+  "support_steps_remaining": 3
 }
 ```
 
@@ -352,91 +266,284 @@ Phase 1b: `EclssBackend` プロトコル + `MockEclssBackend` / `Ros2EclssBridge
   "scenario": "scrubber_degradation",
   "simulator": "mock_station",
   "agents_mode": "labeled_rule_base",
-  "team_count": 4,
-  "agent_ids": ["engineer_1", "engineer_2", "engineer_3", "engineer_4"],
   "steps": 50,
   "peak_co2_ppm": 1016.34,
   "final_co2_ppm": 967.2,
   "final_power_margin_w": -42.5,
-  "min_power_margin_w": -128.0,
   "eps_boost_applied_step": 28,
-  "power_recovered_above_critical_step": 32,
-  "final_health": {"step": 50, "co2_status": "safe", "power_status": "warning", "overall": "warning"},
-  "anomaly_seen": true,
-  "co2_above_threshold_step": 33,
-  "co2_recovered_below_threshold_step": 40,
-  "message_count": 59,
-  "design_change_count": 0,
+  "final_health": {"co2_status": "safe", "power_status": "warning", "overall": "warning"},
   "design_proposal_count": 1,
-  "design_proposals_path": "src/experiments/results/.../design_proposals.json",
-  "provenance_path": "src/experiments/results/.../provenance.jsonl",
   "provenance_record_count": 2
 }
 ```
 
----
+### ROS2 風トピック（Mock 契約）
 
-## provenance.jsonl（One Piece 互換）
+`environment/ssos/topics.py` — `StationSimulator` / モックアダプタ用。**ssos 実 ECLSS とは別名前空間**。
 
-`src/integrations/one_piece/client.py` が run 終了時に生成。
+| トピック | 方向 | ペイロード |
+| --- | --- | --- |
+| `/eclss/telemetry/co2_ppm` | pub | float |
+| `/eclss/command/set_fan_speed` | sub | float 0–1 |
+| `/eclss/command/request_eps_boost` | sub | float W |
+| `/eclss/events/recovery_applied` | event | コマンド適用結果 |
+| `/eclss/events/anomaly` | event | 異常フラグ |
 
-### 現状エクスポートされるもの
+### EPS トピック（scrubber 電力）
 
-| ソース | 条件 |
-| --- | --- |
-| ランタイム `design_change` イベント | 現シナリオでは **0 件** |
-| `request_eps_boost` 回復 | `events.jsonl` の `recovery_applied` |
+`environment/ssos/eps_topics.py` — `MockSarj` / `MockBcdu` および `Ros2EpsBridge`（Phase 3）。
 
-### 回復レコード例
+| トピック | 方向 | ペイロード |
+| --- | --- | --- |
+| `/solar/voltage` | pub | float V |
+| `/bcdu/operation` | sub | `{support_w, duration_steps}` |
+| `/bcdu/status` | pub | `BcduStatus` |
+
+### provenance — 回復レコード
 
 ```json
 {
-  "record_id": "scrubber_degradation_labeled_rule_base:recovery:1",
   "record_type": "recovery",
-  "run_id": "scrubber_degradation_labeled_rule_base",
   "scenario": "scrubber_degradation",
-  "step": 28,
-  "actor": "engineer_3",
-  "actor_kind": "ai_agent",
   "change_kind": "request_eps_boost",
+  "actor": "engineer_3",
   "payload": {"support_w": 120.0, "eps": {"bcdu_mode": "discharging"}},
-  "trace": {
-    "event_kind": "/eclss/events/recovery_applied",
-    "decision_source": "rule",
-    "message": "Requesting EPS support boost of 120 W."
+  "trace": {"event_kind": "/eclss/events/recovery_applied", "decision_source": "rule"}
+}
+```
+
+### 実行例
+
+```bash
+python src/scripts/run_mock_eclss.py
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}})"
+python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}})"
+```
+
+---
+
+## ssos_eclss_loop
+
+SSOS Docker 内の実 ROS2 ECLSS（または `LoopMockEclssBackend`）を操作するシナリオ。`SimulatorProtocol` は使わない。
+
+### EclssBackend
+
+`build_eclss_backend()` — `src/scenario/ssos_eclss_loop/scenario_run.py`
+
+| クラス | 用途 |
+| --- | --- |
+| `LoopMockEclssBackend` | ホスト dev / pytest（簡易ストレージ動態） |
+| `Ros2EclssBridge` | SSOS Docker 内 `ros2` CLI ブリッジ |
+
+backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BACKEND`、CLI `--mock` / `--ros2`。
+
+| メソッド | 説明 |
+| --- | --- |
+| `poll_telemetry()` | `/co2_storage` 等を読み取り |
+| `send_air_revitalisation_goal(goal)` | ARS Action |
+| `send_oxygen_generation_goal(goal)` | OGS Action |
+| `send_water_recovery_goal(goal)` | WRS Action |
+| `request_co2(amount)` / `request_o2(amount)` | Service |
+| `request_product_water(liters)` | Service |
+| `set_subsystem_failure(name, enabled)` | 故障注入 |
+
+実装: `environment/ssos/eclss_backend.py`、`ros2_eclss_bridge.py`、`graph_rewire.py`（client remap）。
+
+### EclssTelemetrySnapshot — `telemetry.jsonl`
+
+```json
+{
+  "step": 3,
+  "co2_storage_kg": 1680.0,
+  "o2_storage_kg": 465.0,
+  "product_water_reserve_l": 100.0,
+  "ars_failure_enabled": false
+}
+```
+
+| フィールド | ROS2 トピック |
+| --- | --- |
+| `co2_storage_kg` | `/co2_storage` |
+| `o2_storage_kg` | `/o2_storage` |
+| `product_water_reserve_l` | `/wrs/product_water_reserve` |
+
+### EclssOperationalCommand — ランタイム
+
+`SsosEclssLoopTeam.apply_outcome()` → `EclssBackend`
+
+```json
+{
+  "kind": "air_revitalisation",
+  "payload": {"initial_co2_mass": 1800.0, "initial_moisture_content": 25.0},
+  "issued_by": "eclss_operator_1"
+}
+```
+
+| `kind` | バックエンド |
+| --- | --- |
+| `air_revitalisation` | `send_air_revitalisation_goal()` |
+| `oxygen_generation` | `send_oxygen_generation_goal()` |
+| `water_recovery_systems` | `send_water_recovery_goal()` |
+| `request_co2` | `request_co2(amount)` |
+| `request_o2` | `request_o2(amount)` |
+
+### ヘルス — `health_metrics.jsonl`
+
+`compute_eclss_storage_health()` — `src/scenario/ssos_eclss_loop/health.py`  
+閾値は `scenario.yaml` の `thresholds`。
+
+```json
+{"step": 3, "co2_status": "warning", "o2_status": "safe", "water_status": "safe", "overall": "warning"}
+```
+
+| 指標 | safe | warning | critical |
+| --- | --- | --- | --- |
+| CO₂ ストレージ (kg) | < 1500（high） | 1500 〜 2200 未満 | ≥ 2200 |
+| O₂ ストレージ (kg) | > 450（low） | 337.5 〜 450 | ≤ 337.5 |
+| 製品水 (L) | > 50（low） | 25 〜 50 | ≤ 25 |
+
+`thresholds.co2_storage_high_kg` 等は**運用トリガー**。ヘルス区分とは別概念。
+
+### design_proposals.json — `design_domain: ssos_graph`
+
+| `change_kind` | 用途 |
+| --- | --- |
+| `action_profile` | Action goal フィールド（ARS / OGS / WRS） |
+| `service_config` | Service 呼び出し量・順序 |
+| `set_parameter` | 閾値・policy パラメータ |
+| `graph_rewire` | 次 run の client `topic_remap`（Phase 7）。launch remap は [BL-003](../memo/backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a) |
+
+`--apply-proposals` で `scenario.yaml` / `ssos_graph.rewires` にマージ。実装: `scenario/ssos_eclss_loop/design_proposals.py`。
+
+```json
+{
+  "design_domain": "ssos_graph",
+  "proposed_by": "eclss_operator_2",
+  "decision_source": "rule",
+  "changes": [
+    {
+      "change_kind": "action_profile",
+      "payload": {
+        "action": "air_revitalisation",
+        "fields": {"initial_co2_mass": 2000.0}
+      }
+    }
+  ],
+  "baseline_graph": {"rewires": []}
+}
+```
+
+### エージェントモード
+
+| `agents.mode` | チーム | ランタイム | 事後提案 |
+| --- | --- | --- | --- |
+| `none` | — | `poll_telemetry` のみ | — |
+| `labeled_rule_base` | `SsosEclssLoopTeam` | ストレージ閾値 → ARS/OGS | `ssos_graph`（rule） |
+| `llm` | 同上 | deliberation + operational | `ssos_graph`（llm） |
+
+#### messages.jsonl 例
+
+```json
+{
+  "step": 2,
+  "from_role": "eclss_operator_1",
+  "message": "Starting ARS air_revitalisation to vent CO2 from storage.",
+  "message_type": "operational_command",
+  "decision_source": "rule"
+}
+```
+
+### events.jsonl
+
+```json
+{
+  "step": 2,
+  "kind": "/eclss/events/operational_applied",
+  "command": {"kind": "air_revitalisation", "issued_by": "eclss_operator_1", "payload": {"initial_co2_mass": 1800.0}},
+  "result": {"success": true},
+  "message": "ARS goal dispatched"
+}
+```
+
+失敗時は `/eclss/events/operational_rejected`。
+
+### design_state.jsonl
+
+毎 step、エージェント行動**前**。`ssos_graph`（`rewires` 含む）のスナップショット。
+
+```json
+{
+  "step": 1,
+  "ssos_graph": {
+    "rewires": [{"public": "/co2_storage", "backend": "/co2_storage"}]
   }
 }
 ```
 
-### 未エクスポート（開発予定）
+### summary.json
 
-`design_proposals.json` の事後提案 → provenance レコード。詳細: [one-piece-integration.md](one-piece-integration.md)、[development-plan.md](development-plan.md)。
+```json
+{
+  "scenario": "ssos_eclss_loop",
+  "backend": "ros2",
+  "agents_mode": "labeled_rule_base",
+  "steps": 8,
+  "peak_co2_storage_kg": 1680.0,
+  "final_co2_storage_kg": 1330.0,
+  "final_o2_storage_kg": 465.0,
+  "operational_command_count": 3,
+  "ogs_invoked_step": 2,
+  "final_health": {"co2_status": "safe", "o2_status": "warning", "overall": "warning"},
+  "agent_ids": ["eclss_operator_1", "eclss_operator_2", "eclss_operator_3"],
+  "provenance_record_count": 3
+}
+```
 
-スキーマ参照: `src/integrations/one_piece/ssot_schema.json`。
+**scrubber に無いフィールド**: `backend`、`peak_co2_storage_kg`、`operational_command_count` 等。  
+**ssos に無いフィールド**: `co2_ppm`、`eps_boost_applied_step`、`eps_telemetry.jsonl` 全体。
+
+### ROS2 トピック（SSOS 実 ECLSS）
+
+`environment/ssos/eclss_topics.py` — `Ros2EclssBridge` が使用。**scrubber の `/eclss/telemetry/co2_ppm` とは別**。
+
+| 種別 | 名前 |
+| --- | --- |
+| Action | `air_revitalisation`, `oxygen_generation`, `water_recovery_systems` |
+| Service | `/ars/request_co2`, `/ogs/request_o2`, `/wrs/product_water_request` |
+| Topic | `/co2_storage`, `/o2_storage`, `/wrs/product_water_reserve` |
+
+`Ros2EclssBridge(topic_remap=...)` — `graph_rewire` 提案を client 側でトピック名置換（Phase 7）。
+
+### provenance — 運用レコード
+
+```json
+{
+  "record_type": "operational",
+  "scenario": "ssos_eclss_loop",
+  "change_kind": "air_revitalisation",
+  "actor": "eclss_operator_1",
+  "payload": {"initial_co2_mass": 1800.0},
+  "trace": {"event_kind": "/eclss/events/operational_applied", "result_success": true}
+}
+```
+
+### 実行例
+
+```bash
+# mock（ホスト）
+python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode labeled_rule_base
+
+# ros2（SSOS Docker）
+./scripts/run_ssos_eclss_loop.sh --agents-mode labeled_rule_base
+
+# graph_rewire E2E
+./scripts/run_graph_rewire_e2e.sh
+```
 
 ---
 
-## 実行例
+## 関連ドキュメント
 
-```bash
-pip install -e ".[dev]"
-
-# ベースライン
-python src/scripts/run_mock_eclss.py
-
-# labeled_rule_base
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}})"
-
-# llm（Ollama 要）
-python -c "from scenario.runner import run_scenario; run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}})"
-```
-
-プログラムからの EPS スモーク:
-
-```python
-from environment.protocol import CommandKind, RecoveryCommand
-from environment.ssos import StationSimulator, MockEclssSimulator
-
-station = StationSimulator(MockEclssSimulator())
-station.apply_command(RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=120.0))
-```
+- [architecture.md](architecture.md) — レイヤと実行フロー
+- [one-piece-integration.md](one-piece-integration.md) — provenance 詳細
+- [development-plan.md](development-plan.md) — 未完了項目

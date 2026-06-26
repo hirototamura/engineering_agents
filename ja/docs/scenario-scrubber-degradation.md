@@ -294,5 +294,7 @@ pytest tests/scenario/test_scrubber_with_agents.py -q
 - [architecture.md](architecture.md) — レイヤと実行フロー
 - [api-contracts.md](api-contracts.md) — JSONL スキーマ
 - [one-piece-integration.md](one-piece-integration.md) — provenance
-- [development-plan.md](development-plan.md) — 未完了（CLI、design_proposals → provenance）
-- [memo/backlog.md](../memo/backlog.md) — BL-001 / BL-002
+- [development-plan.md](development-plan.md) — 完了状況・次タスク（CLI、Phase 8、provenance 拡張）
+- [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) — SSOS 実 ECLSS シナリオ（Phase 0–7 完了）
+- [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) — 接合プラン詳細・検証手順
+- [memo/backlog.md](../memo/backlog.md) — BL-001〜BL-005

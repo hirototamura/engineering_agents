@@ -1,62 +1,60 @@
 # SSOS ECLSS ループ接合プラン
 
-> **対象**: Space Station OS ECLSS（ARS / OGS / WRS）を `engineering_agents` エージェントが Crew Simulation の代わりに操作する。`scrubber_degradation` は Mock 凍結のまま別シナリオ。
+> **対象**: Space Station OS ECLSS（ARS / OGS / WRS）を `engineering_agents` エージェントが Crew Simulation の代わりに操作する。`scrubber_degradation` は Mock 凍結のまま別シナリオ。  
+> **フォローアップ（Phase 8 以降）**: [backlog.md](../backlog.md)（BL-003〜BL-005）
 
 ---
 
-## 実装状況（2026-06-14 更新）
+## 実装状況
 
 | 項目 | 値 |
 |------|-----|
-| ブランチ | `feat/ssos-eclss-loop`（draft PR #9 vs `main`） |
-| 作業ツリー（未コミット） | — |
-| 最新コミット | Phase 7 — graph_rewire / Team ABC / Dashboard（本コミット） |
-| Phase コミット列 | `e18e79a` 1a/1b → … → `6e715ed` レビュー対応 → **Phase 7** |
-| テスト | `pytest` → **140 passed**, 3 skipped（ROS2 統合は SSOS コンテナ外 skip） |
-| **Phase 0–6** | **コード完了** — ros2 E2E 記録済（`ja/memo/e2e_records/`） |
-
-| ユーザ向けドキュメント | ブランチ **`docs/ssos-mkdocs`**（MkDocs。`12267a4` は本ブランチから revert 済み） |
-| ドキュメント保守 | 別エージェント — `docs/ssos-mkdocs` 上の `docs/MAINTENANCE.md` |
-
-### マイルストーン一覧
-
-| Phase | 内容 | 状態 |
-|-------|------|------|
-| **0** | DesignChange 削除 | ✅ 完了 |
-| **1a–1b** | ARS / OGS smoke + `EclssBackend` | ✅ 完了 |
-| **2** | WRS ブリッジ | ✅ 完了 |
-| **3** | EPS 接合（scrubber 電力） | ✅ 完了 |
-| **4** | `ssos_eclss_loop` + `SsosEclssLoopTeam`（labeled_rule_base） | ✅ 完了 |
-| **5** | `design_proposals.json` + `--apply-proposals` | ✅ 完了 |
-| **6** | LLM エージェント（deliberation + operational + 事後 design） | ✅ 完了 (`d62ca77`) |
-| **6.1** | Docker 実行 UX（`ea-loop` デフォルト ros2 + Ollama `host.docker.internal`） | ✅ 完了 (`d62ca77`) |
+| ブランチ | `feat/ssos-eclss-loop`（PR #9 vs `main`） |
+| 最新コミット | `95ebd1b` — Phase 7（graph_rewire client / Team ABC / Dashboard） |
+| テスト | `pytest` → **140 passed**, 4 skipped |
+| ユーザ向けドキュメント | ブランチ **`docs/ssos-mkdocs`** |
+| E2E 記録 | [`e2e_records/`](e2e_records/README.md) |
 
 ---
 
-## 合意事項（Phase 0 完了）
+## マイルストーン一覧
+
+| Phase | 内容 | 状態 | 完了条件 / 備考 |
+|-------|------|------|-----------------|
+| **0** | DesignChange 削除 | ✅ | scrubber テスト全 pass；`SimulatorProtocol.apply_design_change` なし |
+| **1a** | ARS ヘッドレス smoke | ✅ | コンテナ内 `ssos_eclss_ars_smoke`；topic/action 到達 |
+| **1b** | ARS + OGS + `EclssBackend` | ✅ | O₂/CO₂ Sabatier 競合が telemetry に現れる |
+| **2** | WRS ブリッジ | ✅ | `run_ssos_eclss_2_smoke.sh`、水トレードオフ信号 |
+| **3** | EPS 接合（scrubber 電力） | ✅ | [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md)、`run_ssos_eps_smoke.sh` |
+| **4** | `ssos_eclss_loop` + `SsosEclssLoopTeam` | ✅ | mock/ros2 シナリオ、telemetry JSONL |
+| **5** | `design_proposals.json` + `--apply-proposals` | ✅ | `design_domain: ssos_graph`、次 run へマージ |
+| **6** | LLM エージェント | ✅ | deliberation → operational → 事後 design；mock pytest + コンテナ E2E |
+| **6.1** | Docker 実行 UX（`ea-loop`） | ✅ | デフォルト `ros2`、`OLLAMA_BASE_URL=host.docker.internal` |
+| **7** | graph_rewire（client）+ Team ABC + Dashboard | ✅ | `graph_rewire.py`、`ssos_views.py`、re-arm 改善；E2E `run_graph_rewire_e2e.sh` |
+| **8** | ROS launch remap（A）+ ゲートウェイ | 📋 backlog | [backlog.md BL-003](../backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a) |
+
+---
+
+## 合意事項（Phase 0）
 
 | 項目 | 状態 |
 |------|------|
-| ランタイム `DesignChange` | **削除済み** — `SimulatorProtocol.apply_design_change` なし |
-| scrubber_degradation | **凍結** — 事後 `design_proposals.json`（dict）とダッシュボード After プレビューは維持 |
-| 新シナリオ | `ssos_eclss_loop` — **実装済み**（`7196812`） |
-| 事後提案（新） | `design_proposals.json`（`design_domain: ssos_graph`）— **実装済み**（Phase 5） |
+| ランタイム `DesignChange` | **削除済み** |
+| scrubber_degradation | **凍結** — 事後 `design_proposals.json` + ダッシュボード After プレビューは維持 |
+| 新シナリオ | `ssos_eclss_loop` — **実装済み** |
+| 事後提案 | `design_proposals.json`（`design_domain: ssos_graph`）— **実装済み** |
 
 ---
 
-## 段階的ロールアウト
+## アーキテクチャ
 
-| Phase | 内容 | 状態 | 完了条件 |
-|-------|------|------|----------|
-| **0** | DesignChange 削除 | **完了** | scrubber テスト全 pass |
-| **1a** | ARS ヘッドレス smoke | **完了** | Docker 内 `python3 -m scripts.ssos_eclss_ars_smoke` |
-| **1b** | ARS + OGS | **完了** | O₂/CO₂ Sabatier 競合が telemetry に現れる |
-| **2** | + WRS | **完了** (`2700fda`) | `run_ssos_eclss_2_smoke.sh`、水トレードオフ信号 |
-| **3** | EPS 接合 | **完了** (`3b4b0b4`) | [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md)、`run_ssos_eps_smoke.sh` |
-| **4** | `ssos_eclss_loop` + `SsosEclssLoopTeam` | **完了** (`7196812`) | mock/ros2 シナリオ、telemetry JSONL |
-| **5** | `design_proposals.json` + 次 run 適用 | **完了** (`d5bf9af`) | `--apply-proposals`、ラン終了時に JSON 出力 |
-| **6** | LLM エージェント（`SsosEclssLoopTeam`） | **完了**（未コミット） | mock pytest + コンテナ ros2 手動 E2E |
-| **6.1** | Docker 実行 UX | **完了**（未コミット） | `ea-loop` デフォルト `ros2`、Ollama ホスト到達 |
+```
+SsosEclssLoopTeam(Team) → scenario_run → EclssBackend
+                                            ├── LoopMockEclssBackend (dev)
+                                            └── Ros2EclssBridge (SSOS Docker, topic_remap)
+```
+
+起動: `~/dev/ssos/ssos-run.sh` → コンテナ内 `bash /root/ssos-eclss-headless.sh` → `ea-loop`
 
 ---
 
@@ -93,24 +91,14 @@
 
 ---
 
-## アーキテクチャ
-
-```
-SsosEclssLoopTeam → scenario_run → EclssBackend
-                                      ├── MockEclssBackend (dev)
-                                      └── Ros2EclssBridge (SSOS Docker)
-```
-
-起動: `ros2 launch space_station eclss.launch.py`（crew GUI なし）
-
-### Phase 1a 成果物（完了）
+## Phase 1a 成果物（完了）
 
 | ファイル | 役割 |
 |----------|------|
-| `src/environment/ssos/eclss_topics.py` | SSOS ECLSS Action/Service/Topic 定数（`space_station_interfaces/...`） |
-| `src/environment/ssos/eclss_types.py` | `ArsGoal`, `EclssSmokeReport`, Phase 1b 型 |
-| `src/scripts/ssos_eclss_ars_smoke.py` | コンテナ内スモーク（topic/action 確認 + goal 送信） |
-| `scripts/run_ssos_eclss_smoke.sh` | ホスト Mac から `docker exec` 経由で 1a を実行 |
+| `src/environment/ssos/eclss_topics.py` | SSOS ECLSS Action/Service/Topic 定数 |
+| `src/environment/ssos/eclss_types.py` | `ArsGoal`, `EclssSmokeReport` 等 |
+| `src/scripts/ssos_eclss_ars_smoke.py` | コンテナ内スモーク |
+| `scripts/run_ssos_eclss_smoke.sh` | ホスト Mac ラッパ |
 
 #### Phase 1a 検証手順（2 ターミナル）
 
@@ -340,7 +328,7 @@ ECLSS 未起動時は `ea-loop` が即エラー（空 ros2 グラフ検出）。
 
 ---
 
-## Phase 6 成果物（完了 — 作業ツリー、未コミット）
+## Phase 6 成果物（完了 — `d62ca77`）
 
 | ファイル | 役割 |
 |----------|------|
@@ -363,12 +351,55 @@ ECLSS 未起動時は `ea-loop` が即エラー（空 ros2 グラフ検出）。
 PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_loop_llm_agents_invoke_ars -q
 ```
 
-**コンテナ E2E（ros2）— 記録済（2026-06-14）**: 詳細は [`ja/memo/e2e_records/README.md`](e2e_records/README.md)
+**コンテナ E2E（ros2）— 記録済**: 詳細は [`e2e_records/README.md`](e2e_records/README.md)
 
 | run | 結果 |
 |-----|------|
 | `labeled_rule_base` | `operational_command_count=2`、OGS SUCCEEDED |
 | `llm`（3 steps） | Ollama 接続 OK、`decision_source=llm`、operational hold（CO₂=0） |
+
+---
+
+## Phase 7 成果物（完了 — `95ebd1b`）
+
+### 7a — `graph_rewire`（クライアント側 remap）
+
+| 項目 | 内容 |
+|------|------|
+| レイヤ | **C — `Ros2EclssBridge` クライアント remap**（ROS launch remap ではない） |
+| モジュール | `environment/ssos/graph_rewire.py` |
+| 消費側 | `build_eclss_backend()` → `Ros2EclssBridge(topic_remap=…)` |
+| テスト | `tests/environment/test_graph_rewire.py`、`scripts/run_graph_rewire_e2e.sh` |
+
+Launch remap（A）は [backlog.md BL-003](../backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a)。
+
+### 7b — `Team` ABC 統一
+
+| 項目 | 内容 |
+|------|------|
+| `Team` | `run_step(context, observation)` / `apply_outcome(context, outcome)` |
+| `SsosEclssLoopTeam` | `Team` 継承、`context` = `EclssBackend` |
+
+### 7c — Dashboard（`ssos_eclss_loop`）
+
+| 項目 | 内容 |
+|------|------|
+| モジュール | `tools/dashboard/ssos_views.py` |
+| 分岐 | `summary.scenario == "ssos_eclss_loop"` |
+
+```bash
+PYTHONPATH=src python3 -m scenario.ssos_eclss_loop.scenario_run \
+  --backend mock --agents-mode labeled_rule_base \
+  --output-dir src/experiments/results/ssos_eclss_loop_dashboard_demo
+PYTHONPATH=src python3 -m streamlit run src/tools/dashboard/app.py
+```
+
+### 7d — エッジケース（re-arm 実装済み、他は backlog）
+
+| 項目 | 状態 |
+|------|------|
+| re-arm 境界 / 無効 ARS・OGS 再試行 | **実装** |
+| `co2_critical` 未使用、provenance ヒューリスティック、command failure 無視、`set_parameter` 任意パス | [backlog.md BL-004](../backlog.md#bl-004-ssos-eclss-ループ--フォローアップ) |
 
 ---
 
@@ -400,124 +431,7 @@ PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_lo
 
 ---
 
-## 次へのアクション
-
-### 即時（PR マージ前）
-
-| # | アクション | 状態 |
-|---|-----------|------|
-| 1 | Phase 6 + 6.1 コミット & push | ✅ `d62ca77` |
-| 2 | コンテナ E2E 記録 | ✅ `ja/memo/e2e_records/` |
-| 3 | labeled_rule_base ros2 E2E | ✅ OGS + request_co2（events.jsonl） |
-| 4 | draft PR #9 Ready for review | 実施中 |
-
-### 短期バックログ（Phase 7 候補）
-
-| 優先 | 項目 | 説明 |
-|------|------|------|
-| P1 | **ros2 E2E pytest（optional）** | SSOS コンテナ CI または `@pytest.mark.integration` |
-| P1 | **LLM 接続 preflight** | llm モード開始時に `OllamaClient.check_connection()` で早期 fail |
-| P2 | **Phase 8 — ROS launch remap（A）** | 8a PoC → 8b proposals→launch；クライアント remap（7a）でデモは可能なためマージ非ブロッカー |
-| P2 | **ECLSS + EPS 単一 ros2 シナリオ** | 電力危機と ECLSS を同一 run |
-| P2 | **3b — EPS BCDU action** | discharge/boost の Action 経路 |
-| P3 | **rclpy ネイティブクライアント** | CLI ブリッジからの移行 |
-| P3 | **MkDocs CI deploy** | `docs/ssos-mkdocs` ブランチ |
-| P3 | **upstream CO₂ スクラバ** | SSOS ECLSS 拡張 → 新 Mock シナリオ |
-
-### Phase 7 — graph_rewire / Team ABC / Dashboard（実装済み）
-
-#### 7a — `graph_rewire` のランタイム適用（**クライアント側のみ**）
-
-| 項目 | 内容 |
-|------|------|
-| レイヤ | **C — `Ros2EclssBridge` クライアント remap**（ROS launch remap ではない） |
-| モジュール | `environment/ssos/graph_rewire.py` — `build_topic_remap()`, `remap_name()` |
-| 消費側 | `build_eclss_backend()` が `ssos_graph.rewires` を読み、`Ros2EclssBridge(topic_remap=…)` に渡す |
-| 適用範囲 | telemetry / action / service / self_diagnosis の **CLI 呼び出し名**を public→backend に解決 |
-| デモ | **A（launch remap）がなくても可** — エージェントが叩く先を変えれば mock/ros2 双方でデモできる |
-| rclpy | remapping 設定時は CLI telemetry にフォールバック（singleton reader は未対応） |
-| テスト | `tests/environment/test_graph_rewire.py`（unit）、`scripts/run_graph_rewire_e2e.sh`（コンテナ E2E） |
-
-**Phase 7a でやっていないこと:** SSOS ノード起動時の `--ros-args -r` / launch `remappings`（→ Phase 8）。
-
-#### Phase 8 — ROS launch remap（A）— **未実装・マージ後バックログ**
-
-クライアント remap（7a）だけでは **OGS↔WRS 等の SSOS 内部配線は変わらない**。scrubber の `add_edge` に近いデモには launch remap +（必要なら）ゲートウェイ rclpy が要る。ただし **ハッカソン展示の主経路（ea-loop / labeled / LLM / design_proposals）は A なしで成立**するため、Phase 7 マージをブロックしない。
-
-| Tier | 工数感 | 変更箇所（予定） | 成果物 |
-|------|--------|------------------|--------|
-| **8a PoC** | 1–2 日 | `~/dev/ssos/ssos-headless.launch.py` に手書き `remappings` 1 件 | 1 サービス/topic の launch remap 動作確認 |
-| **8b proposals→launch** | 3–5 日 | `design_proposals` スキーマ拡張（`target_node` 等）、`environment/ssos/launch_remap.py`（生成器）、`~/dev/ssos/ssos-eclss-headless.sh`（manifest 読込）、`scenario_run`（manifest 書出し）、運用ドキュメント（**ECLSS 再起動必須**） | `--apply-proposals` → 次 headless 起動で remap 反映 |
-| **8c ゲートウェイ** | 1–2 週 | `environment/ssos/gateways/`（例: grey_water_router）、launch への Node 追加、衝突検出、コンテナ E2E | scrubber 型 `add_edge` に近い物質フロー変更 |
-
-**8b で触る `engineering_agents` ファイル（案）:**
-
-| ファイル | 変更内容 |
-|----------|----------|
-| `scenario/ssos_eclss_loop/design_proposals.py` | `graph_rewire` payload に `target_node` / `remap_rules[]` を追加（後方互換で `public`/`backend` は bridge 用に維持） |
-| `environment/ssos/launch_remap.py`（新規） | `ssos_graph.rewires` → launch 用 `remappings` リスト生成 |
-| `scenario/ssos_eclss_loop/scenario_run.py` | `--apply-proposals` 時に launch manifest を `run_dir` または固定パスへ書出し |
-| `scripts/ssos_container_run.sh` | manifest 存在時の警告（「headless を再起動せよ」） |
-| `ja/memo/ssos_ros2_graph_design_investigation.md` | Tier 8 と整合する追記 |
-
-**8b で触る `~/dev/ssos/`（コンテナ外・別リポ相当）:**
-
-| ファイル | 変更内容 |
-|----------|----------|
-| `ssos-headless.launch.py` | 動的 `remappings` 引数または overlay launch の include |
-| `ssos-eclss-headless.sh` | manifest / env（例: `SSOS_LAUNCH_REMAPS`）を launch に渡す |
-
-**現状の `ssos_graph.rewires` は Phase 8 でも流用可能**（bridge 用テーブルと launch 用テーブルを同じ JSON から分岐生成する想定）。
-
-#### 7b — `Team` ABC 統一
-
-| 項目 | 内容 |
-|------|------|
-| `Team` | `run_step(context, observation)` / `apply_outcome(context, outcome)` に一般化（`Any`） |
-| `SsosEclssLoopTeam` | `Team` を継承。`context` = `EclssBackend` |
-| `scrubber_degradation` | 既存 `run_step(sim, obs)` シグネチャはそのまま互換 |
-
-#### 7c — Dashboard（`ssos_eclss_loop`）
-
-| 項目 | 内容 |
-|------|------|
-| モジュール | `tools/dashboard/ssos_views.py` |
-| 分岐 | `summary.scenario == "ssos_eclss_loop"` で storage プロット・health カード・operational timeline・design_proposals を表示 |
-| scrubber | 従来ビューは変更なし |
-
-**手元確認:**
-
-```bash
-# mock run を生成（未作成時）
-PYTHONPATH=src python3 -m scenario.ssos_eclss_loop.scenario_run \
-  --backend mock --agents-mode labeled_rule_base \
-  --output-dir src/experiments/results/ssos_eclss_loop_dashboard_demo
-
-# ダッシュボード起動
-PYTHONPATH=src python3 -m streamlit run src/tools/dashboard/app.py
-```
-
-サイドバーで Run に `ssos_eclss_loop_dashboard_demo` を選択。CO₂/O₂/水ストレージ、operational timeline、`design_proposals.json` が ssos 用レイアウトになる。
-
-#### 7d — エッジケースメモ（優先度 Low、re-arm のみ実装）
-
-| 項目 | 状態 | メモ |
-|------|------|------|
-| **re-arm 境界** | **実装** | safe band は `co2 < co2_high` / `o2 > o2_low`。閾値ちょうどで発火は `>=` / `<=` で担保。ARS/OGS が無効だった場合は `co2_at_ars_dispatch` / `o2_at_ogs_dispatch` で次ステップ再試行 |
-| `co2_critical` 未使用（labeled） | メモのみ | health は critical を評価するが labeled ルールは `co2_high` のみ。将来 critical 専用コマンドを検討 |
-| One Piece provenance ヒューリスティック | メモのみ | operational イベントの message パースに依存。失敗時は record 欠落の可能性 |
-| labeled が command failure を無視 | メモのみ | `apply_outcome` は success/failure をログするが次ステップのルール分岐には未反映 |
-| `set_parameter` 任意パス | メモのみ | design proposal 適用時のパス検証は最小限。本番 SSOS では allowlist 推奨 |
-
-### Phase 7 — 旧メモ（レビュー指摘の明文化・参照用）
-
-| # | 項目 | 方針 |
-|---|------|------|
-| 6 | `LoopMockEclssBackend` の配置 | **現状維持** — `scenario/` 配下のまま問題なし（シナリオ専用 dynamics）。 |
-| 7 | diagnosis / self_diagnosis | **スコープ外** — labeled の diagnosis メッセージパスは削除。failure フラグは bridge テスト用に telemetry 型のみ残す。 |
-| 8 | `request_o2` mock 挙動 | `/o2_storage` は **OGS 供給側貯蔵**。`request_o2` で減少は正しい（引き出し）。修正済: `amount * 0.01` → `amount` kg で減算。 |
-
-### レビュー修正（2026-06-20）
+## レビュー修正（2026-06-20）
 
 | 項目 | 対応 |
 |------|------|
@@ -529,7 +443,9 @@ PYTHONPATH=src python3 -m streamlit run src/tools/dashboard/app.py
 | Codex: smoke スクリプト fall-through | ローカル ros2 実行後 `exit` |
 | Codex: action_profile 未知フィールド | `ACTION_PROFILE_FIELDS_BY_SUBSYSTEM` で検証 |
 
-### 推奨デモシナリオ（ハッカソン展示）
+---
+
+## 推奨デモシナリオ（ハッカソン展示）
 
 ```bash
 # 1. rule ベースで SSOS 実機操作 + design 提案
@@ -544,28 +460,30 @@ ea-loop --agents-mode llm
 
 ---
 
-## 次のプラン（Phase 7+）— 旧バックログ
+## フォローアップ
 
-| 項目 | 説明 |
-|------|------|
-| **3b — EPS BCDU action** | `Ros2EpsBridge` で discharge/boost の Action 経路（現状は topic + command のみ） |
-| **WRS in scenario team** | `SsosEclssLoopTeam` が WRS goal / 水サービスを labeled_rule_base で操作 |
-| **ECLSS + EPS 単一 ros2 シナリオ** | `ssos_eclss_loop` で `eclss.backend=ros2` と `eps.backend=ssos_eps` を同時に smoke |
-| **MkDocs CI deploy** | `docs/ssos-mkdocs` ブランチで実施（`mkdocs gh-deploy` / Pages） |
-| **rclpy ネイティブクライアント** | CLI ブリッジからの移行（レイテンシ・CI 安定性） |
-| **upstream** | SSOS ECLSS への CO₂ スクラバノード追加 → 別 Mock シナリオ |
+未着手項目は **[backlog.md](../backlog.md)** に集約:
 
----
+| ID | 内容 |
+|----|------|
+| BL-003 | Phase 8 — ROS launch remap + ゲートウェイ |
+| BL-004 | SSOS ECLSS ループ（WRS team、ECLSS+EPS 統合、rclpy 等） |
+| BL-005 | SSOS EPS（3b/3c、PR-5 ドキュメント、BCDU action） |
 
-## 長期バックログ
+### レビュー指摘の整理（参照用）
 
-- SSOS ECLSS に CO2 スクラバノード追加（upstream）— 上記バックログと重複、One Piece 連携後に再検討
+| # | 項目 | 方針 |
+|---|------|------|
+| 6 | `LoopMockEclssBackend` の配置 | 現状維持（`scenario/` 配下） |
+| 7 | diagnosis / self_diagnosis | スコープ外（labeled diagnosis 削除済み） |
+| 8 | `request_o2` mock | `/o2_storage` 減少は正しい（scale 修正済み） |
 
 ---
 
 ## 関連
 
-- [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md)
-- SSOS MkDocs 入口 — `docs/ssos-mkdocs` の `docs/ssos/index.md`
-- [docs/api-contracts.md](../docs/api-contracts.md)
-- Cursor plan: `ssos_ars_agent_plan_e6782b7f.plan.md`
+- [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md) — EPS Phase 3 詳細
+- [backlog.md](../backlog.md) — Phase 8 以降・EPS フォローアップ
+- [ssos_ros2_graph_design_investigation.md](ssos_ros2_graph_design_investigation.md)
+- SSOS MkDocs — `docs/ssos-mkdocs`
+- [docs/api-contracts.md](../../docs/api-contracts.md)
