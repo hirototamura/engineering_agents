@@ -1,6 +1,6 @@
 # Engineering Agents — ECLSS Resilience Loop
 
-Research repository that simulates **agent teams** detecting, responding to, and proposing design changes after **ECLSS** (Environmental Control and Life Support System) anomalies on a mock **Space Station OS (SSOS)** simulator.
+Research repository that simulates **agent teams** detecting, responding to, and proposing design changes after **ECLSS** (Environmental Control and Life Support System) anomalies. Two scenario tracks: Python mock (`scrubber_degradation`) and SSOS live ECLSS (`ssos_eclss_loop`, Phase 0–7).
 
 ---
 
@@ -20,6 +20,7 @@ Research repository that simulates **agent teams** detecting, responding to, and
 | Development plan | [en/docs/development-plan.md](en/docs/development-plan.md) | [ja/docs/development-plan.md](ja/docs/development-plan.md) |
 | One Piece integration | [en/docs/one-piece-integration.md](en/docs/one-piece-integration.md) | [ja/docs/one-piece-integration.md](ja/docs/one-piece-integration.md) |
 | Scenario: scrubber_degradation | [en/docs/scenario-scrubber-degradation.md](en/docs/scenario-scrubber-degradation.md) | [ja/docs/scenario-scrubber-degradation.md](ja/docs/scenario-scrubber-degradation.md) |
+| Scenario: ssos_eclss_loop | [en/docs/scenario-ssos-eclss-loop.md](en/docs/scenario-ssos-eclss-loop.md) | [ja/docs/scenario-ssos-eclss-loop.md](ja/docs/scenario-ssos-eclss-loop.md) |
 
 Research memos live under [en/memo/](en/memo/) and [ja/memo/](ja/memo/).
 

@@ -297,4 +297,5 @@ pytest tests/scenario/test_scrubber_with_agents.py -q
 - [api-contracts.md](api-contracts.md) — JSONL schemas
 - [one-piece-integration.md](one-piece-integration.md) — provenance
 - [development-plan.md](development-plan.md) — incomplete items (CLI, design_proposals → provenance)
+- [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) — SSOS live ECLSS scenario (Phase 0–7 complete)
 - [memo/backlog.md](../memo/backlog.md) — BL-001 / BL-002

@@ -247,6 +247,7 @@ LLM mode requires Ollama. Prefer Fake LLM / `labeled_rule_base` for CI and regre
 | [docs/development-plan.md](docs/development-plan.md) | Incomplete features, roadmap |
 | [docs/one-piece-integration.md](docs/one-piece-integration.md) | One Piece integration (provenance only for now; requirement pull is future) |
 | [docs/scenario-scrubber-degradation.md](docs/scenario-scrubber-degradation.md) | Reference scenario specification |
+| [docs/scenario-ssos-eclss-loop.md](docs/scenario-ssos-eclss-loop.md) | SSOS live ECLSS scenario (Phase 0–7) |
 | [../ja/AGENTS.md](../ja/AGENTS.md) | Japanese version of this guide |
 
 

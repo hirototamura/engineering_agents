@@ -1,5 +1,7 @@
 # シナリオ: ssos_eclss_loop
 
+> English: [../../en/docs/scenario-ssos-eclss-loop.md](../../en/docs/scenario-ssos-eclss-loop.md)
+
 **SSOS**（Space Station OS）Docker 内の実 ROS2 **ECLSS**（Environmental Control and Life Support System）を、エージェントチームが Crew Simulation の代わりに操作する参照シナリオ。CO₂ / O₂ / 製品水の**ストレージ kg** を監視し、閾値超過時に ARS / OGS 等の運用コマンドを打ち、ラン終了後に `ssos_graph` ドメインの恒久設計を提案する。
 
 > 実行コマンドは [README.md](../README.md#実行方法) および本ドキュメント [実行方法](#実行方法)。アーキテクチャは [architecture.md](architecture.md)。scrubber との対比は [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md)。
