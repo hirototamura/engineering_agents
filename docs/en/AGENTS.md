@@ -195,7 +195,7 @@ Do not import upper layers from lower layers. Do not put LLM or Persona in `envi
 - Maintain **separation** of design proposals and runtime operations (current: only recovery commands at runtime; permanent changes are post-run proposals).
 - Maintain **isolation** of `labeled_rule_base` `policy` and `llm` mode (do not mix policy thresholds into LLM prompts).
 - Add virtual-world pass/fail to **`health_metrics` / scenario YAML / pure function checkers**.
-- Follow **JSONL schema** for simulator output ([docs/api-contracts.md](api-contracts.md)).
+- Follow **JSONL schema** for simulator output ([api-contracts.md](api-contracts.md)).
 - Run `pytest` after changes.
 
 ### Do not
@@ -242,11 +242,12 @@ LLM mode requires Ollama. Prefer Fake LLM / `labeled_rule_base` for CI and regre
 | Document | Content |
 | ------------------------------------------------------------------------------ | ------------------------------------------ |
 | [README.md](README.md) | Overview, run instructions, dashboard |
-| [docs/architecture.md](architecture.md) | Layers, execution flow, agent design |
-| [docs/api-contracts.md](api-contracts.md) | `SimulatorProtocol`, JSONL, design proposal schema |
-| [docs/development-plan.md](development-plan.md) | Incomplete features, roadmap |
-| [docs/one-piece-integration.md](one-piece-integration.md) | One Piece integration (provenance only for now; requirement pull is future) |
-| [docs/scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | Reference scenario specification |
+| [architecture.md](architecture.md) | Layers, execution flow, agent design |
+| [api-contracts.md](api-contracts.md) | `SimulatorProtocol`, JSONL, design proposal schema |
+| [development-plan.md](development-plan.md) | Incomplete features, roadmap |
+| [one-piece-integration.md](one-piece-integration.md) | One Piece integration (provenance only for now; requirement pull is future) |
+| [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | Reference scenario specification |
+| [docs/scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) | SSOS live ECLSS scenario (Phase 0–7) |
 | [../ja/AGENTS.md](../ja/AGENTS.md) | Japanese version of this guide |
 
 

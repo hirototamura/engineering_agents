@@ -1,4 +1,4 @@
-> Japanese: [../../ja/one-piece-integration.md](../ja/one-piece-integration.md)
+> Japanese: [../ja/one-piece-integration.md](../ja/one-piece-integration.md)
 
 # One Piece Integration
 
@@ -164,11 +164,15 @@ Baseline (`agents.mode: none`) also emits **`provenance.jsonl` with 0 records** 
 
 ---
 
-## SSOS topology ingestion (optional, future)
+## SSOS topology ingestion
 
-The One Piece connector [`one_piece_connectors/ssos.py`](https://github.com/hirototamura/one-piece/blob/main/packages/connectors/one_piece_connectors/ssos.py) can seed initial `SystemElement` + ICD graph from real SSOS.
+| Path | Status |
+| --- | --- |
+| Mock ECLSS default topology | scrubber — `environment/eclss_ops/design_state.py` |
+| SSOS live ECLSS operations | ssos — `Ros2EclssBridge` + `EclssBackend` (Phase 0–7 complete) |
+| One Piece connector [`ssos.py`](https://github.com/hirototamura/one-piece/blob/main/packages/connectors/one_piece_connectors/ssos.py) | Optional — seed initial `SystemElement` + ICD graph from real SSOS |
 
-The MVP uses the Mock ECLSS default topology from `environment/eclss_ops/design_state.py`. Real SSOS integration: see the SSOS adapter in [development-plan.md](development-plan.md).
+Phase 8 (ROS launch remap + gateway): [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a).
 
 ---
 
@@ -176,7 +180,7 @@ The MVP uses the Mock ECLSS default topology from `environment/eclss_ops/design_
 
 - **JSON files + future connector** — avoid hard dependency on One Piece packages until provenance format stabilizes
 - When ingestion is needed: git submodule or `pip install -e ../one-piece/packages/connectors`
-- Policy details: [memo/mvp_plan.md](../memo/mvp_plan.md)
+- Policy details: [memo/scrubber_degradation/mvp_plan.md](memo/scrubber_degradation/mvp_plan.md)
 
 ---
 
@@ -185,8 +189,9 @@ The MVP uses the Mock ECLSS default topology from `environment/eclss_ops/design_
 | Item | Status |
 | --- | --- |
 | `export_run_provenance()` | Done |
-| EPS recovery provenance | Done |
-| Runtime design_change provenance | Protocol ready; 0 records in current scenario |
+| scrubber EPS recovery provenance | Done |
+| ssos operational provenance | Done |
+| Runtime design_change provenance | Protocol ready; 0 records in current scenarios |
 | post-run `design_proposals` → provenance | **Not implemented** |
 | `provenance_index.json` (cross-run) | **Not implemented** |
 | One Piece Web UI | Out of scope |
@@ -197,5 +202,6 @@ The MVP uses the Mock ECLSS default topology from `environment/eclss_ops/design_
 
 - [api-contracts.md](api-contracts.md) — all JSONL schemas
 - [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) — how to read outputs
+- [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) — how to read ssos outputs
 - [architecture.md](architecture.md) — execution flow
 - [development-plan.md](development-plan.md) — Day 9–10 plan

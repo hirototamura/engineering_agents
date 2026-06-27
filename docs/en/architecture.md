@@ -1,58 +1,61 @@
-> Japanese: [../../ja/architecture.md](../ja/architecture.md)
+> Japanese: [../ja/architecture.md](../ja/architecture.md)
 
-# Architecture — ECLSS (Environmental Control and Life Support System) Resilience Loop
+# Architecture — ECLSS Resilience Loop
 
-Reference for layer structure, execution flow, and agent design in a simulation that mocks **ECLSS** (Environmental Control and Life Support System) and **EPS** (Electrical Power System).
+Reference for layer structure, execution flow, and agent design. API schemas: [api-contracts.md](api-contracts.md). Scenario narratives: see each scenario document.
 
-> Usage instructions: [README.md](README.md). Incomplete features: [development-plan.md](development-plan.md).
-
----
-
-## Terminology (first use)
-
-| Abbrev. | English name | Meaning in this repository |
-| --- | --- | --- |
-| **ECLSS** | Environmental Control and Life Support System | **Life-support equipment** required for crew survival (CO2 removal, air circulation, environmental control). Not a physical lab apparatus; the closed-environment plant is represented as a graph |
-| **EPS** | Electrical Power System | Space-station generation, storage, and distribution. Supplies power to loads such as ECLSS |
-| **SARJ** | Solar Alpha Rotary Joint | Solar-array pointing and generation. Mocked as solar voltage via `MockSarj` in the MVP |
-| **BCDU** | Battery Charge/Discharge Unit | Battery charge/discharge unit. Discharges to support ECLSS on `request_eps_boost` |
-| **MBSU** | Main Bus Switching Unit | Main bus switching. A real EPS component (not individually implemented in this MVP mock) |
-| **DDCU** | Direct Current-to-Direct Current Converter Unit | DC-DC conversion. A real EPS component (not individually implemented in this MVP mock) |
+> Usage: [README.md](README.md) · Incomplete features: [development-plan.md](development-plan.md)
 
 ---
 
 ## Mission
 
-Verify, in a reproducible Python environment, that an **agent team can detect and respond to anomalies in space-station life-support equipment (ECLSS)** and **propose design changes afterward**.
+Verify in a reproducible environment that an **agent team can detect and respond to anomalies in space-station life-support equipment (ECLSS)** and **propose design changes afterward**.
 
-Rather than high-fidelity numerical physics or 3D graphics, the priorities are:
+Priorities:
 
 - **Structured agent relationships** (homogeneous team, representative action, deliberation logs)
-- **Simulator API contract** (`SimulatorProtocol`, JSONL, ROS2-style topics)
-- **SSOS mock** (connection to real orbital software is a separate phase)
+- **Clear API contracts** (backend protocols, JSONL)
+- **Two scenario tracks** — independent backends and output schemas (do not mix)
 
-This repository runs on a **simulator that mocks Space Station OS (SSOS)**. It does not connect to real ROS2 topics on hardware.
+
+| | `scrubber_degradation` | `ssos_eclss_loop` |
+| --- | --- | --- |
+| Narrative | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) |
+| Backend | `SimulatorProtocol` / `StationSimulator` | `EclssBackend` / `Ros2EclssBridge` |
+| Team | `ScrubberDegradationTeam` | `SsosEclssLoopTeam` |
+| Rep IDs | `engineer_*` | `eclss_operator_*` |
+| Runtime | Recovery commands | Operational commands (ARS/OGS, etc.) |
+| Post-run | Scrubber topology | `ssos_graph` |
+| Environment | Host Python only | mock or SSOS Docker |
+
 
 ---
 
-## System overview
+## Shared — layers and dependencies
+
+### System overview
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│  tools/          Streamlit dashboard, (future) CLI              │
+│  tools/          Streamlit dashboard, ea-loop (Docker)      │
 └───────────────────────────┬─────────────────────────────────┘
                             │
 ┌───────────────────────────▼─────────────────────────────────┐
-│  scenario/       runner, YAML, ScrubberDegradationTeam        │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────┐
-│  environment/    StationSimulator, MockEclssSimulator, EPS    │
-│                  SsosAdapter (stub)                           │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────┐
-│  core/           PersonaAgent, Team, memory, Ollama client    │
+│  scenario/       scrubber_degradation  |  ssos_eclss_loop   │
+│                  ScrubberDegradationTeam | SsosEclssLoopTeam│
+└───────────────┬─────────────────────────────┬───────────────┘
+                │                             │
+    ┌───────────▼──────────┐      ┌───────────▼──────────────┐
+    │ environment/         │      │ environment/ssos/        │
+    │ StationSimulator     │      │ EclssBackend             │
+    │ MockEclss + EPS mock │      │ Ros2EclssBridge          │
+    └───────────┬──────────┘      └───────────┬──────────────┘
+                │                             │
+                └─────────────┬───────────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────┐
+│  core/           PersonaAgent, Team ABC, memory, Ollama     │
 └─────────────────────────────────────────────────────────────┘
 
   integrations/one_piece/  ← provenance export at scenario end
@@ -65,39 +68,69 @@ tools → scenario → environment → core
 src/integrations/   (invoked from scenario)
 ```
 
----
-
-## Layer responsibilities
+### Layer responsibilities
 
 | Layer | Path | Responsibility |
 | --- | --- | --- |
-| Core | `src/core/` | Persona, Team ABC, memory (`DiscourseBuffer` / `AgentMemory`), LLM client, event log |
-| Environment | `src/environment/` | `SimulatorProtocol`, ECLSS life-support plant, EPS (SARJ/BCDU mock), SSOS topic definitions, adapter stub |
-| Scenario | `src/scenario/` | Scenario YAML, registry, `ScrubberDegradationTeam` |
-| Experiments | `src/experiments/results/` | Run output (gitignore recommended) |
-| Tools | `src/tools/dashboard/` | Streamlit UI |
-| Integrations | `src/integrations/one_piece/` | Provenance JSON export |
+| Core | `src/core/` | Persona, Team ABC, memory, LLM client |
+| Environment | `src/environment/` | scrubber: `SimulatorProtocol`, EPS mock. ssos: `EclssBackend`, `graph_rewire` |
+| Scenario | `src/scenario/` | Per-scenario YAML, Team, `design_proposals` |
+| Experiments | `src/experiments/results/` | Run output |
+| Tools | `src/tools/dashboard/` | Streamlit (view branches on `summary.scenario`) |
+| Integrations | `src/integrations/one_piece/` | provenance JSON |
 
----
+### Agent team (shared across both tracks)
 
-## Implementation status
+Extends `Team` ABC. **Homogeneous N agents + representative action**, not rigid roles.
 
-| Feature | Status | Main artifacts |
+| Concept | Description |
+| --- | --- |
+| `team.count` | Operator count (scrubber default 4, ssos default 3) |
+| deliberation | llm: one round for all. labeled: rule-driven fixed messages |
+| action rep | Representative issues commands each step via `(step-1) % N` |
+| post-run rep | Representative at final step outputs `design_proposals.json` |
+| Design separation | **No permanent graph changes at runtime**. Post-run proposals only |
+
+Details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md).
+
+### `agents.mode` (shared values)
+
+| Mode | Meaning |
+| --- | --- |
+| `none` | Backend only (no agents) |
+| `labeled_rule_base` | `policy` / threshold driven |
+| `llm` | Ollama deliberation + representative action |
+| `base` | Not implemented ([BL-001](memo/backlog.md)) |
+
+**Do not include `policy` thresholds in LLM prompts** (fair comparison experiments).
+
+### Implementation status
+
+| Feature | scrubber | ssos |
 | --- | --- | --- |
-| Repository layout | Done | `src/` layers, `core/agents/`, `scenario/` |
-| Simulator | Done | `SimulatorProtocol`, `StationSimulator`, `MockEclssSimulator` |
-| Baseline scenario | Done | `scrubber_degradation/scenario.yaml`, regression tests |
-| labeled_rule_base team | Done | `policy`-driven recovery commands, post-run `design_proposals.json` |
-| llm team | Done | Ollama, one deliberation round + representative action |
-| EPS coupling | Done | `eps_telemetry.jsonl`, BCDU discharge, `request_eps_boost` |
-| Dashboard | Done | Overview, Step replay, 2-run compare, design proposal graph |
-| One Piece provenance | Partial | Runtime **recovery** only. Post-run design proposals not exported |
-| CLI | Not started | [development-plan.md](development-plan.md) |
-| Real SSOS adapter | Stub | `SsosAdapter` |
+| Scenario + team | ✅ frozen | ✅ Phase 0–7 |
+| labeled / llm | ✅ | ✅ |
+| Dashboard | ✅ ppm / EPS / topology | ✅ storage / operational TL |
+| provenance | ✅ EPS recovery | ✅ operational commands |
+| Post-run proposals → provenance | 📋 pending | 📋 pending |
+| CLI integration | 📋 pending | 📋 pending |
+| launch remap (Phase 8) | — | 📋 [BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a) |
 
 ---
 
-## Execution flow (scrubber_degradation)
+## scrubber_degradation
+
+CO₂ scrubber anomaly on Python mock. **Frozen** — new features go to `ssos_eclss_loop`.
+
+### Terminology
+
+| Abbrev. | Description |
+| --- | --- |
+| **ECLSS** | Life-support plant (scrubber, manifold, cabin) |
+| **EPS** | Generation, storage, distribution. Supports ECLSS via `request_eps_boost` |
+| **SARJ** / **BCDU** | Solar generation / battery discharge mocks (`MockSarj` / `MockBcdu`) |
+
+### Execution flow
 
 ```text
 scenario.yaml + agents.yaml
@@ -106,167 +139,227 @@ scenario.yaml + agents.yaml
   scenario/runner.py → ScrubberDegradationScenario
         │
         ├─ build_simulator() → StationSimulator(ECLSS + EPS)
-        ├─ build_team()      → ScrubberDegradationTeam (mode ≠ none)
+        ├─ build_team()      → ScrubberDegradationTeam
         │
         ▼
   for step in 1..N:
-    1. sim.step()                         → TelemetrySnapshot
-    2. log telemetry, health, design_state (before agent action)
-    3. team.run_step(sim, obs)            → messages, commands
-    4. team.apply_outcome(sim, outcome)   → apply_command only (no design changes)
-    5. log messages, sim events
+    1. sim.step()                    → TelemetrySnapshot
+    2. log telemetry, health, design_state
+    3. team.run_step(sim, obs)       → RecoveryCommand
+    4. team.apply_outcome(sim, ...)  → apply_command only
+    5. log messages, events
         │
         ▼
-  team.propose_post_run_design()          → design_proposals.json
-  export_run_provenance()               → provenance.jsonl
-  write summary.json
-        │
-        ▼
-  experiments/results/<run_id>/
+  propose_post_run_design() → design_proposals.json
+  export_run_provenance()   → recovery records
 ```
 
-### Important design separation
+### Runtime vs post-run
 
-| Phase | What happens | Output |
+| Phase | Content | Output |
 | --- | --- | --- |
-| **Runtime** | Temporary recovery commands only (fan, load, EPS, bypass) | `events.jsonl` (`recovery_applied`), `messages.jsonl` |
-| **After run** | **Proposal** of permanent design (not applied to simulator) | `design_proposals.json` |
+| Runtime | Recovery commands (fan, load, EPS, bypass) | `recovery_applied` |
+| Post-run | Scrubber topology proposal (not applied to simulator) | `design_proposals.json` |
 
-`design_state.jsonl` is the topology **before agent action** at each step. Nodes/edges do not change at runtime, so the same graph continues for all steps (temporary parameter changes appear on the telemetry side).
+`design_state.jsonl` topology is invariant during the run. Dashboard After preview is a **virtual apply** of proposals.
 
-The dashboard **After (if proposals applied)** is a preview that **virtually applies** `design_proposals.json` to the baseline; it is not a simulation result.
-
----
-
-## Agent modes (`agents.mode`)
-
-`agents.mode` in `scenario.yaml`. When not `none`, `agents.yaml` is loaded.
-
-| Mode | Team | Runtime | Post-run design | Tests |
-| --- | --- | --- | --- | --- |
-| `none` | none | Life-support sim only (no agents) | none | `test_scrubber_baseline.py` |
-| `labeled_rule_base` | N homogeneous | `policy` thresholds for recovery | rule-based bypass proposal | `test_scrubber_with_agents.py` |
-| `llm` | N homogeneous | LLM deliberation + action | LLM proposes `changes` | same (Fake LLM) |
-| `base` | — | not implemented | — | BL-001 |
-
-### Homogeneous engineer team
-
-- IDs: `engineer_1` … `engineer_N` (`team.count`, default 4)
-- **Representative action**: `engineer_{(step-1) % N}` issues recovery commands for that step
-- **Post-run design**: the representative at the final step runs `propose_post_run_design()`
-
-Rather than rigid roles (fixed operator / design_engineer), the executor rotates each step. Details: [memo/homogeneous_agent_team_plan.md](../memo/homogeneous_agent_team_plan.md).
-
-### labeled_rule_base
-
-Only this mode reads `policy` from `agents.yaml`. The LLM code path does not read `policy`.
-
-| Behavior | Trigger (summary) |
-| --- | --- |
-| alert | CO2 ≥ `co2_recovery_ppm` (default 1000) |
-| diagnosis | `anomaly_flags` non-empty |
-| `set_fan_speed` | CO2 ≥ threshold, not yet applied |
-| `reduce_load` | power critical, not yet applied |
-| `request_eps_boost` | power critical and EPS support steps remaining = 0 |
-| `enable_bypass` | CO2 ≥ threshold, fan already applied, bypass not yet |
-| post-run bypass proposal | peak CO2 ≥ threshold or `anomaly_seen` |
-
-### llm
-
-LLM calls per step (up to N+1):
-
-1. **Deliberation** — all N agents produce `message` + `reasoning` (`deliberation_phase: deliberation`)
-2. **Action** — representative produces `commands` array (`deliberation_phase: action`)
-3. **Post-run** (once after run) — representative writes `changes` to `design_proposals.json`
-
-**Situation injection** (prompt):
-
-- `### Telemetry` — CO2, efficiency, power margin, EPS support, and other numeric values
-- `### World state` — descriptive safe / warning / critical health
-- **`policy` thresholds are not included** (do not leak rule answers)
-
-**Metadata** (`messages.jsonl`): `decision_source` (`llm` / `llm_parse_fail` / `llm_no_action`), `parse_status`, `raw_response_excerpt`, etc.
-
----
-
-## Life support (ECLSS) and power (EPS) stack
+### ECLSS + EPS stack
 
 ```text
 StationSimulator
-  ├─ MockEclssSimulator   Life-support plant (CO2, scrubber, fan, bypass, load)
-  └─ EpsStack             EPS (Electrical Power System)
-       ├─ MockSarj        SARJ equivalent — solar voltage (orbital mock)
-       └─ MockBcdu        BCDU equivalent — charge/discharge, request_eps_boost response
+  ├─ MockEclssSimulator   CO₂ ppm, scrubber, fan, bypass
+  └─ EpsStack
+       ├─ MockSarj
+       └─ MockBcdu          request_eps_boost response
 ```
 
-Real ISS-class EPS also includes **MBSU** (Main Bus Switching Unit) and **DDCU** (Direct Current-to-Direct Current Converter Unit). This MVP focuses on SARJ/BCDU coupling required for the scrubber scenario.
+Topology:
 
-On successful `request_eps_boost`, `eps_support_w` is added to the ECLSS power margin for a fixed number of steps. `eps_telemetry.jsonl` records BCDU `mode` (`discharging`, etc.).
+```text
+  cabin ──flow──► manifold ──flow──► scrubber ──flow──► cabin
+                                        ▲
+                                        │ power
+                                   power_bus
+```
 
-### Health thresholds (`compute_health_metrics`)
+### Health (ppm / power)
 
-Defined in `src/environment/eclss_ops/telemetry.py` (`CO2_SAFE_PPM`, `CO2_WARNING_PPM`, `POWER_LOW_W`, `POWER_CRITICAL_W`).
+`compute_health_metrics()` — `src/environment/eclss_ops/telemetry.py`
 
 | Metric | safe | warning | critical |
 | --- | --- | --- | --- |
-| CO2 (ppm) | < 800 | 800 to < 1200 | ≥ 1200 |
+| CO₂ (ppm) | < 800 | 800 to < 1200 | ≥ 1200 |
 | Power margin (W) | > 0 | 0 to < −150 | ≤ −150 |
 
-`overall` is the **worse** of CO2 and power (safe < warning < critical).
+`policy.co2_recovery_ppm` (1000, etc.) are recovery triggers, separate from health bands.
 
-**Note**: Agent recovery policy (`co2_recovery_ppm: 1000` in `agents.yaml`, etc.) is separate from health thresholds. labeled_rule_base fires commands on policy thresholds; health is recorded independently from telemetry in `health_metrics.jsonl`.
+### Agents
+
+| `agents.mode` | Runtime | Post-run | Tests |
+| --- | --- | --- | --- |
+| `none` | Sim only | — | `test_scrubber_baseline.py` |
+| `labeled_rule_base` | policy-driven recovery | bypass proposal | `test_scrubber_with_agents.py` |
+| `llm` | deliberation + commands | LLM changes | same (Fake LLM) |
+
+#### labeled_rule_base
+
+| Behavior | Trigger |
+| --- | --- |
+| `set_fan_speed` | CO₂ ≥ `co2_recovery_ppm` |
+| `reduce_load` / `request_eps_boost` | power critical |
+| `enable_bypass` | high CO₂ + fan already applied |
+| Post-run bypass proposal | peak CO₂ high or `anomaly_seen` |
+
+#### llm
+
+1. Deliberation (all N) → 2. Action (representative `commands`) → 3. Post-run (`changes`)
+
+Prompt: `### Telemetry` + `### World state` (no policy)
+
+### Output and dashboard
+
+| Unique files | Content |
+| --- | --- |
+| `eps_telemetry.jsonl` | SARJ + BCDU |
+| `events.jsonl` | anomaly, `recovery_applied` |
+
+| View | Content |
+| --- | --- |
+| Overview | CO₂ ppm, power, EPS, topology Before/After |
+| Step replay | Recovery timeline, reasoning |
+
+run ID: `scrubber_degradation_{baseline|labeled_rule_base|llm}`
 
 ---
 
-## Output layout
+## ssos_eclss_loop
 
-`src/experiments/results/<run_id>/`
+Real ROS2 ECLSS inside SSOS Docker (or `LoopMockEclssBackend`). **Does not use `SimulatorProtocol`.**
 
-| File | Contents |
+### Terminology
+
+| Abbrev. | Description |
 | --- | --- |
-| `telemetry.jsonl` | Life-support telemetry every step |
-| `health_metrics.jsonl` | CO2 / power / overall |
-| `eps_telemetry.jsonl` | SARJ + BCDU (with `StationSimulator`) |
-| `design_state.jsonl` | Topology at step start (invariant) |
-| `events.jsonl` | Anomalies, recovery application |
-| `messages.jsonl` | Agent utterances (labeled / llm) |
-| `design_proposals.json` | Post-run permanent design proposal |
-| `provenance.jsonl` | One Piece compatible (currently mainly EPS recovery) |
-| `summary.json` | Full KPI set |
+| **ARS** | Air Revitalisation — CO₂ removal (`air_revitalisation`) |
+| **OGS** | Oxygen Generation — O₂ generation (`oxygen_generation`) |
+| **WRS** | Water Recovery — water recovery (`water_recovery_systems`) |
 
-Default run IDs (`scenario.yaml`):
+### Execution flow
 
-| mode | run_id |
+```text
+scenario.yaml + agents.yaml (+ ssos_graph.rewires optional)
+        │
+        ▼
+  scenario/ssos_eclss_loop/scenario_run.py
+        │
+        ├─ build_eclss_backend() → LoopMockEclssBackend | Ros2EclssBridge(topic_remap)
+        ├─ build_team()            → SsosEclssLoopTeam
+        │
+        ▼
+  for step in 1..N:
+    1. backend.poll_telemetry()      → EclssTelemetrySnapshot
+    2. log telemetry, health, design_state
+    3. team.run_step(backend, obs)  → EclssOperationalCommand
+    4. team.apply_outcome(...)      → Action/Service, re-arm logic
+    5. log messages, operational events
+        │
+        ▼
+  propose_post_run_design() → design_proposals.json (ssos_graph)
+  export_run_provenance()   → operational records
+```
+
+### Runtime vs post-run
+
+| Phase | Content | Output |
+| --- | --- | --- |
+| Runtime | ARS/OGS/WRS operational commands | `operational_applied` |
+| Post-run | `action_profile` / `graph_rewire` proposals | `design_proposals.json` |
+
+**graph_rewire (Phase 7)**: client `topic_remap` on next run's `Ros2EclssBridge`. Launch remap (Phase 8) is backlog.
+
+### ECLSS stack
+
+```text
+SsosEclssLoopTeam
+  └─ EclssBackend
+       ├─ LoopMockEclssBackend   host dev (simple storage dynamics)
+       └─ Ros2EclssBridge        SSOS Docker — ros2 CLI
+            └─ topic_remap       graph_rewire
+```
+
+```text
+  metabolic CO₂ ──► /co2_storage ──► ARS
+  /o2_storage ◄── OGS ◄── request_co2 (Sabatier)
+  /wrs/product_water_reserve ◄── WRS
+```
+
+`run_ssos_eclss_loop.sh` / `ea-loop` for container runs. ECLSS headless startup is required.
+
+### Health (storage kg)
+
+`compute_eclss_storage_health()` — `src/scenario/ssos_eclss_loop/health.py`
+
+| Metric | safe | warning | critical |
+| --- | --- | --- | --- |
+| CO₂ (kg) | < 1500 | 1500 to < 2200 | ≥ 2200 |
+| O₂ (kg) | > 450 | 337.5 to 450 | ≤ 337.5 |
+| Product water (L) | > 50 | 25 to 50 | ≤ 25 |
+
+`thresholds.co2_storage_high_kg`, etc. are operational triggers, separate from health bands.
+
+### Agents
+
+| `agents.mode` | Runtime | Post-run | Tests |
+| --- | --- | --- | --- |
+| `none` | poll only | — | `test_ssos_eclss_loop_scenario.py` |
+| `labeled_rule_base` | thresholds → ARS/OGS | `ssos_graph` | `test_ssos_eclss_loop_team.py` |
+| `llm` | deliberation + operational | LLM changes | same |
+
+#### labeled_rule_base
+
+`thresholds` (scenario.yaml) + `policy` profile (agents.yaml). Thresholds merged via `merge_labeled_policy_from_thresholds()`.
+
+| Behavior | Trigger |
 | --- | --- |
-| `none` | `scrubber_degradation_baseline` |
-| `labeled_rule_base` | `scrubber_degradation_labeled_rule_base` |
-| `llm` | `scrubber_degradation_llm` |
+| `air_revitalisation` | CO₂ ≥ high, ARS not yet dispatched |
+| `request_co2` | O₂ ≤ low, before OGS (policy default ON) |
+| `oxygen_generation` | O₂ ≤ low, OGS not yet dispatched |
+| re-arm | retry next step if no improvement |
 
-Schema: [api-contracts.md](api-contracts.md). Scenario narrative: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md).
+#### llm
 
----
+Same pattern as scrubber. Prompt includes storage kg and health state (no policy).
 
-## Dashboard (`src/tools/dashboard/app.py`)
+### Output and dashboard
 
-| View | Function |
+| Unique fields | Content |
 | --- | --- |
-| **Overview** | Single run or two runs side by side. Telemetry plots, step slider, topology, design proposal preview |
-| **Step replay** | Event timeline, cached plots + step vertical line, utterance / reasoning feed |
-| **Run comparison** (when comparing) | Metrics table with run names, Δ (primary − compare), recovery command comparison |
+| `summary.backend` | `mock` / `ros2` |
+| `summary.operational_command_count` | operational command count |
+| `events.jsonl` | `operational_applied` |
 
-Sidebar: run selection, `Compare with another run`, Overview / Step replay toggle.
+**Not in ssos from scrubber**: `eps_telemetry.jsonl`, ppm-based KPIs.
 
-Screenshots: [README.md](README.md#dashboard-at-a-glance).
+| View (`ssos_views.py`) | Content |
+| --- | --- |
+| Overview | storage kg, health cards, 2-run compare |
+| Step replay | operational timeline, `ssos_graph` proposals |
+
+run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
+
+Connection details: [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
 
 ---
 
 ## External systems
 
-| System | MVP |
-| --- | --- |
-| SSOS | Python mock. `SsosAdapter` is a stub |
-| LLM | Ollama (`core/llm/ollama.py`), default `gemma4:e4b` |
-| One Piece | `provenance.jsonl` only. Web UI and post-run design export not yet |
+| System | Track | Status |
+| --- | --- | --- |
+| Python mock ECLSS + EPS | scrubber | ✅ `StationSimulator` |
+| SSOS live ECLSS | ssos | ✅ `Ros2EclssBridge` |
+| SSOS EPS (scrubber power) | scrubber | ✅ `Ros2EpsBridge` |
+| Ollama | both | ✅ container uses `host.docker.internal` |
+| One Piece Web UI | — | out of scope |
 
 ---
 
@@ -278,13 +371,15 @@ pip install -e ".[dev]"
 pytest
 ```
 
-Minimum regression set:
+Regression:
 
 ```bash
-pytest tests/scenario/test_scrubber_baseline.py -q
-pytest tests/scenario/test_scrubber_with_agents.py -q
+# scrubber
+pytest tests/scenario/test_scrubber_baseline.py tests/scenario/test_scrubber_with_agents.py -q
+# ssos
+pytest tests/scenario/test_ssos_eclss_loop*.py tests/environment/test_graph_rewire*.py -q
 ```
 
-LLM live runs require Ollama. CI validates the `llm` path with Fake LLM.
+SSOS container E2E: `./scripts/run_ssos_eclss_loop.sh`, `./scripts/run_graph_rewire_e2e.sh`
 
-Next implementation: [development-plan.md](development-plan.md).
+Next implementation: [development-plan.md](development-plan.md) · API details: [api-contracts.md](api-contracts.md)

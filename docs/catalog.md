@@ -60,17 +60,18 @@ mkdocs build
 | [Development plan](en/development-plan.md) | Roadmap and backlog |
 | [One Piece integration](en/one-piece-integration.md) | Provenance export |
 | [scrubber_degradation](en/scenario-scrubber-degradation.md) | Reference scenario spec |
+| [ssos_eclss_loop](en/scenario-ssos-eclss-loop.md) | SSOS live ECLSS scenario spec |
 
 ---
 
-## 開発メモ（`docs/docs/ja/memo/`）
+## 開発メモ（`docs/ja/memo/`）
 
 | ファイル | 内容 |
 | --- | --- |
-| [バックログ](docs/ja/memo/backlog.md) | BL-001〜BL-005 |
-| [SSOS ECLSS 接合プラン](docs/ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | Phase 0–7 実装・検証手順 |
-| [SSOS EPS ROS2 接合プラン](docs/ja/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS ブリッジ（Phase 3） |
-| [ROS2 グラフ設計調査](docs/ja/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | launch remap 調査 |
+| [バックログ](ja/memo/backlog.md) | BL-001〜BL-005 |
+| [SSOS ECLSS 接合プラン](ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | Phase 0–7 実装・検証手順 |
+| [SSOS EPS ROS2 接合プラン](ja/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS ブリッジ（Phase 3） |
+| [ROS2 グラフ設計調査](ja/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | launch remap 調査 |
 
 ---
 

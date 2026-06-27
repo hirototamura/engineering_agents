@@ -74,6 +74,7 @@ nav:
     - Development plan: en/development-plan.md
     - One Piece integration: en/one-piece-integration.md
     - Scenario scrubber_degradation: en/scenario-scrubber-degradation.md
+    - Scenario ssos_eclss_loop: en/scenario-ssos-eclss-loop.md
   - 開発メモ:
     - バックログ: ja/memo/backlog.md
     - MVP プラン: ja/memo/scrubber_degradation/mvp_plan.md

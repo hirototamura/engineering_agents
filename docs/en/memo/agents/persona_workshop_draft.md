@@ -1,4 +1,4 @@
-> Japanese: [../../ja/memo/agents/persona_workshop_draft.md](../../ja/memo/agents/persona_workshop_draft.md)
+> Japanese: [../../../ja/memo/agents/persona_workshop_draft.md](../../../ja/memo/agents/persona_workshop_draft.md)
 
 # Persona Workshop — Day 7 Agreed Draft (Revised)
 

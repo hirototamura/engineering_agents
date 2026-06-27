@@ -1,4 +1,4 @@
-> Japanese: [../../ja/memo/scrubber_degradation/eps_implementation_plan.md](../../ja/memo/scrubber_degradation/eps_implementation_plan.md)
+> Japanese: [../../../ja/memo/scrubber_degradation/eps_implementation_plan.md](../../../ja/memo/scrubber_degradation/eps_implementation_plan.md)
 
 # EPS-First, Day-by-Day Implementation Plan (Week-2 Entry)
 
@@ -96,7 +96,7 @@ src/environment/ssos/
 **BCDU minimal model**: `request_discharge(...)` → `support_w`; outside voltage band → `fault` + reject.
 
 **Tests**: `tests/environment/test_mock_eps.py`  
-**Docs**: Add EPS topic table to [docs/api-contracts.md](../docs/api-contracts.md).
+**Docs**: Add EPS topic table to [docs/api-contracts.md](../../../api-contracts.md).
 
 **Completion note (2026-06-02)**: Added `eps_types.py`, `eps_topics.py`, `mock_sarj.py`, `mock_bcdu.py`, `eps_stack.py`. ECLSS coupling in EPS-3.
 
@@ -160,7 +160,7 @@ class StationSimulator:
 ## Day 8: CLI (1 day)
 
 - `src/tools/cli/` — `run`, `list-scenarios`
-- [pyproject.toml](../pyproject.toml) entry point
+- [pyproject.toml](../../../pyproject.toml) entry point
 - `scrubber_demo.yaml` (for E2E)
 
 **Done when**: One command runs all 4 agent modes + shows output paths.
@@ -169,7 +169,7 @@ class StationSimulator:
 
 ## Days 9–10: Extensions
 
-**Day 9 — One Piece**: Provenance summary index, EPS recovery handoff example in [one-piece-integration.md](../docs/one-piece-integration.md).
+**Day 9 — One Piece**: Provenance summary index, EPS recovery handoff example in [one-piece-integration.md](../../../one-piece-integration.md).
 
 **Day 10 — SSOS adapter**: `adapter.py` contract tests, `tests/environment/test_ssos_topic_contract.py`.
 

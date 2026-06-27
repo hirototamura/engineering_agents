@@ -20,5 +20,5 @@ mkdocs serve
 
 ## 参照
 
-- 実装プラン: [docs/ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](docs/ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
+- 実装プラン: [ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
 - SSOS ロードマップ: [ja/ssos/roadmap.md](ja/ssos/roadmap.md)
