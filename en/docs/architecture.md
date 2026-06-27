@@ -145,17 +145,50 @@ The dashboard **After (if proposals applied)** is a preview that **virtually app
 | Mode | Team | Runtime | Post-run design | Tests |
 | --- | --- | --- | --- | --- |
 | `none` | none | Life-support sim only (no agents) | none | `test_scrubber_baseline.py` |
-| `labeled_rule_base` | N homogeneous | `policy` thresholds for recovery | rule-based bypass proposal | `test_scrubber_with_agents.py` |
-| `llm` | N homogeneous | LLM deliberation + action | LLM proposes `changes` | same (Fake LLM) |
+| `labeled_rule_base` | N engineers (optional archetype lenses) | `policy` thresholds for recovery | rule-based bypass proposal | `test_scrubber_with_agents.py` |
+| `llm` | N engineers (optional archetype lenses) | LLM deliberation + action | LLM proposes `changes` | same (Fake LLM) |
 | `base` | — | not implemented | — | BL-001 |
 
-### Homogeneous engineer team
+### Engineer team (homogeneous baseline + optional archetypes)
 
 - IDs: `engineer_1` … `engineer_N` (`team.count`, default 4)
 - **Representative action**: `engineer_{(step-1) % N}` issues recovery commands for that step
 - **Post-run design**: the representative at the final step runs `propose_post_run_design()`
 
 Rather than rigid roles (fixed operator / design_engineer), the executor rotates each step. Details: [memo/homogeneous_agent_team_plan.md](../memo/homogeneous_agent_team_plan.md).
+
+#### Thinking-style archetypes (`team.archetypes`)
+
+Optional **thinking lenses** in `agents.yaml` diversify LLM deliberation without reintroducing fixed roles. Implemented in `src/core/agents/persona.py` (`ARCHETYPE_LENSES`, `load_team`, `build_personas`).
+
+| Lens | Intent |
+| --- | --- |
+| `first_principles` | Conservation laws, mass/energy balance from the ground up |
+| `failure_mode` | FMEA-style — secondary failures and worst-case interactions |
+| `improviser` | Smallest intervention reusing resources already on hand |
+| `systems_integrator` | Cross-subsystem coupling and side-effects of local fixes |
+
+**Assignment**: lens names are mapped **round-robin** onto `agent_ids` (`engineer_1` gets the first lens, etc.). Fewer lenses than agents repeats the list.
+
+**Composition**: when archetypes are set, each agent’s prompt is `ARCHETYPE_LENSES[lens]\n\n{team.persona}`. Omit `archetypes` or set `[]` for the legacy homogeneous team (identical shared persona for all agents).
+
+**Mode behavior**:
+
+| Mode | Persona effect |
+| --- | --- |
+| `llm` | Composed persona drives deliberation and post-run proposals |
+| `labeled_rule_base` | Rules ignore personas; archetypes are still recorded for composition→outcome studies |
+
+**Run output**: `summary.json["archetypes"]` maps `agent_id` → lens name (empty object `{}` when disabled). Default scrubber config ships all four lenses; disable via override:
+
+```python
+run_scenario(
+    "scrubber_degradation",
+    overrides={"agents": {"team": {"archetypes": []}}},
+)
+```
+
+Unknown lens names raise `ValueError` at team load. Archetype text must not encode scenario names, thresholds, or fixed action catalogues — scenario specifics stay under `## Situation` in the prompt.
 
 ### labeled_rule_base
 

@@ -337,9 +337,19 @@ Only when `StationSimulator` runs. One line per step.
   "design_proposal_count": 1,
   "design_proposals_path": "src/experiments/results/.../design_proposals.json",
   "provenance_path": "src/experiments/results/.../provenance.jsonl",
-  "provenance_record_count": 2
+  "provenance_record_count": 2,
+  "archetypes": {
+    "engineer_1": "first_principles",
+    "engineer_2": "failure_mode",
+    "engineer_3": "improviser",
+    "engineer_4": "systems_integrator"
+  }
 }
 ```
+
+| Field | Description |
+| --- | --- |
+| `archetypes` | `agent_id` → thinking lens name from `team.archetypes` in `agents.yaml`. Empty object `{}` when archetypes are omitted or `[]`. Present in scrubber runs; logged even in `labeled_rule_base` (personas ignored there). Not used by `ssos_eclss_loop` unless that scenario adds `team.archetypes` |
 
 ---
 

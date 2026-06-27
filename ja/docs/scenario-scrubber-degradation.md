@@ -92,6 +92,9 @@ output:
 team:
   count: 4
   id_prefix: engineer
+  # 任意: 思考レンズ（round-robin → engineer_1..N）。llm のみ有効;
+  # labeled は persona 無視。summary.json["archetypes"] には常に記録。
+  archetypes: [first_principles, failure_mode, improviser, systems_integrator]
   persona: |
     Closed-habitat ECLSS colleague engineer. ...
 
@@ -193,12 +196,13 @@ run_scenario(
 
 ## エージェントチーム設計
 
-### 同種 N 体 + 代表 action
+### 同種 N 体 + 代表 action（任意 archetype）
 
 | 概念 | 説明 |
 | --- | --- |
 | `team.count` | エンジニア数（デフォルト 4） |
-| deliberation | llm: 全員 1 ラウンド発言。labeled: ルールが alert/diagnosis を配信 |
+| `team.archetypes` | 任意の思考レンズリスト。round-robin 割当。省略または `[]` で同種 persona |
+| deliberation | llm: 全員 1 ラウンド（archetype ありならレンズ合成）。labeled: ルールが alert/diagnosis を配信 |
 | action rep | `engineer_{(step-1) % N}` がその step のコマンド発行者 |
 | post-run rep | 最終 step の代表が `design_proposals.json` を書く |
 
@@ -261,6 +265,7 @@ LLM モードでは `decision_source: "llm"`、`changes` に `add_node`（`bypas
 | `co2_recovered_below_threshold_step` | CO2 が `CO2_WARNING_PPM`（1200 ppm）未満に戻った step（`co2_above_threshold_step` 設定後） |
 | `design_proposal_count` | 事後提案の change 数 |
 | `provenance_record_count` | provenance 行数（回復中心） |
+| `archetypes` | `agent_id` → レンズ名（無効時は `{}`）。構成→成果の比較用 |
 
 ---
 

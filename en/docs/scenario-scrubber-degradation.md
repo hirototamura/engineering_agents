@@ -94,6 +94,9 @@ output:
 team:
   count: 4
   id_prefix: engineer
+  # Optional thinking-style lenses (round-robin → engineer_1..N). llm mode only;
+  # labeled_rule_base ignores personas. Logged in summary.json["archetypes"] always.
+  archetypes: [first_principles, failure_mode, improviser, systems_integrator]
   persona: |
     Closed-habitat ECLSS colleague engineer. ...
 
@@ -195,12 +198,13 @@ None of these **change permanent topology**. `enable_bypass` is an operational f
 
 ## Agent team design
 
-### N homogeneous agents + representative action
+### N engineers + representative action (+ optional archetypes)
 
 | Concept | Description |
 | --- | --- |
 | `team.count` | Number of engineers (default 4) |
-| deliberation | llm: one round for all agents. labeled: rules emit alert/diagnosis |
+| `team.archetypes` | Optional list of thinking lenses (`first_principles`, `failure_mode`, `improviser`, `systems_integrator`). Round-robin assignment. Omit or `[]` for homogeneous persona |
+| deliberation | llm: one round for all agents (persona includes lens when archetypes set). labeled: rules emit alert/diagnosis |
 | action rep | `engineer_{(step-1) % N}` issues commands for that step |
 | post-run rep | representative at the final step writes `design_proposals.json` |
 
@@ -263,6 +267,7 @@ In LLM mode, `decision_source: "llm"` and `changes` may include `add_node` (`byp
 | `co2_recovered_below_threshold_step` | Step when CO2 returned below `CO2_WARNING_PPM` (1200 ppm) (after `co2_above_threshold_step` was set) |
 | `design_proposal_count` | Number of post-run change entries |
 | `provenance_record_count` | Number of provenance lines (mainly recovery) |
+| `archetypes` | Map `agent_id` → lens name for composition→outcome studies (`{}` when archetypes disabled) |
 
 ---
 

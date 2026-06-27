@@ -273,9 +273,19 @@ Python モック（`StationSimulator`）上の CO₂ スクラバー異常シナ
   "eps_boost_applied_step": 28,
   "final_health": {"co2_status": "safe", "power_status": "warning", "overall": "warning"},
   "design_proposal_count": 1,
-  "provenance_record_count": 2
+  "provenance_record_count": 2,
+  "archetypes": {
+    "engineer_1": "first_principles",
+    "engineer_2": "failure_mode",
+    "engineer_3": "improviser",
+    "engineer_4": "systems_integrator"
+  }
 }
 ```
+
+| フィールド | 説明 |
+| --- | --- |
+| `archetypes` | `agents.yaml` の `team.archetypes` から割り当てた `agent_id` → レンズ名。省略または `[]` のとき `{}`。scrubber で記録（`labeled_rule_base` でも）。ssos はデフォルト未使用 |
 
 ### ROS2 風トピック（Mock 契約）
 
