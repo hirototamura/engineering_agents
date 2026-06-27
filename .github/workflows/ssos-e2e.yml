@@ -28,7 +28,8 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
-      - run: python3 -m pytest -q
+      - run: python3 -m pytest -q --ignore=tests/e2e
+      - run: python3 -m pytest -q tests/e2e/test_ssos_regression.py::test_regression_tier1_pytest_only
 
   ssos-e2e:
     needs: pytest

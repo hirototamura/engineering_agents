@@ -12,7 +12,6 @@ SSOS_CONTAINER_REPO="${SSOS_CONTAINER_REPO:-/opt/engineering_agents}"
 SSOS_IMAGE="${SSOS_IMAGE:-ghcr.io/space-station-os/space_station_os:latest}"
 SSOS_HEADLESS_SCRIPT="${SSOS_HEADLESS_SCRIPT:-/root/ssos-eclss-headless.sh}"
 SSOS_HEADLESS_FULL_SCRIPT="${SSOS_HEADLESS_FULL_SCRIPT:-/root/ssos-headless.sh}"
-SSOS_HEADLESS_LAUNCH="${SSOS_HEADLESS_LAUNCH:-space_station eclss.launch.py}"
 SSOS_BUNDLED_HEADLESS_SCRIPT="${SSOS_BUNDLED_HEADLESS_SCRIPT:-scripts/ssos_eclss_headless.sh}"
 SSOS_ROS_DOMAIN_ID="${SSOS_ROS_DOMAIN_ID:-23}"
 SSOS_GRAPH_WAIT_TIMEOUT_S="${SSOS_GRAPH_WAIT_TIMEOUT_S:-300}"
@@ -162,6 +161,7 @@ ssos_resolve_headless_launcher() {
   fi
 
   echo "==> Headless script missing in image ($script) — installing bundled launcher" >&2
+  # Bundled launcher starts EPS + solar + ECLSS; sufficient for both ECLSS and --with-eps paths.
   ssos_install_bundled_headless_script
 }
 
@@ -199,7 +199,10 @@ ssos_start_managed_container() {
 ssos_start_headless() {
   local script="${1:-$SSOS_HEADLESS_SCRIPT}"
   local launcher
-  launcher="$(ssos_resolve_headless_launcher "$script")" || launcher="ros2 launch ${SSOS_HEADLESS_LAUNCH}"
+  if ! launcher="$(ssos_resolve_headless_launcher "$script")"; then
+    echo "ERROR: No headless launcher available (image script and bundled fallback missing)." >&2
+    return 1
+  fi
   echo "==> Starting headless stack in background: $launcher"
   docker exec -d "$SSOS_CONTAINER" bash -lc "
 $(ssos_ros_env_snippet)

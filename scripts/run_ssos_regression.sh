@@ -132,8 +132,14 @@ run_smoke() {
   echo "==> Tier 2 smoke: $module"
   ssos_sync_to_container
   docker exec "$SSOS_CONTAINER" mkdir -p /tmp/ea_regression
-  ssos_run_python_module "$module" --json-out "$container_json" "$@"
-  docker cp "$SSOS_CONTAINER:$container_json" "$host_json"
+  if ! ssos_run_python_module "$module" --json-out "$container_json" "$@"; then
+    echo "ERROR: smoke $module failed (see output above)." >&2
+    return 1
+  fi
+  if ! docker cp "$SSOS_CONTAINER:$container_json" "$host_json"; then
+    echo "ERROR: smoke $module did not produce $container_json" >&2
+    return 1
+  fi
 }
 
 copy_container_dir() {

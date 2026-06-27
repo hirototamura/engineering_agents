@@ -42,13 +42,21 @@ _resolve_backend_kind() {
 }
 
 _preflight_ros2_graph() {
-  local topic_count action_count
-  topic_count="$(ros2 topic list 2>/dev/null | grep -c . || true)"
-  action_count="$(ros2 action list 2>/dev/null | grep -c . || true)"
-  if [[ "${topic_count:-0}" -eq 0 && "${action_count:-0}" -eq 0 ]]; then
-    echo "ERROR: ros2 graph is empty — ECLSS headless is not running." >&2
+  local topics actions
+  topics="$(ros2 topic list 2>/dev/null || true)"
+  actions="$(ros2 action list 2>/dev/null || true)"
+  if ! printf '%s\n' "$topics" | grep -qE '(^|/)co2_storage([[:space:]]|$)'; then
+    echo "ERROR: ECLSS headless is not running (missing /co2_storage)." >&2
     echo "In another terminal inside this container, run:" >&2
-    echo "  bash /root/ssos-eclss-headless.sh" >&2
+    echo "  /opt/engineering_agents/ssos_eclss_headless.sh" >&2
+    echo "  # or: bash /root/ssos-eclss-headless.sh" >&2
+    echo "Then retry ea-loop." >&2
+    exit 1
+  fi
+  if ! printf '%s\n' "$actions" | grep -qE '(^|/)air_revitalisation([[:space:]]|$)'; then
+    echo "ERROR: ECLSS headless is not running (missing air_revitalisation action)." >&2
+    echo "In another terminal inside this container, run:" >&2
+    echo "  /opt/engineering_agents/ssos_eclss_headless.sh" >&2
     echo "Then retry ea-loop." >&2
     exit 1
   fi
