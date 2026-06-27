@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# In-container entry point for engineering_agents (synced to /tmp/engineering_agents/run.sh).
+# In-container entry point for engineering_agents (synced to /opt/engineering_agents/run.sh).
 #
 # Prerequisite: ECLSS headless running — bash /root/ssos-eclss-headless.sh
 #
@@ -11,7 +11,7 @@
 #
 set -euo pipefail
 
-REPO="${SSOS_CONTAINER_REPO:-/tmp/engineering_agents}"
+REPO="${SSOS_CONTAINER_REPO:-/opt/engineering_agents}"
 SRC="$REPO/src"
 
 if [[ ! -d "$SRC/scenario" ]]; then

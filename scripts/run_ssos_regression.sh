@@ -173,7 +173,7 @@ run_tier2() {
     ssos_start_headless "$headless_script"
     ssos_wait_for_ros_graph
   else
-    echo "==> ROS graph already populated — skipping headless launch"
+    echo "==> ECLSS already running — skipping headless launch"
   fi
 
   ssos_sync_to_container

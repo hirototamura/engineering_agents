@@ -7,10 +7,13 @@
 #   source "$_SSOS_LIB/ssos_docker.sh"
 
 SSOS_CONTAINER="${SSOS_CONTAINER:-ssos}"
-SSOS_CONTAINER_REPO="${SSOS_CONTAINER_REPO:-/tmp/engineering_agents}"
+# Staged copy of host src/ inside the container (not image-baked; re-synced each run).
+SSOS_CONTAINER_REPO="${SSOS_CONTAINER_REPO:-/opt/engineering_agents}"
 SSOS_IMAGE="${SSOS_IMAGE:-ghcr.io/space-station-os/space_station_os:latest}"
 SSOS_HEADLESS_SCRIPT="${SSOS_HEADLESS_SCRIPT:-/root/ssos-eclss-headless.sh}"
 SSOS_HEADLESS_FULL_SCRIPT="${SSOS_HEADLESS_FULL_SCRIPT:-/root/ssos-headless.sh}"
+SSOS_HEADLESS_LAUNCH="${SSOS_HEADLESS_LAUNCH:-space_station eclss.launch.py}"
+SSOS_BUNDLED_HEADLESS_SCRIPT="${SSOS_BUNDLED_HEADLESS_SCRIPT:-scripts/ssos_eclss_headless.sh}"
 SSOS_ROS_DOMAIN_ID="${SSOS_ROS_DOMAIN_ID:-23}"
 SSOS_GRAPH_WAIT_TIMEOUT_S="${SSOS_GRAPH_WAIT_TIMEOUT_S:-300}"
 SSOS_GRAPH_POLL_INTERVAL_S="${SSOS_GRAPH_POLL_INTERVAL_S:-5}"
@@ -80,29 +83,86 @@ printf '%s %s' \"\${topics:-0}\" \"\${actions:-0}\"
 "
 }
 
+# Phase 1a ARS smoke requires these interfaces (see scripts/ssos_eclss_ars_smoke.py).
+# A bare ROS 2 install still exposes /rosout and /parameter_events — do not treat
+# that as ECLSS ready.
+ssos_eclss_graph_probe() {
+  docker exec "$SSOS_CONTAINER" bash -lc "
+$(ssos_ros_env_snippet)
+topics=\$(ros2 topic list 2>/dev/null || true)
+actions=\$(ros2 action list 2>/dev/null || true)
+has_co2=0
+has_ars_diag=0
+has_ars_action=0
+printf '%s\n' \"\$topics\" | grep -qE '(^|/)co2_storage([[:space:]]|$)' && has_co2=1 || true
+printf '%s\n' \"\$topics\" | grep -qE '(^|/)ars/diagnostics([[:space:]]|$)' && has_ars_diag=1 || true
+printf '%s\n' \"\$actions\" | grep -qE '(^|/)air_revitalisation([[:space:]]|$)' && has_ars_action=1 || true
+printf '%s %s %s' \"\$has_co2\" \"\$has_ars_diag\" \"\$has_ars_action\"
+"
+}
+
 ssos_ros_graph_ready() {
-  local topic_count action_count
-  read -r topic_count action_count <<< "$(ssos_ros_graph_counts)"
-  [[ "${topic_count:-0}" -gt 0 || "${action_count:-0}" -gt 0 ]]
+  local has_co2 has_ars_diag has_ars_action
+  read -r has_co2 has_ars_diag has_ars_action <<< "$(ssos_eclss_graph_probe)"
+  [[ "${has_co2:-0}" == "1" && "${has_ars_diag:-0}" == "1" && "${has_ars_action:-0}" == "1" ]]
 }
 
 ssos_wait_for_ros_graph() {
   local deadline=$((SECONDS + SSOS_GRAPH_WAIT_TIMEOUT_S))
-  local topic_count action_count
+  local has_co2 has_ars_diag has_ars_action topic_count action_count
 
   while (( SECONDS < deadline )); do
-    read -r topic_count action_count <<< "$(ssos_ros_graph_counts)"
-    if [[ "${topic_count:-0}" -gt 0 || "${action_count:-0}" -gt 0 ]]; then
-      echo "==> ROS graph ready (${topic_count} topics, ${action_count} actions)"
+    if ssos_ros_graph_ready; then
+      read -r topic_count action_count <<< "$(ssos_ros_graph_counts)"
+      echo "==> ECLSS ROS graph ready (${topic_count} topics, ${action_count} actions)"
       return 0
     fi
-    echo "==> Waiting for ROS graph (${SSOS_GRAPH_POLL_INTERVAL_S}s poll)..."
+    read -r has_co2 has_ars_diag has_ars_action <<< "$(ssos_eclss_graph_probe)"
+    echo "==> Waiting for ECLSS (co2_storage=${has_co2} ars/diagnostics=${has_ars_diag} air_revitalisation=${has_ars_action}; ${SSOS_GRAPH_POLL_INTERVAL_S}s poll)..."
     sleep "$SSOS_GRAPH_POLL_INTERVAL_S"
   done
 
-  echo "ERROR: ROS graph still empty after ${SSOS_GRAPH_WAIT_TIMEOUT_S}s" >&2
+  echo "ERROR: ECLSS interfaces still missing after ${SSOS_GRAPH_WAIT_TIMEOUT_S}s" >&2
   echo "Headless script: ${SSOS_HEADLESS_SCRIPT:-<unset>}" >&2
   return 1
+}
+
+ssos_bootstrap_container() {
+  if docker exec "$SSOS_CONTAINER" test -f /root/entry-point.sh 2>/dev/null; then
+    if ! docker exec "$SSOS_CONTAINER" bash -lc 'command -v tmux >/dev/null && tmux has-session -t discovery 2>/dev/null'; then
+      echo "==> Bootstrapping container (Fast DDS discovery)"
+      docker exec -d "$SSOS_CONTAINER" bash /root/entry-point.sh
+      sleep 2
+    fi
+  fi
+}
+
+ssos_install_bundled_headless_script() {
+  local repo_root bundled dest
+  repo_root="$(ssos_repo_root)"
+  bundled="$repo_root/${SSOS_BUNDLED_HEADLESS_SCRIPT}"
+  dest="${SSOS_CONTAINER_REPO}/ssos_eclss_headless.sh"
+
+  if [[ ! -f "$bundled" ]]; then
+    return 1
+  fi
+
+  docker exec "$SSOS_CONTAINER" mkdir -p "$SSOS_CONTAINER_REPO"
+  docker cp "$bundled" "$SSOS_CONTAINER:$dest"
+  docker exec "$SSOS_CONTAINER" chmod +x "$dest"
+  printf '%s\n' "$dest"
+}
+
+ssos_resolve_headless_launcher() {
+  local script="${1:-$SSOS_HEADLESS_SCRIPT}"
+
+  if docker exec "$SSOS_CONTAINER" test -f "$script" 2>/dev/null; then
+    printf '%s\n' "$script"
+    return 0
+  fi
+
+  echo "==> Headless script missing in image ($script) — installing bundled launcher" >&2
+  ssos_install_bundled_headless_script
 }
 
 ssos_start_managed_container() {
@@ -121,6 +181,7 @@ ssos_start_managed_container() {
     docker start "$SSOS_CONTAINER" >/dev/null
     SSOS_E2E_MANAGED=1
     export SSOS_E2E_MANAGED=1
+    ssos_bootstrap_container
     return 0
   fi
 
@@ -132,14 +193,21 @@ ssos_start_managed_container() {
     "$SSOS_IMAGE" sleep infinity
   SSOS_E2E_MANAGED=1
   export SSOS_E2E_MANAGED=1
+  ssos_bootstrap_container
 }
 
 ssos_start_headless() {
   local script="${1:-$SSOS_HEADLESS_SCRIPT}"
-  echo "==> Starting headless stack in background: $script"
+  local launcher
+  launcher="$(ssos_resolve_headless_launcher "$script")" || launcher="ros2 launch ${SSOS_HEADLESS_LAUNCH}"
+  echo "==> Starting headless stack in background: $launcher"
   docker exec -d "$SSOS_CONTAINER" bash -lc "
 $(ssos_ros_env_snippet)
-exec bash ${script}
+if [[ -f $(printf '%q' "$launcher") ]]; then
+  exec bash $(printf '%q' "$launcher")
+else
+  exec $(printf '%q' "$launcher")
+fi
 "
 }
 
