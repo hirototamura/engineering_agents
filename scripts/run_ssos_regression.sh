@@ -20,6 +20,10 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export SSOS_REPO_ROOT="$REPO_ROOT"
+SSOS_CONTAINER_EXPLICIT=0
+if [[ -n "${SSOS_CONTAINER+x}" ]]; then
+  SSOS_CONTAINER_EXPLICIT=1
+fi
 # shellcheck source=scripts/lib/ssos_docker.sh
 source "$REPO_ROOT/scripts/lib/ssos_docker.sh"
 
@@ -157,8 +161,10 @@ run_tier2() {
     fi
     echo "==> Tier 2: using existing container '$SSOS_CONTAINER'"
   else
-    SSOS_CONTAINER="${SSOS_CONTAINER:-ssos-regression-$$}"
-    export SSOS_CONTAINER
+    if [[ "$SSOS_CONTAINER_EXPLICIT" -eq 0 ]]; then
+      SSOS_CONTAINER="ssos-regression-$$"
+      export SSOS_CONTAINER
+    fi
     ssos_start_managed_container
   fi
 

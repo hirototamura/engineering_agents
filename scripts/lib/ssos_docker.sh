@@ -270,6 +270,7 @@ ssos_run_ea_loop() {
   # shellcheck disable=SC2086
   docker exec $tty_flag "$SSOS_CONTAINER" bash -lc "
 set -eo pipefail
+$(ssos_ros_env_snippet)
 SSOS_CONTAINER_REPO='${SSOS_CONTAINER_REPO}' ea-loop${quoted_args}
 "
 }
