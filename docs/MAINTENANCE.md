@@ -3,7 +3,7 @@
 ## スコープ
 
 - `docs/ja/` — 日本語（README、AGENTS、設計 doc、SSOS 運用ガイド、memo）
-- `docs/en/` — 英語（README、AGENTS、設計 doc、memo）
+- `docs/en/` — 英語（README、AGENTS、設計 doc、SSOS 運用ガイド、memo）
 - `docs/index.md`, `docs/catalog.md` — MkDocs ナビ・カタログ
 - `mkdocs.yml` — サイト設定
 - ルート `README.md` / `AGENTS.md` — GitHub・Cursor 向けの言語ハブ（本文は `docs/{lang}/`）

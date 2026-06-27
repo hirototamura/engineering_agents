@@ -81,17 +81,49 @@ src/integrations/   (invoked from scenario)
 
 ### Agent team (shared across both tracks)
 
-Extends `Team` ABC. **Homogeneous N agents + representative action**, not rigid roles.
+Extends `Team` ABC. **Homogeneous N agents + representative action**, not rigid roles. scrubber optionally assigns **thinking-style archetypes** via `team.archetypes`.
 
 | Concept | Description |
 | --- | --- |
 | `team.count` | Operator count (scrubber default 4, ssos default 3) |
-| deliberation | llm: one round for all. labeled: rule-driven fixed messages |
+| `team.archetypes` | Optional list of thinking lenses (scrubber default: all four). Round-robin onto `agent_id`s. Omit or `[]` for legacy homogeneous team |
+| deliberation | llm: one round for all (archetype lens + shared persona when set). labeled: rule-driven fixed messages |
 | action rep | Representative issues commands each step via `(step-1) % N` |
 | post-run rep | Representative at final step outputs `design_proposals.json` |
 | Design separation | **No permanent graph changes at runtime**. Post-run proposals only |
 
-Details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md).
+#### Thinking-style archetypes (`team.archetypes`)
+
+Implemented in `src/core/agents/persona.py` (`ARCHETYPE_LENSES`, `load_team`, `build_personas`). Scenario-independent **ways of thinking**, not fixed roles or threshold catalogues.
+
+| Lens | Intent |
+| --- | --- |
+| `first_principles` | Conservation laws, mass/energy balance from the ground up |
+| `failure_mode` | FMEA-style — secondary failures and worst-case interactions |
+| `improviser` | Smallest intervention reusing resources already on hand |
+| `systems_integrator` | Cross-subsystem coupling and side-effects of local fixes |
+
+**Assignment**: lens names map **round-robin** onto `agent_ids` (`engineer_1` gets the first lens, etc.). Fewer lenses than agents repeats the list.
+
+**Composition**: when archetypes are set, each agent's prompt is `ARCHETYPE_LENSES[lens]\n\n{team.persona}`. Omit `archetypes` or set `[]` for the legacy homogeneous team (identical shared persona for all agents).
+
+| Mode | Persona effect |
+| --- | --- |
+| `llm` | Composed persona drives deliberation and post-run proposals |
+| `labeled_rule_base` | Rules ignore personas; archetypes still recorded in `summary.json["archetypes"]` for composition→outcome studies |
+
+**Run output**: `summary.json["archetypes"]` maps `agent_id` → lens name (`{}` when disabled). Default scrubber config ships all four lenses. Disable via override:
+
+```python
+run_scenario(
+    "scrubber_degradation",
+    overrides={"agents": {"team": {"archetypes": []}}},
+)
+```
+
+Unknown lens names raise `ValueError` at team load. `ssos_eclss_loop` ships without `team.archetypes` by default.
+
+Details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md). Implementation: `src/core/agents/persona.py`.
 
 ### `agents.mode` (shared values)
 
