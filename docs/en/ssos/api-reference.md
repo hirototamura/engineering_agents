@@ -1,4 +1,4 @@
-> Japanese: [../ja/ssos/api-reference.md](../ja/ssos/api-reference.md)
+> Japanese: [../../ja/ssos/api-reference.md](../../ja/ssos/api-reference.md)
 
 # API Reference
 

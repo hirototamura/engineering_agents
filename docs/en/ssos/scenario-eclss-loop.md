@@ -1,4 +1,4 @@
-> Japanese: [../ja/ssos/scenario-eclss-loop.md](../ja/ssos/scenario-eclss-loop.md)
+> Japanese: [../../ja/ssos/scenario-eclss-loop.md](../../ja/ssos/scenario-eclss-loop.md)
 
 # ssos_eclss_loop Scenario
 

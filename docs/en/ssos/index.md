@@ -1,4 +1,4 @@
-> Japanese: [../ja/ssos/index.md](../ja/ssos/index.md)
+> Japanese: [../../ja/ssos/index.md](../../ja/ssos/index.md)
 
 # SSOS ECLSS + EPS Integration — Overview
 
