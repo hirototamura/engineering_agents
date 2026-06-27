@@ -59,12 +59,11 @@
 
 ## 次の実装（優先順）
 
-1. **CLI 統合** — `python -m tools.cli run --scenario …` の単一エントリポイント（[memo/eps_implementation_plan.md](memo/eps_implementation_plan.md) Day 8）
-2. **provenance 拡張** — scrubber / ssos の `design_proposals.json` を One Piece レコードへエクスポート
-3. **provenance インデックス** — 複数 run 横断の `provenance_index.json`
-4. **Phase 8 — ROS launch remap** — `graph_rewire` の launch 適用（BL-003）
-5. **ECLSS + EPS 単一 ros2 シナリオ** — 電力危機と SSOS ECLSS を同一 run（BL-004）
-6. **EPS 3b/3c** — BCDU discharge 直接呼び出し、`/bcdu/operation` Action（BL-005）
+1. **provenance 拡張** — scrubber / ssos の `design_proposals.json` を One Piece レコードへエクスポート
+2. **provenance インデックス** — 複数 run 横断の `provenance_index.json`
+3. **Phase 8 — ROS launch remap** — `graph_rewire` の launch 適用（BL-003）
+4. **ECLSS + EPS 単一 ros2 シナリオ** — 電力危機と SSOS ECLSS を同一 run（BL-004）
+5. **EPS 3b/3c** — BCDU discharge 直接呼び出し、`/bcdu/operation` Action（BL-005）
 
 ---
 
@@ -94,9 +93,10 @@
   3        Ros2EpsBridge（scrubber 電力）
   4–6      ssos_eclss_loop、design_proposals、LLM、ea-loop
   7        client graph_rewire、Team ABC、ssos ダッシュボード
+  Day 8    CLI（`ea run`、RunSpec、クラスタ向け job runner）
 
 [次]
-  Day 8–9  CLI、provenance インデックス、design エクスポート
+  Day 9    provenance インデックス、design エクスポート
   Phase 8  launch remap + ゲートウェイ（BL-003）
   BL-004/5 ECLSS+EPS 統合、EPS 3b/3c、WRS team
 
