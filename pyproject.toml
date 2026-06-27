@@ -27,3 +27,6 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "ssos_e2e: live SSOS Docker container regression (set SSOS_E2E=1)",
+]

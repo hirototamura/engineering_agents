@@ -44,6 +44,7 @@ simulation.log
 # Experiment run artifacts
 src/experiments/results/*
 !src/experiments/results/.gitkeep
+artifacts/ssos-regression/
 output/
 041922_output/
 
