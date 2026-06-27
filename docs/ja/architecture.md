@@ -81,19 +81,37 @@ src/integrations/   （scenario から呼び出し）
 
 ### エージェントチーム（両系統共通）
 
-`Team` ABC を継承。硬直ロールではなく **同種 N 体 + 代表 action**。
+`Team` ABC を継承。硬直ロールではなく **同種 N 体 + 代表 action**。scrubber は任意で **思考スタイル archetype**（`team.archetypes`）を付与できる。
 
 
 | 概念           | 説明                                       |
 | ------------ | ---------------------------------------- |
 | `team.count` | オペレータ数（scrubber デフォルト 4、ssos デフォルト 3）    |
-| deliberation | llm: 全員 1 ラウンド。labeled: ルールが定型メッセージ      |
+| `team.archetypes` | 任意。思考レンズ名のリスト（scrubber デフォルト 4 種）。`agent_id` へ round-robin 割当。省略または `[]` で従来の同種チーム |
+| deliberation | llm: 全員 1 ラウンド（archetype ありならレンズ + 共有 persona）。labeled: ルールが定型メッセージ      |
 | action rep   | step ごとに `(step-1) % N` で代表がコマンド発行       |
 | post-run rep | 最終 step の代表が `design_proposals.json` を出力 |
 | 設計分離         | **ランタイム中は恒久グラフを変えない**。事後提案のみ             |
 
+#### 思考スタイル archetype（`team.archetypes`）
 
-詳細: [memo/homogeneous_agent_team_plan.md](memo/homogeneous_agent_team_plan.md)。
+`src/core/agents/persona.py` の `ARCHETYPE_LENSES` で定義。シナリオ非依存の**考え方のレンズ**であり、固定ロールや閾値カタログではない。
+
+| レンズ | 意図 |
+| --- | --- |
+| `first_principles` | 保存則・物質収支から数値を再構成 |
+| `failure_mode` | FMEA 的 — 二次故障・最悪相互作用 |
+| `improviser` | 手元資源の最小介入 |
+| `systems_integrator` | サブシステム間結合と局所修正の副作用 |
+
+| モード | persona への効果 |
+| --- | --- |
+| `llm` | レンズ文 + `team.persona` を各エージェントに合成 |
+| `labeled_rule_base` | ルールは persona を無視。`summary.json["archetypes"]` には記録（構成→成果研究用） |
+
+`ssos_eclss_loop` のデフォルト `agents.yaml` には archetype 行なし。未知のレンズ名は `load_team` 時に `ValueError`。
+
+詳細: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md)。実装: `src/core/agents/persona.py`。
 
 ### `agents.mode`（両系統共通の値）
 
