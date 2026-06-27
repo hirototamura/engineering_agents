@@ -91,7 +91,7 @@ Extends `Team` ABC. **Homogeneous N agents + representative action**, not rigid 
 | post-run rep | Representative at final step outputs `design_proposals.json` |
 | Design separation | **No permanent graph changes at runtime**. Post-run proposals only |
 
-Details: [memo/homogeneous_agent_team_plan.md](../memo/homogeneous_agent_team_plan.md).
+Details: [memo/agents/homogeneous_agent_team_plan.md](../memo/agents/homogeneous_agent_team_plan.md).
 
 ### `agents.mode` (shared values)
 
@@ -114,7 +114,7 @@ Details: [memo/homogeneous_agent_team_plan.md](../memo/homogeneous_agent_team_pl
 | provenance | ✅ EPS recovery | ✅ operational commands |
 | Post-run proposals → provenance | 📋 pending | 📋 pending |
 | CLI integration | 📋 pending | 📋 pending |
-| launch remap (Phase 8) | — | 📋 [BL-003](../memo/backlog.md) |
+| launch remap (Phase 8) | — | 📋 [BL-003](../memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a) |
 
 ---
 
@@ -347,7 +347,7 @@ Same pattern as scrubber. Prompt includes storage kg and health state (no policy
 
 run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
 
-Connection details: [memo/ssos_eclss_physical_phenomena_overview.md](../memo/ssos_eclss_physical_phenomena_overview.md).
+Connection details: [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
 
 ---
 

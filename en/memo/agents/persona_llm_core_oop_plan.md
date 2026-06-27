@@ -1,9 +1,9 @@
-> Japanese: [../ja/memo/persona_llm_core_oop_plan.md](../ja/memo/persona_llm_core_oop_plan.md)
+> Japanese: [../../../ja/memo/agents/persona_llm_core_oop_plan.md](../../../ja/memo/agents/persona_llm_core_oop_plan.md)
 
 # Persona LLM Redesign + Core OOP Skeleton Extraction
 
 **Status**: Day 1–8 complete (production Ollama run optional)  
-**Related**: [persona_workshop_draft.md](persona_workshop_draft.md), [backlog.md](backlog.md) BL-001
+**Related**: [persona_workshop_draft.md](persona_workshop_draft.md), [backlog.md](../backlog.md) BL-001
 
 ## Goals (two pillars)
 
@@ -265,7 +265,7 @@ Per agent (monitor / diagnostician / operator / design_engineer):
 
 ## Relation to BL-001
 
-Intermediate stage of emergence while keeping four labeled IDs. Full unlabeled `mode: base` is future experiment in [backlog.md](backlog.md) BL-001.
+Intermediate stage of emergence while keeping four labeled IDs. Full unlabeled `mode: base` is future experiment in [backlog.md](../backlog.md) BL-001.
 
 ---
 
