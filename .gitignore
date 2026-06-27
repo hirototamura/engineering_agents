@@ -10,7 +10,6 @@ ENV/
 env/
 
 # Packaging / build
-site/
 build/
 dist/
 *.egg-info/
@@ -60,3 +59,7 @@ Icon?
 *.swp
 *.swo
 *~
+
+# --- MkDocs ---
+# Default build output (`mkdocs build`); deploy via CI / GitHub Pages, not git.
+site/
