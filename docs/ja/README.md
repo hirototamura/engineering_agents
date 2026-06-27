@@ -273,7 +273,7 @@ ollama pull gemma4:e4b
 ollama list
 ```
 
-デフォルトの LLM 設定は各シナリオの `agents.yaml`（scrubber: [`scrubber_degradation/agents.yaml`](../src/scenario/scrubber_degradation/agents.yaml)、ssos: [`ssos_eclss_loop/agents.yaml`](../src/scenario/ssos_eclss_loop/agents.yaml)）。Ollama が起動していないと `llm` モードは失敗します。コンテナ内 `ea-loop` は `OLLAMA_BASE_URL=host.docker.internal` を既定設定します。
+デフォルトの LLM 設定は各シナリオの `agents.yaml`（scrubber: [`scrubber_degradation/agents.yaml`](../../src/scenario/scrubber_degradation/agents.yaml)、ssos: [`ssos_eclss_loop/agents.yaml`](../../src/scenario/ssos_eclss_loop/agents.yaml)）。Ollama が起動していないと `llm` モードは失敗します。コンテナ内 `ea-loop` は `OLLAMA_BASE_URL=host.docker.internal` を既定設定します。
 
 ---
 

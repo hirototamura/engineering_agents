@@ -2,8 +2,8 @@ site_name: Engineering Agents
 site_description: ECLSS resilience-loop design docs and SSOS integration guides
 docs_dir: docs
 exclude_docs: |
-  en/memo/
   ja/memo/ssos_eclss_loop/e2e_records/
+  en/memo/ssos_eclss_loop/e2e_records/
 theme:
   name: material
   language: ja
@@ -92,3 +92,11 @@ nav:
     - SSOS ECLSS 接合プラン: ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md
     - SSOS EPS ROS2 接合プラン: ja/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md
     - ROS2 グラフ設計調査: ja/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md
+  - Development notes:
+    - Backlog: en/memo/backlog.md
+    - MVP plan: en/memo/scrubber_degradation/mvp_plan.md
+    - EPS implementation plan: en/memo/scrubber_degradation/eps_implementation_plan.md
+    - Homogeneous agent team: en/memo/agents/homogeneous_agent_team_plan.md
+    - SSOS ECLSS connection plan: en/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md
+    - SSOS EPS ROS2 connection plan: en/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md
+    - ROS2 graph design investigation: en/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md

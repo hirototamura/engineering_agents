@@ -1,4 +1,4 @@
-> Japanese: [../ja/ssos/quickstart.md](../ja/ssos/quickstart.md)
+> Japanese: [../../ja/ssos/quickstart.md](../../ja/ssos/quickstart.md)
 
 # Quickstart
 

@@ -1,4 +1,4 @@
-> Japanese: [../ja/ssos/eclss-integration.md](../ja/ssos/eclss-integration.md)
+> Japanese: [../../ja/ssos/eclss-integration.md](../../ja/ssos/eclss-integration.md)
 
 # ECLSS Integration
 
