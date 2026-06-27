@@ -60,7 +60,3 @@ Icon?
 *.swp
 *.swo
 *~
-
-# --- MkDocs ---
-# Default build output (`mkdocs build`); deploy via CI / GitHub Pages, not git.
-site/
