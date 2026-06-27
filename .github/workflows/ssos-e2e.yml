@@ -1,6 +1,7 @@
 name: SSOS E2E Regression
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       with_eps:
