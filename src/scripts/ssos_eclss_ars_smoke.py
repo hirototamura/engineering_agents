@@ -55,13 +55,13 @@ Manual (2 terminals):
   bash /root/ssos-eclss-headless.sh
 
   # Terminal 2 — sync repo and run smoke (container name: ssos)
-  docker exec ssos mkdir -p /tmp/engineering_agents
-  docker cp src/. ssos:/tmp/engineering_agents/src/
+  docker exec ssos mkdir -p /opt/engineering_agents
+  docker cp src/. ssos:/opt/engineering_agents/src/
   docker exec -it ssos bash -lc '
     source /opt/ros/jazzy/setup.bash
     source ~/ssos_ws/install/setup.bash
-    cd /tmp/engineering_agents
-    PYTHONPATH=/tmp/engineering_agents/src:${PYTHONPATH} python3 -m scripts.ssos_eclss_ars_smoke
+    cd /opt/engineering_agents
+    PYTHONPATH=/opt/engineering_agents/src:${PYTHONPATH} python3 -m scripts.ssos_eclss_ars_smoke
   '
 """
 

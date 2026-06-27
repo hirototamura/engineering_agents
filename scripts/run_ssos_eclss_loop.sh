@@ -17,7 +17,7 @@
 set -euo pipefail
 
 CONTAINER="${SSOS_CONTAINER:-ssos}"
-CONTAINER_REPO="${SSOS_CONTAINER_REPO:-/tmp/engineering_agents}"
+CONTAINER_REPO="${SSOS_CONTAINER_REPO:-/opt/engineering_agents}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 usage() {
