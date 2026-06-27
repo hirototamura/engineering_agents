@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Headless ECLSS for SSOS Docker regression (no crew GUI).
 #
-# The public ghcr.io image does not ship /root/ssos-eclss-headless.sh (that path is
-# used on self-hosted / ~/dev/ssos setups). ARS needs /ddcu/load_request at startup,
+# The public ghcr.io image does not ship /root/ssos-eclss-headless.sh or
+# /root/ssos-headless.sh (those paths are for self-hosted / ~/dev/ssos setups).
+# ARS needs /ddcu/load_request at startup, so launch EPS + solar before ECLSS.
 # so launch EPS + solar before ECLSS.
 set -eo pipefail
 
