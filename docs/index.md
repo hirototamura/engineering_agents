@@ -29,6 +29,7 @@ mkdocs build
 | [SSOS 接合（運用ガイド）](ja/ssos/index.md) | Docker + ROS 2 による ECLSS/EPS 接合手順 |
 | [English — Overview](en/README.md) | Setup and project overview |
 | [English — Architecture](en/architecture.md) | Layer design and agent flow |
+| [English — ssos_eclss_loop](en/scenario-ssos-eclss-loop.md) | SSOS live ECLSS scenario spec |
 | [エージェントガイド](ja/AGENTS.md) | コーディングエージェント向け規律 |
 
 詳細は [catalog.md](catalog.md) を参照してください。

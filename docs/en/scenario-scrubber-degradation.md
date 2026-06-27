@@ -1,4 +1,4 @@
-> Japanese: [../../ja/scenario-scrubber-degradation.md](../ja/scenario-scrubber-degradation.md)
+> Japanese: [../ja/scenario-scrubber-degradation.md](../ja/scenario-scrubber-degradation.md)
 
 # Scenario: scrubber_degradation
 
@@ -213,7 +213,7 @@ None of these **change permanent topology**. `enable_bypass` is an operational f
 | Post-run proposal | Fixed `bypass_edge` | LLM generates `changes` |
 | Research use | Ground-truth comparison, regression | Model comparison, utterance analysis |
 
-Why the LLM does not read `policy`: to avoid mixing rule answers into the prompt and enable **fair comparison experiments**. Design details: [memo/homogeneous_agent_team_plan.md](../memo/homogeneous_agent_team_plan.md).
+Why the LLM does not read `policy`: to avoid mixing rule answers into the prompt and enable **fair comparison experiments**. Design details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md).
 
 ---
 
@@ -296,5 +296,7 @@ pytest tests/scenario/test_scrubber_with_agents.py -q
 - [architecture.md](architecture.md) — layers and execution flow
 - [api-contracts.md](api-contracts.md) — JSONL schemas
 - [one-piece-integration.md](one-piece-integration.md) — provenance
-- [development-plan.md](development-plan.md) — incomplete items (CLI, design_proposals → provenance)
-- [memo/backlog.md](../memo/backlog.md) — BL-001 / BL-002
+- [development-plan.md](development-plan.md) — completion status and next tasks (CLI, Phase 8, provenance extension)
+- [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) — SSOS live ECLSS scenario (Phase 0–7 complete)
+- [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) — connection plan details and verification steps
+- [memo/backlog.md](memo/backlog.md) — BL-001–BL-005

@@ -1,108 +1,151 @@
-> Japanese: [../../ja/development-plan.md](../ja/development-plan.md)
+> Japanese: [../ja/development-plan.md](../ja/development-plan.md)
 
 # Development Plan (In Progress and Not Started)
 
-This document aggregates **features not yet complete** and the **research backlog**. For available functionality, see [README.md](README.md) and the design documentation under `docs/en/`.
+This document aggregates **features not yet complete** and the **research backlog**. For available functionality, see [README.md](README.md) and the scenario documents below.
+
+| Document | Content |
+| --- | --- |
+| [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | Mock scrubber narrative, configuration, outputs |
+| [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) | SSOS live ECLSS narrative, operations, Docker runs |
+| [architecture.md](architecture.md) | Layer structure, dual-track execution flow |
+| [api-contracts.md](api-contracts.md) | Protocols, JSONL schemas |
+
+**SSOS integration Phase 0–7 status**: [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
 
 ---
 
-## Current milestone
+## Milestones
 
-### Complete (available as MVP)
+### scrubber_degradation (Mock ECLSS + EPS) — complete
 
 | Area | Contents |
 | --- | --- |
-| SSOS mock | `StationSimulator` (ECLSS + EPS), `SimulatorProtocol`, ROS2-style topic definitions |
-| Scenario | `scrubber_degradation` — 50 steps, anomaly injection from step 20 |
-| Agents | `none` / `labeled_rule_base` / `llm`, N homogeneous engineers (default 4) |
-| Recovery | Fan acceleration, load reduction, EPS boost, temporary bypass |
-| Post-run design | `design_proposals.json` (no topology change at runtime) |
-| provenance | `provenance.jsonl` — **runtime recovery** (mainly `request_eps_boost`) |
-| Dashboard | Overview / Step replay / 2-run compare / design proposal topology visualization |
-| Tests | Baseline, labeled, and llm (mock LLM) regression |
+| Simulator | `StationSimulator` (`MockEclssSimulator` + `EpsBackend` mock / `ssos_eps`) |
+| Scenario | `scrubber_degradation` — 50 steps, anomaly from step 20 |
+| Agents | `none` / `labeled_rule_base` / `llm`, homogeneous N engineers |
+| Recovery | Fan boost, load shed, EPS boost, temporary bypass |
+| Post-run design | `design_proposals.json` (scrubber frozen; no runtime topology change) |
+| provenance | Runtime **recovery** (`request_eps_boost`) |
+| Dashboard | CO₂ ppm / EPS / topology / 2-run compare |
 
-### In progress
+### ssos_eclss_loop (SSOS live ECLSS) — Phase 0–7 complete
+
+| Phase | Contents | Status |
+| --- | --- | --- |
+| 0 | Remove runtime `DesignChange` | ✅ |
+| 1a–1b | ARS/OGS smoke, `EclssBackend`, `Ros2EclssBridge` | ✅ |
+| 2 | WRS bridge | ✅ |
+| 3 | EPS coupling (scrubber path, `Ros2EpsBridge`) | ✅ |
+| 4 | `ssos_eclss_loop` + `SsosEclssLoopTeam` | ✅ |
+| 5 | `design_proposals.json` (`ssos_graph`) + `--apply-proposals` | ✅ |
+| 6 | LLM agents + Docker `ea-loop` (ros2 / Ollama defaults) | ✅ |
+| 7 | Client `graph_rewire`, `Team` ABC, ssos dashboard views | ✅ |
+| 8 | ROS launch remap + gateway | 📋 [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a) |
+
+**Tests**: `pytest` — **140 passed**, 4 skipped (ROS2 live / outside container tests skip).
+
+**Container runs**: `~/dev/ssos/ssos-run.sh` → `bash /root/ssos-eclss-headless.sh` → `./scripts/run_ssos_eclss_loop.sh` or `ea-loop` inside container.
+
+---
+
+## In progress
 
 | Item | Description | Reference |
 | --- | --- | --- |
-| LLM comparison experiments | Trajectory comparison across models, temperature, and run_id (dashboard compare) | [architecture.md](architecture.md) |
-| Documentation | Updating `docs/ja/` and `docs/en/` in this repository | — |
+| PR #9 merge and stabilization | `feat/ssos-eclss-loop` → `main` | connection plan |
+| LLM comparison experiments | Trajectory comparison across models, temperature, run_id (dashboard compare) | [architecture.md](architecture.md) |
+| Documentation | Sync `docs/ja/` and `docs/en/` with memo | this update |
 
-### Next implementation (priority order)
+---
 
-1. **CLI integration** — single entry point such as `python -m tools.cli run --scenario scrubber_degradation --agents-mode llm` ([memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md) Day 8)
-2. **provenance extension** — export `design_proposals.json` to One Piece records (currently only runtime `design_change` events; post-run proposals not linked)
-3. **provenance index** — cross-run `provenance_index.json` (for dashboard / CLI comparison)
-4. **Real SSOS adapter** — contract tests and ROS2 bridge for `SsosAdapter` (Day 10)
+## Next implementation (priority order)
 
-### Later (near out of scope)
+1. **CLI integration** — single entry point such as `python -m tools.cli run --scenario …` ([memo/scrubber_degradation/eps_implementation_plan.md](memo/scrubber_degradation/eps_implementation_plan.md) Day 8)
+2. **provenance extension** — export scrubber / ssos `design_proposals.json` to One Piece records
+3. **provenance index** — cross-run `provenance_index.json`
+4. **Phase 8 — ROS launch remap** — apply `graph_rewire` at launch (BL-003)
+5. **Single ros2 scenario: ECLSS + EPS** — power crisis and SSOS ECLSS in one run (BL-004)
+6. **EPS 3b/3c** — direct BCDU discharge, `/bcdu/operation` Action (BL-005)
 
-| Item | Status |
-| --- | --- |
-| One Piece Web / SSOT UI | Not connected (JSON provenance only) |
-| Real SSOS orbital connection | Stub only |
-| `agents.mode: base` | Not implemented (unlabeled emergent roles) — [memo/backlog.md](../memo/backlog.md) BL-001 |
-| Evolving persona research | Backlog — BL-002 |
+---
+
+## Later (near out of scope)
+
+| Item | Status | Reference |
+| --- | --- | --- |
+| One Piece Web / SSOT UI | Not connected (JSON provenance only) | [one-piece-integration.md](one-piece-integration.md) |
+| `agents.mode: base` | Not implemented (emergent roles) | [backlog.md](memo/backlog.md) BL-001 |
+| Evolving persona research | Backlog | BL-002 |
+| WRS in `SsosEclssLoopTeam` | Backlog | BL-004 |
+| upstream CO₂ scrubber | Waiting on SSOS extension | BL-004 |
+| MkDocs CI deploy | `docs/ssos-mkdocs` branch | BL-004 |
 
 ---
 
 ## Roadmap (timeline)
 
 ```text
-[Complete]
-  Day 1–2  Layer separation, SimulatorProtocol, telemetry
-  Day 3–4  scrubber_degradation scenario, labeled team
-  Day 5B   One Piece provenance (recovery)
-  Day 6    Streamlit dashboard
-  EPS-1–4  SARJ/BCDU mock, StationSimulator, eps_telemetry
-  Homogeneous N-agent LLM team (homogeneous agent team refactor)
+[Complete — scrubber MVP]
+  Day 1–6   Layer separation, scrubber_degradation, dashboard
+  EPS-1–4   SARJ/BCDU mock, StationSimulator, eps_telemetry
+  Homogeneous N-agent LLM team
+
+[Complete — SSOS integration Phase 0–7]
+  1a–2     EclssBackend, ARS/OGS/WRS, Ros2EclssBridge
+  3        Ros2EpsBridge (scrubber power)
+  4–6      ssos_eclss_loop, design_proposals, LLM, ea-loop
+  7        client graph_rewire, Team ABC, ssos dashboard
 
 [Next]
-  Day 8    CLI
-  Day 9    provenance index + design_proposals export
-  Day 10   SSOS adapter contract tests
+  Day 8–9  CLI, provenance index, design export
+  Phase 8  launch remap + gateway (BL-003)
+  BL-004/5 ECLSS+EPS unified scenario, EPS 3b/3c, WRS team
 
 [Research]
   BL-001   base mode (emergent roles)
   BL-002   evolving persona
 ```
 
-Detailed task breakdown: [memo/mvp_plan.md](../memo/mvp_plan.md), EPS milestones: [memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md).
+Details: [memo/scrubber_degradation/mvp_plan.md](memo/scrubber_degradation/mvp_plan.md), [memo/ssos_eclss_loop/](memo/ssos_eclss_loop/), [memo/backlog.md](memo/backlog.md).
 
 ---
 
-## Research notes (`docs/ja/memo/` / `docs/en/memo/`)
-
-Implementation plans, workshop drafts, and backlog. These are **records of the design process**, not living documentation.
+## Research notes (`docs/en/memo/`)
 
 | Memo | Contents |
 | --- | --- |
-| [mvp_plan.md](../memo/mvp_plan.md) | Week roadmap, Day 1–10 retrospective |
-| [homogeneous_agent_team_plan.md](../memo/homogeneous_agent_team_plan.md) | Design agreement for N homogeneous agents + representative action + post-run design |
-| [persona_llm_core_oop_plan.md](../memo/persona_llm_core_oop_plan.md) | Persona / Team / LLM Core OOP (Day 1–8 completion record) |
-| [eps_implementation_plan.md](../memo/eps_implementation_plan.md) | EPS-1–4, CLI and SSOS adapter day boundaries |
-| [persona_workshop_draft.md](../memo/persona_workshop_draft.md) | Persona workshop agreement draft |
-| [backlog.md](../memo/backlog.md) | BL-001 emergent roles, BL-002 evolving persona, etc. |
+| [mvp_plan.md](memo/scrubber_degradation/mvp_plan.md) | Week roadmap, Day 1–10 |
+| [ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | SSOS ECLSS Phase 0–7 details and verification steps |
+| [ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS ROS2 bridge (Phase 3) |
+| [ssos_eclss_loop/ssos_ros2_graph_design_investigation.md](memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | Gateway and remap investigation |
+| [backlog.md](memo/backlog.md) | BL-001–BL-005 (emergent roles, Phase 8, ECLSS/EPS follow-ups) |
+| [agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md) | Homogeneous N-agent team design |
+| [scrubber_degradation/eps_implementation_plan.md](memo/scrubber_degradation/eps_implementation_plan.md) | EPS-1–4, CLI day boundaries |
 
 ---
 
-## SSOS / One Piece integration (in progress)
+## SSOS / One Piece integration (current state)
 
 ```text
-[ This repository MVP ]
-  MockEclssSimulator + EpsStack
-       ↑ SimulatorProtocol
-  ScrubberDegradationTeam
-       ↓ JSONL + design_proposals.json
-  Streamlit dashboard
+[ scrubber_degradation — Mock frozen ]
+  StationSimulator → ScrubberDegradationTeam
+       ↓ JSONL + design_proposals.json (scrubber domain)
+  Dashboard (ppm / EPS / topology)
 
-[ Not connected ]
-  SSOS adapter (ROS2)     … stub, contract tests planned
-  One Piece Web UI        … provenance JSON only
-  design_proposals → provenance … export not implemented
+[ ssos_eclss_loop — Phase 0–7 complete ]
+  EclssBackend (mock | ros2) → SsosEclssLoopTeam(Team)
+       ↓ JSONL + design_proposals.json (ssos_graph)
+  Dashboard (storage kg / operational timeline)
+  ea-loop (Docker) + graph_rewire (client remap)
+
+[ Not connected / backlog ]
+  ROS launch remap (Phase 8)     … BL-003
+  design_proposals → provenance  … Day 9
+  One Piece Web UI               … out of scope
 ```
 
-Current One Piece integration: [one-piece-integration.md](one-piece-integration.md).
+One Piece integration: [one-piece-integration.md](one-piece-integration.md).
 
 ---
 
@@ -110,7 +153,8 @@ Current One Piece integration: [one-piece-integration.md](one-piece-integration.
 
 When adding a feature:
 
-1. If you change `SimulatorProtocol` or JSONL schema, update [api-contracts.md](api-contracts.md)
-2. If you add agent modes, update [architecture.md](architecture.md) and the scenario doc
-3. Regression: `pytest tests/scenario/test_scrubber_baseline.py` (always), `test_scrubber_with_agents.py` (with agents)
-4. Move completed items to “Complete” in this file and keep the README roadmap short
+1. If you change `SimulatorProtocol` / `EclssBackend` / JSONL schema, update [api-contracts.md](api-contracts.md)
+2. If you add agents or scenarios, update [architecture.md](architecture.md)
+3. Regression: `pytest` (full suite); scrubber: `test_scrubber_baseline.py` / `test_scrubber_with_agents.py`; ssos: `test_ssos_eclss_loop*.py`
+4. SSOS container verification: `./scripts/run_ssos_eclss_loop.sh`, `run_graph_rewire_e2e.sh` (requires ECLSS headless)
+5. Move completed items to “Complete” in this file; manage backlog in [backlog.md](memo/backlog.md)

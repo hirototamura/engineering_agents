@@ -1,4 +1,4 @@
-> Japanese: [../../ja/memo/agents/homogeneous_agent_team_plan.md](../../ja/memo/agents/homogeneous_agent_team_plan.md)
+> Japanese: [../../../ja/memo/agents/homogeneous_agent_team_plan.md](../../../ja/memo/agents/homogeneous_agent_team_plan.md)
 
 # Homogeneous Agent Team Redesign Plan
 

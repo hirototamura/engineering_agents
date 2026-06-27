@@ -1,10 +1,10 @@
-> Japanese: [../../ja/memo/scrubber_degradation/mvp_plan.md](../../ja/memo/scrubber_degradation/mvp_plan.md)
+> Japanese: [../../../ja/memo/scrubber_degradation/mvp_plan.md](../../../ja/memo/scrubber_degradation/mvp_plan.md)
 
 # ECLSS Resilience Loop — Directory Layout & 1-Week MVP Plan
 
 > Design process record. Exported from Cursor plan `ECLSS Agent Directory MVP` (2026-05-30).  
 > **Updated 2026-05-30**: Roadmap revised from Day 1–2 retrospective.  
-> **Updated 2026-05-30**: Day 4 role design policy and research backlog ([backlog.md](backlog.md)) added.  
+> **Updated 2026-05-30**: Day 4 role design policy and research backlog ([backlog.md](../backlog.md)) added.  
 > **Updated 2026-05-31**: Day 5 reorganized to **LLM integration first (Day5A: labeled_shadow)**.  
 > **Updated 2026-05-31**: Day5B completion reflected; Day6+ order replanned.  
 > **Updated 2026-06-02**: ECLSS alone lacks power-margin recovery; next phase top priority is **EPS mock integration**.  
@@ -120,7 +120,7 @@
 | Monitor / Diagnostician / Operator / DesignEngineer **rule-based** | LLM required |
 | `agents.mode: none \| labeled` (keep baseline) | `agents.mode: base` (emergent role experiment) |
 
-Four roles are **provisional labels** to “dissolve” the anomaly. They mirror human division of labor; whether Base Role agents emerge situation-appropriate roles without labels is separate — tracked in **[backlog.md BL-001](backlog.md)**.
+Four roles are **provisional labels** to “dissolve” the anomaly. They mirror human division of labor; whether Base Role agents emerge situation-appropriate roles without labels is separate — tracked in **[backlog.md BL-001](../backlog.md)**.
 
 **Day 4 done when (labeled mode)**
 
@@ -158,7 +158,7 @@ Detailed roadmap: **[eps_implementation_plan.md](eps_implementation_plan.md)** (
 
 ## Backlog (outside MVP · research)
 
-Details in [backlog.md](backlog.md).
+Details in [backlog.md](../backlog.md).
 
 | ID | Theme | Summary |
 | --- | --- | --- |
@@ -219,8 +219,8 @@ Details in [backlog.md](backlog.md).
 ## References
 
 - **EPS day-by-day plan**: [eps_implementation_plan.md](eps_implementation_plan.md)
-- Doc index: [README.md](../README.md#documentation), dev plan: [docs/development-plan.md](../docs/development-plan.md)
-- API contracts: [docs/api-contracts.md](../docs/api-contracts.md)
-- Architecture: [docs/architecture.md](../docs/architecture.md)
-- Scenario: [docs/scenario-scrubber-degradation.md](../docs/scenario-scrubber-degradation.md)
-- One Piece: [docs/one-piece-integration.md](../docs/one-piece-integration.md)
+- Doc index: [README.md](../../README.md#documentation), dev plan: [docs/development-plan.md](../../../development-plan.md)
+- API contracts: [docs/api-contracts.md](../../../api-contracts.md)
+- Architecture: [docs/architecture.md](../../../architecture.md)
+- Scenario: [docs/scenario-scrubber-degradation.md](../../../scenario-scrubber-degradation.md)
+- One Piece: [docs/one-piece-integration.md](../../../one-piece-integration.md)
