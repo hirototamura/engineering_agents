@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import shutil
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -20,6 +19,7 @@ from environment.ssos.station_simulator import StationSimulator
 from environment.ssos.topics import EVENT_RECOVERY
 from integrations.one_piece import export_run_provenance
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
+from scenario.jobs.resolve import resolve_run_directory
 from scenario.runner import (
     _deep_merge,
     _log_sim_events,
@@ -78,6 +78,8 @@ class ScrubberDegradationScenario(Scenario):
         output_dir: Optional[Path] = None,
         overrides: Optional[Dict[str, Any]] = None,
         recreate_output: bool = True,
+        run_id: Optional[str] = None,
+        results_root: Optional[Path] = None,
     ) -> Path:
         config = self.load_config(overrides)
         agents_config = load_agents_config(self.name, config)
@@ -85,26 +87,15 @@ class ScrubberDegradationScenario(Scenario):
         steps = int(sim_cfg.get("steps", 50))
         output_cfg = config.get("output", {})
 
-        results_base = Path(__file__).resolve().parents[2] / "experiments" / "results"
-        if output_dir is None:
-            run_id = output_cfg.get("run_id", self.name)
-            if agents_config and agents_config.get("mode") == "labeled_rule_base":
-                run_id = output_cfg.get(
-                    "run_id_labeled_rule_base",
-                    f"{self.name}_labeled_rule_base",
-                )
-            elif agents_config and agents_config.get("mode") == "llm":
-                run_id = output_cfg.get("run_id_llm", f"{self.name}_llm")
-            if recreate_output:
-                run_dir = EventLog.prepare_run_dir(results_base, run_id=run_id)
-            else:
-                run_dir = results_base / run_id
-                run_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            run_dir = Path(output_dir)
-            if recreate_output and run_dir.exists():
-                shutil.rmtree(run_dir)
-            run_dir.mkdir(parents=True, exist_ok=True)
+        run_dir = resolve_run_directory(
+            scenario_name=self.name,
+            output_cfg=output_cfg,
+            agents_config=agents_config,
+            output_dir=output_dir,
+            run_id=run_id,
+            results_root=results_root,
+            recreate_output=recreate_output,
+        )
 
         sim = self.build_simulator(config)
         team = self.build_team(config)
