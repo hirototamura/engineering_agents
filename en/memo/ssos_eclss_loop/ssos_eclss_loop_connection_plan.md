@@ -11,8 +11,8 @@
 
 | Item | Value |
 |------|-----|
-| Branch | `feat/ssos-eclss-loop` (PR #9 vs `main`) |
-| Latest commit | `95ebd1b` — Phase 7 (graph_rewire client / Team ABC / Dashboard) |
+| Branch | `main` (PR #9 merged) |
+| Latest commit | Phase 7 complete — client `graph_rewire`, `Team` ABC, ssos dashboard views |
 | Tests | `pytest` → **140 passed**, 4 skipped |
 | User-facing documentation | Branch **`docs/ssos-mkdocs`** |
 | E2E records | [`e2e_records/`](e2e_records/README.md) |

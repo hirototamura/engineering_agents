@@ -1,3 +1,5 @@
+> English: [../../../en/memo/agents/homogeneous_agent_team_plan.md](../../../en/memo/agents/homogeneous_agent_team_plan.md)
+
 # 同種エージェントチーム再設計プラン
 
 > 実装トラッキング用。Cursor plan と同期する。

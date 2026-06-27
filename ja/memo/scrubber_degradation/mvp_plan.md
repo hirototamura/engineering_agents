@@ -1,3 +1,5 @@
+> English: [../../../en/memo/scrubber_degradation/mvp_plan.md](../../../en/memo/scrubber_degradation/mvp_plan.md)
+
 # ECLSS Resilience Loop — ディレクトリ構成 & 1週間 MVP 計画
 
 > 設計プロセス記録。Cursor プラン `ECLSS Agent Directory MVP` から export（2026-05-30）。  

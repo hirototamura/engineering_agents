@@ -53,9 +53,10 @@ This document aggregates **features not yet complete** and the **research backlo
 
 | Item | Description | Reference |
 | --- | --- | --- |
-| PR #9 merge and stabilization | `feat/ssos-eclss-loop` → `main` | connection plan |
 | LLM comparison experiments | Trajectory comparison across models, temperature, run_id (dashboard compare) | [architecture.md](architecture.md) |
-| Documentation | Sync `ja/docs/` and `en/docs/` with memo | this update |
+| Documentation follow-ups | Bidirectional en/ja memo links; integrator runbooks (scripts, EPS live path) | this update |
+
+**Recently completed**: PR #9 merged (`ssos_eclss_loop` Phase 0–7 on `main`); core `en/docs/` ↔ `ja/docs/` content sync (PR #12).
 
 ---
 

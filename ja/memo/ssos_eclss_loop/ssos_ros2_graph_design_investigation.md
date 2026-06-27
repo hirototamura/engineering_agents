@@ -1,3 +1,5 @@
+> English: [../../../en/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md](../../../en/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md)
+
 # SSOS DDS グラフへの外部ノード追加・接続変更 — 調査レポート
 
 > **調査日**: 2026-06-14  

@@ -419,6 +419,23 @@ Thresholds from `scenario.yaml` `thresholds`.
 
 `--apply-proposals` merges into `scenario.yaml` / `ssos_graph.rewires`. Implementation: `scenario/ssos_eclss_loop/design_proposals.py`.
 
+#### Payload reference (`change_kind` → `payload`)
+
+| `change_kind` | Required `payload` keys | Apply target |
+| --- | --- | --- |
+| `action_profile` | `subsystem` (`ars` \| `ogs` \| `wrs`), `fields` (subsystem-specific) | `agents.policy.{ars,ogs,wrs}_goal` |
+| `service_config` | `service` (`request_co2` \| `request_o2`); optional `amount`, `before_ogs` | `agents.policy.request_co2_*` / `request_o2_amount` |
+| `set_parameter` | `target` (dot path into scenario YAML), `value` | nested key under `scenario.yaml` root |
+| `graph_rewire` | `public`, `backend` topic names; optional `component` | append to `ssos_graph.rewires` |
+
+`action_profile.fields` allowed keys (`design_proposals.py`):
+
+| `subsystem` | Allowed `fields` |
+| --- | --- |
+| `ars` | `initial_co2_mass`, `initial_moisture_content`, `initial_contaminants` |
+| `ogs` | `input_water_mass`, `iodine_concentration` |
+| `wrs` | `urine_volume` |
+
 ```json
 {
   "design_domain": "ssos_graph",
@@ -428,8 +445,25 @@ Thresholds from `scenario.yaml` `thresholds`.
     {
       "change_kind": "action_profile",
       "payload": {
+        "subsystem": "ars",
         "action": "air_revitalisation",
         "fields": {"initial_co2_mass": 2000.0}
+      }
+    },
+    {
+      "change_kind": "service_config",
+      "payload": {"service": "request_co2", "amount": 30.0, "before_ogs": true}
+    },
+    {
+      "change_kind": "set_parameter",
+      "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1600.0}
+    },
+    {
+      "change_kind": "graph_rewire",
+      "payload": {
+        "component": "rclpy_gateway",
+        "public": "/grey_water",
+        "backend": "/grey_water/wrs"
       }
     }
   ],

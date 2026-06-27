@@ -279,6 +279,26 @@ ollama list
 
 ## 実行方法
 
+### 統合ランナー（`scenario.runner`）
+
+両シナリオは `run_scenario()` に登録されている:
+
+```python
+from scenario.runner import list_scenarios, run_scenario
+
+print(list_scenarios())  # ['scrubber_degradation', 'ssos_eclss_loop']
+
+# ホスト上で ssos mock（ROS2 不要）
+run_scenario(
+    "ssos_eclss_loop",
+    overrides={"backend": {"kind": "mock"}, "agents": {"mode": "labeled_rule_base"}},
+)
+```
+
+SSOS 固有フラグ（`--mock`, `--apply-proposals`）は `python -m scenario.ssos_eclss_loop.scenario_run` からも利用できる（下記）。
+
+検証スクリプト（SSOS Docker）: [architecture.md](docs/architecture.md#ssos-検証スクリプト)。
+
 ### scrubber_degradation
 
 #### エージェントなし（ベースライン）

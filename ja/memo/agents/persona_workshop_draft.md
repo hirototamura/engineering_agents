@@ -1,3 +1,5 @@
+> English: [../../../en/memo/agents/persona_workshop_draft.md](../../../en/memo/agents/persona_workshop_draft.md)
+
 # Persona Workshop — Day 7 合意草案（改訂）
 
 **日付**: 2026-06-06  

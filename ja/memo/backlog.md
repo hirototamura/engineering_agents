@@ -1,3 +1,5 @@
+> English: [../../en/memo/backlog.md](../../en/memo/backlog.md)
+
 # Backlog — 研究・設計検討項目
 
 MVP スコープ外だが、価値がありトラックしておくテーマ。実装優先度は [mvp_plan.md](mvp_plan.md) のロードマップに従う。SSOS 接合の未着手項目は [ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) Phase 0–7 完了後のフォローアップ。

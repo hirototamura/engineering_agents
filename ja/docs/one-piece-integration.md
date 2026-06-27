@@ -1,3 +1,5 @@
+> English: [../../en/docs/one-piece-integration.md](../../en/docs/one-piece-integration.md)
+
 # One Piece 連携
 
 設計変更と運用回復の **provenance（来歴）** を、One Piece のデータモデルと互換な JSON で記録する。完全な [One Piece](https://github.com/hirototamura/one-piece) Web UI は現 MVP のスコープ外。

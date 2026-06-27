@@ -1,3 +1,5 @@
+> English: [../../en/docs/development-plan.md](../../en/docs/development-plan.md)
+
 # 開発プラン（進行中・未着手）
 
 本ドキュメントは **まだ完了していない機能** と **研究バックログ** を集約します。利用可能な機能の説明は [README.md](../README.md) および次のシナリオドキュメントを参照してください。
@@ -51,15 +53,16 @@
 
 | 項目 | 説明 | 参照 |
 | --- | --- | --- |
-| PR #9 マージ・安定化 | `feat/ssos-eclss-loop` → `main` | connection plan |
 | LLM 比較実験 | モデル・温度・run_id を変えた軌道比較（ダッシュボード compare） | [architecture.md](architecture.md) |
-| ドキュメント整備 | `ja/docs/` / `en/docs/` と memo の同期 | 本更新 |
+| ドキュメントフォローアップ | en/ja memo の双方向リンク、integrator 向け runbook（scripts、EPS live 経路） | 本更新 |
+
+**最近完了**: PR #9 マージ（`main` 上で `ssos_eclss_loop` Phase 0–7）、コア `en/docs/` ↔ `ja/docs/` 内容同期（PR #12）。
 
 ---
 
 ## 次の実装（優先順）
 
-1. **CLI 統合** — `python -m tools.cli run --scenario …` の単一エントリポイント（[memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md) Day 8）
+1. **CLI 統合** — `python -m tools.cli run --scenario …` の単一エントリポイント（[memo/scrubber_degradation/eps_implementation_plan.md](../memo/scrubber_degradation/eps_implementation_plan.md) Day 8）
 2. **provenance 拡張** — scrubber / ssos の `design_proposals.json` を One Piece レコードへエクスポート
 3. **provenance インデックス** — 複数 run 横断の `provenance_index.json`
 4. **Phase 8 — ROS launch remap** — `graph_rewire` の launch 適用（BL-003）
@@ -105,7 +108,7 @@
   BL-002   進化ペルソナ
 ```
 
-詳細: [memo/mvp_plan.md](../memo/mvp_plan.md)、[memo/ssos_eclss_loop/](../memo/ssos_eclss_loop/)、[memo/backlog.md](../memo/backlog.md)。
+詳細: [memo/scrubber_degradation/mvp_plan.md](../memo/scrubber_degradation/mvp_plan.md)、[memo/ssos_eclss_loop/](../memo/ssos_eclss_loop/)、[memo/backlog.md](../memo/backlog.md)。
 
 ---
 
@@ -113,13 +116,13 @@
 
 | メモ | 内容 |
 | --- | --- |
-| [mvp_plan.md](../memo/mvp_plan.md) | Week ロードマップ、Day 1–10 |
+| [mvp_plan.md](../memo/scrubber_degradation/mvp_plan.md) | Week ロードマップ、Day 1–10 |
 | [ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | SSOS ECLSS Phase 0–7 詳細・検証手順 |
 | [ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](../memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS ROS2 ブリッジ（Phase 3） |
 | [ssos_eclss_loop/ssos_ros2_graph_design_investigation.md](../memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | ゲートウェイ・remap 調査 |
 | [backlog.md](../memo/backlog.md) | BL-001〜BL-005（創発ロール、Phase 8、ECLSS/EPS フォローアップ） |
-| [homogeneous_agent_team_plan.md](../memo/homogeneous_agent_team_plan.md) | 同種 N 体チーム設計 |
-| [eps_implementation_plan.md](../memo/eps_implementation_plan.md) | EPS-1〜4、CLI Day 区切り |
+| [agents/homogeneous_agent_team_plan.md](../memo/agents/homogeneous_agent_team_plan.md) | 同種 N 体チーム設計 |
+| [scrubber_degradation/eps_implementation_plan.md](../memo/scrubber_degradation/eps_implementation_plan.md) | EPS-1〜4、CLI Day 区切り |
 
 ---
 

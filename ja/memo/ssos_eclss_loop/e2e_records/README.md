@@ -1,3 +1,5 @@
+> English: [../../../../en/memo/ssos_eclss_loop/e2e_records/README.md](../../../../en/memo/ssos_eclss_loop/e2e_records/README.md)
+
 # ssos_eclss_loop — コンテナ ros2 E2E 記録
 
 **日付**: 2026-06-14  

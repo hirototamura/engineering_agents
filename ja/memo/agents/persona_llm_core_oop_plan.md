@@ -1,3 +1,5 @@
+> English: [../../../en/memo/agents/persona_llm_core_oop_plan.md](../../../en/memo/agents/persona_llm_core_oop_plan.md)
+
 # Persona LLM 再設計 + Core OOP 骨格抽出
 
 **ステータス**: Day 1–8 完了（本番 Ollama run は任意）  

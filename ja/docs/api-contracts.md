@@ -1,3 +1,5 @@
+> English: [../../en/docs/api-contracts.md](../../en/docs/api-contracts.md)
+
 # API 契約 — シミュレータ境界とイベントログ
 
 プロトコルや JSONL 形式を変更したら **本ドキュメントを同時に更新**する。
@@ -415,6 +417,23 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 
 `--apply-proposals` で `scenario.yaml` / `ssos_graph.rewires` にマージ。実装: `scenario/ssos_eclss_loop/design_proposals.py`。
 
+#### ペイロード参照（`change_kind` → `payload`）
+
+| `change_kind` | 必須 `payload` キー | 適用先 |
+| --- | --- | --- |
+| `action_profile` | `subsystem`（`ars` \| `ogs` \| `wrs`）、`fields`（サブシステム別） | `agents.policy.{ars,ogs,wrs}_goal` |
+| `service_config` | `service`（`request_co2` \| `request_o2`）；任意 `amount`, `before_ogs` | `agents.policy.request_co2_*` / `request_o2_amount` |
+| `set_parameter` | `target`（scenario YAML へのドットパス）、`value` | `scenario.yaml` ルート配下のネストキー |
+| `graph_rewire` | `public`, `backend` トピック名；任意 `component` | `ssos_graph.rewires` に追記 |
+
+`action_profile.fields` の許可キー（`design_proposals.py`）:
+
+| `subsystem` | 許可 `fields` |
+| --- | --- |
+| `ars` | `initial_co2_mass`, `initial_moisture_content`, `initial_contaminants` |
+| `ogs` | `input_water_mass`, `iodine_concentration` |
+| `wrs` | `urine_volume` |
+
 ```json
 {
   "design_domain": "ssos_graph",
@@ -424,8 +443,25 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
     {
       "change_kind": "action_profile",
       "payload": {
+        "subsystem": "ars",
         "action": "air_revitalisation",
         "fields": {"initial_co2_mass": 2000.0}
+      }
+    },
+    {
+      "change_kind": "service_config",
+      "payload": {"service": "request_co2", "amount": 30.0, "before_ogs": true}
+    },
+    {
+      "change_kind": "set_parameter",
+      "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1600.0}
+    },
+    {
+      "change_kind": "graph_rewire",
+      "payload": {
+        "component": "rclpy_gateway",
+        "public": "/grey_water",
+        "backend": "/grey_water/wrs"
       }
     }
   ],

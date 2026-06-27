@@ -303,6 +303,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
     {
       "change_kind": "action_profile",
       "payload": {
+        "subsystem": "ars",
         "action": "air_revitalisation",
         "fields": {"initial_co2_mass": 2000.0}
       }

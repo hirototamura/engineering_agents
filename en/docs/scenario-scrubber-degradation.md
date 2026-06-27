@@ -82,6 +82,11 @@ anomalies:
 agents:
   mode: none  # none | labeled_rule_base | llm
 
+eps:
+  backend: mock  # mock (default) | ssos_eps | ros2 | ssos
+  sarj:
+    beta_angle_deg: 45.0
+
 output:
   run_id: scrubber_degradation_baseline
   run_id_labeled_rule_base: scrubber_degradation_labeled_rule_base
@@ -136,6 +141,28 @@ run_scenario(
     },
 )
 ```
+
+### EPS backend (`eps.backend`)
+
+`scenario.runner.build_eps_backend()` selects the power backend:
+
+| `eps.backend` | Implementation | When to use |
+| --- | --- | --- |
+| `mock` (default) | `build_mock_eps_backend()` — SARJ + BCDU mock | Host-only regression, dashboard demos |
+| `ssos_eps`, `ros2`, `ssos` | `Ros2EpsBridge` — live SSOS EPS topics | SSOS Docker with solar + EPS stack running |
+
+Live EPS example:
+
+```python
+from scenario.runner import run_scenario
+
+run_scenario(
+    "scrubber_degradation",
+    overrides={"eps": {"backend": "ssos_eps"}, "agents": {"mode": "none"}},
+)
+```
+
+Verification (host or auto-sync into container): `./scripts/run_ssos_eps_smoke.sh`. Topic mapping: [memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](../memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md).
 
 ---
 

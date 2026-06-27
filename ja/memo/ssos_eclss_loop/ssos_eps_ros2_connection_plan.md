@@ -1,3 +1,5 @@
+> English: [../../../en/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](../../../en/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md)
+
 # engineering_agents → SSOS EPS 接続実装プラン（EPS-only）
 
 > **対象**: Mac 上 Docker で動作中の Space Station OS（SSOS）と、`engineering_agents` の EPS サブシステムを ROS 2 DDS で接続する。ECLSS は引き続き `MockEclssSimulator` を使用。

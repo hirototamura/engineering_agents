@@ -277,6 +277,26 @@ Default LLM settings are in each scenario's `agents.yaml` (scrubber: [`scrubber_
 
 ## How to run
 
+### Unified runner (`scenario.runner`)
+
+Both scenarios register with `run_scenario()`:
+
+```python
+from scenario.runner import list_scenarios, run_scenario
+
+print(list_scenarios())  # ['scrubber_degradation', 'ssos_eclss_loop']
+
+# ssos mock on host (no ROS2)
+run_scenario(
+    "ssos_eclss_loop",
+    overrides={"backend": {"kind": "mock"}, "agents": {"mode": "labeled_rule_base"}},
+)
+```
+
+SSOS-specific flags (`--mock`, `--apply-proposals`) are also available via `python -m scenario.ssos_eclss_loop.scenario_run` (below).
+
+Verification scripts (SSOS Docker): [architecture.md](docs/architecture.md#ssos-verification-scripts).
+
 ### scrubber_degradation
 
 #### No agents (baseline)

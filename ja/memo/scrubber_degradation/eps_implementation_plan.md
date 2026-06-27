@@ -1,3 +1,5 @@
+> English: [../../../en/memo/scrubber_degradation/eps_implementation_plan.md](../../../en/memo/scrubber_degradation/eps_implementation_plan.md)
+
 # EPS 優先・Day 区切り実装プラン（Week-2 入口）
 
 > **2026-06-02 策定** — [mvp_plan.md](mvp_plan.md) の Next-1〜4 を Day 単位に分解。  

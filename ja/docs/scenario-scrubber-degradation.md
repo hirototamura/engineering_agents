@@ -1,3 +1,5 @@
+> English: [../../en/docs/scenario-scrubber-degradation.md](../../en/docs/scenario-scrubber-degradation.md)
+
 # シナリオ: scrubber_degradation
 
 **ECLSS**（Environmental Control and Life Support System / 環境制御・生命維持システム）レジリエンス・ループ MVP の参照シナリオ。生命維持装置である CO2 スクラバーの性能劣化という単一異常に対し、エージェントチームがどう検知・回復し、事後にどんな恒久設計を提案するかを観察する。
@@ -80,6 +82,11 @@ anomalies:
 agents:
   mode: none  # none | labeled_rule_base | llm
 
+eps:
+  backend: mock  # mock（既定）| ssos_eps | ros2 | ssos
+  sarj:
+    beta_angle_deg: 45.0
+
 output:
   run_id: scrubber_degradation_baseline
   run_id_labeled_rule_base: scrubber_degradation_labeled_rule_base
@@ -134,6 +141,28 @@ run_scenario(
     },
 )
 ```
+
+### EPS バックエンド（`eps.backend`）
+
+`scenario.runner.build_eps_backend()` が電力バックエンドを選択する:
+
+| `eps.backend` | 実装 | 用途 |
+| --- | --- | --- |
+| `mock`（既定） | `build_mock_eps_backend()` — SARJ + BCDU モック | ホストのみの回帰、ダッシュボードデモ |
+| `ssos_eps`, `ros2`, `ssos` | `Ros2EpsBridge` — 実 SSOS EPS トピック | solar + EPS スタック起動済みの SSOS Docker |
+
+実 EPS の例:
+
+```python
+from scenario.runner import run_scenario
+
+run_scenario(
+    "scrubber_degradation",
+    overrides={"eps": {"backend": "ssos_eps"}, "agents": {"mode": "none"}},
+)
+```
+
+検証（ホストまたはコンテナへ自動同期）: `./scripts/run_ssos_eps_smoke.sh`。トピック対応: [memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](../memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md)。
 
 ---
 

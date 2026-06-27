@@ -1,3 +1,5 @@
+> English: [../../../en/memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md](../../../en/memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md)
+
 # SSOS ECLSS 物理現象概要
 
 > **対象**: [Space Station OS — `space_station_eclss`](https://github.com/space-station-os/space_station_os/tree/main/space_station_eclss)

@@ -382,4 +382,20 @@ pytest tests/scenario/test_ssos_eclss_loop*.py tests/environment/test_graph_rewi
 
 SSOS container E2E: `./scripts/run_ssos_eclss_loop.sh`, `./scripts/run_graph_rewire_e2e.sh`
 
+### SSOS verification scripts
+
+Host wrappers sync `src/` into the SSOS Docker container when `ros2` is not on the host. Prerequisite for ros2 paths: container running (`SSOS_CONTAINER`, default `ssos`) and ECLSS headless (`bash /root/ssos-eclss-headless.sh`) where noted.
+
+| Script | Purpose | Prerequisite |
+| --- | --- | --- |
+| `run_ssos_eclss_loop.sh` | Full `ssos_eclss_loop` scenario (`--mock` for host-only) | ECLSS headless for ros2 |
+| `run_graph_rewire_e2e.sh` | Phase 7 client `graph_rewire` smoke | ECLSS headless |
+| `run_ssos_eps_smoke.sh` | Phase 3 `Ros2EpsBridge` smoke | SSOS solar + EPS stack |
+| `run_ssos_eclss_smoke.sh` | Phase 1a ARS topic/action reachability | ECLSS headless |
+| `run_ssos_eclss_1b_smoke.sh` | Phase 1b ARS + OGS | ECLSS headless |
+| `run_ssos_eclss_2_smoke.sh` | Phase 2 WRS | ECLSS headless |
+| `ssos_container_run.sh` | Generic exec helper into container | Container running |
+
+Details and verification steps: [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md).
+
 Next implementation: [development-plan.md](development-plan.md) · API details: [api-contracts.md](api-contracts.md)

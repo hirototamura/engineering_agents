@@ -1,3 +1,5 @@
+> English: [../../en/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../../en/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
+
 # SSOS ECLSS ループ接合プラン
 
 > **対象**: Space Station OS ECLSS（ARS / OGS / WRS）を `engineering_agents` エージェントが Crew Simulation の代わりに操作する。`scrubber_degradation` は Mock 凍結のまま別シナリオ。  
@@ -9,8 +11,8 @@
 
 | 項目 | 値 |
 |------|-----|
-| ブランチ | `feat/ssos-eclss-loop`（PR #9 vs `main`） |
-| 最新コミット | `95ebd1b` — Phase 7（graph_rewire client / Team ABC / Dashboard） |
+| ブランチ | `main`（PR #9 マージ済み） |
+| 最新コミット | Phase 7 完了 — client `graph_rewire`、`Team` ABC、ssos ダッシュボード |
 | テスト | `pytest` → **140 passed**, 4 skipped |
 | ユーザ向けドキュメント | ブランチ **`docs/ssos-mkdocs`** |
 | E2E 記録 | [`e2e_records/`](e2e_records/README.md) |

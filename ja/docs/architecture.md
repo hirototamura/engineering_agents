@@ -1,3 +1,5 @@
+> English: [../../en/docs/architecture.md](../../en/docs/architecture.md)
+
 # アーキテクチャ — ECLSS レジリエンス・ループ
 
 レイヤ構成・実行フロー・エージェント設計のリファレンス。API スキーマは [api-contracts.md](api-contracts.md)、叙事は各シナリオドキュメントを参照。
@@ -417,5 +419,21 @@ pytest tests/scenario/test_ssos_eclss_loop*.py tests/environment/test_graph_rewi
 ```
 
 SSOS コンテナ E2E: `./scripts/run_ssos_eclss_loop.sh`、`./scripts/run_graph_rewire_e2e.sh`
+
+### SSOS 検証スクリプト
+
+ホストのラッパーは、ホストに `ros2` が無い場合 SSOS Docker コンテナへ `src/` を同期する。ros2 経路の前提: コンテナ起動済み（`SSOS_CONTAINER`、既定 `ssos`）および（該当時）ECLSS headless（`bash /root/ssos-eclss-headless.sh`）。
+
+| スクリプト | 目的 | 前提 |
+| --- | --- | --- |
+| `run_ssos_eclss_loop.sh` | `ssos_eclss_loop` シナリオ全体（`--mock` でホストのみ） | ros2 時は ECLSS headless |
+| `run_graph_rewire_e2e.sh` | Phase 7 client `graph_rewire` smoke | ECLSS headless |
+| `run_ssos_eps_smoke.sh` | Phase 3 `Ros2EpsBridge` smoke | SSOS solar + EPS スタック |
+| `run_ssos_eclss_smoke.sh` | Phase 1a ARS トピック/Action 到達性 | ECLSS headless |
+| `run_ssos_eclss_1b_smoke.sh` | Phase 1b ARS + OGS | ECLSS headless |
+| `run_ssos_eclss_2_smoke.sh` | Phase 2 WRS | ECLSS headless |
+| `ssos_container_run.sh` | コンテナ内汎用 exec ヘルパ | コンテナ起動済み |
+
+詳細・検証手順: [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)。
 
 次の実装: [development-plan.md](development-plan.md) · API 詳細: [api-contracts.md](api-contracts.md)

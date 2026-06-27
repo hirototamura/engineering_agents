@@ -1,6 +1,6 @@
-# シナリオ: ssos_eclss_loop
-
 > English: [../../en/docs/scenario-ssos-eclss-loop.md](../../en/docs/scenario-ssos-eclss-loop.md)
+
+# シナリオ: ssos_eclss_loop
 
 **SSOS**（Space Station OS）Docker 内の実 ROS2 **ECLSS**（Environmental Control and Life Support System）を、エージェントチームが Crew Simulation の代わりに操作する参照シナリオ。CO₂ / O₂ / 製品水の**ストレージ kg** を監視し、閾値超過時に ARS / OGS 等の運用コマンドを打ち、ラン終了後に `ssos_graph` ドメインの恒久設計を提案する。
 
@@ -303,6 +303,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
     {
       "change_kind": "action_profile",
       "payload": {
+        "subsystem": "ars",
         "action": "air_revitalisation",
         "fields": {"initial_co2_mass": 2000.0}
       }
