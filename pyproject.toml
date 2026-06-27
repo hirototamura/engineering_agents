@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "mkdocs-material>=9.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

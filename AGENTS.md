@@ -6,8 +6,8 @@ This file is the entry point for **human contributors** and **coding agents** (C
 
 | Language | Guide |
 | --- | --- |
-| **English** | [en/AGENTS.md](en/AGENTS.md) |
-| **日本語** | [ja/AGENTS.md](ja/AGENTS.md) |
+| **English** | [docs/en/AGENTS.md](docs/en/AGENTS.md) |
+| **日本語** | [docs/ja/AGENTS.md](docs/ja/AGENTS.md) |
 
 ---
 
