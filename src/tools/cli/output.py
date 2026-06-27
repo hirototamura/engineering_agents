@@ -48,7 +48,8 @@ def print_run_result(result: RunResult, *, quiet: bool = False, as_json: bool = 
         return
 
     summary = result.summary
-    lines = [f"output: {result.run_dir}", f"duration: {result.duration_s:.1f}s"]
+    duration = summary.get("duration_wall_s", result.duration_s)
+    lines = [f"output: {result.run_dir}", f"duration: {duration:.1f}s"]
     if summary.get("final_co2_ppm") is not None:
         health = (summary.get("final_health") or {}).get("co2_status", "unknown")
         lines.append(f"CO2 final: {summary['final_co2_ppm']} ppm ({health})")
@@ -58,7 +59,7 @@ def print_run_result(result: RunResult, *, quiet: bool = False, as_json: bool = 
     console.print(
         Panel(
             "\n".join(lines),
-            title=f"Done ({result.duration_s:.1f}s)",
+            title=f"Done ({duration:.1f}s)",
             border_style="green",
         )
     )
@@ -75,18 +76,23 @@ def print_run_list(runs: list[Path]) -> None:
     table.add_column("Scenario")
     table.add_column("Agents")
     table.add_column("Steps")
+    table.add_column("Duration (s)")
     for run_dir in runs:
         summary_path = run_dir / "summary.json"
         if not summary_path.exists():
             continue
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        duration = summary.get("duration_wall_s")
+        duration_text = f"{duration:.1f}" if isinstance(duration, (int, float)) else "—"
         table.add_row(
             run_dir.name,
             str(summary.get("scenario", "")),
             str(summary.get("agents_mode", "")),
             str(summary.get("steps", "")),
+            duration_text,
         )
     console.print(table)
+    console.print(f"\nDashboard: {DASHBOARD_CMD}")
 
 
 def print_doctor_report(report: Dict[str, Any]) -> None:

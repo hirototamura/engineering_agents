@@ -45,7 +45,7 @@ This document aggregates **features not yet complete** and the **research backlo
 
 **Tests**: `pytest` — **140 passed**, 4 skipped (ROS2 live / outside container tests skip).
 
-**Container runs**: `~/dev/ssos/ssos-run.sh` → `bash /root/ssos-eclss-headless.sh` → `./scripts/run_ssos_eclss_loop.sh` or `ea-loop` inside container.
+**Container runs (target)**: `~/dev/ssos/ssos-run.sh` (src + results mounts) → host `ea run ssos_eclss_loop` only. Headless restart is handled by internal CLI bash.
 
 ---
 
@@ -53,20 +53,22 @@ This document aggregates **features not yet complete** and the **research backlo
 
 | Item | Description | Reference |
 | --- | --- | --- |
+| **CLI v3 — SSOS one command from host** | Volume mounts + `ea run ssos_eclss_loop` (internal bash), `duration_wall_s`, rclpy shutdown, `ea results` | [cli.md](cli.md), [memo/cli_v3_plan.md](memo/cli_v3_plan.md) |
 | PR #9 merge and stabilization | `feat/ssos-eclss-loop` → `main` | connection plan |
 | LLM comparison experiments | Trajectory comparison across models, temperature, run_id (dashboard compare) | [architecture.md](architecture.md) |
 | Documentation | Sync `docs/ja/` and `docs/en/` with memo | this update |
+
+**Out of CLI v3 scope** (backlog): CO2=500kg plant init, ros2 step-0 validation, rich SSOS Streamlit views — [BL-006](memo/backlog.md#bl-006-ssos-run-再現性ダッシュボード強化cli-v3-スコープ外)
 
 ---
 
 ## Next implementation (priority order)
 
-1. **CLI integration** — single entry point such as `python -m tools.cli run --scenario …` ([memo/scrubber_degradation/eps_implementation_plan.md](memo/scrubber_degradation/eps_implementation_plan.md) Day 8)
-2. **provenance extension** — export scrubber / ssos `design_proposals.json` to One Piece records
-3. **provenance index** — cross-run `provenance_index.json`
-4. **Phase 8 — ROS launch remap** — apply `graph_rewire` at launch (BL-003)
-5. **Single ros2 scenario: ECLSS + EPS** — power crisis and SSOS ECLSS in one run (BL-004)
-6. **EPS 3b/3c** — direct BCDU discharge, `/bcdu/operation` Action (BL-005)
+1. **provenance extension** — export scrubber / ssos `design_proposals.json` to One Piece records
+2. **provenance index** — cross-run `provenance_index.json`
+3. **Phase 8 — ROS launch remap** — apply `graph_rewire` at launch (BL-003)
+4. **Single ros2 scenario: ECLSS + EPS** — power crisis and SSOS ECLSS in one run (BL-004)
+5. **EPS 3b/3c** — direct BCDU discharge, `/bcdu/operation` Action (BL-005)
 
 ---
 

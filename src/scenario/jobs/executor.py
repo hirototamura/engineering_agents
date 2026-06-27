@@ -24,6 +24,7 @@ def execute_run(spec: RunSpec) -> RunResult:
         )
 
     overrides = _apply_seed_override(spec.overrides, spec.seed)
+    run_dir: Path | None = None
 
     try:
         if spec.scenario == "ssos_eclss_loop":
@@ -52,18 +53,31 @@ def execute_run(spec: RunSpec) -> RunResult:
             exit_code=1,
             error=str(exc),
         )
+    finally:
+        _teardown_rclpy_telemetry()
 
+    duration_s = time.monotonic() - start
     summary = _read_summary(run_dir)
+    summary["duration_wall_s"] = round(duration_s, 3)
     if spec.seed is not None:
         summary["seed"] = spec.seed
-        _write_summary(run_dir, summary)
+    _write_summary(run_dir, summary)
 
     return RunResult(
         run_dir=run_dir,
         summary=summary,
-        duration_s=time.monotonic() - start,
+        duration_s=duration_s,
         exit_code=0,
     )
+
+
+def _teardown_rclpy_telemetry() -> None:
+    try:
+        from environment.ssos.ros2_eclss_telemetry import reset_rclpy_telemetry_reader
+
+        reset_rclpy_telemetry_reader()
+    except Exception:
+        pass
 
 
 def _apply_seed_override(

@@ -43,7 +43,7 @@
 
 **テスト**: `pytest` — **140 passed**, 4 skipped（ROS2 live / コンテナ外は skip）。
 
-**コンテナ実行**: `~/dev/ssos/ssos-run.sh` → `bash /root/ssos-eclss-headless.sh` → `./scripts/run_ssos_eclss_loop.sh` またはコンテナ内 `ea-loop`。
+**コンテナ実行（目標）**: `~/dev/ssos/ssos-run.sh`（src + results マウント）→ ホスト `ea run ssos_eclss_loop` のみ。headless 再起動は CLI 内部 bash が担当。
 
 ---
 
@@ -51,9 +51,12 @@
 
 | 項目 | 説明 | 参照 |
 | --- | --- | --- |
+| **CLI v3 — SSOS ホスト 1 コマンド** | ボリュームマウント + `ea run ssos_eclss_loop`（内部 bash）、`duration_wall_s`、rclpy shutdown、`ea results` | [cli.md](cli.md), [memo/cli_v3_plan.md](memo/cli_v3_plan.md) |
 | PR #9 マージ・安定化 | `feat/ssos-eclss-loop` → `main` | connection plan |
 | LLM 比較実験 | モデル・温度・run_id を変えた軌道比較（ダッシュボード compare） | [architecture.md](architecture.md) |
 | ドキュメント整備 | `docs/ja/` / `docs/en/` と memo の同期 | 本更新 |
+
+**CLI v3 スコープ外**（バックログ）: CO2=500kg 初期値・ros2 プラント検証、Streamlit SSOS リッチ表示 → [BL-006](../memo/backlog.md#bl-006-ssos-run-再現性ダッシュボード強化cli-v3-スコープ外)
 
 ---
 
@@ -117,9 +120,10 @@
 | [ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | SSOS ECLSS Phase 0–7 詳細・検証手順 |
 | [ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS ROS2 ブリッジ（Phase 3） |
 | [ssos_eclss_loop/ssos_ros2_graph_design_investigation.md](memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | ゲートウェイ・remap 調査 |
-| [backlog.md](memo/backlog.md) | BL-001〜BL-005（創発ロール、Phase 8、ECLSS/EPS フォローアップ） |
+| [backlog.md](memo/backlog.md) | BL-001〜BL-006（創発ロール、Phase 8、ECLSS/EPS、CLI v3 スコープ外） |
+| [cli_v3_plan.md](memo/cli_v3_plan.md) | **CLI v3 最終** — SSOS マウント + `ea run` 1 コマンド |
 | [homogeneous_agent_team_plan.md](memo/homogeneous_agent_team_plan.md) | 同種 N 体チーム設計 |
-| [eps_implementation_plan.md](memo/eps_implementation_plan.md) | EPS-1〜4、CLI Day 区切り |
+| [eps_implementation_plan.md](memo/scrubber_degradation/eps_implementation_plan.md) | EPS-1〜4、CLI Day 区切り |
 
 ---
 

@@ -53,6 +53,35 @@ ea results
 python3 -m streamlit run src/tools/dashboard/app.py
 ```
 
+## SSOS Docker（`ssos_eclss_loop` + ros2）
+
+ホストからは **`ea run ssos_eclss_loop` だけ**でよい。コンテナ確認・headless 再起動・ジョブ実行は内部 bash が担当する。
+
+**初回のみ** — SSOS コンテナ起動時にマウントを追加（`~/dev/ssos/ssos-run.sh` 等）:
+
+```bash
+REPO_ROOT=/path/to/engineering_agents
+docker run -it --name ssos \
+  -v "$REPO_ROOT/src:/ea/src" \
+  -v "$REPO_ROOT/src/experiments/results:/ea/results" \
+  ghcr.io/space-station-os/space_station_os:latest
+```
+
+| マウント | 用途 |
+| --- | --- |
+| `src` → `/ea/src` | コンテナ内でコード参照（毎回 `docker cp` 不要） |
+| `experiments/results` → `/ea/results` | 成果物がホストに即書き込まれる |
+
+Mock（Docker 不要）:
+
+```bash
+ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8
+```
+
+設計メモ: [memo/cli_v3_plan.md](memo/cli_v3_plan.md)（v3 最終プラン）。
+
+詳細は [en/cli.md](../en/cli.md) の SSOS セクションを参照。
+
 ## 並列実行（将来）
 
 各シミュレーションは `RunSpec` JSON で表現します。将来のバッチランナーはワーカーごとに次を実行します:

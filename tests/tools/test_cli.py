@@ -92,3 +92,24 @@ def test_job_run_from_spec(tmp_path: Path):
     result = runner.invoke(app, ["job", "run", str(spec_path), "--quiet"])
     assert result.exit_code == 0
     assert (output_dir / "summary.json").exists()
+
+
+def test_run_writes_duration_wall_s(tmp_path: Path):
+    output_dir = tmp_path / "duration-run"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "scrubber_degradation",
+            "--agents-mode",
+            "none",
+            "--steps",
+            "2",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+    assert result.exit_code == 0
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert "duration_wall_s" in summary
+    assert summary["duration_wall_s"] >= 0

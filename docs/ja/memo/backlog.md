@@ -178,3 +178,42 @@ Phase 7a は **`Ros2EclssBridge` クライアント側 remap** のみ。SSOS ノ
 - `/bcdu/operation` 未実装 — discharge は SSOS 自動閾値 + bridge タイマー依存
 - `support_w` は SSOS メッセージにない — bridge が watt 推定で補完
 - ECLSS は scrubber 経路では引き続き `MockEclssSimulator`（ECLSS+EPS 単一シナリオは BL-004）
+
+---
+
+## BL-006: SSOS run 再現性・ダッシュボード強化（CLI v3 スコープ外）
+
+**ステータス**: 未着手（CLI v3 マウント + `ea run` 完了後）  
+**関連**: [cli_v3_plan.md](cli_v3_plan.md)、[scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md)
+
+CLI v3 では **ホスト 1 コマンド実行と results マウント** に集中する。以下はシミュレーション／可視化レイヤで別途実装する。
+
+### P1 — プラント初期状態（CO2=500kg）
+
+| 項目 | 説明 |
+|------|------|
+| `scenario.yaml` | `simulation.initial_co2_storage_kg: 500`（mock 用。現状 1500） |
+| ros2 step 0 | headless 再起動後の `/co2_storage` を `summary.plant_initial_co2_storage_kg` に記録 |
+| 検証 | `initial_co2_storage_kg`（500）との許容差外で fail fast（SSOS launch 設定を案内） |
+| テスト | `tests/scenario/test_ssos_eclss_loop.py` の CO2 期待値更新 |
+| SSOS 側 | headless デフォルトが 500kg でない場合、launch パラメータ調査（engineering_agents 単独では物理状態を捏造しない） |
+
+**意図**: run 間で状態が残らないことは CLI（headless 再起動）で担保。目標 CO2 水準と検証はシナリオ／プラント契約。
+
+### P1 — Streamlit ダッシュボード（SSOS リッチ表示）
+
+対象: `src/tools/dashboard/ssos_views.py`, `app.py`
+
+| セクション | 内容 |
+|-----------|------|
+| Run メタ | `duration_wall_s`, `plant_initial_co2_storage_kg`, ops 数 |
+| 閾値ライン | CO2/O2 プロットに `co2_storage_high_kg` / `o2_storage_low_kg` |
+| Ops / メッセージ | events の goal フィールド、messages タイムライン |
+| Health 推移 | `health_metrics.jsonl` の折れ線 |
+| 比較モード | duration・CO2 ピークの並列表示 |
+| Deep link | `st.query_params` で run 名を URL から選択 |
+
+### P2 — ドキュメント
+
+- `ja/docs/scenario-ssos-eclss-loop.md` — headless 再起動とプラント初期 CO2 の運用説明
+- 再現性チェックリスト（連続 2 run で step0 CO2 が一致すること）

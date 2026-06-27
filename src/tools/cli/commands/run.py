@@ -151,7 +151,12 @@ def run(
     if not quiet and not json_output:
         typer.echo("Running simulation...")
 
-    result = execute_run(spec)
+    from tools.cli.ssos_host import run_ssos_in_container, should_run_ssos_in_container
+
+    if should_run_ssos_in_container(spec):
+        result = run_ssos_in_container(spec)
+    else:
+        result = execute_run(spec)
     print_run_result(result, quiet=quiet, as_json=json_output)
     if result.exit_code != 0:
         print_error(result.error or "Simulation failed.")

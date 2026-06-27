@@ -81,6 +81,42 @@ ea results
 python3 -m streamlit run src/tools/dashboard/app.py
 ```
 
+## SSOS Docker (`ssos_eclss_loop` + ros2)
+
+`ea run ssos_eclss_loop` runs the real SSOS plant inside the Docker container. You only need this one command from the host — container checks, headless restart, and job execution are handled internally.
+
+**One-time container setup** — add volume mounts when starting SSOS (for example in `~/dev/ssos/ssos-run.sh`):
+
+```bash
+REPO_ROOT=/path/to/engineering_agents
+docker run -it --name ssos \
+  -v "$REPO_ROOT/src:/ea/src" \
+  -v "$REPO_ROOT/src/experiments/results:/ea/results" \
+  ghcr.io/space-station-os/space_station_os:latest
+```
+
+| Mount | Purpose |
+| --- | --- |
+| `src` → `/ea/src` | Code visible inside the container (no `docker cp` per run) |
+| `experiments/results` → `/ea/results` | Run outputs appear on the host immediately |
+
+Mock backend (no Docker):
+
+```bash
+ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8
+```
+
+Environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SSOS_CONTAINER` | `ssos` | Docker container name |
+| `EA_MOUNT_SRC` | `/ea/src` | Mounted source path inside container |
+| `EA_MOUNT_RESULTS` | `/ea/results` | Mounted results path inside container |
+| `EA_HEADLESS_POLL_TIMEOUT_S` | `120` | Wait for ros2 graph after headless restart |
+
+Design memo: [docs/ja/memo/cli_v3_plan.md](../ja/memo/cli_v3_plan.md) (v3 final plan).
+
 ## Parallel runs (future)
 
 Each simulation is described by a `RunSpec` JSON file. A future batch runner can fan out many specs to workers that all call:
