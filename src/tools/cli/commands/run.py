@@ -1,0 +1,201 @@
+"""Run command — execute a single simulation."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import List, Optional
+
+import typer
+
+from scenario.jobs.executor import execute_run
+from scenario.jobs.spec import RunSpec
+from scenario.runner import load_scenario_config, scenario_descriptions
+from tools.cli import exit_codes
+from tools.cli.output import print_error, print_run_plan, print_run_result
+from tools.cli.overrides import load_override_file, merge_overrides, parse_set_values
+
+DEFAULT_SCENARIO = "scrubber_degradation"
+DEFAULT_AGENTS_MODE = "labeled_rule_base"
+
+
+def register(app: typer.Typer) -> None:
+    app.command("run")(run)
+
+
+def run(
+    scenario: Optional[str] = typer.Argument(
+        None,
+        help="Scenario name (default: scrubber_degradation).",
+    ),
+    agents_mode: Optional[str] = typer.Option(
+        None,
+        "--agents-mode",
+        help="Agent mode: none, labeled_rule_base, or llm.",
+    ),
+    steps: Optional[int] = typer.Option(None, "--steps", help="Override simulation.steps."),
+    run_id: Optional[str] = typer.Option(None, "--run-id", help="Override output run id."),
+    output_dir: Optional[Path] = typer.Option(
+        None,
+        "--output-dir",
+        help="Explicit output directory.",
+    ),
+    results_root: Optional[Path] = typer.Option(
+        None,
+        "--results-root",
+        help="Override results base directory.",
+    ),
+    backend: Optional[str] = typer.Option(
+        None,
+        "--backend",
+        help="ssos_eclss_loop backend kind: mock or ros2.",
+    ),
+    apply_proposals: Optional[Path] = typer.Option(
+        None,
+        "--apply-proposals",
+        help="Apply design_proposals.json before running (ssos_eclss_loop).",
+    ),
+    seed: Optional[int] = typer.Option(None, "--seed", help="Record a reproducibility seed."),
+    set_values: List[str] = typer.Option(
+        [],
+        "--set",
+        help="Deep override using dot notation (example: simulation.steps=30).",
+    ),
+    override_file: Optional[Path] = typer.Option(
+        None,
+        "--override-file",
+        help="YAML or JSON patch merged into scenario config.",
+    ),
+    no_recreate: bool = typer.Option(
+        False,
+        "--no-recreate",
+        help="Do not delete an existing output directory before running.",
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Build the run plan without executing."),
+    write_spec: Optional[Path] = typer.Option(
+        None,
+        "--write-spec",
+        help="Write the resolved RunSpec JSON to PATH.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+    quiet: bool = typer.Option(False, "--quiet", help="Print only the output path."),
+) -> None:
+    scenario_name = scenario or DEFAULT_SCENARIO
+    known = scenario_descriptions()
+    if scenario_name not in known:
+        names = ", ".join(sorted(known))
+        print_error(
+            f"Unknown scenario: {scenario_name!r}.",
+            hint=f"Try: ea scenarios\nAvailable: {names}",
+        )
+        raise typer.Exit(exit_codes.USER_ERROR)
+
+    try:
+        overrides = _build_overrides(
+            agents_mode=agents_mode,
+            steps=steps,
+            backend=backend,
+            set_values=set_values,
+            override_file=override_file,
+        )
+    except ValueError as exc:
+        print_error(str(exc), hint="Example: --set simulation.steps=30")
+        raise typer.Exit(exit_codes.USER_ERROR) from exc
+
+    spec = RunSpec(
+        scenario=scenario_name,
+        overrides=overrides,
+        output_dir=output_dir,
+        run_id=run_id,
+        results_root=results_root,
+        recreate_output=not no_recreate,
+        seed=seed,
+        apply_proposals_path=apply_proposals,
+    )
+
+    if write_spec is not None:
+        spec.write_json(write_spec)
+
+    resolved_mode = (overrides or {}).get("agents", {}).get("mode")
+    if resolved_mode is None:
+        config = load_scenario_config(scenario_name, overrides)
+        resolved_mode = (config.get("agents") or {}).get("mode", "none")
+    resolved_steps = (overrides or {}).get("simulation", {}).get("steps")
+    if resolved_steps is None:
+        config = load_scenario_config(scenario_name, overrides)
+        resolved_steps = (config.get("simulation") or {}).get("steps")
+
+    extra_lines = {}
+    if backend:
+        extra_lines["backend"] = backend
+    if apply_proposals:
+        extra_lines["apply_proposals"] = str(apply_proposals)
+
+    if not quiet and not json_output:
+        print_run_plan(
+            scenario_name,
+            str(resolved_mode),
+            int(resolved_steps) if resolved_steps is not None else None,
+            extra_lines=extra_lines or None,
+        )
+
+    if dry_run:
+        if json_output:
+            typer.echo(spec.to_json())
+        raise typer.Exit(exit_codes.SUCCESS)
+
+    if resolved_mode == "llm":
+        env_code = _preflight_llm()
+        if env_code != exit_codes.SUCCESS:
+            raise typer.Exit(env_code)
+
+    if not quiet and not json_output:
+        typer.echo("Running simulation...")
+
+    result = execute_run(spec)
+    print_run_result(result, quiet=quiet, as_json=json_output)
+    if result.exit_code != 0:
+        print_error(result.error or "Simulation failed.")
+        raise typer.Exit(result.exit_code)
+    raise typer.Exit(exit_codes.SUCCESS)
+
+
+def _build_overrides(
+    *,
+    agents_mode: Optional[str],
+    steps: Optional[int],
+    backend: Optional[str],
+    set_values: List[str],
+    override_file: Optional[Path],
+) -> dict | None:
+    parts = []
+    if agents_mode is not None:
+        parts.append({"agents": {"mode": agents_mode}})
+    elif agents_mode is None:
+        parts.append({"agents": {"mode": DEFAULT_AGENTS_MODE}})
+    if steps is not None:
+        parts.append({"simulation": {"steps": steps}})
+    if backend is not None:
+        parts.append({"backend": {"kind": backend}})
+    if set_values:
+        parts.append(parse_set_values(set_values))
+    if override_file is not None:
+        parts.append(load_override_file(override_file))
+    return merge_overrides(*parts)
+
+
+def _preflight_llm() -> int:
+    import requests
+
+    from core.llm.ollama import resolve_ollama_base_url
+
+    base_url = resolve_ollama_base_url()
+    try:
+        response = requests.get(f"{base_url}/api/tags", timeout=2)
+        response.raise_for_status()
+    except Exception:
+        print_error(
+            "Ollama is not reachable for llm mode.",
+            hint=f"Start Ollama and retry, or run: ea doctor\nExpected: {base_url}",
+        )
+        return exit_codes.ENVIRONMENT_ERROR
+    return exit_codes.SUCCESS

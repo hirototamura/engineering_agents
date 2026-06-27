@@ -10,7 +10,8 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from scenario.runner import run_scenario
+from scenario.jobs.executor import execute_run
+from scenario.jobs.spec import RunSpec
 
 
 def run_mock_simulation(
@@ -20,7 +21,7 @@ def run_mock_simulation(
     anomaly_start_step: int = 20,
 ) -> Path:
     """Backward-compatible wrapper for tests and scripts."""
-    overrides = {"simulation": {"steps": steps}}
+    overrides: dict = {"simulation": {"steps": steps}}
     if not inject_scrubber_anomaly:
         overrides["anomalies"] = []
     elif anomaly_start_step != 20:
@@ -33,12 +34,17 @@ def run_mock_simulation(
                 "co2_production_multiplier": 1.4,
             }
         ]
-    return run_scenario(
-        "scrubber_degradation",
-        output_dir=output_dir,
-        overrides=overrides,
-        recreate_output=output_dir is None,
+    result = execute_run(
+        RunSpec(
+            scenario="scrubber_degradation",
+            output_dir=output_dir,
+            overrides=overrides,
+            recreate_output=output_dir is None,
+        )
     )
+    if result.exit_code != 0:
+        raise RuntimeError(result.error or "scrubber_degradation run failed")
+    return result.run_dir
 
 
 def main():
@@ -54,13 +60,17 @@ def main():
     if args.no_anomaly:
         overrides["anomalies"] = []
 
-    run_dir = run_scenario(
-        "scrubber_degradation",
-        output_dir=args.output,
-        overrides=overrides or None,
-        recreate_output=args.output is None,
+    result = execute_run(
+        RunSpec(
+            scenario="scrubber_degradation",
+            output_dir=args.output,
+            overrides=overrides or None,
+            recreate_output=args.output is None,
+        )
     )
-    print(f"Wrote scenario output to {run_dir}")
+    if result.exit_code != 0:
+        raise SystemExit(result.error or "run failed")
+    print(f"Wrote scenario output to {result.run_dir}")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import argparse
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -296,17 +297,22 @@ def main(argv: Optional[list[str]] = None) -> int:
         overrides["agents"] = {"mode": args.agents_mode}
     if args.steps is not None:
         overrides["simulation"] = {"steps": args.steps}
-    if args.apply_proposals:
-        apply_path = args.apply_proposals
-    else:
-        apply_path = None
 
-    run_dir = SsosEclssLoopScenario().run(
-        output_dir=args.output_dir,
-        overrides=overrides or None,
-        apply_proposals_path=apply_path,
+    from scenario.jobs.executor import execute_run
+    from scenario.jobs.spec import RunSpec
+
+    result = execute_run(
+        RunSpec(
+            scenario="ssos_eclss_loop",
+            output_dir=args.output_dir,
+            overrides=overrides or None,
+            apply_proposals_path=args.apply_proposals,
+        )
     )
-    print(json.dumps(json.loads((run_dir / "summary.json").read_text(encoding="utf-8")), indent=2))
+    if result.exit_code != 0:
+        print(result.error or "run failed", file=sys.stderr)
+        return result.exit_code
+    print(json.dumps(result.summary, indent=2))
     return 0
 
 
