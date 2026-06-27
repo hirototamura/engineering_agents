@@ -120,7 +120,7 @@
 | Monitor / Diagnostician / Operator / DesignEngineer **rule-based** | LLM required |
 | `agents.mode: none \| labeled` (keep baseline) | `agents.mode: base` (emergent role experiment) |
 
-Four roles are **provisional labels** to “dissolve” the anomaly. They mirror human division of labor; whether Base Role agents emerge situation-appropriate roles without labels is separate — tracked in **[backlog.md BL-001](backlog.md)**.
+Four roles are **provisional labels** to “dissolve” the anomaly. They mirror human division of labor; whether Base Role agents emerge situation-appropriate roles without labels is separate — tracked in **[backlog.md BL-001](../backlog.md)**.
 
 **Day 4 done when (labeled mode)**
 
@@ -219,8 +219,8 @@ Details in [backlog.md](../backlog.md).
 ## References
 
 - **EPS day-by-day plan**: [eps_implementation_plan.md](eps_implementation_plan.md)
-- Doc index: [README.md](../README.md#documentation), dev plan: [docs/development-plan.md](../docs/development-plan.md)
-- API contracts: [docs/api-contracts.md](../docs/api-contracts.md)
-- Architecture: [docs/architecture.md](../docs/architecture.md)
-- Scenario: [docs/scenario-scrubber-degradation.md](../docs/scenario-scrubber-degradation.md)
-- One Piece: [docs/one-piece-integration.md](../docs/one-piece-integration.md)
+- Doc index: [README.md](../../README.md#documentation), dev plan: [docs/development-plan.md](../../docs/development-plan.md)
+- API contracts: [docs/api-contracts.md](../../docs/api-contracts.md)
+- Architecture: [docs/architecture.md](../../docs/architecture.md)
+- Scenario: [docs/scenario-scrubber-degradation.md](../../docs/scenario-scrubber-degradation.md)
+- One Piece: [docs/one-piece-integration.md](../../docs/one-piece-integration.md)

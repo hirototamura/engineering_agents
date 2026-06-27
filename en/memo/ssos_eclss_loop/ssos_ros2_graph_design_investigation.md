@@ -307,4 +307,4 @@ On the next Run, `--apply-proposals`:
 - [ssos_eclss_loop_connection_plan.md](ssos_eclss_loop_connection_plan.md)
 - [ssos_eclss_physical_phenomena_overview.md](ssos_eclss_physical_phenomena_overview.md)
 - [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md)
-- [docs/api-contracts.md](../../../docs/api-contracts.md)
+- [docs/api-contracts.md](../../docs/api-contracts.md)

@@ -403,7 +403,7 @@ PYTHONPATH=src python3 -m streamlit run src/tools/dashboard/app.py
 | Item | Status |
 |------|------|
 | re-arm boundary / invalid ARS·OGS retry | **Implemented** |
-| `co2_critical` unused, provenance heuristics, command failure ignored, `set_parameter` optional path | [backlog.md BL-004](../backlog.md#bl-004-ssos-eclss-ループ--フォローアップ) |
+| `co2_critical` unused, provenance heuristics, command failure ignored, `set_parameter` optional path | [backlog.md BL-004](../backlog.md#bl-004-ssos-eclss-loop--follow-ups) |
 
 ---
 
@@ -490,4 +490,4 @@ Outstanding items are consolidated in **[backlog.md](../backlog.md)**:
 - [backlog.md](../backlog.md) — Phase 8 onward · EPS follow-up
 - [ssos_ros2_graph_design_investigation.md](ssos_ros2_graph_design_investigation.md)
 - SSOS MkDocs — `docs/ssos-mkdocs`
-- [docs/api-contracts.md](../../../docs/api-contracts.md)
+- [docs/api-contracts.md](../../docs/api-contracts.md)
