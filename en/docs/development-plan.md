@@ -11,7 +11,7 @@ This document aggregates **features not yet complete** and the **research backlo
 | [architecture.md](architecture.md) | Layer structure, dual-track execution flow |
 | [api-contracts.md](api-contracts.md) | Protocols, JSONL schemas |
 
-**SSOS integration Phase 0–7 status**: [memo/ssos_eclss_physical_phenomena_overview.md](../memo/ssos_eclss_physical_phenomena_overview.md)
+**SSOS integration Phase 0–7 status**: [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
 
 ---
 
@@ -41,9 +41,9 @@ This document aggregates **features not yet complete** and the **research backlo
 | 5 | `design_proposals.json` (`ssos_graph`) + `--apply-proposals` | ✅ |
 | 6 | LLM agents + Docker `ea-loop` (ros2 / Ollama defaults) | ✅ |
 | 7 | Client `graph_rewire`, `Team` ABC, ssos dashboard views | ✅ |
-| 8 | ROS launch remap + gateway | 📋 [backlog BL-003](../memo/backlog.md) |
+| 8 | ROS launch remap + gateway | 📋 [backlog BL-003](../memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a) |
 
-**Tests**: `pytest` — full suite including `test_ssos_eclss_loop*.py` and `test_graph_rewire*.py` (ROS2 live / outside container tests skip).
+**Tests**: `pytest` — **140 passed**, 4 skipped (ROS2 live / outside container tests skip).
 
 **Container runs**: `~/dev/ssos/ssos-run.sh` → `bash /root/ssos-eclss-headless.sh` → `./scripts/run_ssos_eclss_loop.sh` or `ea-loop` inside container.
 
@@ -53,6 +53,7 @@ This document aggregates **features not yet complete** and the **research backlo
 
 | Item | Description | Reference |
 | --- | --- | --- |
+| PR #9 merge and stabilization | `feat/ssos-eclss-loop` → `main` | connection plan |
 | LLM comparison experiments | Trajectory comparison across models, temperature, run_id (dashboard compare) | [architecture.md](architecture.md) |
 | Documentation | Sync `ja/docs/` and `en/docs/` with memo | this update |
 
@@ -60,7 +61,7 @@ This document aggregates **features not yet complete** and the **research backlo
 
 ## Next implementation (priority order)
 
-1. **CLI integration** — single entry point such as `python -m tools.cli run --scenario …` ([memo/eps_implementation_plan.md](../memo/eps_implementation_plan.md) Day 8)
+1. **CLI integration** — single entry point such as `python -m tools.cli run --scenario …` ([memo/scrubber_degradation/eps_implementation_plan.md](../memo/scrubber_degradation/eps_implementation_plan.md) Day 8)
 2. **provenance extension** — export scrubber / ssos `design_proposals.json` to One Piece records
 3. **provenance index** — cross-run `provenance_index.json`
 4. **Phase 8 — ROS launch remap** — apply `graph_rewire` at launch (BL-003)
@@ -106,20 +107,21 @@ This document aggregates **features not yet complete** and the **research backlo
   BL-002   evolving persona
 ```
 
-Details: [memo/mvp_plan.md](../memo/mvp_plan.md), [memo/ssos_eclss_physical_phenomena_overview.md](../memo/ssos_eclss_physical_phenomena_overview.md), [memo/backlog.md](../memo/backlog.md).
+Details: [memo/scrubber_degradation/mvp_plan.md](../memo/scrubber_degradation/mvp_plan.md), [memo/ssos_eclss_loop/](../memo/ssos_eclss_loop/), [memo/backlog.md](../memo/backlog.md).
 
 ---
 
-## Research notes (`ja/memo/` / `en/memo/`)
+## Research notes (`en/memo/`)
 
 | Memo | Contents |
 | --- | --- |
-| [mvp_plan.md](../memo/mvp_plan.md) | Week roadmap, Day 1–10 |
-| [ssos_eclss_physical_phenomena_overview.md](../memo/ssos_eclss_physical_phenomena_overview.md) | ECLSS physical phenomena, Phase 0–7 context |
-| [ssos_eps_physical_phenomena_overview.md](../memo/ssos_eps_physical_phenomena_overview.md) | EPS ROS2 bridge (Phase 3) |
+| [mvp_plan.md](../memo/scrubber_degradation/mvp_plan.md) | Week roadmap, Day 1–10 |
+| [ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | SSOS ECLSS Phase 0–7 details and verification steps |
+| [ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](../memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS ROS2 bridge (Phase 3) |
+| [ssos_eclss_loop/ssos_ros2_graph_design_investigation.md](../memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | Gateway and remap investigation |
 | [backlog.md](../memo/backlog.md) | BL-001–BL-005 (emergent roles, Phase 8, ECLSS/EPS follow-ups) |
-| [homogeneous_agent_team_plan.md](../memo/homogeneous_agent_team_plan.md) | Homogeneous N-agent team design |
-| [eps_implementation_plan.md](../memo/eps_implementation_plan.md) | EPS-1–4, CLI day boundaries |
+| [agents/homogeneous_agent_team_plan.md](../memo/agents/homogeneous_agent_team_plan.md) | Homogeneous N-agent team design |
+| [scrubber_degradation/eps_implementation_plan.md](../memo/scrubber_degradation/eps_implementation_plan.md) | EPS-1–4, CLI day boundaries |
 
 ---
 

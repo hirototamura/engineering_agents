@@ -1,4 +1,4 @@
-> Japanese: [../ja/memo/eps_implementation_plan.md](../ja/memo/eps_implementation_plan.md)
+> Japanese: [../../../ja/memo/scrubber_degradation/eps_implementation_plan.md](../../../ja/memo/scrubber_degradation/eps_implementation_plan.md)
 
 # EPS-First, Day-by-Day Implementation Plan (Week-2 Entry)
 

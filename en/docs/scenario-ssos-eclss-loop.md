@@ -197,7 +197,7 @@ None of these are **permanent graph changes**. In `events.jsonl` they are record
 
 `graph_rewire` in `design_proposals.json` or `ssos_graph.rewires` in `scenario.yaml` causes `Ros2EclssBridge` on the **next run** to replace topic names client-side for `ros2 topic echo`, etc. (`environment/ssos/graph_rewire.py`).
 
-ROS launch-file remap (Phase 8): [backlog BL-003](../memo/backlog.md).
+ROS launch-file remap (Phase 8): [backlog BL-003](../memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a).
 
 ---
 
@@ -360,7 +360,7 @@ pytest tests/scenario/test_ssos_eclss_loop*.py -q
 pytest tests/environment/test_graph_rewire*.py -q
 ```
 
-Container E2E records: see `ja/memo/ssos_eclss_loop/e2e_records/` (Japanese README).
+Container E2E records: [memo/ssos_eclss_loop/e2e_records/](../memo/ssos_eclss_loop/e2e_records/README.md).
 
 ---
 
@@ -370,5 +370,5 @@ Container E2E records: see `ja/memo/ssos_eclss_loop/e2e_records/` (Japanese READ
 - [api-contracts.md](api-contracts.md) — `EclssBackend`, JSONL, operational commands
 - [one-piece-integration.md](one-piece-integration.md) — operational provenance
 - [development-plan.md](development-plan.md) — Phase 0–7 complete, next tasks
-- [memo/ssos_eclss_physical_phenomena_overview.md](../memo/ssos_eclss_physical_phenomena_overview.md) — ECLSS physical phenomena
+- [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) — connection plan details and verification steps
 - [memo/backlog.md](../memo/backlog.md) — BL-003 (Phase 8), BL-004 (ECLSS follow-ups)

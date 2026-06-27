@@ -100,7 +100,12 @@ Both scenarios use `agents.mode`: `none` / `labeled_rule_base` / `llm`. **Homoge
 | ssos runtime | Operational commands (ARS, OGS, request_co2) | Same |
 | Reproducibility | High (regression tests) | Model-dependent (comparison experiments) |
 
-Rule-based mode is **scaffolding for correct behavior**. LLM mode observes **situational understanding, team consensus, and timing differences** that fixed thresholds cannot express. Details: [homogeneous agent team plan](memo/homogeneous_agent_team_plan.md).
+Rule-based mode is **scaffolding for correct behavior**. LLM mode observes **situational understanding, team consensus, and timing differences** that fixed thresholds cannot express. Important LLM design points (details: [homogeneous agent team plan](memo/agents/homogeneous_agent_team_plan.md)):
+
+- **Separate Persona from scenario** — thresholds and numbers appear only in prompt `### Telemetry` / `### World state`
+- **Homogeneous N agents + representative action** — avoid rigid roles; rotate speakers and executors each step
+- **No topology changes at runtime** — separate simulation from design proposals; align with One Piece provenance
+- **Isolate policy from LLM** — do not mix rule answers into prompts; enable comparison experiments
 
 ---
 
@@ -118,7 +123,16 @@ Rule-based mode is **scaffolding for correct behavior**. LLM mode observes **sit
 
 **Health thresholds**: CO₂ safe < 800 / warning < 1200 / critical ≥ 1200 ppm; power margin safe > 0 / warning > −150 / critical ≤ −150 W.
 
-Default topology and spec: [scenario-scrubber-degradation.md](docs/scenario-scrubber-degradation.md).
+#### Default topology
+
+```
+  [cabin] --flow--> [manifold] --flow--> [scrubber] --flow--> [cabin]
+                                              ^
+                                              | power
+                                         [power_bus]
+```
+
+Spec: [scenario-scrubber-degradation.md](docs/scenario-scrubber-degradation.md).
 
 ### ssos_eclss_loop
 
@@ -132,6 +146,14 @@ Default topology and spec: [scenario-scrubber-degradation.md](docs/scenario-scru
 | **Design proposal** | — | `ssos_graph` (`action_profile`, `graph_rewire`, etc.) |
 
 **Health thresholds (storage)**: CO₂ warning ≥ 1500 kg / critical ≥ 2200 kg; O₂ warning ≤ 450 kg / critical ≤ 337.5 kg. Details: [scenario-ssos-eclss-loop.md](docs/scenario-ssos-eclss-loop.md).
+
+#### SSOS ECLSS subsystems (conceptual)
+
+```
+  Metabolic CO₂ ──► /co2_storage ──► ARS (air_revitalisation)
+                                    │
+  /o2_storage ◄── OGS (oxygen_generation) ◄── request_co2 (Sabatier)
+```
 
 Spec: [scenario-ssos-eclss-loop.md](docs/scenario-ssos-eclss-loop.md).
 
@@ -164,7 +186,7 @@ Each step: all agents discuss (llm) or rules emit diagnostics (labeled). **Post-
   ea-loop / graph_rewire (client remap) / ssos dashboard views
 
 [ Next / backlog ]
-  Phase 8 launch remap     … [backlog BL-003](memo/backlog.md)
+  Phase 8 launch remap     … [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a)
   design → provenance      … [development-plan.md](docs/development-plan.md)
   One Piece Web UI         … out of scope
 ```
@@ -172,7 +194,7 @@ Each step: all agents discuss (llm) or rules emit diagnostics (labeled). **Post-
 | Area | Status | Reference |
 | --- | --- | --- |
 | scrubber mock simulation | **Available** | [architecture.md](docs/architecture.md) |
-| ssos_eclss_loop (live ECLSS) | **Available** (Phase 0–7) | [scenario-ssos-eclss-loop.md](docs/scenario-ssos-eclss-loop.md) |
+| ssos_eclss_loop (live ECLSS) | **Available** (Phase 0–7) | [connection plan](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) |
 | One Piece provenance | **Partial** (recovery + operational) | [one-piece-integration.md](docs/one-piece-integration.md) |
 | ROS launch remap (Phase 8) | Backlog | [development-plan.md](docs/development-plan.md) |
 | One Piece Web / SSOT UI | Not connected | [one-piece-integration.md](docs/one-piece-integration.md) |
@@ -191,7 +213,7 @@ Roadmap and research memos: [docs/development-plan.md](docs/development-plan.md)
 | [docs/api-contracts.md](docs/api-contracts.md) | Integrators | `SimulatorProtocol` / `EclssBackend`, JSONL, `design_proposals.json` |
 | [docs/one-piece-integration.md](docs/one-piece-integration.md) | Design tracking | provenance (recovery / operational), One Piece integration |
 | [docs/development-plan.md](docs/development-plan.md) | Developers | Completed milestones, next tasks, roadmap, `en/memo/` index |
-| [memo/ssos_eclss_physical_phenomena_overview.md](memo/ssos_eclss_physical_phenomena_overview.md) | SSOS integration | ECLSS Phase 0–7 context, EPS bridge |
+| [memo/ssos_eclss_loop/](memo/ssos_eclss_loop/) | SSOS integration | ECLSS Phase 0–7 details, EPS bridge, graph investigation |
 
 ---
 
@@ -222,6 +244,8 @@ pip install -U pip
 pip install -e ".[dev]"
 ```
 
+This makes packages under `src/` (`scenario`, `environment`, `core`, etc.) importable.
+
 ### 3. Smoke test
 
 ```bash
@@ -230,6 +254,8 @@ pytest
 pytest tests/scenario/test_scrubber_baseline.py tests/scenario/test_scrubber_with_agents.py -q
 # ssos / graph_rewire
 pytest tests/scenario/test_ssos_eclss_loop*.py tests/environment/test_graph_rewire*.py -q
+# or
+python src/scripts/run_tests.py
 ```
 
 ### 4. Ollama (for LLM mode)
@@ -237,11 +263,15 @@ pytest tests/scenario/test_ssos_eclss_loop*.py tests/environment/test_graph_rewi
 Install Ollama from [https://ollama.com](https://ollama.com) and start the daemon.
 
 ```bash
+# Example: pull the model specified in agents.yaml
 ollama pull gemma4:e4b
+
+# To try another model, change llm.model in agents.yaml
+# or override output.run_id_llm after the run for comparison
 ollama list
 ```
 
-Default LLM settings are in each scenario's `agents.yaml` (scrubber: [`scrubber_degradation/agents.yaml`](../src/scenario/scrubber_degradation/agents.yaml), ssos: [`ssos_eclss_loop/agents.yaml`](../src/scenario/ssos_eclss_loop/agents.yaml)). Container `ea-loop` defaults to `OLLAMA_BASE_URL=host.docker.internal`.
+Default LLM settings are in each scenario's `agents.yaml` (scrubber: [`scrubber_degradation/agents.yaml`](../src/scenario/scrubber_degradation/agents.yaml), ssos: [`ssos_eclss_loop/agents.yaml`](../src/scenario/ssos_eclss_loop/agents.yaml)). `llm` mode fails if Ollama is not running. Container `ea-loop` defaults to `OLLAMA_BASE_URL=host.docker.internal`.
 
 ---
 
@@ -261,7 +291,7 @@ Or:
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'none'}}))"
 ```
 
-#### Rule-based team (`labeled_rule_base`)
+#### Rule-based team (scrubber · `labeled_rule_base`)
 
 ```bash
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}}))"
@@ -269,13 +299,15 @@ python -c "from scenario.runner import run_scenario; print(run_scenario('scrubbe
 
 Output: `src/experiments/results/scrubber_degradation_labeled_rule_base/`
 
-#### LLM team (`llm` · Ollama required)
+#### LLM team (scrubber · `llm` · Ollama required)
 
 ```bash
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}}))"
 ```
 
-Output: `src/experiments/results/scrubber_degradation_llm/`
+Output: `src/experiments/results/scrubber_degradation_llm/` (`run_id_llm` in `scenario.yaml`)
+
+To use a different model or run name, change `llm.model` in `agents.yaml` or override `output.run_id_llm` before the run.
 
 ### ssos_eclss_loop (SSOS live ECLSS)
 
@@ -322,10 +354,10 @@ Details: [scenario-ssos-eclss-loop.md](docs/scenario-ssos-eclss-loop.md).
 | --- | --- |
 | `telemetry.jsonl` | CO₂, efficiency, power margin, EPS support |
 | `messages.jsonl` | Agent messages and reasoning |
-| `events.jsonl` | Anomaly injection, recovery commands |
-| `design_state.jsonl` | Topology at step start |
+| `events.jsonl` | Anomaly injection, recovery commands, design-change events |
+| `design_state.jsonl` | Topology at each step start (before agent actions) |
 | `design_proposals.json` | Post-run permanent design |
-| `summary.json` | Run summary |
+| `summary.json` | Run summary (`agents_mode`, final CO₂, etc.) |
 
 #### ssos_eclss_loop
 
@@ -354,7 +386,9 @@ Open `http://localhost:8501`. See [Dashboard at a glance](#dashboard-at-a-glance
 
 - **Overview** — single run or two-run comparison (scrubber: CO₂ ppm / EPS; ssos: storage kg)  
 - **Step replay** — timeline, messages, reasoning step by step (ssos: operational timeline)  
-- Runs with `summary.scenario == "ssos_eclss_loop"` branch to dedicated `ssos_views` UI  
+- Sidebar run selection; `Compare with another run` for LLM vs LLM comparisons  
+
+- Runs with `summary.scenario == "ssos_eclss_loop"` branch to dedicated `ssos_views` UI
 
 Results: `src/experiments/results/<run_id>/`
 
@@ -373,7 +407,7 @@ Results: `src/experiments/results/<run_id>/`
 | `ja/docs/` | Japanese design, API, and scenario documentation |
 | `ja/memo/` | Japanese implementation records and backlog |
 | `en/docs/` | English documentation |
-| `en/memo/` | English research memos |
+| `en/memo/` | English implementation records and backlog ([development-plan.md](docs/development-plan.md)) |
 
 Dependency direction: `tools → scenario → environment → core`
 
