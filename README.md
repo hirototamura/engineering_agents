@@ -21,7 +21,8 @@ Research repository that simulates **agent teams** detecting, responding to, and
 | One Piece integration | [docs/en/one-piece-integration.md](docs/en/one-piece-integration.md) | [docs/ja/one-piece-integration.md](docs/ja/one-piece-integration.md) |
 | Scenario: scrubber_degradation | [docs/en/scenario-scrubber-degradation.md](docs/en/scenario-scrubber-degradation.md) | [docs/ja/scenario-scrubber-degradation.md](docs/ja/scenario-scrubber-degradation.md) |
 | Scenario: ssos_eclss_loop | [docs/en/scenario-ssos-eclss-loop.md](docs/en/scenario-ssos-eclss-loop.md) | [docs/ja/scenario-ssos-eclss-loop.md](docs/ja/scenario-ssos-eclss-loop.md) |
-| **SSOS ECLSS + EPS (MkDocs)** | [docs/index.md](docs/index.md) | [docs/index.md](docs/index.md) |
+| SSOS integration (MkDocs) | [docs/en/ssos/index.md](docs/en/ssos/index.md) | [docs/ja/ssos/index.md](docs/ja/ssos/index.md) |
+| **MkDocs site** | [docs/index.md](docs/index.md) | [docs/index.md](docs/index.md) |
 
 MkDocs catalog and preview: [docs/catalog.md](docs/catalog.md) (`mkdocs serve`).
 

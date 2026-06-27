@@ -27,6 +27,7 @@ mkdocs build
 | [日本語 — アーキテクチャ](ja/architecture.md) | レイヤ構成とエージェント設計 |
 | [日本語 — ssos_eclss_loop](ja/scenario-ssos-eclss-loop.md) | SSOS 実 ECLSS シナリオ仕様 |
 | [SSOS 接合（運用ガイド）](ja/ssos/index.md) | Docker + ROS 2 による ECLSS/EPS 接合手順 |
+| [SSOS integration (operational)](en/ssos/index.md) | ECLSS/EPS integration via Docker + ROS 2 |
 | [English — Overview](en/README.md) | Setup and project overview |
 | [English — Architecture](en/architecture.md) | Layer design and agent flow |
 | [English — ssos_eclss_loop](en/scenario-ssos-eclss-loop.md) | SSOS live ECLSS scenario spec |

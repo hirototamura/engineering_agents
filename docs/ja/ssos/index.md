@@ -1,3 +1,5 @@
+> English: [../../en/ssos/index.md](../../en/ssos/index.md)
+
 # SSOS ECLSS + EPS 接合 — 概要
 
 **ブランチ**: `main`（PR #9 マージ済み）

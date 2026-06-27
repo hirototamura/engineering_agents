@@ -75,6 +75,15 @@ nav:
     - One Piece integration: en/one-piece-integration.md
     - Scenario scrubber_degradation: en/scenario-scrubber-degradation.md
     - Scenario ssos_eclss_loop: en/scenario-ssos-eclss-loop.md
+    - SSOS integration:
+      - Overview: en/ssos/index.md
+      - Quick start: en/ssos/quickstart.md
+      - ECLSS integration: en/ssos/eclss-integration.md
+      - EPS integration: en/ssos/eps-integration.md
+      - ssos_eclss_loop scenario: en/ssos/scenario-eclss-loop.md
+      - Troubleshooting: en/ssos/troubleshooting.md
+      - Roadmap: en/ssos/roadmap.md
+      - API reference: en/ssos/api-reference.md
   - 開発メモ:
     - バックログ: ja/memo/backlog.md
     - MVP プラン: ja/memo/scrubber_degradation/mvp_plan.md

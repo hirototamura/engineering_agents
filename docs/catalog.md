@@ -62,6 +62,17 @@ mkdocs build
 | [scrubber_degradation](en/scenario-scrubber-degradation.md) | Reference scenario spec |
 | [ssos_eclss_loop](en/scenario-ssos-eclss-loop.md) | SSOS live ECLSS scenario spec |
 
+### SSOS operational guides (`docs/en/ssos/`)
+
+| Page | Content |
+| --- | --- |
+| [Overview](en/ssos/index.md) | Tier model, file index |
+| [Quick start](en/ssos/quickstart.md) | Docker two-terminal workflow |
+| [ECLSS integration](en/ssos/eclss-integration.md) | Actions / Services / Topics |
+| [EPS integration](en/ssos/eps-integration.md) | BCDU, `request_eps_boost` |
+| [Troubleshooting](en/ssos/troubleshooting.md) | Type mismatches, DDS, daemon |
+| [API reference](en/ssos/api-reference.md) | `EclssBackend` / `EpsBackend` |
+
 ---
 
 ## 開発メモ（`docs/ja/memo/`）
