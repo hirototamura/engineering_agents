@@ -42,7 +42,7 @@ def test_run_scrubber_short(tmp_path: Path):
         ],
     )
     assert result.exit_code == 0
-    assert str(output_dir) in result.stdout
+    assert str(output_dir) in result.stdout.replace("\n", "")
     summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["steps"] == 2
 
@@ -50,7 +50,42 @@ def test_run_scrubber_short(tmp_path: Path):
 def test_run_unknown_scenario():
     result = runner.invoke(app, ["run", "missing_scenario"])
     assert result.exit_code == 2
-    assert "Unknown scenario" in result.stdout + result.stderr
+    assert "Unknown scenario" in result.output
+
+
+def test_run_ssos_without_docker_blocks(monkeypatch):
+    monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    result = runner.invoke(
+        app,
+        ["run", "ssos_eclss_loop", "--agents-mode", "none", "--steps", "1"],
+    )
+    assert result.exit_code == 3
+    assert "Docker is required" in result.output
+
+
+def test_run_ssos_mock_without_docker_allowed(monkeypatch, tmp_path: Path):
+    monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    output_dir = tmp_path / "mock-run"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--agents-mode",
+            "none",
+            "--steps",
+            "2",
+            "--output-dir",
+            str(output_dir),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 0
+    assert (output_dir / "summary.json").exists()
 
 
 def test_run_dry_run_write_spec(tmp_path: Path):

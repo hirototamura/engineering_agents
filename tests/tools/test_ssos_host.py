@@ -15,7 +15,17 @@ from tools.cli.ssos_host import (
     resolve_backend_kind,
     run_ssos_in_container,
     should_run_ssos_in_container,
+    ssos_container_name,
 )
+
+
+def test_ssos_container_name_honors_env_precedence(monkeypatch):
+    monkeypatch.setenv("SSOS_CONTAINER", "from-container")
+    monkeypatch.setenv("SSOS_CONTAINER_NAME", "from-name")
+    assert ssos_container_name() == "from-container"
+
+    monkeypatch.delenv("SSOS_CONTAINER", raising=False)
+    assert ssos_container_name() == "from-name"
 
 
 def test_resolve_backend_kind_defaults_ros2_for_ssos():
