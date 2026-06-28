@@ -1,30 +1,84 @@
 # クイックスタート
 
-SSOS 接合 smoke テストと `ssos_eclss_loop` シナリオの最短手順です。**Mac ホストには ROS 2 がない**ため、SSOS 操作は Docker コンテナ内で行います。
+SSOS 接合 smoke テストと `ssos_eclss_loop` シナリオの最短手順です。**Mac ホストには ROS 2 がない**ため、実機プラント（ros2）は Docker コンテナ内で動き、シミュレーションの起動は **ホスト** から `ea run` します。
 
 ---
 
-## 前提条件
+## ssos_eclss_loop — コマンド一式（Mac）
+
+### 初回：環境設定からシミュレーションまで
+
+マシンごとに一度。すべて **ホスト** のターミナルで実行してください。
+
+```bash
+cd /path/to/engineering_agents
+
+# Python CLI
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# SSOS コンテナ（ヘルパーを /root/ にマウント）
+./scripts/ssos/mac/ssos-run-detached.sh
+
+# 任意：確認
+docker ps --filter name=ssos
+docker exec ssos test -f /root/ssos-eclss-headless.sh && echo "headless helper OK"
+
+# シミュレーション
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+
+# 結果
+ea results
+```
+
+出力例: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`（`telemetry.jsonl`, `summary.json` 等）
+
+詳細: [CLI ガイド — SSOS Docker](../cli.md#ssos-dockerssos_eclss_loop--ros2)
+
+### 2 回目以降：シミュレーションのみ
+
+**コンテナが Up**（`docker ps --filter name=ssos`）:
+
+```bash
+cd /path/to/engineering_agents
+source .venv/bin/activate
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea results
+```
+
+**コンテナが停止**（`docker ps -a` で `Exited`）:
+
+```bash
+docker start ssos
+cd /path/to/engineering_agents
+source .venv/bin/activate
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea results
+```
+
+!!! tip "覚えておくこと"
+    - `ea run` は **ホスト専用**（コンテナ内では `ea` は使わない）
+    - **毎 run 前に headless を再起動**し、プラント状態を初期化（手動の第 2 ターミナル不要）
+    - LLM 利用時はホストで Ollama を起動し `--agents-mode llm` を指定
+
+---
+
+## 前提条件（詳細）
 
 ### 1. SSOS Docker コンテナ
 
 | 項目 | 典型値 |
 | --- | --- |
-| コンテナ名 | `ssos`（環境変数 `SSOS_CONTAINER` で上書き可） |
+| コンテナ名 | `ssos`（`SSOS_CONTAINER` / `SSOS_CONTAINER_NAME` で上書き可） |
 | イメージ | `ghcr.io/space-station-os/space_station_os:latest` |
 | ROS ディストリ | **Jazzy**（`/opt/ros/jazzy/setup.bash`） |
 | ワークスペース | `~/ssos_ws/install/setup.bash` |
 
-```bash
-docker ps --format '{{.Names}}\t{{.Image}}'
-# ssos   ghcr.io/space-station-os/space_station_os:latest
-```
+作成手順は冒頭の [コマンド一式](#ssos_eclss_loop--コマンド一式mac) を参照。`scripts/ssos/` 内のヘルパーが `/root/` にマウントされます。
 
-コンテナが無い場合:
-
-```bash
-docker run -it --name ssos ghcr.io/space-station-os/space_station_os:latest
-```
+!!! note "smoke テスト用の旧手順"
+    下記の **2 ターミナルワークフロー**（手動 headless + `docker cp`）は Phase 1a smoke 向けです。`ssos_eclss_loop` の通常運用は上記 `ea run` を使ってください。
 
 ### 2. engineering_agents 開発環境
 
@@ -128,15 +182,19 @@ PYTHONPATH=src python3 -m scenario.ssos_eclss_loop.scenario_run \
 
 ---
 
-## ssos_eclss_loop（ROS2 — コンテナ内）
+## ssos_eclss_loop（ROS2 — 推奨: ホストから `ea run`）
 
-ECLSS ヘッドレス起動後、コンテナ内で:
+上記 [コマンド一式](#ssos_eclss_loop--コマンド一式mac) を参照。レガシー経路のみ以下。
+
+### レガシー: コンテナ内で直接実行
+
+手動 headless + `docker cp` 経路（デバッグ用）:
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/ssos_ws/install/setup.bash
-cd /tmp/engineering_agents   # または docker cp 先
-PYTHONPATH=src SSOS_ECLSS_BACKEND=ros2 \
+cd /ea
+PYTHONPATH=/ea/src SSOS_ECLSS_BACKEND=ros2 EA_RESULTS_ROOT=/ea/results \
   python3 -m scenario.ssos_eclss_loop.scenario_run --backend ros2
 ```
 

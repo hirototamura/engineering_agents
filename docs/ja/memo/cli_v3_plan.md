@@ -63,20 +63,11 @@ ea run ssos_eclss_loop
 
 ## ボリュームマウント（初回設定）
 
-`~/dev/ssos/ssos-run.sh` 等でコンテナ起動時に **一度だけ**:
+**コマンド一式**: [CLI ガイド](../../cli.md#ssos-dockerssos_eclss_loop--ros2) / [quickstart](../ssos/quickstart.md#ssos_eclss_loop--コマンド一式mac)
 
 ```bash
-REPO_ROOT=/path/to/engineering_agents
-docker run -it --name ssos \
-  -v "$REPO_ROOT/src:/ea/src" \
-  -v "$REPO_ROOT/src/experiments/results:/ea/results" \
-  ghcr.io/space-station-os/space_station_os:latest
+./scripts/ssos/mac/ssos-run-detached.sh
 ```
-
-| マウント | コンテナパス | 用途 |
-| --- | --- | --- |
-| `src/` | `/ea/src` | コード（開発時 `:rw` 可） |
-| `src/experiments/results/` | `/ea/results` | 成果物（ホスト直書き） |
 
 コンテナ内環境変数:
 

@@ -45,7 +45,9 @@ This document aggregates **features not yet complete** and the **research backlo
 
 **Tests**: `pytest` — **140 passed**, 4 skipped (ROS2 live / outside container tests skip).
 
-**Container runs (target)**: `~/dev/ssos/ssos-run.sh` (src + results mounts) → host `ea run ssos_eclss_loop` only. Headless restart is handled by internal CLI bash.
+**Time model (current)**: `mock` — 1 EA step = 1 physics tick. `ros2` — SSOS wall-clock snapshots (no step sync). Run-to-run reset via headless restart. Step-sync strategy: [BL-007](memo/backlog.md#bl-007-ssos--ea-time-and-step-synchronization-next-integration-phase).
+
+**Container runs (target)**: `scripts/ssos/mac/ssos-run-detached.sh` (src + results + helper mounts) → host `ea run ssos_eclss_loop` only. Headless restart is handled by internal CLI bash.
 
 ---
 
@@ -58,7 +60,9 @@ This document aggregates **features not yet complete** and the **research backlo
 | LLM comparison experiments | Trajectory comparison across models, temperature, run_id (dashboard compare) | [architecture.md](architecture.md) |
 | Documentation | Sync `docs/ja/` and `docs/en/` with memo | this update |
 
-**Out of CLI v3 scope** (backlog): CO2=500kg plant init, ros2 step-0 validation, rich SSOS Streamlit views — [BL-006](memo/backlog.md#bl-006-ssos-run-再現性ダッシュボード強化cli-v3-スコープ外)
+**Out of CLI v3 scope** (backlog): CO2=500kg plant init, ros2 step-0 validation, rich SSOS Streamlit views — [BL-006](memo/backlog.md#bl-006-ssos-run-reproducibility-and-dashboard-enrichment-out-of-cli-v3-scope)
+
+**Next integration phase (under consideration)**: EA step vs SSOS physics time — expanded mock vs upstream sim clock — [BL-007](memo/backlog.md#bl-007-ssos--ea-time-and-step-synchronization-next-integration-phase) (separate from CLI v3 / Phase 8)
 
 ---
 
@@ -82,6 +86,7 @@ This document aggregates **features not yet complete** and the **research backlo
 | WRS in `SsosEclssLoopTeam` | Backlog | BL-004 |
 | upstream CO₂ scrubber | Waiting on SSOS extension | BL-004 |
 | MkDocs CI deploy | `docs/ssos-mkdocs` branch | BL-004 |
+| SSOS ↔ EA step sync | Under consideration (mock vs upstream) | [BL-007](memo/backlog.md#bl-007-ssos--ea-time-and-step-synchronization-next-integration-phase) |
 
 ---
 
@@ -104,6 +109,9 @@ This document aggregates **features not yet complete** and the **research backlo
   Phase 8  launch remap + gateway (BL-003)
   BL-004/5 ECLSS+EPS unified scenario, EPS 3b/3c, WRS team
 
+[Consideration — SSOS integration next phase]
+  BL-007   EA step ↔ SSOS physics time (expanded mock A / upstream B / mitigation C)
+
 [Research]
   BL-001   base mode (emergent roles)
   BL-002   evolving persona
@@ -121,7 +129,7 @@ Details: [memo/scrubber_degradation/mvp_plan.md](memo/scrubber_degradation/mvp_p
 | [ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | SSOS ECLSS Phase 0–7 details and verification steps |
 | [ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS ROS2 bridge (Phase 3) |
 | [ssos_eclss_loop/ssos_ros2_graph_design_investigation.md](memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | Gateway and remap investigation |
-| [backlog.md](memo/backlog.md) | BL-001–BL-005 (emergent roles, Phase 8, ECLSS/EPS follow-ups) |
+| [backlog.md](memo/backlog.md) | BL-001–BL-007 (emergent roles, Phase 8, ECLSS/EPS, CLI v3 out-of-scope, step-sync consideration) |
 | [agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md) | Homogeneous N-agent team design |
 | [scrubber_degradation/eps_implementation_plan.md](memo/scrubber_degradation/eps_implementation_plan.md) | EPS-1–4, CLI day boundaries |
 
@@ -144,6 +152,7 @@ Details: [memo/scrubber_degradation/mvp_plan.md](memo/scrubber_degradation/mvp_p
 [ Not connected / backlog ]
   ROS launch remap (Phase 8)     … BL-003
   design_proposals → provenance  … Day 9
+  EA step ↔ SSOS physics sync    … BL-007 (under consideration)
   One Piece Web UI               … out of scope
 ```
 

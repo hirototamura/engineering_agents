@@ -83,30 +83,84 @@ python3 -m streamlit run src/tools/dashboard/app.py
 
 ## SSOS Docker (`ssos_eclss_loop` + ros2)
 
-`ea run ssos_eclss_loop` runs the real SSOS plant inside the Docker container. You only need this one command from the host — container checks, headless restart, and job execution are handled internally.
+Run simulations from the **Mac host** with `ea run`. Do **not** run `ea` inside the SSOS container (`ea` is installed in the host `.venv` only).
 
-**One-time container setup** — add volume mounts when starting SSOS (for example in `~/dev/ssos/ssos-run.sh`):
+**Plant reset between runs**: every `ea run ssos_eclss_loop` (ros2) **stops and restarts** headless (solar + EPS + ECLSS) inside the container before the simulation. This prevents CO₂ storage, EPS state, and other plant variables from carrying over from the previous run. You do not need to keep headless running manually.
+
+Design: [docs/ja/memo/cli_v3_plan.md](../ja/memo/cli_v3_plan.md) · Helper scripts: [scripts/ssos/README.md](../../scripts/ssos/README.md)
+
+### First time: setup through simulation (full command list)
+
+**Once per machine.** Run everything on the **host** terminal (do not enter the container for `ea run`).
 
 ```bash
-REPO_ROOT=/path/to/engineering_agents
-docker run -it --name ssos \
-  -v "$REPO_ROOT/src:/ea/src" \
-  -v "$REPO_ROOT/src/experiments/results:/ea/results" \
-  ghcr.io/space-station-os/space_station_os:latest
+cd /path/to/engineering_agents
+
+# 1. Python virtualenv and CLI
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# 2. Create SSOS container (mounts scripts/ssos/* to /root/)
+#    Starts Colima / Docker if needed (Apple Silicon: linux/amd64 + Rosetta)
+./scripts/ssos/mac/ssos-run-detached.sh
+
+# 3. Optional: verify mounts
+docker ps --filter name=ssos
+docker exec ssos test -f /root/ssos-eclss-headless.sh && echo "headless helper OK"
+docker exec ssos test -d /ea/src/scenario/ssos_eclss_loop && echo "src mount OK"
+
+# 4. Simulation
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+
+# 5. Results
+ea results
 ```
 
 | Mount | Purpose |
 | --- | --- |
-| `src` → `/ea/src` | Code visible inside the container (no `docker cp` per run) |
-| `experiments/results` → `/ea/results` | Run outputs appear on the host immediately |
+| `scripts/ssos/*` → `/root/` | Headless scripts (`ssos-eclss-headless.sh`, launch files) |
+| `src` → `/ea/src` | Code |
+| `experiments/results` → `/ea/results` | Run outputs on the host |
 
-Mock backend (no Docker):
+For LLM agents, start Ollama on the host and use `--agents-mode llm`. No second terminal for headless.
+
+### After setup: simulation only (full command list)
+
+No venv or container setup needed if the container already exists.
+
+**Container is Up** (`docker ps --filter name=ssos` shows `Up`):
+
+```bash
+cd /path/to/engineering_agents
+source .venv/bin/activate
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea results
+```
+
+**Container is stopped** (`Exited` — for example after `exit` from an interactive shell):
+
+```bash
+docker start ssos
+cd /path/to/engineering_agents
+source .venv/bin/activate
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea results
+```
+
+Volume mounts are fixed at container **create** time. If helper scripts are missing, recreate with `./scripts/ssos/mac/ssos-run-detached.sh` (first-time block above).
+
+**Interactive debugging** (optional): `./scripts/ssos/mac/ssos-run.sh` → inside container: `bash /root/ssos-eclss-headless.sh`
+
+**Windows / Linux**: no bundled runner yet — see manual mount steps in `scripts/ssos/README.md`.
+
+### Mock backend (no Docker)
 
 ```bash
 ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8
 ```
 
-Environment variables:
+### Environment variables
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -115,7 +169,16 @@ Environment variables:
 | `EA_MOUNT_RESULTS` | `/ea/results` | Mounted results path inside container |
 | `EA_HEADLESS_POLL_TIMEOUT_S` | `120` | Wait for ros2 graph after headless restart |
 
-Design memo: [docs/ja/memo/cli_v3_plan.md](../ja/memo/cli_v3_plan.md) (v3 final plan).
+### Exit code 3 (environment)
+
+If you see `SSOS environment not ready`:
+
+1. `docker ps --filter name=ssos` — is the container **Up**? If not: `docker start ssos`
+2. `docker exec ssos test -f /root/ssos-eclss-headless.sh` — if missing, recreate with `./scripts/ssos/mac/ssos-run-detached.sh`
+3. `docker exec ssos test -d /ea/src/scenario/ssos_eclss_loop` — if missing, recreate the container (src mount)
+4. Run `ea run` from the **host**, not inside the container
+
+See also: [ssos/quickstart.md](ssos/quickstart.md).
 
 ## Parallel runs (future)
 

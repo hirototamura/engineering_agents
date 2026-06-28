@@ -44,7 +44,7 @@ ea run --dry-run --write-spec /tmp/job.json
 ea job run /tmp/job.json
 ```
 
-詳細は [en/docs/cli.md](../en/docs/cli.md) を参照してください。
+英語版の詳細（フラグ一覧・exit code）: [en/cli.md](../en/cli.md)
 
 ## 結果の確認
 
@@ -55,32 +55,102 @@ python3 -m streamlit run src/tools/dashboard/app.py
 
 ## SSOS Docker（`ssos_eclss_loop` + ros2）
 
-ホストからは **`ea run ssos_eclss_loop` だけ**でよい。コンテナ確認・headless 再起動・ジョブ実行は内部 bash が担当する。
+シミュレーションは **Mac ホスト** から `ea run` で実行します。SSOS コンテナ内で `ea` を叩かないでください（`ea` はホストの `.venv` にのみインストールされます）。
 
-**初回のみ** — SSOS コンテナ起動時にマウントを追加（`~/dev/ssos/ssos-run.sh` 等）:
+**ラン間のプラント初期化**: 各 `ea run ssos_eclss_loop`（ros2）のたびに、CLI がコンテナ内で headless（solar + EPS + ECLSS）を **停止してから再起動** します。前回 run の CO₂ 貯蔵・EPS 状態などが次 run に持ち越されないようにするためです。手動で headless を起動し続ける必要はありません。
+
+設計メモ: [memo/cli_v3_plan.md](memo/cli_v3_plan.md) · ヘルパースクリプト: [scripts/ssos/README.md](../../scripts/ssos/README.md)
+
+### 初回：環境設定からシミュレーションまで（コマンド一式）
+
+**マシンごとに一度。** すべて **ホスト** のターミナルで実行（コンテナに入らない）。
 
 ```bash
-REPO_ROOT=/path/to/engineering_agents
-docker run -it --name ssos \
-  -v "$REPO_ROOT/src:/ea/src" \
-  -v "$REPO_ROOT/src/experiments/results:/ea/results" \
-  ghcr.io/space-station-os/space_station_os:latest
+cd /path/to/engineering_agents
+
+# 1. Python 仮想環境と CLI
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# 2. SSOS コンテナ作成（scripts/ssos/* を /root/ にマウント）
+#    Colima / Docker 未起動なら自動起動（Apple Silicon: linux/amd64 + Rosetta）
+./scripts/ssos/mac/ssos-run-detached.sh
+
+# 3. 任意：マウント確認
+docker ps --filter name=ssos
+docker exec ssos test -f /root/ssos-eclss-headless.sh && echo "headless helper OK"
+docker exec ssos test -d /ea/src/scenario/ssos_eclss_loop && echo "src mount OK"
+
+# 4. シミュレーション
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+
+# 5. 結果確認
+ea results
 ```
 
 | マウント | 用途 |
 | --- | --- |
-| `src` → `/ea/src` | コンテナ内でコード参照（毎回 `docker cp` 不要） |
-| `experiments/results` → `/ea/results` | 成果物がホストに即書き込まれる |
+| `scripts/ssos/*` → `/root/` | headless 起動スクリプト（`ssos-eclss-headless.sh` 等） |
+| `src` → `/ea/src` | コード |
+| `experiments/results` → `/ea/results` | 成果物（ホストに直接書き込み） |
 
-Mock（Docker 不要）:
+LLM エージェントを使う場合は Ollama をホストで起動したうえで `--agents-mode llm` に変更。headless 用の第 2 ターミナルは不要です。
+
+### 2 回目以降：シミュレーションのみ（コマンド一式）
+
+環境設定（venv・コンテナ作成）は **不要**。コンテナが動いていれば次だけで足ります。
+
+**コンテナが Up のとき**（`docker ps --filter name=ssos` で `Up`）:
+
+```bash
+cd /path/to/engineering_agents
+source .venv/bin/activate
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea results
+```
+
+**コンテナが停止しているとき**（`Exited` — 例: 対話シェルから `exit` した）:
+
+```bash
+docker start ssos
+cd /path/to/engineering_agents
+source .venv/bin/activate
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea results
+```
+
+マウントはコンテナ **作成時** に固定されます。ヘルパー未マウントの古いコンテナがある場合は、初回手順の `./scripts/ssos/mac/ssos-run-detached.sh` で作り直してください。
+
+**対話デバッグ**（任意）: `./scripts/ssos/mac/ssos-run.sh` → コンテナ内 `bash /root/ssos-eclss-headless.sh`
+
+**Windows / Linux**: 専用ランナーは未整備。`scripts/ssos/README.md` の手動マウント手順を参照。
+
+### Mock（Docker 不要）
 
 ```bash
 ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8
 ```
 
-設計メモ: [memo/cli_v3_plan.md](memo/cli_v3_plan.md)（v3 最終プラン）。
+### 環境変数
 
-詳細は [en/cli.md](../en/cli.md) の SSOS セクションを参照。
+| 変数 | デフォルト | 用途 |
+| --- | --- | --- |
+| `SSOS_CONTAINER` | `ssos` | コンテナ名 |
+| `EA_MOUNT_SRC` | `/ea/src` | コンテナ内の src マウントパス |
+| `EA_MOUNT_RESULTS` | `/ea/results` | コンテナ内の results マウントパス |
+| `EA_HEADLESS_POLL_TIMEOUT_S` | `120` | headless 起動後の ros2 グラフ待ち（秒） |
+
+### exit code 3（環境エラー）
+
+`SSOS environment not ready` が出たとき:
+
+1. `docker ps --filter name=ssos` — **Up** か？ 止まっていれば `docker start ssos`
+2. `docker exec ssos test -f /root/ssos-eclss-headless.sh` — 失敗なら `./scripts/ssos/mac/ssos-run-detached.sh` で作り直す
+3. `docker exec ssos test -d /ea/src/scenario/ssos_eclss_loop` — 失敗なら src マウントなし。同上で作り直す
+4. `ea run` は **ホスト** から実行（コンテナ内ではない）
+
+関連: [ssos/quickstart.md](ssos/quickstart.md)
 
 ## 並列実行（将来）
 
