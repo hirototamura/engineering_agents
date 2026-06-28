@@ -59,6 +59,8 @@ More detail: [docs/ja/cli.md](../../docs/ja/cli.md) · [docs/ja/ssos/quickstart.
 | `ssos-eps.launch.py` | `/root/ssos-eps.launch.py` | EPS-only headless (no ECLSS) |
 | `mac/ssos-run.sh` | — | **Mac**: interactive shell (`-it`) |
 | `mac/ssos-run-detached.sh` | — | **Mac**: persistent container for `ea run` |
+| `linux/ssos-run-detached.sh` | — | **Linux**: persistent container for `ea run` |
+| `windows/ssos-run-detached.ps1` | — | **Windows**: persistent container for `ea run` |
 
 `ea run` uses `scripts/ssos_host_run.sh`, which **stops and restarts** `/root/ssos-eclss-headless.sh` before each simulation so plant state does not leak between runs. That script launches **solar + EPS + ECLSS** — not `eclss.launch.py` alone — so storage topics such as `/co2_storage` publish correctly.
 
@@ -74,15 +76,32 @@ More detail: [docs/ja/cli.md](../../docs/ja/cli.md) · [docs/ja/ssos/quickstart.
 bash /root/ssos-eclss-headless.sh
 ```
 
-## Windows / Linux
+## Linux
 
-Not bundled yet. Mirror `mac/ssos-run-detached.sh`: mount the five files from this directory to `/root/`, plus `src` → `/ea/src` and `experiments/results` → `/ea/results`. Platform runners may be added under `scripts/ssos/windows/` and `scripts/ssos/linux/` later.
+```bash
+./scripts/ssos/linux/ssos-run-detached.sh
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+```
+
+Interactive shell: `./scripts/ssos/linux/ssos-run.sh`
+
+## Windows (PowerShell)
+
+```powershell
+.\scripts\ssos\windows\ssos-run-detached.ps1
+ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+```
+
+Interactive shell: `.\scripts\ssos\windows\ssos-run.ps1`
+
+Requires Docker Desktop. Set `SSOS_CONTAINER_NAME` if you use a non-default container name (`ea run` honors `SSOS_CONTAINER` or `SSOS_CONTAINER_NAME`).
 
 ## Environment variables
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `SSOS_CONTAINER_NAME` | `ssos` | Docker container name |
+| `SSOS_CONTAINER` | `ssos` | Target container for `ssos_host_run.sh` / `ea run` |
+| `SSOS_CONTAINER_NAME` | `ssos` | Container name when creating via platform runners |
 | `SSOS_PLATFORM` | `linux/amd64` | Image platform (`docker pull --platform`) |
 | `SSOS_LAUNCH_FILE` | `/root/ssos-headless.launch.py` | Override headless launch file (in container) |
 | `SSOS_CONTAINER_DETACHED` | — | Set by `ssos-run-detached.sh`; skips interactive shell in setup |
