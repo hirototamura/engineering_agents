@@ -79,3 +79,26 @@ def test_execute_run_unknown_scenario():
     result = execute_run(RunSpec(scenario="does_not_exist"))
     assert result.exit_code == 2
     assert "Unknown scenario" in (result.error or "")
+
+
+def test_scenario_jobs_main_scrubber_short(tmp_path: Path, monkeypatch):
+    spec_path = tmp_path / "job.json"
+    RunSpec(
+        scenario="scrubber_degradation",
+        overrides={"agents": {"mode": "none"}, "simulation": {"steps": 1}},
+        output_dir=tmp_path / "run",
+        recreate_output=True,
+    ).write_json(spec_path)
+
+    from scenario.jobs import __main__ as jobs_main
+
+    monkeypatch.setattr(jobs_main.sys, "argv", ["scenario.jobs", str(spec_path)])
+    assert jobs_main.main() == 0
+    assert (tmp_path / "run" / "summary.json").exists()
+
+
+def test_scenario_jobs_main_missing_spec(tmp_path: Path, monkeypatch):
+    from scenario.jobs import __main__ as jobs_main
+
+    monkeypatch.setattr(jobs_main.sys, "argv", ["scenario.jobs", str(tmp_path / "nope.json")])
+    assert jobs_main.main() == 2

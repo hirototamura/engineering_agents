@@ -83,3 +83,26 @@ def test_run_ssos_in_container_invokes_host_script(tmp_path: Path):
     assert result.summary.get("duration_wall_s") == 12.5
     mock_run.assert_called_once()
     assert "ssos_host_run.sh" in mock_run.call_args.args[0][1]
+
+
+def test_run_ssos_in_container_failure_ignores_stale_summary(tmp_path: Path):
+    summary_dir = tmp_path / "ssos_eclss_loop_labeled_rule_base"
+    summary_dir.mkdir(parents=True)
+    (summary_dir / "summary.json").write_text(
+        json.dumps({"final_co2_storage_kg": 1570.0}),
+        encoding="utf-8",
+    )
+    spec = RunSpec(
+        scenario="ssos_eclss_loop",
+        overrides={"agents": {"mode": "labeled_rule_base"}},
+        results_root=tmp_path,
+    )
+
+    with patch("tools.cli.ssos_host.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=3)
+        with patch("tools.cli.ssos_host._host_run_directory", return_value=summary_dir):
+            result = run_ssos_in_container(spec)
+
+    assert result.exit_code == 3
+    assert result.summary == {}
+    assert "not ready" in (result.error or "").lower()

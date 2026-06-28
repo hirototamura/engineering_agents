@@ -5,7 +5,12 @@ from __future__ import annotations
 from environment.protocol import HealthStatus
 from environment.ssos.eclss_types import EclssTelemetrySnapshot
 from scenario.ssos_eclss_loop.health import compute_eclss_storage_health
-from scenario.ssos_eclss_loop.scenario_run import _omit_nulls, _telemetry_summary_fields
+from scenario.ssos_eclss_loop.scenario_run import (
+    _assert_ros2_storage_telemetry,
+    _omit_nulls,
+    _storage_telemetry_missing,
+    _telemetry_summary_fields,
+)
 
 
 def test_health_unknown_when_telemetry_missing():
@@ -32,3 +37,15 @@ def test_summary_helpers_omit_null_metrics():
 
     omitted = _omit_nulls({"ars_invoked_step": None, "message_count": 0})
     assert omitted == {"message_count": 0}
+
+
+def test_storage_telemetry_missing_detects_empty_snapshot():
+    assert _storage_telemetry_missing(EclssTelemetrySnapshot()) is True
+    assert _storage_telemetry_missing(EclssTelemetrySnapshot(o2_storage_kg=1.0)) is False
+
+
+def test_assert_ros2_storage_telemetry_raises_when_empty():
+    import pytest
+
+    with pytest.raises(RuntimeError, match="No ECLSS storage telemetry"):
+        _assert_ros2_storage_telemetry(0, EclssTelemetrySnapshot())
