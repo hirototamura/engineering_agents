@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # In-container entry point for engineering_agents (ea-loop legacy).
 #
-# Layouts supported:
-#   - Volume mount (CLI v3): /ea/src + /ea/results
-#   - Sync install (main regression): /opt/engineering_agents/src
+# Requires volume mounts (same as scripts/ssos/*/ssos-run-detached.sh):
+#   src     -> /ea/src
+#   results -> /ea/results
+#   scripts/ssos/* -> /root/
 #
-# Prerequisite: ECLSS headless running — bash /root/ssos-eclss-headless.sh
-# Host `ea run ssos_eclss_loop` restarts headless automatically.
+# Prerequisite: ECLSS headless — bash /root/ssos-eclss-headless.sh
+# Host `ea run ssos_eclss_loop` restarts headless automatically each run.
 #
 # Usage (inside SSOS container):
 #   ea-loop --agents-mode labeled_rule_base
@@ -15,20 +16,14 @@
 set -euo pipefail
 
 REPO="${SSOS_CONTAINER_REPO:-/ea}"
-SRC="${EA_MOUNT_SRC:-$REPO/src}"
+SRC="${EA_MOUNT_SRC:-/ea/src}"
 RESULTS="${EA_MOUNT_RESULTS:-/ea/results}"
-
-if [[ ! -d "$SRC/scenario" && -d /opt/engineering_agents/src/scenario ]]; then
-  REPO="/opt/engineering_agents"
-  SRC="$REPO/src"
-fi
 
 if [[ ! -d "$SRC/scenario" ]]; then
   echo "engineering_agents src not found at $SRC" >&2
   echo "Mount the repo src tree, for example:" >&2
   echo "  -v \"\$REPO_ROOT/src:/ea/src\"" >&2
-  echo "Or from host repo root (legacy sync):" >&2
-  echo "  ./scripts/run_ssos_regression.sh --sync-only" >&2
+  echo "Or recreate: ./scripts/ssos/mac/ssos-run-detached.sh" >&2
   exit 1
 fi
 
@@ -60,7 +55,6 @@ _preflight_ros2_graph() {
     echo "ERROR: ECLSS headless is not running (missing /co2_storage)." >&2
     echo "From the host: ea run ssos_eclss_loop … (restarts headless automatically)" >&2
     echo "Inside the container: bash /root/ssos-eclss-headless.sh" >&2
-    echo "  # legacy sync layout: /opt/engineering_agents/ssos_eclss_headless.sh" >&2
     exit 1
   fi
   if ! printf '%s\n' "$actions" | grep -qE '(^|/)air_revitalisation([[:space:]]|$)'; then

@@ -2,9 +2,14 @@
 # Shared helpers for scripts/ssos/mac/*.sh (sourced, not executed).
 
 ssos_resolve_paths() {
+  if [[ -n "${SSOS_REPO_ROOT:-}" ]]; then
+    REPO_ROOT="$SSOS_REPO_ROOT"
+    SSOS_SCRIPTS_DIR="${SSOS_SCRIPTS_DIR:-$REPO_ROOT/scripts/ssos}"
+    return 0
+  fi
   local caller_dir
   caller_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
-  if [[ "$(basename "$caller_dir")" == "mac" ]]; then
+  if [[ "$(basename "$caller_dir")" == "mac" || "$(basename "$caller_dir")" == "linux" ]]; then
     SSOS_SCRIPTS_DIR="$(cd "${caller_dir}/.." && pwd)"
   else
     SSOS_SCRIPTS_DIR="$caller_dir"
