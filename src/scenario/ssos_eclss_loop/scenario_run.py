@@ -46,6 +46,26 @@ def _omit_nulls(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {key: value for key, value in payload.items() if value is not None}
 
 
+def _storage_telemetry_missing(snap: EclssTelemetrySnapshot) -> bool:
+    return (
+        snap.co2_storage_kg is None
+        and snap.o2_storage_kg is None
+        and snap.product_water_reserve_l is None
+    )
+
+
+def _assert_ros2_storage_telemetry(step: int, snap: EclssTelemetrySnapshot) -> None:
+    if not _storage_telemetry_missing(snap):
+        return
+    raise RuntimeError(
+        "No ECLSS storage telemetry at step "
+        f"{step} (/co2_storage, /o2_storage, /wrs/product_water_reserve all empty). "
+        "ECLSS headless is probably not running. From the host, re-run: "
+        "ea run ssos_eclss_loop … (ea restarts headless automatically). "
+        "Manual check inside the container: ros2 topic list | grep storage"
+    )
+
+
 def _telemetry_summary_fields(
     last_snap: Optional[EclssTelemetrySnapshot],
     peak_co2: Optional[float],
@@ -180,6 +200,8 @@ class SsosEclssLoopScenario(Scenario):
                 backend.advance_step()
 
             snap = backend.poll_telemetry()
+            if backend_kind == "ros2" and step == 0:
+                _assert_ros2_storage_telemetry(step, snap)
             last_snap = snap
             if snap.co2_storage_kg is not None:
                 peak_co2 = (
