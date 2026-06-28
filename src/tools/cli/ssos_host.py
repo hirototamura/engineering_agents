@@ -39,6 +39,25 @@ def should_run_ssos_in_container(spec: RunSpec) -> bool:
     return spec.scenario == "ssos_eclss_loop" and resolve_backend_kind(spec) == "ros2"
 
 
+def check_ssos_ros2_host_environment(spec: RunSpec) -> RunResult | None:
+    """Return a failure RunResult when ros2 SSOS cannot run on the host; else None."""
+    if spec.scenario != "ssos_eclss_loop" or resolve_backend_kind(spec) != "ros2":
+        return None
+    if os.environ.get("EA_RUN_IN_CONTAINER"):
+        return None
+    if shutil.which("docker"):
+        return None
+    return RunResult(
+        run_dir=Path("."),
+        exit_code=exit_codes.ENVIRONMENT_ERROR,
+        error=(
+            "Docker is required for ssos_eclss_loop with the default ros2 backend. "
+            "Install Docker, start the SSOS container (./scripts/ssos/mac/ssos-run-detached.sh), "
+            "or pass --backend mock for local mock runs."
+        ),
+    )
+
+
 def run_ssos_in_container(spec: RunSpec) -> RunResult:
     if spec.output_dir is not None:
         return RunResult(

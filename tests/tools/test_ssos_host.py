@@ -10,6 +10,7 @@ import pytest
 
 from scenario.jobs.spec import RunSpec
 from tools.cli.ssos_host import (
+    check_ssos_ros2_host_environment,
     resolve_backend_kind,
     run_ssos_in_container,
     should_run_ssos_in_container,
@@ -34,6 +35,33 @@ def test_should_run_ssos_in_container_requires_docker(monkeypatch):
     monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
     monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
     assert should_run_ssos_in_container(spec) is False
+
+
+def test_check_ssos_ros2_host_environment_blocks_without_docker(monkeypatch):
+    spec = RunSpec(scenario="ssos_eclss_loop")
+    monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    result = check_ssos_ros2_host_environment(spec)
+    assert result is not None
+    assert result.exit_code == 3
+    assert "Docker is required" in (result.error or "")
+
+
+def test_check_ssos_ros2_host_environment_allows_mock_backend(monkeypatch):
+    spec = RunSpec(
+        scenario="ssos_eclss_loop",
+        overrides={"backend": {"kind": "mock"}},
+    )
+    monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    assert check_ssos_ros2_host_environment(spec) is None
+
+
+def test_check_ssos_ros2_host_environment_allows_inside_container(monkeypatch):
+    spec = RunSpec(scenario="ssos_eclss_loop")
+    monkeypatch.setenv("EA_RUN_IN_CONTAINER", "1")
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    assert check_ssos_ros2_host_environment(spec) is None
 
 
 def test_should_run_ssos_in_container_skips_inside_container(monkeypatch):

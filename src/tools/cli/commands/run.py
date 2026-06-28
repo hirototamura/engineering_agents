@@ -151,9 +151,16 @@ def run(
     if not quiet and not json_output:
         typer.echo("Running simulation...")
 
-    from tools.cli.ssos_host import run_ssos_in_container, should_run_ssos_in_container
+    from tools.cli.ssos_host import (
+        check_ssos_ros2_host_environment,
+        run_ssos_in_container,
+        should_run_ssos_in_container,
+    )
 
-    if should_run_ssos_in_container(spec):
+    env_block = check_ssos_ros2_host_environment(spec)
+    if env_block is not None:
+        result = env_block
+    elif should_run_ssos_in_container(spec):
         result = run_ssos_in_container(spec)
     else:
         result = execute_run(spec)
