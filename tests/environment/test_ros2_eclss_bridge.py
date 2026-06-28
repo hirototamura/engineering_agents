@@ -54,7 +54,7 @@ def test_run_ros2_cli_wraps_when_pythonpath_set(monkeypatch):
         captured["cmd"] = cmd
         return subprocess.CompletedProcess(cmd, 0, "ok", "")
 
-    monkeypatch.setenv("PYTHONPATH", "/tmp/engineering_agents/src")
+    monkeypatch.setenv("PYTHONPATH", "/opt/engineering_agents/src")
     monkeypatch.setenv("ROS_DISTRO", "jazzy")
     monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
     code, out, _err = _run_ros2_cli(["topic", "list"], timeout_s=5.0)

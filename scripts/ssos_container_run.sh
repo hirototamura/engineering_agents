@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-# In-container entry point for engineering_agents (mounted at /ea or synced legacy path).
+# In-container entry point for engineering_agents (ea-loop legacy).
+#
+# Layouts supported:
+#   - Volume mount (CLI v3): /ea/src + /ea/results
+#   - Sync install (main regression): /opt/engineering_agents/src
+#
+# Prerequisite: ECLSS headless running — bash /root/ssos-eclss-headless.sh
+# Host `ea run ssos_eclss_loop` restarts headless automatically.
 #
 # Usage (inside SSOS container):
 #   ea-loop --agents-mode labeled_rule_base
@@ -11,10 +18,17 @@ REPO="${SSOS_CONTAINER_REPO:-/ea}"
 SRC="${EA_MOUNT_SRC:-$REPO/src}"
 RESULTS="${EA_MOUNT_RESULTS:-/ea/results}"
 
+if [[ ! -d "$SRC/scenario" && -d /opt/engineering_agents/src/scenario ]]; then
+  REPO="/opt/engineering_agents"
+  SRC="$REPO/src"
+fi
+
 if [[ ! -d "$SRC/scenario" ]]; then
   echo "engineering_agents src not found at $SRC" >&2
   echo "Mount the repo src tree, for example:" >&2
   echo "  -v \"\$REPO_ROOT/src:/ea/src\"" >&2
+  echo "Or from host repo root (legacy sync):" >&2
+  echo "  ./scripts/run_ssos_regression.sh --sync-only" >&2
   exit 1
 fi
 
@@ -39,20 +53,20 @@ _resolve_backend_kind() {
 }
 
 _preflight_ros2_graph() {
-  local topic_count action_count
-  topic_count="$(ros2 topic list 2>/dev/null | grep -c . || true)"
-  action_count="$(ros2 action list 2>/dev/null | grep -c . || true)"
-  if [[ "${topic_count:-0}" -eq 0 && "${action_count:-0}" -eq 0 ]]; then
-    echo "ERROR: ros2 graph is empty — ECLSS headless is not running." >&2
-    echo "From the host, run: ea run ssos_eclss_loop" >&2
-    echo "Or inside the container: ros2 launch space_station eclss.launch.py" >&2
+  local topics actions
+  topics="$(ros2 topic list 2>/dev/null || true)"
+  actions="$(ros2 action list 2>/dev/null || true)"
+  if ! printf '%s\n' "$topics" | grep -qE '(^|/)co2_storage([[:space:]]|$)'; then
+    echo "ERROR: ECLSS headless is not running (missing /co2_storage)." >&2
+    echo "From the host: ea run ssos_eclss_loop … (restarts headless automatically)" >&2
+    echo "Inside the container: bash /root/ssos-eclss-headless.sh" >&2
+    echo "  # legacy sync layout: /opt/engineering_agents/ssos_eclss_headless.sh" >&2
     exit 1
   fi
-  local eclss_topics
-  eclss_topics="$(ros2 topic list 2>/dev/null | grep -Ec '^/(co2_storage|o2_storage|wrs/product_water_reserve)$' || true)"
-  if [[ "${eclss_topics:-0}" -lt 2 ]]; then
-    echo "ERROR: ECLSS storage topics missing (found ${eclss_topics:-0}/3)." >&2
-    echo "Start headless: ros2 launch space_station eclss.launch.py" >&2
+  if ! printf '%s\n' "$actions" | grep -qE '(^|/)air_revitalisation([[:space:]]|$)'; then
+    echo "ERROR: ECLSS headless is not running (missing air_revitalisation action)." >&2
+    echo "From the host: ea run ssos_eclss_loop … (restarts headless automatically)" >&2
+    echo "Inside the container: bash /root/ssos-eclss-headless.sh" >&2
     exit 1
   fi
 }
