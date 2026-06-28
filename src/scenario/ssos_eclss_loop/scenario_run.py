@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -60,9 +61,30 @@ def _assert_ros2_storage_telemetry(step: int, snap: EclssTelemetrySnapshot) -> N
     raise RuntimeError(
         "No ECLSS storage telemetry at step "
         f"{step} (/co2_storage, /o2_storage, /wrs/product_water_reserve all empty). "
-        "ECLSS headless is probably not running. From the host, re-run: "
+        "ECLSS headless may still be starting or has stopped. From the host, re-run: "
         "ea run ssos_eclss_loop … (ea restarts headless automatically). "
         "Manual check inside the container: ros2 topic list | grep storage"
+    )
+
+
+def _wait_for_ros2_storage_telemetry(
+    backend: EclssBackend,
+    *,
+    timeout_s: float,
+    poll_interval_s: float = 0.5,
+) -> EclssTelemetrySnapshot:
+    """Block until storage telemetry arrives or timeout (ECLSS startup grace)."""
+    deadline = time.monotonic() + max(0.0, timeout_s)
+    while time.monotonic() < deadline:
+        snap = backend.poll_telemetry()
+        if not _storage_telemetry_missing(snap):
+            return snap
+        time.sleep(poll_interval_s)
+    raise RuntimeError(
+        "Timed out waiting for ECLSS storage telemetry after headless start "
+        f"({timeout_s:.0f}s). Topics /co2_storage, /o2_storage, "
+        "/wrs/product_water_reserve did not publish. "
+        "Increase backend.ros2.startup_wait_s or check headless logs."
     )
 
 
@@ -185,6 +207,11 @@ class SsosEclssLoopScenario(Scenario):
         team = self.build_team(config, agents_config=agents_config)
         log = EventLog(run_dir)
 
+        ros2_cfg = (config.get("backend", {}) or {}).get("ros2", {}) or {}
+        if backend_kind == "ros2":
+            startup_wait_s = float(ros2_cfg.get("startup_wait_s", 45.0))
+            _wait_for_ros2_storage_telemetry(backend, timeout_s=startup_wait_s)
+
         message_count = 0
         operational_command_count = 0
         ars_invoked_step: Optional[int] = None
@@ -195,12 +222,12 @@ class SsosEclssLoopScenario(Scenario):
         peak_co2: Optional[float] = None
         min_o2: Optional[float] = None
 
-        for step in range(steps):
-            if isinstance(backend, LoopMockEclssBackend) and step > 0:
+        for step in range(1, steps + 1):
+            if isinstance(backend, LoopMockEclssBackend) and step > 1:
                 backend.advance_step()
 
             snap = backend.poll_telemetry()
-            if backend_kind == "ros2" and step == 0:
+            if backend_kind == "ros2":
                 _assert_ros2_storage_telemetry(step, snap)
             last_snap = snap
             if snap.co2_storage_kg is not None:
