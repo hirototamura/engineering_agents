@@ -19,6 +19,11 @@ from tools.cli import exit_codes
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _HOST_RUN_SCRIPT = _REPO_ROOT / "scripts" / "ssos_host_run.sh"
 _CONTAINER_RESULTS_ROOT = Path("/ea/results")
+_HOST_RESULTS_MOUNT = _REPO_ROOT / "src" / "experiments" / "results"
+
+
+def ssos_container_name() -> str:
+    return os.environ.get("SSOS_CONTAINER") or os.environ.get("SSOS_CONTAINER_NAME") or "ssos"
 
 
 def resolve_backend_kind(spec: RunSpec) -> str:
@@ -65,8 +70,16 @@ def run_ssos_in_container(spec: RunSpec) -> RunResult:
             exit_code=exit_codes.USER_ERROR,
             error=(
                 "--output-dir is not supported for ssos_eclss_loop ros2 runs. "
-                "Use --run-id or --results-root with the mounted results directory."
+                "Use --run-id with the mounted results directory."
             ),
+        )
+
+    results_error = _validate_host_results_root(spec)
+    if results_error is not None:
+        return RunResult(
+            run_dir=_host_run_directory(spec),
+            exit_code=exit_codes.USER_ERROR,
+            error=results_error,
         )
 
     if not _HOST_RUN_SCRIPT.is_file():
@@ -76,7 +89,37 @@ def run_ssos_in_container(spec: RunSpec) -> RunResult:
             error=f"Missing host runner script: {_HOST_RUN_SCRIPT}",
         )
 
-    container_spec = _container_spec(spec)
+    container_apply_path: Path | None = None
+    if spec.apply_proposals_path is not None:
+        if not spec.apply_proposals_path.is_file():
+            return RunResult(
+                run_dir=_host_run_directory(spec),
+                exit_code=exit_codes.USER_ERROR,
+                error=f"design_proposals file not found: {spec.apply_proposals_path}",
+            )
+        container_apply_path = Path(f"/tmp/ea-apply-{os.getpid()}.json")
+        copy = subprocess.run(
+            [
+                "docker",
+                "cp",
+                str(spec.apply_proposals_path),
+                f"{ssos_container_name()}:{container_apply_path}",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if copy.returncode != 0:
+            return RunResult(
+                run_dir=_host_run_directory(spec),
+                exit_code=exit_codes.ENVIRONMENT_ERROR,
+                error=(
+                    f"Failed to copy design_proposals into SSOS container "
+                    f"({ssos_container_name()}): {copy.stderr.strip() or copy.stdout.strip()}"
+                ),
+            )
+
+    container_spec = _container_spec(spec, apply_proposals_path=container_apply_path)
     start = time.monotonic()
     with tempfile.NamedTemporaryFile(
         mode="w",
@@ -95,6 +138,19 @@ def run_ssos_in_container(spec: RunSpec) -> RunResult:
         )
     finally:
         job_path.unlink(missing_ok=True)
+        if container_apply_path is not None:
+            subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    ssos_container_name(),
+                    "rm",
+                    "-f",
+                    str(container_apply_path),
+                ],
+                check=False,
+                capture_output=True,
+            )
 
     duration_s = time.monotonic() - start
     host_run_dir = _host_run_directory(spec)
@@ -110,6 +166,19 @@ def run_ssos_in_container(spec: RunSpec) -> RunResult:
             duration_s=duration_s,
             exit_code=exit_code,
             error=_failure_message(proc.returncode),
+        )
+
+    summary_path = host_run_dir / "summary.json"
+    if not summary_path.is_file():
+        return RunResult(
+            run_dir=host_run_dir,
+            summary={},
+            duration_s=duration_s,
+            exit_code=exit_codes.RUN_FAILURE,
+            error=(
+                "SSOS container run exited 0 but summary.json is missing at "
+                f"{summary_path}. Check volume mounts and container logs."
+            ),
         )
 
     summary = _read_summary(host_run_dir)
@@ -132,7 +201,11 @@ def _failure_message(returncode: int) -> str:
     return f"SSOS container run failed (exit {returncode})."
 
 
-def _container_spec(spec: RunSpec) -> RunSpec:
+def _container_spec(
+    spec: RunSpec,
+    *,
+    apply_proposals_path: Path | None = None,
+) -> RunSpec:
     return RunSpec(
         scenario=spec.scenario,
         overrides=spec.overrides,
@@ -141,8 +214,18 @@ def _container_spec(spec: RunSpec) -> RunSpec:
         results_root=_CONTAINER_RESULTS_ROOT,
         recreate_output=spec.recreate_output,
         seed=spec.seed,
-        apply_proposals_path=spec.apply_proposals_path,
+        apply_proposals_path=apply_proposals_path if apply_proposals_path is not None else spec.apply_proposals_path,
     )
+
+
+def _validate_host_results_root(spec: RunSpec) -> str | None:
+    host_root = spec.results_root or default_results_root()
+    if host_root.resolve() != _HOST_RESULTS_MOUNT.resolve():
+        return (
+            "--results-root is not supported for ssos_eclss_loop ros2 runs. "
+            f"Results are written to the container mount: {_HOST_RESULTS_MOUNT}"
+        )
+    return None
 
 
 def _host_run_directory(spec: RunSpec) -> Path:
