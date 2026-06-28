@@ -45,7 +45,14 @@ _preflight_ros2_graph() {
   if [[ "${topic_count:-0}" -eq 0 && "${action_count:-0}" -eq 0 ]]; then
     echo "ERROR: ros2 graph is empty — ECLSS headless is not running." >&2
     echo "From the host, run: ea run ssos_eclss_loop" >&2
-    echo "Or start headless manually: bash /root/ssos-eclss-headless.sh" >&2
+    echo "Or inside the container: ros2 launch space_station eclss.launch.py" >&2
+    exit 1
+  fi
+  local eclss_topics
+  eclss_topics="$(ros2 topic list 2>/dev/null | grep -Ec '^/(co2_storage|o2_storage|wrs/product_water_reserve)$' || true)"
+  if [[ "${eclss_topics:-0}" -lt 2 ]]; then
+    echo "ERROR: ECLSS storage topics missing (found ${eclss_topics:-0}/3)." >&2
+    echo "Start headless: ros2 launch space_station eclss.launch.py" >&2
     exit 1
   fi
 }
