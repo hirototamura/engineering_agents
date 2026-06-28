@@ -96,6 +96,12 @@ Interactive shell: `.\scripts\ssos\windows\ssos-run.ps1`
 
 Requires Docker Desktop. Set `SSOS_CONTAINER_NAME` if you use a non-default container name (`ea run` honors `SSOS_CONTAINER` or `SSOS_CONTAINER_NAME`).
 
+## Regression / CI (`scripts/lib/ssos_docker.sh`)
+
+Tier 2 regression uses the **same volume mounts** as `ssos-run-detached.sh` (no `docker cp` sync). `ssos_sync_to_container` only verifies mounts. Tier 2 loop steps run `python3 -m scenario.jobs` inside the container.
+
+**Self-hosted CI bind mounts**: the Docker daemon must resolve the host paths in `-v`. A bare-metal runner with the checkout on local disk works out of the box. Docker-in-Docker (dind sidecar) setups require the workspace path to be on a volume **shared between the job container and the Docker daemon** (e.g. GitHub Actions `RUNNER_WORKSPACE` / `_work` — not `/tmp` on the job container alone). The workflow uses `runs-on: [self-hosted, ssos]`; confirm your runner exposes the checkout to `docker run -v`.
+
 ## Environment variables
 
 | Variable | Default | Purpose |
