@@ -13,10 +13,11 @@
 #
 set -euo pipefail
 
-CONTAINER="${SSOS_CONTAINER:-ssos}"
+CONTAINER="${SSOS_CONTAINER:-${SSOS_CONTAINER_NAME:-ssos}}"
 MOUNT_SRC="${EA_MOUNT_SRC:-/ea/src}"
 MOUNT_RESULTS="${EA_MOUNT_RESULTS:-/ea/results}"
 HEADLESS_POLL_TIMEOUT_S="${EA_HEADLESS_POLL_TIMEOUT_S:-120}"
+HEADLESS_STOP_TIMEOUT_S="${EA_HEADLESS_STOP_TIMEOUT_S:-20}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 usage() {
@@ -89,8 +90,38 @@ _stop_headless() {
     pkill -f "solar_power" 2>/dev/null || true
     pkill -f "space_station_eps" 2>/dev/null || true
     pkill -f "space_station.*eclss" 2>/dev/null || true
-    sleep 2
+    sleep 1
   ' || true
+  _wait_headless_stopped
+}
+
+_wait_headless_stopped() {
+  local deadline=$((SECONDS + HEADLESS_STOP_TIMEOUT_S))
+  echo "==> Waiting for ECLSS topics to clear (timeout ${HEADLESS_STOP_TIMEOUT_S}s)"
+  while ((SECONDS < deadline)); do
+    local eclss_topics
+    eclss_topics="$(docker exec "$CONTAINER" bash -lc '
+      set +u
+      source /opt/ros/jazzy/setup.bash 2>/dev/null
+      source ~/ssos_ws/install/setup.bash 2>/dev/null
+      set -u 2>/dev/null || true
+      topics=$(ros2 topic list 2>/dev/null || true)
+      count=0
+      for t in /co2_storage /o2_storage /wrs/product_water_reserve; do
+        if echo "$topics" | grep -qx "$t"; then
+          count=$((count + 1))
+        fi
+      done
+      echo "${count:-0}"
+    ')"
+    if [[ "${eclss_topics:-0}" -eq 0 ]]; then
+      echo "==> Headless processes stopped"
+      sleep 1
+      return 0
+    fi
+    sleep 1
+  done
+  echo "WARN: ECLSS storage topics still present after stop timeout; continuing start." >&2
 }
 
 _start_headless() {
