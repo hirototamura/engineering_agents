@@ -47,6 +47,9 @@ def print_run_result(result: RunResult, *, quiet: bool = False, as_json: bool = 
         console.print(str(result.run_dir))
         return
 
+    if result.exit_code != 0:
+        return
+
     summary = result.summary
     duration = summary.get("duration_wall_s", result.duration_s)
     lines = [f"output: {result.run_dir}", f"duration: {duration:.1f}s"]

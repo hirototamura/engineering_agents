@@ -79,7 +79,6 @@ def run_ssos_in_container(spec: RunSpec) -> RunResult:
 
     duration_s = time.monotonic() - start
     host_run_dir = _host_run_directory(spec)
-    summary = _read_summary(host_run_dir)
     if proc.returncode != 0:
         exit_code = exit_codes.USER_ERROR
         if proc.returncode == 3:
@@ -88,18 +87,30 @@ def run_ssos_in_container(spec: RunSpec) -> RunResult:
             exit_code = exit_codes.RUN_FAILURE
         return RunResult(
             run_dir=host_run_dir,
-            summary=summary,
+            summary={},
             duration_s=duration_s,
             exit_code=exit_code,
-            error=f"SSOS container run failed (exit {proc.returncode}).",
+            error=_failure_message(proc.returncode),
         )
 
+    summary = _read_summary(host_run_dir)
     return RunResult(
         run_dir=host_run_dir,
         summary=summary,
         duration_s=duration_s,
         exit_code=exit_codes.SUCCESS,
     )
+
+
+def _failure_message(returncode: int) -> str:
+    if returncode == 3:
+        return (
+            "SSOS environment not ready (container stopped, volume mounts missing, "
+            "or headless failed to start). See messages above and docs/cli.md."
+        )
+    if returncode == 2:
+        return "SSOS host run rejected invalid input (see messages above)."
+    return f"SSOS container run failed (exit {returncode})."
 
 
 def _container_spec(spec: RunSpec) -> RunSpec:
