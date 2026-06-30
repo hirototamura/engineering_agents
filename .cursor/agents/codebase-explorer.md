@@ -26,7 +26,7 @@ integrations/one_piece ← called from scenario
 - `src/tools/` — Streamlit ダッシュボード
 - `src/integrations/` — One Piece provenance
 
-上層から下層への import は禁止。探索時はこの境界を明示すること。
+下層から上層への import（upward import）は禁止。例: `environment/` が `scenario/` を import するのは違反、`scenario/` が `environment/` を import するのは許可。探索時はこの境界を明示すること。
 
 ## 調査手順
 
