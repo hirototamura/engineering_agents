@@ -19,6 +19,8 @@ from environment.ssos.mock_eps_backend import build_mock_eps_backend
 from environment.ssos.ros2_eps_bridge import Ros2EpsBridge
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
+from scenario.jobs.executor import execute_run
+from scenario.jobs.spec import RunSpec
 
 SCENARIO_ROOT = Path(__file__).resolve().parent
 logger = logging.getLogger(__name__)
@@ -167,13 +169,38 @@ def _scenario_registry() -> Dict[str, Any]:
     return {**scrubber, **ssos}
 
 
+def scenario_descriptions() -> Dict[str, str]:
+    descriptions: Dict[str, str] = {}
+    for name in list_scenarios():
+        path = scenario_config_path(name)
+        with path.open(encoding="utf-8") as f:
+            config = yaml.safe_load(f) or {}
+        description = config.get("description", "")
+        if isinstance(description, str):
+            descriptions[name] = " ".join(description.split())
+        else:
+            descriptions[name] = str(description)
+    return descriptions
+
+
 def run_scenario(
     name: str,
     output_dir: Optional[Path] = None,
     overrides: Optional[Dict[str, Any]] = None,
     recreate_output: bool = True,
+    run_id: Optional[str] = None,
+    results_root: Optional[Path] = None,
 ) -> Path:
-    scenario = _scenario_registry().get(name)
-    if scenario is None:
-        raise ValueError(f"No registered scenario: {name}")
-    return scenario.run(output_dir=output_dir, overrides=overrides, recreate_output=recreate_output)
+    result = execute_run(
+        RunSpec(
+            scenario=name,
+            output_dir=output_dir,
+            overrides=overrides,
+            recreate_output=recreate_output,
+            run_id=run_id,
+            results_root=results_root,
+        )
+    )
+    if result.exit_code != 0:
+        raise ValueError(result.error or f"Scenario run failed: {name}")
+    return result.run_dir

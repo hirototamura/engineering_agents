@@ -126,3 +126,5 @@ class RclpyEclssTelemetryReader:
         if self._spin_thread.is_alive():
             self._spin_thread.join(timeout=2.0)
         self._node.destroy_node()
+        if self._rclpy.ok():
+            self._rclpy.shutdown()

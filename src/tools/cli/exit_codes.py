@@ -1,0 +1,6 @@
+"""CLI exit codes."""
+
+SUCCESS = 0
+RUN_FAILURE = 1
+USER_ERROR = 2
+ENVIRONMENT_ERROR = 3

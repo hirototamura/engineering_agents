@@ -6,7 +6,8 @@ import argparse
 import json
 import logging
 import os
-import shutil
+import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -19,6 +20,7 @@ from environment.ssos.eclss_types import EclssTelemetrySnapshot
 from integrations.one_piece import export_run_provenance
 from scenario.agents.eclss_loop_types import EclssLoopObservation
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
+from scenario.jobs.resolve import resolve_run_directory
 from scenario.runner import (
     _deep_merge,
     agents_config_path,
@@ -43,6 +45,47 @@ BACKEND_ENV_VAR = "SSOS_ECLSS_BACKEND"
 
 def _omit_nulls(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {key: value for key, value in payload.items() if value is not None}
+
+
+def _storage_telemetry_missing(snap: EclssTelemetrySnapshot) -> bool:
+    return (
+        snap.co2_storage_kg is None
+        and snap.o2_storage_kg is None
+        and snap.product_water_reserve_l is None
+    )
+
+
+def _assert_ros2_storage_telemetry(step: int, snap: EclssTelemetrySnapshot) -> None:
+    if not _storage_telemetry_missing(snap):
+        return
+    raise RuntimeError(
+        "No ECLSS storage telemetry at step "
+        f"{step} (/co2_storage, /o2_storage, /wrs/product_water_reserve all empty). "
+        "ECLSS headless may still be starting or has stopped. From the host, re-run: "
+        "ea run ssos_eclss_loop … (ea restarts headless automatically). "
+        "Manual check inside the container: ros2 topic list | grep storage"
+    )
+
+
+def _wait_for_ros2_storage_telemetry(
+    backend: EclssBackend,
+    *,
+    timeout_s: float,
+    poll_interval_s: float = 0.5,
+) -> EclssTelemetrySnapshot:
+    """Block until storage telemetry arrives or timeout (ECLSS startup grace)."""
+    deadline = time.monotonic() + max(0.0, timeout_s)
+    while time.monotonic() < deadline:
+        snap = backend.poll_telemetry()
+        if not _storage_telemetry_missing(snap):
+            return snap
+        time.sleep(poll_interval_s)
+    raise RuntimeError(
+        "Timed out waiting for ECLSS storage telemetry after headless start "
+        f"({timeout_s:.0f}s). Topics /co2_storage, /o2_storage, "
+        "/wrs/product_water_reserve did not publish. "
+        "Increase backend.ros2.startup_wait_s or check headless logs."
+    )
 
 
 def _telemetry_summary_fields(
@@ -134,6 +177,8 @@ class SsosEclssLoopScenario(Scenario):
         overrides: Optional[Dict[str, Any]] = None,
         recreate_output: bool = True,
         apply_proposals_path: Optional[Path] = None,
+        run_id: Optional[str] = None,
+        results_root: Optional[Path] = None,
     ) -> Path:
         config = self.load_config(overrides)
         if apply_proposals_path is not None:
@@ -148,30 +193,24 @@ class SsosEclssLoopScenario(Scenario):
         output_cfg = config.get("output", {})
         backend_kind = resolve_backend_kind(config, overrides)
 
-        results_base = Path(__file__).resolve().parents[2] / "experiments" / "results"
-        if output_dir is None:
-            run_id = output_cfg.get("run_id", self.name)
-            if agents_config and agents_config.get("mode") == "labeled_rule_base":
-                run_id = output_cfg.get(
-                    "run_id_labeled_rule_base",
-                    f"{self.name}_labeled_rule_base",
-                )
-            elif agents_config and agents_config.get("mode") == "llm":
-                run_id = output_cfg.get("run_id_llm", f"{self.name}_llm")
-            if recreate_output:
-                run_dir = EventLog.prepare_run_dir(results_base, run_id=run_id)
-            else:
-                run_dir = results_base / run_id
-                run_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            run_dir = Path(output_dir)
-            if recreate_output and run_dir.exists():
-                shutil.rmtree(run_dir)
-            run_dir.mkdir(parents=True, exist_ok=True)
+        run_dir = resolve_run_directory(
+            scenario_name=self.name,
+            output_cfg=output_cfg,
+            agents_config=agents_config,
+            output_dir=output_dir,
+            run_id=run_id,
+            results_root=results_root,
+            recreate_output=recreate_output,
+        )
 
         backend = build_eclss_backend(config, kind=backend_kind)
         team = self.build_team(config, agents_config=agents_config)
         log = EventLog(run_dir)
+
+        ros2_cfg = (config.get("backend", {}) or {}).get("ros2", {}) or {}
+        if backend_kind == "ros2":
+            startup_wait_s = float(ros2_cfg.get("startup_wait_s", 45.0))
+            _wait_for_ros2_storage_telemetry(backend, timeout_s=startup_wait_s)
 
         message_count = 0
         operational_command_count = 0
@@ -183,11 +222,13 @@ class SsosEclssLoopScenario(Scenario):
         peak_co2: Optional[float] = None
         min_o2: Optional[float] = None
 
-        for step in range(steps):
-            if isinstance(backend, LoopMockEclssBackend) and step > 0:
+        for step in range(1, steps + 1):
+            if isinstance(backend, LoopMockEclssBackend) and step > 1:
                 backend.advance_step()
 
             snap = backend.poll_telemetry()
+            if backend_kind == "ros2":
+                _assert_ros2_storage_telemetry(step, snap)
             last_snap = snap
             if snap.co2_storage_kg is not None:
                 peak_co2 = (
@@ -305,17 +346,22 @@ def main(argv: Optional[list[str]] = None) -> int:
         overrides["agents"] = {"mode": args.agents_mode}
     if args.steps is not None:
         overrides["simulation"] = {"steps": args.steps}
-    if args.apply_proposals:
-        apply_path = args.apply_proposals
-    else:
-        apply_path = None
 
-    run_dir = SsosEclssLoopScenario().run(
-        output_dir=args.output_dir,
-        overrides=overrides or None,
-        apply_proposals_path=apply_path,
+    from scenario.jobs.executor import execute_run
+    from scenario.jobs.spec import RunSpec
+
+    result = execute_run(
+        RunSpec(
+            scenario="ssos_eclss_loop",
+            output_dir=args.output_dir,
+            overrides=overrides or None,
+            apply_proposals_path=args.apply_proposals,
+        )
     )
-    print(json.dumps(json.loads((run_dir / "summary.json").read_text(encoding="utf-8")), indent=2))
+    if result.exit_code != 0:
+        print(result.error or "run failed", file=sys.stderr)
+        return result.exit_code
+    print(json.dumps(result.summary, indent=2))
     return 0
 
 

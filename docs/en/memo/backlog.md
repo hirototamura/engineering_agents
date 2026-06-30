@@ -180,3 +180,100 @@ Phase 7a covers **client-side remap in `Ros2EclssBridge` only**. Without `--ros-
 - `/bcdu/operation` not implemented — discharge depends on SSOS auto thresholds + bridge timer
 - `support_w` not in SSOS messages — bridge estimates watts
 - ECLSS remains `MockEclssSimulator` on scrubber path (ECLSS+EPS single scenario is BL-004)
+
+---
+
+## BL-006: SSOS run reproducibility and dashboard enrichment (out of CLI v3 scope)
+
+**Status**: Not started (after CLI v3 mounts + `ea run`)  
+**Related**: [cli_v3_plan.md](cli_v3_plan.md), [scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md)
+
+CLI v3 focuses on **host one-command runs and results mounts**. The items below belong to the simulation/visualization layer.
+
+### P1 — Plant initial state (CO2=500kg)
+
+| Item | Description |
+| --- | --- |
+| `scenario.yaml` | `simulation.initial_co2_storage_kg: 500` (mock; currently 1500) |
+| ros2 step 0 | Record `/co2_storage` after headless restart as `summary.plant_initial_co2_storage_kg` |
+| Validation | Fail fast if outside tolerance vs target 500 (point to SSOS launch params) |
+| SSOS side | Investigate launch params if headless default ≠ 500kg |
+
+**Intent**: Run-to-run reset is handled by CLI (headless restart). Target CO2 level and validation are scenario/plant contract.
+
+### P2 — Streamlit dashboard (rich SSOS views)
+
+Target: `src/tools/dashboard/ssos_views.py`, `app.py` — duration, threshold lines, ops/messages, compare, deep link (see Japanese BL-006 for detail).
+
+---
+
+## BL-007: SSOS ↔ EA time and step synchronization (next integration phase)
+
+**Status**: Under consideration (separate from CLI v3 / Phase 8)  
+**Related**: [scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md), [ssos_eclss_physical_phenomena_overview.md](ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md), BL-004 (WRS mock), BL-006 (run-boundary reproducibility)
+
+### Background
+
+- **EA `steps`** are decision cycles (observe → deliberate → act). The **SSOS ros2 plant** advances continuously on wall clock.
+- Only `LoopMockEclssBackend` guarantees **1 EA step = 1 physics tick** via `advance_step()`.
+- `ea run` headless restart resets state **between runs**, not **between steps** inside a run.
+- Current SSOS headless has **no global time_scale / sim clock** ([space_station_os](https://github.com/space-station-os/space_station_os)).
+
+**Conclusion (for now)**: Strict 1:1 mapping between EA steps and SSOS physics time is **likely too hard**. Capture options in backlog for the next integration phase (**not in cli_v3_plan**).
+
+### Current coupling model (keep)
+
+| backend | Meaning of step | Use |
+| --- | --- | --- |
+| `mock` | Explicit tick (`mock_dynamics`) | Agents, thresholds, LLM comparison, pytest |
+| `ros2` | Instant snapshot + wait for Action completion | SSOS smoke, E2E, demos (few steps) |
+
+### Option A — Expand SSOS mock inside engineering_agents (preferred first candidate)
+
+Build an **integrated SSOS-equivalent mock** in this repo: topic semantics, WRS/OGS/ARS dynamics, EPS coupling under EA-controlled ticks.
+
+| Item | Contents |
+| --- | --- |
+| Scope | Extend `LoopMockEclssBackend` or add `SsosPlantMock`; align with `eclss_topics.py` |
+| WRS / OGS | Step-synced Action/Service effects on mock (links to BL-004 WRS team) |
+| EPS | Drive with existing `MockEpsBackend` / `EpsStack` on same tick |
+| Pros | No upstream dependency; fast pytest; **step = physics tick** by design |
+| Cons | Drift from real SSOS; need contract tests for topics and Action types |
+
+### Option B — Upstream SSOS sim clock / tick sync
+
+Fork/clone [space_station_os](https://github.com/space-station-os/space_station_os) and add **upstream changes**: `use_sim_time` + `/clock`, or pause physics until EA ticks.
+
+| Item | Contents |
+| --- | --- |
+| Scope | Headless launch, node timers, Crew/metabolism drivers |
+| Pros | Closer to real plant with possible step sync |
+| Cons | High cost; maintenance burden; **may be overkill** for Mac Docker + real-time ops |
+
+### Option C — Mitigation only (short term; overlaps BL-006)
+
+No strict sync; strengthen **observation contract**:
+
+- Timestamps on telemetry; optional `step_dwell_s` after Actions
+- Step-0 plant validation (BL-006)
+- Dashboard: wall time vs step
+
+### Open questions (unscheduled)
+
+1. Primary axis for next integration phase: A, B, C, or hybrid (**logic on A, ros2 smoke on few steps**)
+2. Option A boundary: same `EclssBackend` Protocol as `Ros2EclssBridge`?
+3. Minimal upstream API if pursuing B (`tick(Δt)`, pause, sim clock)
+4. Explicit `simulation.ssos_time_model: mock_tick | ros2_snapshot` in `scenario.yaml`?
+
+### Relation to other backlog items
+
+| BL | Relation |
+| --- | --- |
+| BL-004 | WRS team, ECLSS+EPS unified scenario — overlaps Option A |
+| BL-006 | Run-boundary reproducibility, step-0 check — Option C; not step sync |
+| BL-003 | Launch remap — independent |
+
+### Relation to development plan
+
+- **Not** in the next implementation priority list (provenance, Phase 8, etc.)
+- Tracked under **“SSOS integration — next phase”** in [development-plan.md](../development-plan.md)

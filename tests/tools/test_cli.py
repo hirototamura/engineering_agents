@@ -1,0 +1,150 @@
+"""CLI integration tests."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from typer.testing import CliRunner
+
+from tools.cli.main import app
+
+runner = CliRunner()
+
+
+def test_version():
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert "0.1.0" in result.stdout
+
+
+def test_scenarios_lists_registered_scenarios():
+    result = runner.invoke(app, ["scenarios"])
+    assert result.exit_code == 0
+    assert "scrubber_degradation" in result.stdout
+    assert "ssos_eclss_loop" in result.stdout
+
+
+def test_run_scrubber_short(tmp_path: Path):
+    output_dir = tmp_path / "cli-run"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "scrubber_degradation",
+            "--agents-mode",
+            "none",
+            "--steps",
+            "2",
+            "--output-dir",
+            str(output_dir),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 0
+    assert str(output_dir) in result.stdout.replace("\n", "")
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["steps"] == 2
+
+
+def test_run_unknown_scenario():
+    result = runner.invoke(app, ["run", "missing_scenario"])
+    assert result.exit_code == 2
+    assert "Unknown scenario" in result.output
+
+
+def test_run_ssos_without_docker_blocks(monkeypatch):
+    monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    result = runner.invoke(
+        app,
+        ["run", "ssos_eclss_loop", "--agents-mode", "none", "--steps", "1"],
+    )
+    assert result.exit_code == 3
+    assert "Docker is required" in result.output
+
+
+def test_run_ssos_mock_without_docker_allowed(monkeypatch, tmp_path: Path):
+    monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    output_dir = tmp_path / "mock-run"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--agents-mode",
+            "none",
+            "--steps",
+            "2",
+            "--output-dir",
+            str(output_dir),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 0
+    assert (output_dir / "summary.json").exists()
+
+
+def test_run_dry_run_write_spec(tmp_path: Path):
+    spec_path = tmp_path / "job.json"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "scrubber_degradation",
+            "--agents-mode",
+            "none",
+            "--steps",
+            "2",
+            "--dry-run",
+            "--write-spec",
+            str(spec_path),
+        ],
+    )
+    assert result.exit_code == 0
+    assert spec_path.exists()
+    payload = json.loads(spec_path.read_text(encoding="utf-8"))
+    assert payload["scenario"] == "scrubber_degradation"
+
+
+def test_job_run_from_spec(tmp_path: Path):
+    output_dir = tmp_path / "job-run"
+    spec_path = tmp_path / "job.json"
+    spec_path.write_text(
+        json.dumps(
+            {
+                "scenario": "scrubber_degradation",
+                "overrides": {"agents": {"mode": "none"}, "simulation": {"steps": 2}},
+                "output_dir": str(output_dir),
+                "recreate_output": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = runner.invoke(app, ["job", "run", str(spec_path), "--quiet"])
+    assert result.exit_code == 0
+    assert (output_dir / "summary.json").exists()
+
+
+def test_run_writes_duration_wall_s(tmp_path: Path):
+    output_dir = tmp_path / "duration-run"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "scrubber_degradation",
+            "--agents-mode",
+            "none",
+            "--steps",
+            "2",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+    assert result.exit_code == 0
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert "duration_wall_s" in summary
+    assert summary["duration_wall_s"] >= 0

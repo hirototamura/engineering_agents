@@ -279,24 +279,41 @@ ollama list
 
 ## 実行方法
 
+### 統一 CLI（推奨）
+
+```bash
+ea run
+```
+
+`scrubber_degradation` を `labeled_rule_base` で実行します（Ollama 不要）。詳細は [docs/cli.md](docs/cli.md)。
+
+```bash
+ea scenarios
+ea run scrubber_degradation --agents-mode none
+ea run scrubber_degradation --agents-mode labeled_rule_base
+ea run scrubber_degradation --agents-mode llm   # Ollama 必須
+ea results
+ea doctor
+```
+
 ### scrubber_degradation
 
 #### エージェントなし（ベースライン）
 
 ```bash
-python src/scripts/run_mock_eclss.py
+ea run scrubber_degradation --agents-mode none
 ```
 
-または:
+レガシー:
 
 ```bash
-python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'none'}}))"
+python3 src/scripts/run_mock_eclss.py
 ```
 
 ### ルールベースチーム（scrubber · `labeled_rule_base`）
 
 ```bash
-python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}}))"
+ea run scrubber_degradation --agents-mode labeled_rule_base
 ```
 
 出力先: `src/experiments/results/scrubber_degradation_labeled_rule_base/`
@@ -304,7 +321,7 @@ python -c "from scenario.runner import run_scenario; print(run_scenario('scrubbe
 ### LLM チーム（scrubber · `llm`・Ollama 必須）
 
 ```bash
-python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}}))"
+ea run scrubber_degradation --agents-mode llm
 ```
 
 出力先: `src/experiments/results/scrubber_degradation_llm/`（`scenario.yaml` の `run_id_llm`）
@@ -316,9 +333,9 @@ python -c "from scenario.runner import run_scenario; print(run_scenario('scrubbe
 #### mock（ホスト、ROS2 不要）
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode none
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode labeled_rule_base
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm
+ea run ssos_eclss_loop --backend mock --agents-mode none
+ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base
+ea run ssos_eclss_loop --backend mock --agents-mode llm
 ```
 
 出力先例: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`
