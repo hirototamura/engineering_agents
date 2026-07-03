@@ -87,7 +87,7 @@ See the [command cheat sheet](#ssos_eclss_loop--command-cheat-sheet-mac) at the 
 ```bash
 cd /path/to/engineering_agents
 pip install -e ".[dev]"
-pytest tests/environment/   # regression check (expect ~78 passed)
+pytest --ignore=tests/e2e   # regression check (expect ~205 passed, 4 skipped)
 ```
 
 ### 3. Environment variables (optional)
@@ -95,7 +95,7 @@ pytest tests/environment/   # regression check (expect ~78 passed)
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SSOS_CONTAINER` | `ssos` | Target container for smoke wrappers |
-| `SSOS_CONTAINER_REPO` | `/tmp/engineering_agents` | Sync destination inside container |
+| `SSOS_CONTAINER_REPO` | `/ea` | Sync destination inside container |
 | `ROS_DOMAIN_ID` | ECLSS: unset / EPS: `23` | DDS domain (EPS smoke wrapper exports 23) |
 | `SSOS_ECLSS_BACKEND` | — | Backend override for `ssos_eclss_loop` (`mock` \| `ros2`) |
 
@@ -195,10 +195,61 @@ Manual headless + `docker cp` path (debugging):
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/ssos_ws/install/setup.bash
-cd /ea
+cd /ea   # default sync destination (override with SSOS_CONTAINER_REPO)
 PYTHONPATH=/ea/src SSOS_ECLSS_BACKEND=ros2 EA_RESULTS_ROOT=/ea/results \
   python3 -m scenario.ssos_eclss_loop.scenario_run --backend ros2
 ```
+
+---
+
+## Container E2E regression (one command)
+
+`scripts/run_ssos_regression.sh` chains **Tier 1** (host `pytest`) and optional **Tier 2** (live SSOS Docker smokes + `ea-loop`). Shared helpers live in `scripts/lib/ssos_docker.sh`.
+
+### Tier 1 — default (no Docker)
+
+```bash
+./scripts/run_ssos_regression.sh
+# Runs pytest (excluding tests/e2e); prints "Tier 2 skipped"
+```
+
+### Tier 2 — full SSOS container chain
+
+Requires Docker and the SSOS image (`ghcr.io/space-station-os/space_station_os:latest`). The script can create a managed container (`ssos-regression-<pid>`), launch headless ECLSS, sync `src/`, and run:
+
+1. ARS smoke → 1b smoke → WRS smoke → graph rewire smoke
+2. `ssos_eclss_loop` with `labeled_rule_base` (default 5 steps)
+
+```bash
+SSOS_E2E=1 ./scripts/run_ssos_regression.sh
+# Artifacts: artifacts/ssos-regression/<timestamp>/
+```
+
+| Flag / env | Effect |
+| --- | --- |
+| `--skip-pytest` | Tier 2 only (implies `SSOS_E2E=1`) |
+| `--with-eps` | Use `ssos-headless.sh` and run EPS smoke |
+| `--with-llm` | Also run `ea-loop` in `llm` mode (needs Ollama on host) |
+| `--use-existing` | Reuse running `SSOS_CONTAINER`; no create/teardown |
+| `--keep-container` | Do not remove managed container on exit |
+| `--steps N` | `ea-loop` simulation steps (default: 5) |
+| `SSOS_IMAGE` | Override pre-built image |
+| `SSOS_ROS_DOMAIN_ID` | DDS domain inside container (default: `23`) |
+
+Pytest hook (Tier 2 via pytest):
+
+```bash
+SSOS_E2E=1 pytest tests/e2e/test_ssos_regression.py -m ssos_e2e
+```
+
+### CI (`.github/workflows/ssos-e2e.yml`)
+
+| Job | When | What |
+| --- | --- | --- |
+| `pytest` | Every PR | Full pytest + `test_regression_tier1_pytest_only` |
+| `ssos-e2e` | `workflow_dispatch` or weekly cron (Mon 03:00 UTC) | Tier 2 on self-hosted `ssos` runner |
+
+Manual Tier 2 from GitHub Actions: **Actions → SSOS E2E Regression → Run workflow** (optional `with_eps`, `with_llm`, `use_existing`).
 
 ---
 

@@ -38,6 +38,20 @@ Integration deepens in stages. Each tier can be smoke-tested independently.
 | **T3** | 3 | EPS read + `request_eps_boost` interim | `Ros2EpsBridge` | `run_ssos_eps_smoke.sh` |
 | **T4** | 4 | `ssos_eclss_loop` scenario + agents | mock \| ros2 switch | `scenario_run.py` |
 | **T5** | 5 | `operational_proposals.json` + apply on next run | — | Not started |
+| **Regression** | — | Container E2E orchestrator (pytest + smoke chain + ea-loop) | `run_ssos_regression.sh` | `.github/workflows/ssos-e2e.yml` |
+
+---
+
+## Container regression
+
+`scripts/run_ssos_regression.sh` is the single entry point for SSOS integration regression:
+
+| Tier | Scope | Requires Docker |
+| --- | --- | --- |
+| **Tier 1** | Full `pytest` (default; excludes `tests/e2e`) | No |
+| **Tier 2** | Managed container → headless ECLSS → ARS/1b/WRS/graph-rewire smokes → `ea-loop` | Yes (`SSOS_E2E=1`) |
+
+Artifacts land in `artifacts/ssos-regression/<timestamp>/` (JSON smoke reports, `ea-loop` output). See [Quickstart — Container E2E regression](quickstart.md#container-e2e-regression-one-command).
 
 ---
 
@@ -111,6 +125,9 @@ flowchart TB
 | `src/scenario/agents/ssos_eclss_loop_team.py` | Crew-replacement agents |
 | `scripts/run_ssos_eclss_*.sh` | Host → Docker smoke wrappers |
 | `scripts/run_ssos_eps_smoke.sh` | EPS smoke wrapper |
+| `scripts/run_ssos_regression.sh` | Tier 1 pytest + optional Tier 2 container E2E |
+| `scripts/lib/ssos_docker.sh` | Shared Docker sync, headless launch, graph wait |
+| `.github/workflows/ssos-e2e.yml` | CI: PR pytest + scheduled/manual Tier 2 |
 
 ---
 

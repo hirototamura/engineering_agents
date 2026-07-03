@@ -217,10 +217,54 @@ docker restart ssos
 
 ```bash
 pip install -e ".[dev]"
+pytest --ignore=tests/e2e   # expect ~205 passed, 4 skipped
 pytest tests/environment/ -v
 ```
 
-Most tests need no Docker. Expect 2–3 skipped ROS integration tests.
+Most tests need no Docker. Expect 2–4 skipped ROS integration tests.
+
+---
+
+## SSOS container regression failures
+
+### Symptoms
+
+- `ERROR: Tier 2 requires docker.`
+- `ERROR: smoke scripts.ssos_eclss_ars_smoke failed`
+- `ros2 graph is empty` during Tier 2
+- CI `ssos-e2e` job fails on self-hosted runner
+
+### Tier 1 vs Tier 2
+
+| Symptom | Likely tier | Fix |
+| --- | --- | --- |
+| `Tier 2 skipped` on local run | Expected without `SSOS_E2E=1` | Set `SSOS_E2E=1` for live container chain |
+| pytest fails, no Docker involved | Tier 1 | Fix unit/scenario tests first |
+| smoke timeout / empty graph | Tier 2 | Ensure SSOS image pulls; extend `--wait-timeout` on individual smokes |
+
+### Local Tier 2 checklist
+
+```bash
+# 1. Docker available
+docker ps
+
+# 2. Full regression (creates managed container)
+SSOS_E2E=1 ./scripts/run_ssos_regression.sh
+
+# 3. Reuse existing container named ssos
+SSOS_E2E=1 SSOS_CONTAINER=ssos ./scripts/run_ssos_regression.sh --use-existing
+
+# 4. Inspect artifacts
+ls artifacts/ssos-regression/*/
+```
+
+Managed containers use `SSOS_CONTAINER_REPO=/ea` and `ROS_DOMAIN_ID=23` by default (`scripts/lib/ssos_docker.sh`). If headless launch fails on a fresh `ghcr.io` image, confirm `/root/ssos-eclss-headless.sh` exists or set `SSOS_HEADLESS_SCRIPT`.
+
+### CI notes
+
+- PRs run **pytest only** (including `tests/e2e/test_ssos_regression.py::test_regression_tier1_pytest_only`).
+- Live Tier 2 runs on **workflow_dispatch** or the weekly schedule — not on every PR (requires self-hosted `ssos` runner with Docker + SSOS image).
+- Reports upload to the `ssos-regression-reports` artifact when Tier 2 runs.
 
 ---
 

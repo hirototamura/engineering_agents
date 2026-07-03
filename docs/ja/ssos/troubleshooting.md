@@ -215,10 +215,54 @@ docker restart ssos
 
 ```bash
 pip install -e ".[dev]"
+pytest --ignore=tests/e2e   # 205 passed / 4 skipped 前後を期待
 pytest tests/environment/ -v
 ```
 
-Docker 不要のテストが大半。skip される ROS 統合テストは 2–3 件あり得ます。
+Docker 不要のテストが大半。skip される ROS 統合テストは 2–4 件あり得ます。
+
+---
+
+## SSOS コンテナ回帰テストの失敗
+
+### 症状
+
+- `ERROR: Tier 2 requires docker.`
+- `ERROR: smoke scripts.ssos_eclss_ars_smoke failed`
+- Tier 2 中の `ros2 graph is empty`
+- CI の `ssos-e2e` ジョブが self-hosted ランナーで失敗
+
+### Tier 1 と Tier 2 の切り分け
+
+| 症状 | 想定 tier | 対処 |
+| --- | --- | --- |
+| ローカルで `Tier 2 skipped` | `SSOS_E2E=1` 未設定（正常） | 実機連鎖には `SSOS_E2E=1` を設定 |
+| Docker 無しで pytest 失敗 | Tier 1 | 単体/シナリオテストを先に修正 |
+| smoke タイムアウト / 空グラフ | Tier 2 | SSOS イメージの pull を確認。個別 smoke の `--wait-timeout` を延長 |
+
+### ローカル Tier 2 チェックリスト
+
+```bash
+# 1. Docker 利用可能か
+docker ps
+
+# 2. フル回帰（管理コンテナを自動作成）
+SSOS_E2E=1 ./scripts/run_ssos_regression.sh
+
+# 3. 既存コンテナ ssos を再利用
+SSOS_E2E=1 SSOS_CONTAINER=ssos ./scripts/run_ssos_regression.sh --use-existing
+
+# 4. 成果物の確認
+ls artifacts/ssos-regression/*/
+```
+
+管理コンテナはデフォルトで `SSOS_CONTAINER_REPO=/ea`、`ROS_DOMAIN_ID=23`（`scripts/lib/ssos_docker.sh`）。新規 `ghcr.io` イメージでヘッドレス起動が失敗する場合は `/root/ssos-eclss-headless.sh` の有無を確認するか、`SSOS_HEADLESS_SCRIPT` を設定してください。
+
+### CI について
+
+- PR では **pytest のみ**（`tests/e2e/test_ssos_regression.py::test_regression_tier1_pytest_only` を含む）。
+- 実機 Tier 2 は **workflow_dispatch** または週次 cron で実行（全 PR ではない。self-hosted `ssos` ランナー + Docker + SSOS イメージが必要）。
+- Tier 2 実行時、レポートは `ssos-regression-reports` アーティファクトにアップロードされます。
 
 ---
 

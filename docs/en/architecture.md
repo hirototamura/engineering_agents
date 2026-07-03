@@ -412,6 +412,24 @@ pytest tests/scenario/test_scrubber_baseline.py tests/scenario/test_scrubber_wit
 pytest tests/scenario/test_ssos_eclss_loop*.py tests/environment/test_graph_rewire*.py -q
 ```
 
-SSOS container E2E: `./scripts/run_ssos_eclss_loop.sh`, `./scripts/run_graph_rewire_e2e.sh`
+SSOS container E2E (orchestrated):
+
+```bash
+./scripts/run_ssos_regression.sh              # Tier 1: pytest only
+SSOS_E2E=1 ./scripts/run_ssos_regression.sh   # Tier 2: container smoke chain + ea-loop
+```
+
+Individual container scripts (debugging): `./scripts/run_ssos_eclss_loop.sh`, `./scripts/run_graph_rewire_e2e.sh`
+
+### Cursor subagents (`.cursor/agents/`)
+
+Project-scoped subagent prompts for Cursor. Parent agents delegate exploration or debugging; subagents return concise summaries.
+
+| Agent | Mode | Use when |
+| --- | --- | --- |
+| `codebase-explorer` | readonly | Architecture research, symbol search, dependency tracing |
+| `debugger` | read-write | Test failures, CI errors, minimal fixes with pytest verification |
+
+Both agents enforce layer discipline (`tools → scenario → environment → core`) and repository guardrails from [AGENTS.md](AGENTS.md). Prompts live in `.cursor/agents/*.md` (not user-global `~/.cursor/agents/`).
 
 Next implementation: [development-plan.md](development-plan.md) · API details: [api-contracts.md](api-contracts.md)

@@ -434,6 +434,24 @@ pytest tests/scenario/test_scrubber_baseline.py tests/scenario/test_scrubber_wit
 pytest tests/scenario/test_ssos_eclss_loop*.py tests/environment/test_graph_rewire*.py -q
 ```
 
-SSOS コンテナ E2E: `./scripts/run_ssos_eclss_loop.sh`、`./scripts/run_graph_rewire_e2e.sh`
+SSOS コンテナ E2E（オーケストレータ）:
+
+```bash
+./scripts/run_ssos_regression.sh              # Tier 1: pytest のみ
+SSOS_E2E=1 ./scripts/run_ssos_regression.sh   # Tier 2: コンテナ smoke 連鎖 + ea-loop
+```
+
+個別コンテナスクリプト（デバッグ用）: `./scripts/run_ssos_eclss_loop.sh`、`./scripts/run_graph_rewire_e2e.sh`
+
+### Cursor サブエージェント（`.cursor/agents/`）
+
+Cursor 向けのプロジェクトスコープサブエージェントプロンプト。親エージェントが探索やデバッグを委譲し、サブエージェントは要約のみ返す。
+
+| エージェント | モード | 用途 |
+| --- | --- | --- |
+| `codebase-explorer` | readonly | アーキテクチャ調査、シンボル検索、依存関係の把握 |
+| `debugger` | read-write | テスト失敗、CI エラー、最小修正 + pytest 検証 |
+
+いずれもレイヤー規律（`tools → scenario → environment → core`）と [AGENTS.md](AGENTS.md) のガードレールを遵守。プロンプトは `.cursor/agents/*.md`（ユーザーグローバル `~/.cursor/agents/` ではない）。
 
 次の実装: [development-plan.md](development-plan.md) · API 詳細: [api-contracts.md](api-contracts.md)

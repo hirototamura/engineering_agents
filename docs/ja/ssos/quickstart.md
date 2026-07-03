@@ -85,7 +85,7 @@ ea results
 ```bash
 cd /path/to/engineering_agents
 pip install -e ".[dev]"
-pytest tests/environment/   # 回帰確認（78 passed 前後を期待）
+pytest --ignore=tests/e2e   # 回帰確認（205 passed / 4 skipped 前後を期待）
 ```
 
 ### 3. 環境変数（任意）
@@ -93,7 +93,7 @@ pytest tests/environment/   # 回帰確認（78 passed 前後を期待）
 | 変数 | デフォルト | 用途 |
 | --- | --- | --- |
 | `SSOS_CONTAINER` | `ssos` | smoke ラッパーの対象コンテナ |
-| `SSOS_CONTAINER_REPO` | `/tmp/engineering_agents` | コンテナ内 sync 先 |
+| `SSOS_CONTAINER_REPO` | `/ea` | コンテナ内 sync 先 |
 | `ROS_DOMAIN_ID` | ECLSS: 未設定 / EPS: `23` | DDS ドメイン（EPS smoke ラッパーが 23 を export） |
 | `SSOS_ECLSS_BACKEND` | — | `ssos_eclss_loop` の backend 上書き（`mock` \| `ros2`） |
 
@@ -193,10 +193,61 @@ PYTHONPATH=src python3 -m scenario.ssos_eclss_loop.scenario_run \
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/ssos_ws/install/setup.bash
-cd /ea
+cd /ea   # デフォルト sync 先（SSOS_CONTAINER_REPO で上書き可）
 PYTHONPATH=/ea/src SSOS_ECLSS_BACKEND=ros2 EA_RESULTS_ROOT=/ea/results \
   python3 -m scenario.ssos_eclss_loop.scenario_run --backend ros2
 ```
+
+---
+
+## コンテナ E2E 回帰（ワンコマンド）
+
+`scripts/run_ssos_regression.sh` は **Tier 1**（ホスト `pytest`）と任意の **Tier 2**（SSOS Docker 実機 smoke + `ea-loop`）を連鎖します。共通ヘルパは `scripts/lib/ssos_docker.sh` です。
+
+### Tier 1 — デフォルト（Docker 不要）
+
+```bash
+./scripts/run_ssos_regression.sh
+# pytest を実行（tests/e2e 除外）。"Tier 2 skipped" と表示
+```
+
+### Tier 2 — フル SSOS コンテナ連鎖
+
+Docker と SSOS イメージ（`ghcr.io/space-station-os/space_station_os:latest`）が必要です。管理コンテナ（`ssos-regression-<pid>`）を作成し、ヘッドレス ECLSS を起動、`src/` を sync して以下を実行します:
+
+1. ARS smoke → 1b smoke → WRS smoke → graph rewire smoke
+2. `labeled_rule_base` で `ssos_eclss_loop`（デフォルト 5 ステップ）
+
+```bash
+SSOS_E2E=1 ./scripts/run_ssos_regression.sh
+# 成果物: artifacts/ssos-regression/<timestamp>/
+```
+
+| フラグ / 環境変数 | 効果 |
+| --- | --- |
+| `--skip-pytest` | Tier 2 のみ（`SSOS_E2E=1` と同等） |
+| `--with-eps` | `ssos-headless.sh` を使い EPS smoke を追加 |
+| `--with-llm` | `llm` モードの `ea-loop` も実行（ホストに Ollama が必要） |
+| `--use-existing` | 起動中の `SSOS_CONTAINER` を再利用。作成/削除しない |
+| `--keep-container` | 終了時に管理コンテナを削除しない |
+| `--steps N` | `ea-loop` のシミュレーションステップ数（デフォルト: 5） |
+| `SSOS_IMAGE` | 事前ビルドイメージの上書き |
+| `SSOS_ROS_DOMAIN_ID` | コンテナ内 DDS ドメイン（デフォルト: `23`） |
+
+pytest フック（Tier 2）:
+
+```bash
+SSOS_E2E=1 pytest tests/e2e/test_ssos_regression.py -m ssos_e2e
+```
+
+### CI（`.github/workflows/ssos-e2e.yml`）
+
+| ジョブ | タイミング | 内容 |
+| --- | --- | --- |
+| `pytest` | 全 PR | 全 pytest + `test_regression_tier1_pytest_only` |
+| `ssos-e2e` | `workflow_dispatch` または週次 cron（月 03:00 UTC） | self-hosted `ssos` ランナーで Tier 2 |
+
+GitHub Actions から手動 Tier 2: **Actions → SSOS E2E Regression → Run workflow**（`with_eps` / `with_llm` / `use_existing` 任意）。
 
 ---
 

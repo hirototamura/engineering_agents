@@ -38,6 +38,20 @@
 | **T3** | 3 | EPS 読取 + `request_eps_boost` interim | `Ros2EpsBridge` | `run_ssos_eps_smoke.sh` |
 | **T4** | 4 | `ssos_eclss_loop` シナリオ + エージェント | mock \| ros2 切替 | `scenario_run.py` |
 | **T5** | 5 | `operational_proposals.json` + 次 run 適用 | — | 未着手 |
+| **Regression** | — | コンテナ E2E オーケストレータ（pytest + smoke 連鎖 + ea-loop） | `run_ssos_regression.sh` | `.github/workflows/ssos-e2e.yml` |
+
+---
+
+## コンテナ回帰テスト
+
+`scripts/run_ssos_regression.sh` は SSOS 接合回帰の単一エントリポイントです。
+
+| Tier | 範囲 | Docker 要否 |
+| --- | --- | --- |
+| **Tier 1** | 全 `pytest`（デフォルト。`tests/e2e` 除外） | 不要 |
+| **Tier 2** | 管理コンテナ → ヘッドレス ECLSS → ARS/1b/WRS/graph-rewire smoke → `ea-loop` | 要（`SSOS_E2E=1`） |
+
+成果物は `artifacts/ssos-regression/<timestamp>/` に出力されます（smoke JSON、`ea-loop` 出力）。手順は [クイックスタート — コンテナ E2E 回帰](quickstart.md#container-e2e-regression-one-command) を参照。
 
 ---
 
@@ -111,6 +125,9 @@ flowchart TB
 | `src/scenario/agents/ssos_eclss_loop_team.py` | Crew 代替エージェント |
 | `scripts/run_ssos_eclss_*.sh` | ホスト → Docker smoke ラッパ |
 | `scripts/run_ssos_eps_smoke.sh` | EPS smoke ラッパ |
+| `scripts/run_ssos_regression.sh` | Tier 1 pytest + 任意 Tier 2 コンテナ E2E |
+| `scripts/lib/ssos_docker.sh` | Docker sync・ヘッドレス起動・グラフ待機の共通ヘルパ |
+| `.github/workflows/ssos-e2e.yml` | CI: PR pytest + 定期/手動 Tier 2 |
 
 ---
 

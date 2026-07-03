@@ -43,7 +43,9 @@ This document aggregates **features not yet complete** and the **research backlo
 | 7 | Client `graph_rewire`, `Team` ABC, ssos dashboard views | ✅ |
 | 8 | ROS launch remap + gateway | 📋 [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a) |
 
-**Tests**: `pytest` — **140 passed**, 4 skipped (ROS2 live / outside container tests skip).
+**Tests**: `pytest --ignore=tests/e2e` — **205 passed**, 4 skipped (ROS2 live / outside container tests skip).
+
+**Container regression**: `./scripts/run_ssos_regression.sh` (Tier 1 pytest; `SSOS_E2E=1` for Tier 2 smoke chain). CI: `.github/workflows/ssos-e2e.yml`.
 
 **Time model (current)**: `mock` — 1 EA step = 1 physics tick. `ros2` — SSOS wall-clock snapshots (no step sync). Run-to-run reset via headless restart. Step-sync strategy: [BL-007](memo/backlog.md#bl-007-ssos--ea-time-and-step-synchronization-next-integration-phase).
 
