@@ -34,29 +34,74 @@
 
 ### システム全体像
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  tools/          Streamlit dashboard, ea-loop (Docker)      │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────┐
-│  scenario/       scrubber_degradation  |  ssos_eclss_loop   │
-│                  ScrubberDegradationTeam | SsosEclssLoopTeam│
-└───────────────┬─────────────────────────────┬───────────────┘
-                │                             │
-    ┌───────────▼──────────┐      ┌───────────▼──────────────┐
-    │ environment/         │      │ environment/ssos/        │
-    │ StationSimulator     │      │ EclssBackend             │
-    │ MockEclss + EPS mock │      │ Ros2EclssBridge          │
-    └───────────┬──────────┘      └───────────┬──────────────┘
-                │                             │
-                └─────────────┬───────────────┘
-                              │
-┌─────────────────────────────▼───────────────────────────────┐
-│  core/           PersonaAgent, Team ABC, memory, Ollama     │
-└─────────────────────────────────────────────────────────────┘
+`src/environment/` はシナリオ系統ごとに分割される。各系統がバックエンドを所有し、mock と ROS2 実装は同一サブツリー内に置く。
 
-  integrations/one_piece/  ← scenario 終了時に provenance エクスポート
+```text
+environment/
+  protocol.py              # scrubber 共通型 + SimulatorProtocol
+  scrubber/                  # scrubber_degradation
+    station_simulator.py     # StationSimulator（ECLSS + EPS ファサード）
+    mock_eclss.py            # MockEclssSimulator（ppm プラント）
+    eclss_ops/               # anomalies, commands, design_state, telemetry
+    eps/
+      backend.py             # EpsBackend プロトコル
+      mock/                  # MockEpsBackend → EpsStack（MockSarj, MockBcdu）
+  ssos/
+    ros2/cli.py              # 共有 ros2 CLI ヘルパ（ECLSS + EPS ブリッジ）
+    eclss/                   # ssos_eclss_loop
+      backend.py             # EclssBackend プロトコル
+      mock/backend.py        # MockEclssBackend（契約スタブ）
+      ros2/                  # Ros2EclssBridge, graph_rewire, topics
+    eps/ros2/                # Ros2EpsBridge のみ — scrubber EPS オプション。eclss loop 未接続
+```
+
+```mermaid
+flowchart TB
+  subgraph tools ["tools/"]
+    Dashboard["Streamlit dashboard"]
+    EALoop["ea-loop (Docker)"]
+  end
+
+  subgraph scenario ["scenario/"]
+    SD["scrubber_degradation<br/>ScrubberDegradationScenario"]
+    SE["ssos_eclss_loop<br/>SsosEclssLoopScenario"]
+    SDT["ScrubberDegradationTeam"]
+    SET["SsosEclssLoopTeam"]
+  end
+
+  subgraph scrubber_env ["environment/scrubber/"]
+    SS["StationSimulator"]
+    ME["MockEclssSimulator<br/>(mock ECLSS ppm)"]
+    EPS["EpsBackend"]
+    MEP["MockEpsBackend<br/>(mock EPS)"]
+    REP["Ros2EpsBridge<br/>(via ssos/eps/ros2/)"]
+  end
+
+  subgraph ssos_env ["environment/ssos/"]
+    CLI["ros2/cli.py"]
+    EB["EclssBackend"]
+    LME["LoopMockEclssBackend<br/>(mock)"]
+    REB["Ros2EclssBridge<br/>(ros2)"]
+  end
+
+  core["core/<br/>PersonaAgent, Team ABC, memory, Ollama"]
+  OP["integrations/one_piece/<br/>provenance export"]
+
+  tools --> scenario
+  SD --> SDT
+  SE --> SET
+  SDT --> SS
+  SET --> EB
+  SS --> ME
+  SS --> EPS
+  EPS --> MEP
+  EPS -.->|"eps.backend: ros2"| REP
+  EB --> LME
+  EB --> REB
+  REB --> CLI
+  REP --> CLI
+  scenario --> core
+  scenario --> OP
 ```
 
 **依存方向**（import は一方向のみ）:
@@ -72,7 +117,7 @@ src/integrations/   （scenario から呼び出し）
 | レイヤ          | パス                            | 責務                                                                         |
 | ------------ | ----------------------------- | -------------------------------------------------------------------------- |
 | Core         | `src/core/`                   | Persona、Team ABC、メモリ、LLM クライアント                                            |
-| Environment  | `src/environment/`            | scrubber: `SimulatorProtocol`、EPS mock。ssos: `EclssBackend`、`graph_rewire` |
+| Environment  | `src/environment/`            | `scrubber/`: `SimulatorProtocol`、mock ECLSS ppm、mock EPS（`MockEpsBackend` または `Ros2EpsBridge`）。`ssos/eclss/`: `EclssBackend`、mock \| ros2、`graph_rewire`。`ssos/ros2/cli.py`: 共有 ROS2 CLI。`ssos/eps/ros2/`: EPS ブリッジ（scrubber 任意、eclss loop 未使用） |
 | Scenario     | `src/scenario/`               | 各シナリオ YAML、Team、`design_proposals`                                         |
 | Experiments  | `src/experiments/results/`    | 実行出力                                                                       |
 | Tools        | `src/tools/dashboard/`        | Streamlit（`summary.scenario` でビュー分岐）                                       |
@@ -162,9 +207,9 @@ Python モック上の CO₂ スクラバー異常。**凍結済み** — 新機
 scenario.yaml + agents.yaml
         │
         ▼
-  scenario/runner.py → ScrubberDegradationScenario
+  scenario/scrubber_degradation/scenario_run.py → ScrubberDegradationScenario
         │
-        ├─ build_simulator() → StationSimulator(ECLSS + EPS)
+        ├─ build_simulator() → StationSimulator(MockEclssSimulator, EpsBackend)
         ├─ build_team()      → ScrubberDegradationTeam
         │
         ▼
@@ -178,6 +223,114 @@ scenario.yaml + agents.yaml
         ▼
   propose_post_run_design() → design_proposals.json
   export_run_provenance()   → recovery レコード
+```
+
+### Environment レイアウト
+
+| パス | 役割 |
+| --- | --- |
+| `environment/protocol.py` | 共有データ型（`TelemetrySnapshot`、`RecoveryCommand` 等）と `SimulatorProtocol` |
+| `environment/scrubber/station_simulator.py` | `StationSimulator` — ECLSS プラントと EPS バックエンドを結合 |
+| `environment/scrubber/mock_eclss.py` | `MockEclssSimulator` — ppm スクラバープラントモデル |
+| `environment/scrubber/eclss_ops/` | 異常、コマンド検証、設計状態、ヘルスヘルパ |
+| `environment/scrubber/eps/backend.py` | `EpsBackend` プロトコル |
+| `environment/scrubber/eps/mock/` | `MockEpsBackend`、`EpsStack`、`MockSarj`、`MockBcdu` |
+| `environment/ssos/eps/ros2/bridge.py` | `Ros2EpsBridge` — `eps.backend: ros2` 時の実 EPS |
+| `scenario/scrubber_degradation/scenario_run.py` | `ScrubberDegradationScenario` 実行ループ |
+| `scenario/agents/scrubber_degradation_team.py` | `ScrubberDegradationTeam` |
+| `scenario/runner.py` | `build_simulator()`、`build_eps_backend()` ファクトリ |
+
+EPS バックエンド選択（`scenario/runner.py` → `build_eps_backend`）:
+
+| `eps.backend` | 実装 |
+| --- | --- |
+| `mock`（デフォルト） | `MockEpsBackend` — メモリ内 SARJ/BCDU |
+| `ros2` / `ssos_eps` | `Ros2EpsBridge` — `ssos/ros2/cli.py` 経由で SSOS Docker |
+
+### クラス構成
+
+```mermaid
+classDiagram
+  direction TB
+
+  class SimulatorProtocol {
+    <<Protocol>>
+    +step() TelemetrySnapshot
+    +apply_command(RecoveryCommand) CommandResult
+    +get_topology() TopologyGraph
+    +inject_anomaly(AnomalySpec)
+  }
+
+  class EpsBackend {
+    <<Protocol>>
+    +poll_solar() SarjReading
+    +request_discharge(support_w, duration_steps) DischargeResult
+    +consume_scheduled_support() float
+  }
+
+  class StationSimulator {
+    +eclss MockEclssSimulator
+    +eps EpsBackend
+    +step()
+    +apply_command()
+  }
+
+  class MockEclssSimulator {
+    +design DesignStateManager
+    +anomalies AnomalyManager
+    +step()
+    +apply_command()
+  }
+
+  class MockEpsBackend {
+    +stack EpsStack
+  }
+
+  class Ros2EpsBridge {
+    +poll_solar()
+    +request_discharge()
+  }
+
+  class ScrubberDegradationScenario {
+    +build_simulator()
+    +build_team()
+    +run()
+  }
+
+  class ScrubberDegradationTeam {
+    +run_step(sim, obs)
+    +apply_outcome(sim, ...)
+  }
+
+  SimulatorProtocol <|.. StationSimulator : implements
+  EpsBackend <|.. MockEpsBackend : implements
+  EpsBackend <|.. Ros2EpsBridge : implements
+  StationSimulator *-- MockEclssSimulator
+  StationSimulator o-- EpsBackend
+  ScrubberDegradationScenario --> StationSimulator : build_simulator
+  ScrubberDegradationScenario --> ScrubberDegradationTeam : build_team
+  ScrubberDegradationTeam ..> SimulatorProtocol : run_step / apply_outcome
+```
+
+ステップループ（scenario ↔ environment）:
+
+```mermaid
+flowchart TD
+  A["ScrubberDegradationScenario.run"] --> B["build_simulator()"]
+  B --> C["StationSimulator(MockEclssSimulator, EpsBackend)"]
+  A --> D["build_team() → ScrubberDegradationTeam"]
+  C --> E{"step 1..N"}
+  E --> F["StationSimulator.step()"]
+  F --> F1["EpsBackend.poll_solar / consume_scheduled_support"]
+  F1 --> F2["MockEclssSimulator.step() → TelemetrySnapshot"]
+  F2 --> G["compute_health_metrics() + EventLog"]
+  G --> H["ScrubberDegradationTeam.run_step(sim, obs)"]
+  H --> I["ScrubberDegradationTeam.apply_outcome()"]
+  I --> J["StationSimulator.apply_command()"]
+  J --> J1{"REQUEST_EPS_BOOST?"}
+  J1 -->|yes| J2["EpsBackend.request_discharge()"]
+  J1 -->|no| J3["MockEclssSimulator.apply_command()"]
+  E -->|done| K["propose_post_run_design()"]
 ```
 
 ### ランタイム vs 事後
@@ -194,11 +347,13 @@ scenario.yaml + agents.yaml
 ### ECLSS + EPS スタック
 
 ```text
-StationSimulator
-  ├─ MockEclssSimulator   CO₂ ppm、スクラバー、ファン、バイパス
-  └─ EpsStack
-       ├─ MockSarj
-       └─ MockBcdu          request_eps_boost 応答
+StationSimulator                          # scrubber/station_simulator.py
+  ├─ MockEclssSimulator                   # scrubber/mock_eclss.py
+  │    └─ scrubber/eclss_ops/             # anomalies, commands, design_state
+  └─ EpsBackend                           # scrubber/eps/backend.py
+       ├─ MockEpsBackend                  # scrubber/eps/mock/（デフォルト）
+       │    └─ EpsStack (MockSarj, MockBcdu)
+       └─ Ros2EpsBridge                   # ssos/eps/ros2/（eps.backend: ros2）
 ```
 
 トポロジ:
@@ -212,7 +367,7 @@ StationSimulator
 
 ### ヘルス（ppm / 電力）
 
-`compute_health_metrics()` — `src/environment/eclss_ops/telemetry.py`
+`compute_health_metrics()` — `src/environment/scrubber/eclss_ops/telemetry.py`
 
 
 | 指標         | safe  | warning       | critical |
@@ -290,7 +445,7 @@ SSOS Docker 内の実 ROS2 ECLSS（または `LoopMockEclssBackend`）。`**Simu
 scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
         │
         ▼
-  scenario/ssos_eclss_loop/scenario_run.py
+  scenario/ssos_eclss_loop/scenario_run.py → SsosEclssLoopScenario
         │
         ├─ build_eclss_backend() → LoopMockEclssBackend | Ros2EclssBridge(topic_remap)
         ├─ build_team()            → SsosEclssLoopTeam
@@ -308,6 +463,111 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
   export_run_provenance()   → operational レコード
 ```
 
+### Environment レイアウト
+
+| パス | 役割 |
+| --- | --- |
+| `environment/ssos/eclss/backend.py` | `EclssBackend` プロトコル |
+| `environment/ssos/eclss/types.py` | ストレージテレメトリ、ゴール、action/service 結果 |
+| `environment/ssos/eclss/mock/backend.py` | `MockEclssBackend` — no-op 契約スタブ |
+| `scenario/ssos_eclss_loop/loop_mock_backend.py` | `LoopMockEclssBackend` — mock run 用ストレージ動態 |
+| `environment/ssos/eclss/ros2/bridge.py` | `Ros2EclssBridge` — ros2 CLI / rclpy 経由の実 SSOS ECLSS |
+| `environment/ssos/eclss/ros2/graph_rewire.py` | Phase 7 クライアント remap 用 `build_topic_remap()` |
+| `environment/ssos/eclss/ros2/topics.py` | action/service/topic 名 |
+| `environment/ssos/ros2/cli.py` | 共有 `run_ros2_cli`、並列 topic echo、パースヘルパ |
+| `environment/ssos/eps/ros2/` | `Ros2EpsBridge` — **EPS のみ**。scrubber が使用、eclss loop 未接続 |
+| `scenario/ssos_eclss_loop/scenario_run.py` | `SsosEclssLoopScenario`、`build_eclss_backend()` |
+| `scenario/agents/ssos_eclss_loop_team.py` | `SsosEclssLoopTeam` |
+
+バックエンド選択（`scenario_run.py` の `build_eclss_backend`）:
+
+| `backend.kind` | 実装 |
+| --- | --- |
+| `mock`（デフォルト） | `LoopMockEclssBackend` — ホスト dev、簡易 CO₂/O₂ 動態 |
+| `ros2` | `Ros2EclssBridge` — SSOS Docker。任意で `ssos_graph.rewires` → `topic_remap` |
+
+CLI `--backend mock|ros2`、config `backend.kind`、環境変数 `SSOS_ECLSS_BACKEND` で上書き可能。
+
+### クラス構成
+
+```mermaid
+classDiagram
+  direction TB
+
+  class EclssBackend {
+    <<Protocol>>
+    +poll_telemetry() EclssTelemetrySnapshot
+    +send_air_revitalisation_goal(ArsGoal) ActionResult
+    +send_oxygen_generation_goal(OgsGoal) ActionResult
+    +request_co2(amount) ServiceResult
+    +request_o2(amount) ServiceResult
+  }
+
+  class MockEclssBackend {
+    +poll_telemetry()
+    +send_*_goal()
+  }
+
+  class LoopMockEclssBackend {
+    +advance_step()
+    +poll_telemetry()
+  }
+
+  class Ros2EclssBridge {
+    +topic_remap
+    +poll_telemetry()
+    +send_*_goal()
+  }
+
+  class Ros2Cli {
+    <<module>>
+    run_ros2_cli()
+    echo_float_topics_parallel()
+  }
+
+  class SsosEclssLoopScenario {
+    +build_eclss_backend()
+    +build_team()
+    +run()
+  }
+
+  class SsosEclssLoopTeam {
+    +run_step(backend, obs)
+    +apply_outcome(backend, ...)
+  }
+
+  EclssBackend <|.. MockEclssBackend : implements
+  MockEclssBackend <|-- LoopMockEclssBackend : extends
+  EclssBackend <|.. Ros2EclssBridge : implements
+  Ros2EclssBridge ..> Ros2Cli : uses
+  SsosEclssLoopScenario --> EclssBackend : build_eclss_backend
+  SsosEclssLoopScenario --> SsosEclssLoopTeam : build_team
+  SsosEclssLoopTeam ..> EclssBackend : run_step / apply_outcome
+```
+
+ステップループ（scenario ↔ environment）:
+
+```mermaid
+flowchart TD
+  A["SsosEclssLoopScenario.run"] --> B["build_eclss_backend()"]
+  B --> B1{"backend.kind"}
+  B1 -->|mock| B2["LoopMockEclssBackend"]
+  B1 -->|ros2| B3["Ros2EclssBridge(topic_remap)"]
+  A --> C["build_team() → SsosEclssLoopTeam"]
+  B2 --> D{"step 1..N"}
+  B3 --> D
+  D --> E["backend.poll_telemetry()"]
+  E --> F["compute_eclss_storage_health() + EventLog"]
+  F --> G["SsosEclssLoopTeam.run_step(backend, obs)"]
+  G --> H["SsosEclssLoopTeam.apply_outcome()"]
+  H --> I{"command kind"}
+  I -->|air_revitalisation| J["send_air_revitalisation_goal()"]
+  I -->|oxygen_generation| K["send_oxygen_generation_goal()"]
+  I -->|request_co2 / request_o2| L["Service call"]
+  D -->|mock only| M["LoopMockEclssBackend.advance_step()"]
+  D -->|done| N["propose_post_run_design()"]
+```
+
 ### ランタイム vs 事後
 
 
@@ -322,11 +582,13 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
 ### ECLSS スタック
 
 ```text
-SsosEclssLoopTeam
-  └─ EclssBackend
-       ├─ LoopMockEclssBackend   ホスト dev（簡易ストレージ動態）
-       └─ Ros2EclssBridge        SSOS Docker — ros2 CLI
-            └─ topic_remap       graph_rewire
+SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team.py
+  └─ EclssBackend                         # ssos/eclss/backend.py
+       ├─ LoopMockEclssBackend             # scenario/.../loop_mock_backend.py（mock）
+       │    └─ extends MockEclssBackend   # ssos/eclss/mock/backend.py
+       └─ Ros2EclssBridge                  # ssos/eclss/ros2/bridge.py（ros2）
+            ├─ ssos/ros2/cli.py           # 共有 CLI ヘルパ
+            └─ topic_remap                # ssos_graph.rewires から graph_rewire
 ```
 
 ```text
@@ -408,9 +670,10 @@ run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
 
 | システム                   | 系統       | 状態                             |
 | ---------------------- | -------- | ------------------------------ |
-| Python モック ECLSS + EPS | scrubber | ✅ `StationSimulator`           |
-| SSOS 実 ECLSS           | ssos     | ✅ `Ros2EclssBridge`            |
-| SSOS EPS（scrubber 電力）  | scrubber | ✅ `Ros2EpsBridge`              |
+| Python モック ECLSS + EPS | scrubber | ✅ `environment/scrubber/` — `StationSimulator`、`MockEpsBackend` |
+| SSOS 実 ECLSS           | ssos     | ✅ `environment/ssos/eclss/ros2/` — `Ros2EclssBridge` |
+| SSOS EPS（scrubber 電力）  | scrubber | ✅ `environment/ssos/eps/ros2/` — `Ros2EpsBridge`（`eps.backend: ros2` で任意） |
+| SSOS EPS（eclss loop）   | ssos     | — 未接続。`ssos/eps/ros2/` は eclss loop とは別 |
 | Ollama                 | 両方       | ✅ コンテナは `host.docker.internal` |
 | One Piece Web UI       | —        | スコープ外                          |
 
