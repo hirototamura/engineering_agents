@@ -30,9 +30,12 @@ MkDocs catalog and preview: [docs/catalog.md](docs/catalog.md) (`mkdocs serve`).
 
 ## Quick start
 
+Requires **Python 3.11+** on the host (`requires-python` in `pyproject.toml`). SSOS Docker jobs use the container’s own Python.
+
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
+ea doctor
 pytest
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}}))"
 ```

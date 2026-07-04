@@ -10,10 +10,10 @@
 # Options:
 #   --skip-pytest          Run Tier 2 only (implies SSOS_E2E=1)
 #   --with-eps             Tier 2b: use ssos-headless.sh and run EPS smoke
-#   --with-llm             Also run ea-loop with agents.mode=llm (needs Ollama)
+#   --with-llm             Also run scenario.jobs with agents.mode=llm (needs Ollama)
 #   --use-existing         Do not create/remove container; use SSOS_CONTAINER if running
 #   --keep-container       Do not remove managed container on exit
-#   --steps N              ea-loop simulation steps (default: 5)
+#   --steps N              scenario.jobs simulation steps (default: 5)
 #   --artifact-dir PATH    Report output directory (default: artifacts/ssos-regression/<ts>)
 #
 set -euo pipefail
@@ -43,15 +43,15 @@ Tier 1 (always unless --skip-pytest):
   pytest -q
 
 Tier 2 (when SSOS_E2E=1 or --skip-pytest):
-  Start SSOS container, launch headless ECLSS, run smoke chain + ea-loop
+  Start SSOS container (volume mounts), launch headless ECLSS, run smoke chain + scenario.jobs
 
 Options:
   --skip-pytest       Skip Tier 1; run Tier 2 only
   --with-eps          Include EPS smoke (requires ssos-headless.sh)
-  --with-llm          Run ea-loop in llm mode after labeled_rule_base
+  --with-llm          Run scenario.jobs in llm mode after labeled_rule_base
   --use-existing      Use running SSOS_CONTAINER; do not create/teardown
   --keep-container    Keep managed container after exit
-  --steps N           ea-loop steps (default: 5)
+  --steps N           scenario.jobs steps (default: 5)
   --artifact-dir DIR  Write JSON reports here
   -h, --help          Show this help
 
@@ -199,28 +199,25 @@ run_tier2() {
     run_smoke "05_eps" scripts.ssos_eps_smoke
   fi
 
-  local loop_container_out="/tmp/ea_regression/06_ea_loop_labeled"
+  local loop_container_out="${SSOS_MOUNT_RESULTS}/ssos_eclss_loop_labeled_rule_base"
   local loop_host_out="$ARTIFACT_DIR/06_ea_loop_labeled"
   mkdir -p "$loop_host_out"
-  echo "==> Tier 2 ea-loop: labeled_rule_base (--steps $LOOP_STEPS)"
-  docker exec "$SSOS_CONTAINER" mkdir -p /tmp/ea_regression
-  ssos_run_ea_loop \
+  echo "==> Tier 2 scenario.jobs: labeled_rule_base (--steps $LOOP_STEPS)"
+  ssos_run_scenario_job \
     --backend ros2 \
     --agents-mode labeled_rule_base \
-    --steps "$LOOP_STEPS" \
-    --output-dir "$loop_container_out"
+    --steps "$LOOP_STEPS"
   copy_container_dir "$loop_container_out" "$loop_host_out"
 
   if [[ "$WITH_LLM" -eq 1 ]]; then
-    local llm_container_out="/tmp/ea_regression/07_ea_loop_llm"
+    local llm_container_out="${SSOS_MOUNT_RESULTS}/ssos_eclss_loop_llm"
     local llm_host_out="$ARTIFACT_DIR/07_ea_loop_llm"
     mkdir -p "$llm_host_out"
-    echo "==> Tier 2 ea-loop: llm (--steps $LOOP_STEPS)"
-    ssos_run_ea_loop \
+    echo "==> Tier 2 scenario.jobs: llm (--steps $LOOP_STEPS)"
+    ssos_run_scenario_job \
       --backend ros2 \
       --agents-mode llm \
-      --steps "$LOOP_STEPS" \
-      --output-dir "$llm_container_out"
+      --steps "$LOOP_STEPS"
     copy_container_dir "$llm_container_out" "$llm_host_out"
   fi
 

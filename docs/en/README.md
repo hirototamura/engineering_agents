@@ -219,7 +219,7 @@ Roadmap and research memos: [docs/development-plan.md](development-plan.md).
 
 ## Requirements
 
-- **Python 3.9+**
+- **Python 3.11+**
 - **Git**
 - **Ollama** (only when using `agents.mode: llm`)
 - **SSOS Docker** (only for `ssos_eclss_loop` **ros2** mode) — [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md#how-to-run)

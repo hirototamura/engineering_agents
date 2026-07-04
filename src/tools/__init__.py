@@ -1,1 +1,3 @@
-"""Tooling entrypoints (dashboard, CLI, utilities)."""
+"""Engineering Agents tools package."""
+
+__version__ = "0.1.0"

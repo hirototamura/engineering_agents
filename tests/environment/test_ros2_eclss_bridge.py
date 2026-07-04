@@ -141,15 +141,16 @@ def test_poll_uses_rclpy_reader_when_available(monkeypatch):
     monkeypatch.delenv("SSOS_ECLSS_FORCE_CLI_TELEMETRY", raising=False)
 
     class _FakeReader:
-        def read(self, wait_timeout_s: float):
+        def read_fresh(self, wait_timeout_s: float, *, max_age_s: float):
             assert wait_timeout_s == 7.5
+            assert max_age_s == 15.0
             return 10.0, 20.0, 30.0
 
     monkeypatch.setattr(
         "environment.ssos.ros2_eclss_bridge.get_rclpy_telemetry_reader",
         lambda: _FakeReader(),
     )
-    snap = Ros2EclssBridge(topic_timeout_s=7.5).poll_telemetry()
+    snap = Ros2EclssBridge(topic_timeout_s=7.5, telemetry_max_age_s=15.0).poll_telemetry()
     assert snap.co2_storage_kg == 10.0
     assert snap.o2_storage_kg == 20.0
     assert snap.product_water_reserve_l == 30.0

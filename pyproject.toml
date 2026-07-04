@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "ECLSS resilience-loop multi-agent simulation platform"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.24.0",
     "matplotlib>=3.7.0",
@@ -16,7 +16,12 @@ dependencies = [
     "requests>=2.31.0",
     "Pillow>=10.0.0",
     "streamlit>=1.35.0",
+    "typer>=0.12.0",
+    "rich>=13.7.0",
 ]
+
+[project.scripts]
+ea = "tools.cli.main:app"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "mkdocs-material>=9.0"]

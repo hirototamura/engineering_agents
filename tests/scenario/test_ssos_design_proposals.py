@@ -129,3 +129,17 @@ def test_apply_action_profile_rejects_unknown_fields():
     }
     with pytest.raises(ValueError, match="unsupported keys"):
         apply_design_proposals({"agents": {"policy": {}}}, proposals)
+
+
+def test_apply_set_parameter_rejects_arbitrary_target():
+    proposals = {
+        "design_domain": DESIGN_DOMAIN,
+        "changes": [
+            {
+                "change_kind": "set_parameter",
+                "payload": {"target": "simulation.steps", "value": 999},
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="not allowed"):
+        apply_design_proposals({"agents": {"policy": {}}}, proposals)

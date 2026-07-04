@@ -5,7 +5,13 @@ from __future__ import annotations
 from environment.protocol import HealthStatus
 from environment.ssos.eclss_types import EclssTelemetrySnapshot
 from scenario.ssos_eclss_loop.health import compute_eclss_storage_health
-from scenario.ssos_eclss_loop.scenario_run import _omit_nulls, _telemetry_summary_fields
+from scenario.ssos_eclss_loop.scenario_run import (
+    _assert_ros2_storage_telemetry,
+    _omit_nulls,
+    _storage_telemetry_missing,
+    _telemetry_summary_fields,
+    _wait_for_ros2_storage_telemetry,
+)
 
 
 def test_health_unknown_when_telemetry_missing():
@@ -32,3 +38,41 @@ def test_summary_helpers_omit_null_metrics():
 
     omitted = _omit_nulls({"ars_invoked_step": None, "message_count": 0})
     assert omitted == {"message_count": 0}
+
+
+def test_storage_telemetry_missing_detects_empty_snapshot():
+    assert _storage_telemetry_missing(EclssTelemetrySnapshot()) is True
+    assert _storage_telemetry_missing(EclssTelemetrySnapshot(o2_storage_kg=1.0)) is False
+
+
+def test_assert_ros2_storage_telemetry_raises_when_empty():
+    import pytest
+
+    with pytest.raises(RuntimeError, match="No ECLSS storage telemetry"):
+        _assert_ros2_storage_telemetry(1, EclssTelemetrySnapshot())
+
+
+def test_wait_for_ros2_storage_telemetry_returns_when_present():
+    class _Backend:
+        def __init__(self) -> None:
+            self._calls = 0
+
+        def poll_telemetry(self) -> EclssTelemetrySnapshot:
+            self._calls += 1
+            if self._calls < 2:
+                return EclssTelemetrySnapshot()
+            return EclssTelemetrySnapshot(co2_storage_kg=1500.0)
+
+    snap = _wait_for_ros2_storage_telemetry(_Backend(), timeout_s=1.0, poll_interval_s=0.01)
+    assert snap.co2_storage_kg == 1500.0
+
+
+def test_wait_for_ros2_storage_telemetry_times_out():
+    import pytest
+
+    class _EmptyBackend:
+        def poll_telemetry(self) -> EclssTelemetrySnapshot:
+            return EclssTelemetrySnapshot()
+
+    with pytest.raises(RuntimeError, match="Timed out waiting"):
+        _wait_for_ros2_storage_telemetry(_EmptyBackend(), timeout_s=0.05, poll_interval_s=0.01)

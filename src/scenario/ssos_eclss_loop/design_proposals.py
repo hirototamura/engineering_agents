@@ -29,6 +29,18 @@ ACTION_PROFILE_FIELDS_BY_SUBSYSTEM = {
     "wrs": frozenset({"urine_volume"}),
 }
 
+ALLOWED_SET_PARAMETER_TARGETS = frozenset(
+    {
+        "agents.policy.co2_storage_high_kg",
+        "agents.policy.o2_storage_low_kg",
+        "agents.policy.product_water_low_l",
+        "thresholds.co2_storage_high_kg",
+        "thresholds.co2_storage_critical_kg",
+        "thresholds.o2_storage_low_kg",
+        "thresholds.product_water_low_l",
+    }
+)
+
 ApplyHandler = Callable[[Dict[str, Any], Dict[str, Any]], None]
 
 
@@ -117,6 +129,11 @@ def _apply_set_parameter(config: Dict[str, Any], payload: Dict[str, Any]) -> Non
     value = payload.get("value")
     if not target:
         raise ValueError("set_parameter.target is required")
+    if target not in ALLOWED_SET_PARAMETER_TARGETS:
+        allowed = ", ".join(sorted(ALLOWED_SET_PARAMETER_TARGETS))
+        raise ValueError(
+            f"set_parameter.target {target!r} is not allowed. Allowed targets: {allowed}"
+        )
 
     parts = target.split(".")
     cursor: Any = config

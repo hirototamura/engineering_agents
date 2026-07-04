@@ -79,7 +79,7 @@ mkdocs build
 
 | ファイル | 内容 |
 | --- | --- |
-| [バックログ](ja/memo/backlog.md) | BL-001〜BL-005 |
+| [バックログ](ja/memo/backlog.md) | BL-001〜BL-007 |
 | [SSOS ECLSS 接合プラン](ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | Phase 0–7 実装・検証手順 |
 | [SSOS EPS ROS2 接合プラン](ja/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS ブリッジ（Phase 3） |
 | [ROS2 グラフ設計調査](ja/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | launch remap 調査 |

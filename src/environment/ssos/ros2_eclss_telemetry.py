@@ -78,6 +78,7 @@ class RclpyEclssTelemetryReader:
         self._rclpy = rclpy
         self._node: Node = rclpy.create_node("eclss_telemetry_reader")
         self._values: Dict[str, Optional[float]] = {topic: None for topic in _TELEMETRY_TOPICS}
+        self._updated_at: Dict[str, Optional[float]] = {topic: None for topic in _TELEMETRY_TOPICS}
         self._values_lock = threading.Lock()
         self._stop = threading.Event()
 
@@ -96,6 +97,7 @@ class RclpyEclssTelemetryReader:
         def _callback(msg) -> None:
             with self._values_lock:
                 self._values[topic] = float(msg.data)
+                self._updated_at[topic] = time.monotonic()
 
         return _callback
 
@@ -105,24 +107,56 @@ class RclpyEclssTelemetryReader:
 
     def read(self, wait_timeout_s: float) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         """Return (co2, o2, water), waiting up to ``wait_timeout_s`` for first samples."""
+        return self._read_locked(wait_timeout_s=wait_timeout_s, max_age_s=None)
+
+    def read_fresh(
+        self,
+        wait_timeout_s: float,
+        *,
+        max_age_s: float,
+    ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+        """Return samples only when all three topics updated within ``max_age_s``."""
+        return self._read_locked(wait_timeout_s=wait_timeout_s, max_age_s=max_age_s)
+
+    def _read_locked(
+        self,
+        *,
+        wait_timeout_s: float,
+        max_age_s: Optional[float],
+    ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         deadline = time.monotonic() + max(0.0, wait_timeout_s)
         while time.monotonic() < deadline:
             with self._values_lock:
-                co2 = self._values[TOPIC_CO2_STORAGE]
-                o2 = self._values[TOPIC_O2_STORAGE]
-                water = self._values[TOPIC_WRS_PRODUCT_WATER_RESERVE]
+                co2, o2, water = self._snapshot_values(max_age_s)
             if co2 is not None and o2 is not None and water is not None:
                 return co2, o2, water
             time.sleep(0.02)
         with self._values_lock:
-            return (
-                self._values[TOPIC_CO2_STORAGE],
-                self._values[TOPIC_O2_STORAGE],
-                self._values[TOPIC_WRS_PRODUCT_WATER_RESERVE],
-            )
+            return self._snapshot_values(max_age_s)
+
+    def _snapshot_values(
+        self,
+        max_age_s: Optional[float],
+    ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+        now = time.monotonic()
+        values: list[Optional[float]] = []
+        for topic in _TELEMETRY_TOPICS:
+            value = self._values[topic]
+            if value is None:
+                values.append(None)
+                continue
+            if max_age_s is not None:
+                updated = self._updated_at.get(topic)
+                if updated is None or (now - updated) > max_age_s:
+                    values.append(None)
+                    continue
+            values.append(value)
+        return values[0], values[1], values[2]
 
     def shutdown(self) -> None:
         self._stop.set()
         if self._spin_thread.is_alive():
             self._spin_thread.join(timeout=2.0)
         self._node.destroy_node()
+        if self._rclpy.ok():
+            self._rclpy.shutdown()

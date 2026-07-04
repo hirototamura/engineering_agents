@@ -1,18 +1,27 @@
 #!/usr/bin/env bash
 # Shared SSOS Docker helpers for smoke tests and E2E regression.
 #
+# Volume-mount layout (same as scripts/ssos/*/ssos-run-detached.sh):
+#   src     -> /ea/src
+#   results -> /ea/results
+#   scripts/ssos/* -> /root/
+#
 # Source from other scripts:
-#   _SSOS_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/ssos_docker.sh"
 #   # shellcheck source=scripts/lib/ssos_docker.sh
-#   source "$_SSOS_LIB/ssos_docker.sh"
+#   source "$REPO_ROOT/scripts/lib/ssos_docker.sh"
+#
+# CI self-hosted bind mounts: the Docker daemon must see the host path passed to
+# -v. Bare-metal runners (label ssos) are fine. Docker-in-Docker setups need the
+# checkout under a volume shared with the dind sidecar (e.g. RUNNER_WORKSPACE).
 
 SSOS_CONTAINER="${SSOS_CONTAINER:-ssos}"
-# Staged copy of host src/ inside the container (not image-baked; re-synced each run).
-SSOS_CONTAINER_REPO="${SSOS_CONTAINER_REPO:-/opt/engineering_agents}"
+SSOS_CONTAINER_REPO="${SSOS_CONTAINER_REPO:-/ea}"
+SSOS_MOUNT_SRC="${EA_MOUNT_SRC:-/ea/src}"
+SSOS_MOUNT_RESULTS="${EA_MOUNT_RESULTS:-/ea/results}"
 SSOS_IMAGE="${SSOS_IMAGE:-ghcr.io/space-station-os/space_station_os:latest}"
+SSOS_PLATFORM="${SSOS_PLATFORM:-linux/amd64}"
 SSOS_HEADLESS_SCRIPT="${SSOS_HEADLESS_SCRIPT:-/root/ssos-eclss-headless.sh}"
-SSOS_HEADLESS_FULL_SCRIPT="${SSOS_HEADLESS_FULL_SCRIPT:-/root/ssos-headless.sh}"
-SSOS_BUNDLED_HEADLESS_SCRIPT="${SSOS_BUNDLED_HEADLESS_SCRIPT:-scripts/ssos_eclss_headless.sh}"
+SSOS_HEADLESS_FULL_SCRIPT="${SSOS_HEADLESS_FULL_SCRIPT:-/root/ssos-eclss-headless.sh}"
 SSOS_ROS_DOMAIN_ID="${SSOS_ROS_DOMAIN_ID:-23}"
 SSOS_GRAPH_WAIT_TIMEOUT_S="${SSOS_GRAPH_WAIT_TIMEOUT_S:-300}"
 SSOS_GRAPH_POLL_INTERVAL_S="${SSOS_GRAPH_POLL_INTERVAL_S:-5}"
@@ -26,6 +35,16 @@ ssos_repo_root() {
   lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   SSOS_REPO_ROOT="$(cd "$lib_dir/../.." && pwd)"
   printf '%s\n' "$SSOS_REPO_ROOT"
+}
+
+ssos_load_volume_defs() {
+  local repo_root
+  repo_root="$(ssos_repo_root)"
+  export SSOS_REPO_ROOT="$repo_root"
+  # shellcheck source=scripts/ssos/_lib.sh
+  source "$repo_root/scripts/ssos/_lib.sh"
+  ssos_resolve_paths
+  ssos_define_volumes
 }
 
 ssos_docker_available() {
@@ -47,9 +66,8 @@ ssos_container_running() {
   docker ps --format '{{.Names}}' | grep -qx "$SSOS_CONTAINER"
 }
 
-ssos_sync_to_container() {
-  local repo_root
-  repo_root="$(ssos_repo_root)"
+ssos_verify_container_mounts() {
+  local label="${1:-}"
 
   if ! ssos_docker_available; then
     echo "docker not found." >&2
@@ -60,17 +78,39 @@ ssos_sync_to_container() {
     return 1
   fi
 
-  echo "==> Syncing src/ to $SSOS_CONTAINER:$SSOS_CONTAINER_REPO/src"
-  docker exec "$SSOS_CONTAINER" mkdir -p "$SSOS_CONTAINER_REPO"
-  docker cp "$repo_root/src/." "$SSOS_CONTAINER:$SSOS_CONTAINER_REPO/src/"
-
-  local runner_src="$repo_root/scripts/ssos_container_run.sh"
-  if [[ -f "$runner_src" ]]; then
-    echo "==> Installing in-container runner at $SSOS_CONTAINER_REPO/run.sh and /usr/local/bin/ea-loop"
-    docker cp "$runner_src" "$SSOS_CONTAINER:$SSOS_CONTAINER_REPO/run.sh"
-    docker exec "$SSOS_CONTAINER" chmod +x "$SSOS_CONTAINER_REPO/run.sh"
-    docker exec "$SSOS_CONTAINER" ln -sf "$SSOS_CONTAINER_REPO/run.sh" /usr/local/bin/ea-loop
+  if [[ "$label" != "quiet" ]]; then
+    echo "==> Verifying SSOS volume mounts in '$SSOS_CONTAINER'"
   fi
+
+  if ! docker exec "$SSOS_CONTAINER" test -d "$SSOS_MOUNT_SRC/scenario/ssos_eclss_loop"; then
+    echo "ERROR: Missing mount $SSOS_MOUNT_SRC (expected repo src at /ea/src)." >&2
+    echo "Recreate with: ./scripts/ssos/mac/ssos-run-detached.sh or regression managed container." >&2
+    return 1
+  fi
+  if ! docker exec "$SSOS_CONTAINER" test -d "$SSOS_MOUNT_RESULTS"; then
+    echo "ERROR: Missing mount $SSOS_MOUNT_RESULTS" >&2
+    return 1
+  fi
+  if ! docker exec "$SSOS_CONTAINER" test -f /root/ssos-eclss-headless.sh; then
+    echo "ERROR: Missing /root/ssos-eclss-headless.sh (mount scripts/ssos/*)." >&2
+    return 1
+  fi
+  if ! docker exec "$SSOS_CONTAINER" test -f /root/ssos-headless.launch.py; then
+    echo "ERROR: Missing /root/ssos-headless.launch.py (mount scripts/ssos/*)." >&2
+    return 1
+  fi
+
+  if [[ "$label" != "quiet" ]]; then
+    echo "    $SSOS_MOUNT_SRC OK"
+    echo "    $SSOS_MOUNT_RESULTS OK"
+    echo "    /root/ssos-eclss-headless.sh OK"
+  fi
+  return 0
+}
+
+# Back-compat name: sync is replaced by bind-mount verify (no docker cp).
+ssos_sync_to_container() {
+  ssos_verify_container_mounts
 }
 
 ssos_ros_graph_counts() {
@@ -82,9 +122,6 @@ printf '%s %s' \"\${topics:-0}\" \"\${actions:-0}\"
 "
 }
 
-# Phase 1a ARS smoke requires these interfaces (see scripts/ssos_eclss_ars_smoke.py).
-# A bare ROS 2 install still exposes /rosout and /parameter_events — do not treat
-# that as ECLSS ready.
 ssos_eclss_graph_probe() {
   docker exec "$SSOS_CONTAINER" bash -lc "
 $(ssos_ros_env_snippet)
@@ -136,22 +173,6 @@ ssos_bootstrap_container() {
   fi
 }
 
-ssos_install_bundled_headless_script() {
-  local repo_root bundled dest
-  repo_root="$(ssos_repo_root)"
-  bundled="$repo_root/${SSOS_BUNDLED_HEADLESS_SCRIPT}"
-  dest="${SSOS_CONTAINER_REPO}/ssos_eclss_headless.sh"
-
-  if [[ ! -f "$bundled" ]]; then
-    return 1
-  fi
-
-  docker exec "$SSOS_CONTAINER" mkdir -p "$SSOS_CONTAINER_REPO"
-  docker cp "$bundled" "$SSOS_CONTAINER:$dest"
-  docker exec "$SSOS_CONTAINER" chmod +x "$dest"
-  printf '%s\n' "$dest"
-}
-
 ssos_resolve_headless_launcher() {
   local script="${1:-$SSOS_HEADLESS_SCRIPT}"
 
@@ -160,9 +181,9 @@ ssos_resolve_headless_launcher() {
     return 0
   fi
 
-  echo "==> Headless script missing in image ($script) — installing bundled launcher" >&2
-  # Bundled launcher starts EPS + solar + ECLSS; sufficient for both ECLSS and --with-eps paths.
-  ssos_install_bundled_headless_script
+  echo "ERROR: Headless script not mounted at $script" >&2
+  echo "Recreate the container with scripts/ssos/*/ssos-run-detached.sh volume mounts." >&2
+  return 1
 }
 
 ssos_start_managed_container() {
@@ -172,45 +193,51 @@ ssos_start_managed_container() {
   fi
 
   if ssos_container_running; then
-    echo "==> Using existing container '$SSOS_CONTAINER'"
-    return 0
-  fi
-
-  if docker ps -a --format '{{.Names}}' | grep -qx "$SSOS_CONTAINER"; then
-    echo "==> Starting stopped container '$SSOS_CONTAINER'"
+    if ssos_verify_container_mounts quiet; then
+      echo "==> Using existing container '$SSOS_CONTAINER' (mounts OK)"
+      return 0
+    fi
+    echo "==> Container '$SSOS_CONTAINER' is running but mounts are incomplete — recreating" >&2
+    docker rm -f "$SSOS_CONTAINER" >/dev/null 2>&1 || true
+  elif docker ps -a --format '{{.Names}}' | grep -qx "$SSOS_CONTAINER"; then
     docker start "$SSOS_CONTAINER" >/dev/null
-    SSOS_E2E_MANAGED=1
-    export SSOS_E2E_MANAGED=1
-    ssos_bootstrap_container
-    return 0
+    if ssos_verify_container_mounts quiet; then
+      echo "==> Started existing container '$SSOS_CONTAINER' (mounts OK)"
+      SSOS_E2E_MANAGED=1
+      export SSOS_E2E_MANAGED=1
+      ssos_bootstrap_container
+      return 0
+    fi
+    echo "==> Stopped container '$SSOS_CONTAINER' lacks mounts — recreating" >&2
+    docker rm -f "$SSOS_CONTAINER" >/dev/null 2>&1 || true
   fi
 
-  echo "==> Creating container '$SSOS_CONTAINER' from $SSOS_IMAGE"
+  ssos_load_volume_defs
+  echo "==> Creating container '$SSOS_CONTAINER' from $SSOS_IMAGE (platform: $SSOS_PLATFORM)"
   # shellcheck disable=SC2086
-  docker run -d --name "$SSOS_CONTAINER" \
+  docker run -d --init --name "$SSOS_CONTAINER" \
+    --platform "$SSOS_PLATFORM" \
     -e "ROS_DOMAIN_ID=${SSOS_ROS_DOMAIN_ID}" \
+    -e SSOS_CONTAINER_DETACHED=1 \
+    "${SSOS_VOLUMES[@]}" \
     ${SSOS_DOCKER_RUN_EXTRA:-} \
     "$SSOS_IMAGE" sleep infinity
   SSOS_E2E_MANAGED=1
   export SSOS_E2E_MANAGED=1
   ssos_bootstrap_container
+  ssos_verify_container_mounts
 }
 
 ssos_start_headless() {
   local script="${1:-$SSOS_HEADLESS_SCRIPT}"
   local launcher
   if ! launcher="$(ssos_resolve_headless_launcher "$script")"; then
-    echo "ERROR: No headless launcher available (image script and bundled fallback missing)." >&2
     return 1
   fi
   echo "==> Starting headless stack in background: $launcher"
   docker exec -d "$SSOS_CONTAINER" bash -lc "
 $(ssos_ros_env_snippet)
-if [[ -f $(printf '%q' "$launcher") ]]; then
-  exec bash $(printf '%q' "$launcher")
-else
-  exec $(printf '%q' "$launcher")
-fi
+exec bash $(printf '%q' "$launcher")
 "
 }
 
@@ -256,15 +283,73 @@ ssos_run_python_module() {
 set -eo pipefail
 $(ssos_ros_env_snippet)
 cd '${SSOS_CONTAINER_REPO}'
-export PYTHONPATH='${SSOS_CONTAINER_REPO}/src:'\"\${PYTHONPATH:-}\"
+export PYTHONPATH='${SSOS_MOUNT_SRC}:'\"\${PYTHONPATH:-}\"
+export EA_RUN_IN_CONTAINER=1
 python3 -m ${module}${quoted_args}
 "
 }
 
-ssos_run_ea_loop() {
+_ssos_write_job_spec() {
+  local job_path="$1"
+  shift
+  local backend="ros2" agents_mode="labeled_rule_base" steps=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --backend)
+        backend="$2"
+        shift 2
+        ;;
+      --agents-mode)
+        agents_mode="$2"
+        shift 2
+        ;;
+      --steps)
+        steps="$2"
+        shift 2
+        ;;
+      --output-dir)
+        echo "WARNING: --output-dir is deprecated for ssos_run_scenario_job; using $SSOS_MOUNT_RESULTS" >&2
+        shift 2
+        ;;
+      *)
+        echo "Unknown scenario job arg: $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  local repo_root
+  repo_root="$(ssos_repo_root)"
+  PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}" python3 -c "
+from pathlib import Path
+from scenario.jobs.spec import RunSpec
+
+overrides = {
+    'backend': {'kind': '$backend'},
+    'agents': {'mode': '$agents_mode'},
+}
+steps = '$steps'
+if steps:
+    overrides['simulation'] = {'steps': int(steps)}
+RunSpec(
+    scenario='ssos_eclss_loop',
+    overrides=overrides,
+    results_root=Path('$SSOS_MOUNT_RESULTS'),
+    recreate_output=True,
+).write_json(Path('$job_path'))
+"
+}
+
+ssos_run_scenario_job() {
   ssos_sync_to_container || return 1
-  local quoted_args
-  quoted_args="$(ssos_quote_args "$@")"
+
+  local job_host job_container="/tmp/ea-regression-job-$$.json"
+  job_host="$(mktemp "${TMPDIR:-/tmp}/ea-job.XXXXXX.json")"
+  _ssos_write_job_spec "$job_host" "$@" || return 1
+
+  docker cp "$job_host" "$SSOS_CONTAINER:$job_container"
+  rm -f "$job_host"
+
   local tty_flag=""
   if [[ -t 0 ]]; then
     tty_flag="-it"
@@ -274,6 +359,20 @@ ssos_run_ea_loop() {
   docker exec $tty_flag "$SSOS_CONTAINER" bash -lc "
 set -eo pipefail
 $(ssos_ros_env_snippet)
-SSOS_CONTAINER_REPO='${SSOS_CONTAINER_REPO}' ea-loop${quoted_args}
+cd '${SSOS_CONTAINER_REPO}'
+export PYTHONPATH='${SSOS_MOUNT_SRC}:'\"\${PYTHONPATH:-}\"
+export SSOS_ECLSS_BACKEND=ros2
+export EA_RESULTS_ROOT='${SSOS_MOUNT_RESULTS}'
+export EA_RUN_IN_CONTAINER=1
+export OLLAMA_BASE_URL=\${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+python3 -m scenario.jobs '$job_container'
+rc=\$?
+rm -f '$job_container'
+exit \$rc
 "
+}
+
+# Deprecated alias — use ssos_run_scenario_job.
+ssos_run_ea_loop() {
+  ssos_run_scenario_job "$@"
 }

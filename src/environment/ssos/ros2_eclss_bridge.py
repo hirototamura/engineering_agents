@@ -220,11 +220,15 @@ class Ros2EclssBridge:
         action_timeout_s: float = 120.0,
         service_timeout_s: float = 30.0,
         topic_timeout_s: float = 10.0,
+        telemetry_max_age_s: Optional[float] = None,
         topic_remap: Optional[Mapping[str, str]] = None,
     ) -> None:
         self.action_timeout_s = action_timeout_s
         self.service_timeout_s = service_timeout_s
         self.topic_timeout_s = topic_timeout_s
+        self.telemetry_max_age_s = (
+            topic_timeout_s if telemetry_max_age_s is None else telemetry_max_age_s
+        )
         self._topic_remap = dict(topic_remap or {})
         self._failure_flags: dict[str, bool] = {
             "ars": False,
@@ -251,7 +255,10 @@ class Ros2EclssBridge:
         if not _force_cli_telemetry() and not self._topic_remap:
             reader = get_rclpy_telemetry_reader()
             if reader is not None:
-                co2, o2, water = reader.read(wait_timeout_s=self.topic_timeout_s)
+                co2, o2, water = reader.read_fresh(
+                    wait_timeout_s=self.topic_timeout_s,
+                    max_age_s=self.telemetry_max_age_s,
+                )
             else:
                 co2, o2, water = self._poll_telemetry_cli()
         else:
