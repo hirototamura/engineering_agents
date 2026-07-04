@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from environment.eclss_ops.telemetry import CO2_SAFE_PPM, CO2_WARNING_PPM
+from environment.scrubber.eclss_ops.telemetry import CO2_SAFE_PPM, CO2_WARNING_PPM
 from environment.protocol import HealthMetrics, HealthStatus, TelemetrySnapshot
 from scenario.runner import run_scenario
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam

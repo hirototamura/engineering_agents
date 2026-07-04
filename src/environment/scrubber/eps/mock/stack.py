@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Optional, Tuple
 
-from environment.ssos.eps_types import BcduStatus, DischargeResult, SarjReading
-from environment.ssos.mock_bcdu import MockBcdu
-from environment.ssos.mock_sarj import MockSarj
+from environment.scrubber.eps.types import BcduStatus, DischargeResult, SarjReading
+from environment.scrubber.eps.mock.bcdu import MockBcdu
+from environment.scrubber.eps.mock.sarj import MockSarj
 
 
 class EpsStack:

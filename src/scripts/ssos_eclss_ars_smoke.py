@@ -27,7 +27,7 @@ import time
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
-from environment.ssos.eclss_topics import (
+from environment.ssos.eclss.ros2.topics import (
     ACTION_AIR_REVITALISATION,
     ACTION_TYPE_AIR_REVITALISATION,
     ALL_ECLSS_ACTIONS,
@@ -39,7 +39,7 @@ from environment.ssos.eclss_topics import (
     parse_ros_graph_line,
     ros_cli_action_name,
 )
-from environment.ssos.eclss_types import ArsActionResult, ArsGoal, EclssSmokeReport
+from environment.ssos.eclss.types import ArsActionResult, ArsGoal, EclssSmokeReport
 
 _ECLSS_TOPIC_PATTERN = re.compile(r"(co2|o2|ars|ogs|wrs|grey)", re.IGNORECASE)
 

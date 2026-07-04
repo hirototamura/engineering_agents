@@ -44,7 +44,7 @@ def compute_health_metrics(snapshot: TelemetrySnapshot) -> HealthMetrics:
 
 def snapshot_to_topics(snapshot: TelemetrySnapshot) -> dict[str, float | bool | list[str] | int]:
     """Map snapshot fields to ROS2-like topic payloads."""
-    from environment.ssos import topics
+    from environment.scrubber import topics
 
     return {
         topics.TELEMETRY_CO2: snapshot.co2_ppm,

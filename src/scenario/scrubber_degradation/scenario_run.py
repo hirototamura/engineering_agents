@@ -13,10 +13,10 @@ from core.agents.base import Team
 from core.agents.types import AgentObservation
 from core.event_log import EventLog
 from core.scenario import Scenario
-from environment.eclss_ops.telemetry import CO2_WARNING_PPM, compute_health_metrics
+from environment.scrubber.eclss_ops.telemetry import CO2_WARNING_PPM, compute_health_metrics
 from environment.protocol import HealthStatus, SimulatorProtocol
-from environment.ssos.station_simulator import StationSimulator
-from environment.ssos.topics import EVENT_RECOVERY
+from environment.scrubber.station_simulator import StationSimulator
+from environment.scrubber.topics import EVENT_RECOVERY
 from integrations.one_piece import export_run_provenance
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
 from scenario.jobs.resolve import resolve_run_directory

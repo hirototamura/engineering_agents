@@ -22,12 +22,12 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from environment.ssos.eclss_topics import (
+from environment.ssos.eclss.ros2.topics import (
     LAUNCH_HEADLESS_ECLSS,
     TOPIC_WRS_PRODUCT_WATER_RESERVE,
 )
-from environment.ssos.eclss_types import OgsGoal, WrsGoal
-from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
+from environment.ssos.eclss.types import OgsGoal, WrsGoal
+from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 
 
 @dataclass

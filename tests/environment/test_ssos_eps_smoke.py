@@ -1,7 +1,7 @@
 """Unit tests for Phase 3 EPS smoke helpers (no ROS runtime)."""
 
 from scripts.ssos_eps_smoke import EpsSmokeReport, run_eps_smoke
-from environment.ssos.ros2_eps_bridge import Ros2EpsBridge
+from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
 
 
 def test_eps_smoke_report_serializes():
@@ -35,7 +35,7 @@ def test_run_eps_smoke_with_fake_bridge(monkeypatch):
             }
 
         def request_discharge(self, support_w: float, duration_steps: int):
-            from environment.ssos.eps_types import DischargeResult
+            from environment.scrubber.eps.types import DischargeResult
 
             return DischargeResult(success=True, message="armed")
 

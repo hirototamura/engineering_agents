@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from typing import Optional, Tuple
 
-from environment.ssos.eps_types import SarjReading
+from environment.scrubber.eps.types import SarjReading
 
 
 class MockSarj:

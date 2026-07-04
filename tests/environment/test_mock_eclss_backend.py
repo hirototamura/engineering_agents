@@ -2,9 +2,9 @@
 
 import pytest
 
-from environment.ssos.eclss_backend import EclssBackend
-from environment.ssos.eclss_types import ArsGoal, OgsGoal, WrsGoal
-from environment.ssos.mock_eclss_backend import MockEclssBackend
+from environment.ssos.eclss.backend import EclssBackend
+from environment.ssos.eclss.types import ArsGoal, OgsGoal, WrsGoal
+from environment.ssos.eclss.mock.backend import MockEclssBackend
 
 
 def test_mock_backend_satisfies_protocol():

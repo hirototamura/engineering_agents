@@ -15,8 +15,8 @@ import yaml
 
 from core.event_log import EventLog
 from core.scenario import Scenario
-from environment.ssos.eclss_backend import EclssBackend
-from environment.ssos.eclss_types import EclssTelemetrySnapshot
+from environment.ssos.eclss.backend import EclssBackend
+from environment.ssos.eclss.types import EclssTelemetrySnapshot
 from integrations.one_piece import export_run_provenance
 from scenario.agents.eclss_loop_types import EclssLoopObservation
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
@@ -34,8 +34,8 @@ from scenario.ssos_eclss_loop.design_proposals import (
     load_design_proposals,
     write_design_proposals,
 )
-from environment.ssos.graph_rewire import build_topic_remap
-from environment.ssos.ros2_eclss_telemetry import reset_rclpy_telemetry_reader
+from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
+from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
 
 from scenario.ssos_eclss_loop.policy import merge_labeled_policy_from_thresholds
 
@@ -131,7 +131,7 @@ def build_eclss_backend(config: Dict[str, Any], kind: Optional[str] = None) -> E
     if backend_kind == "mock":
         return LoopMockEclssBackend(config)
     if backend_kind == "ros2":
-        from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
+        from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 
         ros2_cfg = config.get("backend", {}).get("ros2", {}) or {}
         rewires = (config.get("ssos_graph") or {}).get("rewires") or []

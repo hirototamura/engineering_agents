@@ -10,19 +10,19 @@ from __future__ import annotations
 
 from typing import Optional, Tuple
 
-from environment.ssos.eps_types import BcduMode, BcduStatus, DischargeResult, SarjReading
-from environment.ssos.message_adapters import (
+from environment.scrubber.eps.types import BcduMode, BcduStatus, DischargeResult, SarjReading
+from environment.ssos.eps.ros2.adapters import (
     estimate_discharge_w,
     parse_bcdu_status,
     sarj_reading_from_topics,
 )
-from environment.ssos.ros2_eclss_bridge import _echo_float_topic, _run_ros2_cli
-from environment.ssos.topic_map import (
+from environment.ssos.ros2.cli import echo_float_topic, run_ros2_cli
+from environment.ssos.eps.ros2.topic_map import (
     MSG_TYPE_BCDU_STATUS,
     SSOS_TOPIC_SOLAR_VOLTAGE,
     SSOS_TOPIC_SUN_BETA,
 )
-from environment.ssos.eps_topics import BCDU_STATUS
+from environment.scrubber.eps.topics import BCDU_STATUS
 
 
 def _echo_topic_once(
@@ -31,7 +31,7 @@ def _echo_topic_once(
     timeout_s: float = 10.0,
 ) -> Tuple[Optional[str], Optional[str]]:
     try:
-        code, out, err = _run_ros2_cli(
+        code, out, err = run_ros2_cli(
             ["topic", "echo", topic, msg_type, "--once"],
             timeout_s=timeout_s,
         )
@@ -66,7 +66,7 @@ class Ros2EpsBridge:
     @staticmethod
     def ros2_available() -> bool:
         try:
-            code, _, _ = _run_ros2_cli(["--help"], timeout_s=5.0)
+            code, _, _ = run_ros2_cli(["--help"], timeout_s=5.0)
             return code == 0
         except (FileNotFoundError, OSError):
             return False
@@ -92,8 +92,8 @@ class Ros2EpsBridge:
         return BcduMode.IDLE
 
     def poll_solar(self) -> SarjReading:
-        voltage = _echo_float_topic(SSOS_TOPIC_SOLAR_VOLTAGE, timeout_s=self.topic_timeout_s)
-        beta = _echo_float_topic(SSOS_TOPIC_SUN_BETA, timeout_s=self.topic_timeout_s)
+        voltage = echo_float_topic(SSOS_TOPIC_SOLAR_VOLTAGE, timeout_s=self.topic_timeout_s)
+        beta = echo_float_topic(SSOS_TOPIC_SUN_BETA, timeout_s=self.topic_timeout_s)
         if voltage is not None:
             self._last_solar_voltage_v = voltage
         if beta is not None:
@@ -172,8 +172,8 @@ class Ros2EpsBridge:
         Missing topics are reported as ``None`` so smoke tests can fail loudly
         instead of masking absent publishers with cached zero defaults.
         """
-        voltage = _echo_float_topic(SSOS_TOPIC_SOLAR_VOLTAGE, timeout_s=self.topic_timeout_s)
-        beta = _echo_float_topic(SSOS_TOPIC_SUN_BETA, timeout_s=self.topic_timeout_s)
+        voltage = echo_float_topic(SSOS_TOPIC_SOLAR_VOLTAGE, timeout_s=self.topic_timeout_s)
+        beta = echo_float_topic(SSOS_TOPIC_SUN_BETA, timeout_s=self.topic_timeout_s)
         if voltage is not None:
             self._last_solar_voltage_v = voltage
         if beta is not None:

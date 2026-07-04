@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from environment.ssos.eps_topics import (
+from environment.scrubber.eps.topics import (
     BCDU_STATUS,
     EPS_DIAGNOSTICS,
     SOLAR_VOLTAGE,

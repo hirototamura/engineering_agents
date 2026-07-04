@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from environment.ssos.eps_stack import EpsStack
-from environment.ssos.eps_types import BcduMode, BcduStatus, DischargeResult, SarjReading
-from environment.ssos.mock_bcdu import MockBcdu
-from environment.ssos.mock_sarj import MockSarj
+from environment.scrubber.eps.mock.stack import EpsStack
+from environment.scrubber.eps.types import BcduMode, BcduStatus, DischargeResult, SarjReading
+from environment.scrubber.eps.mock.bcdu import MockBcdu
+from environment.scrubber.eps.mock.sarj import MockSarj
 
 
 class MockEpsBackend:

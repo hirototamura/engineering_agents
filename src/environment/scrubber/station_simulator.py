@@ -14,11 +14,11 @@ from environment.protocol import (
     TelemetrySnapshot,
     TopologyGraph,
 )
-from environment.ssos.eps_backend import EpsBackend
-from environment.ssos.eps_types import BcduStatus, SarjReading
-from environment.ssos.mock_eclss import MockEclssSimulator
-from environment.ssos.mock_eps_backend import MockEpsBackend
-from environment.ssos.topics import EVENT_RECOVERY
+from environment.scrubber.eps.backend import EpsBackend
+from environment.scrubber.eps.types import BcduStatus, SarjReading
+from environment.scrubber.mock_eclss import MockEclssSimulator
+from environment.scrubber.eps.mock.backend import MockEpsBackend
+from environment.scrubber.topics import EVENT_RECOVERY
 
 
 class StationSimulator:
@@ -79,7 +79,7 @@ class StationSimulator:
         return self.eclss.apply_command(cmd)
 
     def _apply_eps_boost(self, cmd: RecoveryCommand) -> CommandResult:
-        from environment.eclss_ops.commands import validate_command
+        from environment.scrubber.eclss_ops.commands import validate_command
 
         error = validate_command(cmd)
         if error:

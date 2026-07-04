@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from environment.eclss_ops.anomalies import AnomalyManager
-from environment.eclss_ops.commands import apply_command_to_state, validate_command
-from environment.eclss_ops.design_state import DesignStateManager, default_parameters
+from environment.scrubber.eclss_ops.anomalies import AnomalyManager
+from environment.scrubber.eclss_ops.commands import apply_command_to_state, validate_command
+from environment.scrubber.eclss_ops.design_state import DesignStateManager, default_parameters
 from environment.protocol import (
     AnomalySpec,
     CommandKind,
@@ -16,7 +16,7 @@ from environment.protocol import (
     TelemetrySnapshot,
     TopologyGraph,
 )
-from environment.ssos.topics import EVENT_ANOMALY, EVENT_RECOVERY
+from environment.scrubber.topics import EVENT_ANOMALY, EVENT_RECOVERY
 
 
 class MockEclssSimulator:

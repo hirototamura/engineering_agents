@@ -21,8 +21,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from environment.ssos.ros2_eps_bridge import Ros2EpsBridge
-from environment.ssos.topic_map import LAUNCH_HEADLESS_STATION
+from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
+from environment.ssos.eps.ros2.topic_map import LAUNCH_HEADLESS_STATION
 
 
 @dataclass

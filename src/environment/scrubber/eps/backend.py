@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from environment.ssos.eps_types import BcduMode, BcduStatus, DischargeResult, SarjReading
+from environment.scrubber.eps.types import BcduMode, BcduStatus, DischargeResult, SarjReading
 
 
 @runtime_checkable

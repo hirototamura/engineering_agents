@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from environment.ssos.eclss_types import (
+from environment.ssos.eclss.types import (
     ActionResult,
     ArsGoal,
     EclssTelemetrySnapshot,
@@ -12,7 +12,7 @@ from environment.ssos.eclss_types import (
     ServiceResult,
     WrsGoal,
 )
-from environment.ssos.mock_eclss_backend import MockEclssBackend
+from environment.ssos.eclss.mock.backend import MockEclssBackend
 
 
 class LoopMockEclssBackend(MockEclssBackend):

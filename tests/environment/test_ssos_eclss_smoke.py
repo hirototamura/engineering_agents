@@ -6,7 +6,7 @@ from scripts.ssos_eclss_ars_smoke import (
     discover_ros_graph,
     send_ars_goal_cli,
 )
-from environment.ssos.eclss_types import ArsGoal
+from environment.ssos.eclss.types import ArsGoal
 
 
 def test_filter_eclss_topics():

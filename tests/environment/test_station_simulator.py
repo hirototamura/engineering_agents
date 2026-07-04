@@ -1,8 +1,8 @@
 """Tests for StationSimulator ECLSS + EPS facade (EPS-3)."""
 
 from environment.protocol import CommandKind, RecoveryCommand
-from environment.ssos.mock_eclss import MockEclssSimulator
-from environment.ssos.station_simulator import StationSimulator
+from environment.scrubber.mock_eclss import MockEclssSimulator
+from environment.scrubber.station_simulator import StationSimulator
 
 
 def test_eps_boost_routes_through_bcdu():

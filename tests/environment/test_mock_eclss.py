@@ -4,15 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from environment.eclss_ops.telemetry import compute_health_metrics, co2_health
+from environment.scrubber.eclss_ops.telemetry import compute_health_metrics, co2_health
 from environment.protocol import (
     AnomalySpec,
     CommandKind,
     HealthStatus,
     RecoveryCommand,
 )
-from environment.eclss_ops.design_state import DesignStateManager
-from environment.ssos.mock_eclss import MockEclssSimulator
+from environment.scrubber.eclss_ops.design_state import DesignStateManager
+from environment.scrubber.mock_eclss import MockEclssSimulator
 
 
 def test_baseline_step_produces_telemetry():

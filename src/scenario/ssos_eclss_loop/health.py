@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from environment.protocol import HealthStatus
-from environment.ssos.eclss_types import EclssTelemetrySnapshot
+from environment.ssos.eclss.types import EclssTelemetrySnapshot
 
 
 def compute_eclss_storage_health(

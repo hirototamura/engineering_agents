@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from environment.protocol import HealthStatus
-from environment.ssos.eclss_types import EclssTelemetrySnapshot
+from environment.ssos.eclss.types import EclssTelemetrySnapshot
 from scenario.ssos_eclss_loop.health import compute_eclss_storage_health
 from scenario.ssos_eclss_loop.scenario_run import (
     _assert_ros2_storage_telemetry,

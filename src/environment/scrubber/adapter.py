@@ -12,9 +12,9 @@ from environment.protocol import (
     TelemetrySnapshot,
     TopologyGraph,
 )
-from environment.ssos.mock_eclss import MockEclssSimulator
-from environment.ssos.ros2_eps_bridge import Ros2EpsBridge
-from environment.ssos.station_simulator import StationSimulator
+from environment.scrubber.mock_eclss import MockEclssSimulator
+from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
+from environment.scrubber.station_simulator import StationSimulator
 
 
 class SsosAdapter:
@@ -27,7 +27,7 @@ class SsosAdapter:
         self.repo_path = repo_path
         raise NotImplementedError(
             "Use StationSimulator(MockEclssSimulator(), Ros2EpsBridge()) for Phase 3 EPS. "
-            "See environment.ssos.ros2_eps_bridge."
+            "See environment.ssos.eps.ros2.bridge."
         )
 
     def step(self) -> TelemetrySnapshot:

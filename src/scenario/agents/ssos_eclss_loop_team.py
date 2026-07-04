@@ -19,8 +19,8 @@ from core.agents.persona import (
 )
 from core.agents.types import AgentMessage, DeliberationPhase
 from core.llm.ollama import OllamaClient, resolve_ollama_base_url
-from environment.ssos.eclss_backend import EclssBackend
-from environment.ssos.eclss_types import ArsGoal, OgsGoal
+from environment.ssos.eclss.backend import EclssBackend
+from environment.ssos.eclss.types import ArsGoal, OgsGoal
 from scenario.agents.eclss_loop_types import (
     EclssLoopObservation,
     EclssOperationalCommand,

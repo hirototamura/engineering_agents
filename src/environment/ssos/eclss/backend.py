@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from environment.ssos.eclss_types import (
+from environment.ssos.eclss.types import (
     ActionResult,
     ArsGoal,
     EclssTelemetrySnapshot,

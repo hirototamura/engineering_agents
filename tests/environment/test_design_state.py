@@ -1,4 +1,4 @@
-from environment.eclss_ops.design_state import DesignStateManager
+from environment.scrubber.eclss_ops.design_state import DesignStateManager
 
 
 def test_apply_dict_change_add_node_and_edge():

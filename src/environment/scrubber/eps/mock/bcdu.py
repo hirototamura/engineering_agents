@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from environment.ssos.eps_types import BcduMode, BcduStatus, DischargeResult, EpsDiagnostics
+from environment.scrubber.eps.types import BcduMode, BcduStatus, DischargeResult, EpsDiagnostics
 
 
 class MockBcdu:

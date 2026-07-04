@@ -4,8 +4,8 @@ import subprocess
 
 import pytest
 
-from environment.ssos.graph_rewire import build_topic_remap, remap_name
-from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
+from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap, remap_name
+from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 
 
 def test_build_topic_remap_from_rewires():
@@ -45,7 +45,7 @@ def test_ros2_bridge_poll_uses_remapped_topics(monkeypatch):
             return subprocess.CompletedProcess(args, 0, body, "")
         return subprocess.CompletedProcess(args, 0, "", "")
 
-    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    monkeypatch.setattr("environment.ssos.ros2.cli.subprocess.run", fake_run)
     snap = Ros2EclssBridge(topic_remap=remap).poll_telemetry()
     assert "/plant/co2_storage" in seen_topics
     assert snap.co2_storage_kg == pytest.approx(99.0)

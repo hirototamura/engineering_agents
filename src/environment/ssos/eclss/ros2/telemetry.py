@@ -11,7 +11,7 @@ import threading
 import time
 from typing import Dict, Optional, Tuple
 
-from environment.ssos.eclss_topics import (
+from environment.ssos.eclss.ros2.topics import (
     TOPIC_CO2_STORAGE,
     TOPIC_O2_STORAGE,
     TOPIC_WRS_PRODUCT_WATER_RESERVE,

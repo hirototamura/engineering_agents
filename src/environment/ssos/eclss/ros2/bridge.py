@@ -8,16 +8,22 @@ the bridge works in the SSOS Docker container without extra pip dependencies.
 from __future__ import annotations
 
 import os
-import re
-import shlex
 import subprocess
-from concurrent.futures import ThreadPoolExecutor
-from typing import Mapping, Optional, Sequence, Tuple
+from typing import Mapping, Optional, Tuple
 
-from environment.ssos.graph_rewire import remap_name
-from environment.ssos.ros2_eclss_telemetry import get_rclpy_telemetry_reader
-
-from environment.ssos.eclss_topics import (
+from environment.ssos.ros2.cli import (
+    echo_float_topics_parallel,
+    extract_bool,
+    extract_float,
+    extract_service_field_float,
+    extract_service_message,
+    extract_service_success,
+    extract_string,
+    run_ros2_cli,
+)
+from environment.ssos.eclss.ros2.graph_rewire import remap_name
+from environment.ssos.eclss.ros2.telemetry import get_rclpy_telemetry_reader
+from environment.ssos.eclss.ros2.topics import (
     ACTION_AIR_REVITALISATION,
     ACTION_OXYGEN_GENERATION,
     ACTION_WATER_RECOVERY,
@@ -25,7 +31,6 @@ from environment.ssos.eclss_topics import (
     ACTION_TYPE_OXYGEN_GENERATION,
     ACTION_TYPE_WATER_RECOVERY,
     MSG_TYPE_BOOL,
-    MSG_TYPE_FLOAT64,
     SERVICE_ARS_REQUEST_CO2,
     SERVICE_GREY_WATER,
     SERVICE_OGS_REQUEST_O2,
@@ -42,7 +47,7 @@ from environment.ssos.eclss_topics import (
     TOPIC_WRS_SELF_DIAGNOSIS,
     ros_cli_action_name,
 )
-from environment.ssos.eclss_types import (
+from environment.ssos.eclss.types import (
     ActionResult,
     ArsGoal,
     EclssTelemetrySnapshot,
@@ -56,155 +61,6 @@ _SELF_DIAGNOSIS_BY_SUBSYSTEM = {
     "ogs": TOPIC_OGS_SELF_DIAGNOSIS,
     "wrs": TOPIC_WRS_SELF_DIAGNOSIS,
 }
-
-
-def _ros2_shell_preamble() -> str:
-    """Re-source ROS in a subshell (``PYTHONPATH`` from the parent breaks ``ros2cli``)."""
-    distro = os.environ.get("ROS_DISTRO", "jazzy")
-    parts = [f"source /opt/ros/{distro}/setup.bash"]
-    for candidate in (
-        os.environ.get("SSOS_WS_SETUP"),
-        os.path.expanduser("~/ssos_ws/install/setup.bash"),
-        "/root/ssos_ws/install/setup.bash",
-    ):
-        if candidate and os.path.isfile(candidate):
-            parts.append(f"source {candidate}")
-            break
-    return " && ".join(parts)
-
-
-def _should_wrap_ros2_cli() -> bool:
-    return bool(os.environ.get("PYTHONPATH"))
-
-
-def _run_ros2_cli(args: Sequence[str], timeout_s: float = 30.0) -> Tuple[int, str, str]:
-    if _should_wrap_ros2_cli():
-        quoted = " ".join(shlex.quote(a) for a in ["ros2", *args])
-        cmd = f"{_ros2_shell_preamble()} && {quoted}"
-        proc = subprocess.run(
-            ["bash", "-c", cmd],
-            capture_output=True,
-            text=True,
-            timeout=timeout_s,
-            check=False,
-        )
-    else:
-        env = os.environ.copy()
-        env.pop("PYTHONPATH", None)
-        proc = subprocess.run(
-            ["ros2", *args],
-            capture_output=True,
-            text=True,
-            timeout=timeout_s,
-            check=False,
-            env=env,
-        )
-    return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
-
-
-def _extract_float(text: str, pattern: str) -> Optional[float]:
-    match = re.search(pattern, text)
-    if not match:
-        return None
-    try:
-        return float(match.group(1))
-    except ValueError:
-        return None
-
-
-def _extract_bool(text: str, pattern: str) -> Optional[bool]:
-    match = re.search(pattern, text, flags=re.IGNORECASE)
-    if not match:
-        return None
-    token = match.group(1).strip().lower()
-    if token in {"true", "1"}:
-        return True
-    if token in {"false", "0"}:
-        return False
-    return None
-
-
-def _extract_service_success(text: str) -> Optional[bool]:
-    """Parse ``success`` from ros2 service call output (YAML or Jazzy Python repr)."""
-    return _extract_bool(text, r"success:\s*(true|false)") or _extract_bool(
-        text, r"success=(true|false)"
-    )
-
-
-def _extract_service_field_float(text: str, field: str) -> Optional[float]:
-    """Parse a numeric response field (``field: 1.0`` or ``field=1.0``)."""
-    pattern = rf"{re.escape(field)}:\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)"
-    value = _extract_float(text, pattern)
-    if value is not None:
-        return value
-    return _extract_float(text, rf"{re.escape(field)}=([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)")
-
-
-def _extract_service_message(text: str) -> Optional[str]:
-    """Parse ``message`` from ros2 service call output."""
-    for pattern in (
-        r"message:\s*'([^']*)'",
-        r'message:\s*"([^"]*)"',
-        r"message='([^']*)'",
-        r'message="([^"]*)"',
-    ):
-        value = _extract_string(text, pattern)
-        if value is not None:
-            return value
-    return None
-
-
-def _extract_string(text: str, pattern: str) -> Optional[str]:
-    match = re.search(pattern, text)
-    return match.group(1) if match else None
-
-
-def _extract_float64_data(text: str) -> Optional[float]:
-    """Parse ``data`` from ``ros2 topic echo`` (YAML or Jazzy Python repr)."""
-    for pattern in (
-        r"data:\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)",
-        r"data=([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)",
-    ):
-        value = _extract_float(text, pattern)
-        if value is not None:
-            return value
-    return None
-
-
-def _echo_float_topic(topic: str, timeout_s: float = 10.0) -> Optional[float]:
-    try:
-        code, out, err = _run_ros2_cli(
-            ["topic", "echo", topic, MSG_TYPE_FLOAT64, "--once"],
-            timeout_s=timeout_s,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return None
-    if code != 0:
-        return None
-    combined = f"{out}\n{err}"
-    return _extract_float64_data(combined)
-
-
-def _echo_float_topics_parallel(
-    topics: Sequence[str],
-    timeout_s: float,
-) -> dict[str, Optional[float]]:
-    """Fetch multiple float topics concurrently via ``ros2 topic echo``."""
-    if not topics:
-        return {}
-    if len(topics) == 1:
-        topic = topics[0]
-        return {topic: _echo_float_topic(topic, timeout_s=timeout_s)}
-
-    results: dict[str, Optional[float]] = {}
-    with ThreadPoolExecutor(max_workers=len(topics)) as pool:
-        futures = {pool.submit(_echo_float_topic, topic, timeout_s): topic for topic in topics}
-        for future, topic in futures.items():
-            try:
-                results[topic] = future.result()
-            except Exception:
-                results[topic] = None
-    return results
 
 
 def _force_cli_telemetry() -> bool:
@@ -242,7 +98,7 @@ class Ros2EclssBridge:
     @staticmethod
     def ros2_available() -> bool:
         try:
-            code, _, _ = _run_ros2_cli(["--help"], timeout_s=5.0)
+            code, _, _ = run_ros2_cli(["--help"], timeout_s=5.0)
             return code == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
@@ -287,7 +143,7 @@ class Ros2EclssBridge:
             self._ros_name(TOPIC_O2_STORAGE),
             self._ros_name(TOPIC_WRS_PRODUCT_WATER_RESERVE),
         )
-        values = _echo_float_topics_parallel(backend_topics, timeout_s=self.topic_timeout_s)
+        values = echo_float_topics_parallel(backend_topics, timeout_s=self.topic_timeout_s)
         return (
             values.get(backend_topics[0]),
             values.get(backend_topics[1]),
@@ -308,16 +164,16 @@ class Ros2EclssBridge:
         if err:
             return ActionResult(success=False, summary_message=err)
         success = "Goal finished with status: SUCCEEDED" in combined or "Result:" in combined
-        summary = _extract_string(combined, r"summary_message:\s*'([^']*)'") or _extract_string(
+        summary = extract_string(combined, r"summary_message:\s*'([^']*)'") or extract_string(
             combined, r'summary_message:\s*"([^"]*)"'
         )
         return ActionResult(
             success=success,
             summary_message=summary or "",
             details={
-                "cycles_completed": _extract_float(combined, r"cycles_completed:\s*([-+]?[0-9]*\.?[0-9]+)"),
-                "total_vents": _extract_float(combined, r"total_vents:\s*([-+]?[0-9]*\.?[0-9]+)"),
-                "total_co2_vented": _extract_float(combined, r"total_co2_vented:\s*([-+]?[0-9]*\.?[0-9]+)"),
+                "cycles_completed": extract_float(combined, r"cycles_completed:\s*([-+]?[0-9]*\.?[0-9]+)"),
+                "total_vents": extract_float(combined, r"total_vents:\s*([-+]?[0-9]*\.?[0-9]+)"),
+                "total_co2_vented": extract_float(combined, r"total_co2_vented:\s*([-+]?[0-9]*\.?[0-9]+)"),
             },
         )
 
@@ -334,17 +190,17 @@ class Ros2EclssBridge:
         if err:
             return ActionResult(success=False, summary_message=err)
         success = "Goal finished with status: SUCCEEDED" in combined or "Result:" in combined
-        summary = _extract_string(combined, r"summary_message:\s*'([^']*)'") or _extract_string(
+        summary = extract_string(combined, r"summary_message:\s*'([^']*)'") or extract_string(
             combined, r'summary_message:\s*"([^"]*)"'
         )
         return ActionResult(
             success=success,
             summary_message=summary or "",
             details={
-                "total_o2_generated": _extract_float(
+                "total_o2_generated": extract_float(
                     combined, r"total_o2_generated:\s*([-+]?[0-9]*\.?[0-9]+)"
                 ),
-                "total_ch4_vented": _extract_float(
+                "total_ch4_vented": extract_float(
                     combined, r"total_ch4_vented:\s*([-+]?[0-9]*\.?[0-9]+)"
                 ),
             },
@@ -360,17 +216,17 @@ class Ros2EclssBridge:
         if err:
             return ActionResult(success=False, summary_message=err)
         success = "Goal finished with status: SUCCEEDED" in combined or "Result:" in combined
-        summary = _extract_string(combined, r"summary_message:\s*'([^']*)'") or _extract_string(
+        summary = extract_string(combined, r"summary_message:\s*'([^']*)'") or extract_string(
             combined, r'summary_message:\s*"([^"]*)"'
         )
         return ActionResult(
             success=success,
             summary_message=summary or "",
             details={
-                "total_purified_water": _extract_float(
+                "total_purified_water": extract_float(
                     combined, r"total_purified_water:\s*([-+]?[0-9]*\.?[0-9]+)"
                 ),
-                "total_cycles": _extract_float(combined, r"total_cycles:\s*([-+]?[0-9]*\.?[0-9]+)"),
+                "total_cycles": extract_float(combined, r"total_cycles:\s*([-+]?[0-9]*\.?[0-9]+)"),
             },
         )
 
@@ -412,7 +268,7 @@ class Ros2EclssBridge:
             raise ValueError(f"unknown subsystem: {subsystem!r}")
         ros_topic = self._ros_name(topic)
         payload = f"{{data: {'true' if enabled else 'false'}}}"
-        code, out, err = _run_ros2_cli(
+        code, out, err = run_ros2_cli(
             ["topic", "pub", "--once", ros_topic, MSG_TYPE_BOOL, payload],
             timeout_s=self.service_timeout_s,
         )
@@ -427,7 +283,7 @@ class Ros2EclssBridge:
         goal_yaml: str,
     ) -> Tuple[str, Optional[str]]:
         try:
-            code, out, err = _run_ros2_cli(
+            code, out, err = run_ros2_cli(
                 [
                     "action",
                     "send_goal",
@@ -457,7 +313,7 @@ class Ros2EclssBridge:
         response_field: Optional[str] = None,
     ) -> ServiceResult:
         try:
-            code, out, err = _run_ros2_cli(
+            code, out, err = run_ros2_cli(
                 ["service", "call", service_name, service_type, request_yaml],
                 timeout_s=self.service_timeout_s,
             )
@@ -470,11 +326,16 @@ class Ros2EclssBridge:
         if code != 0:
             return ServiceResult(success=False, message=combined.strip() or f"ros2 service call exited {code}")
 
-        success = _extract_service_success(combined) or False
+        success = extract_service_success(combined) or False
         response_value = (
-            _extract_service_field_float(combined, response_field) or 0.0
+            extract_service_field_float(combined, response_field) or 0.0
             if response_field
             else 0.0
         )
-        message = _extract_service_message(combined)
+        message = extract_service_message(combined)
         return ServiceResult(success=success, response_value=response_value, message=message or "")
+
+
+# Re-export CLI helpers for tests that imported from this module historically.
+from environment.ssos.ros2.cli import echo_float_topic as _echo_float_topic
+from environment.ssos.ros2.cli import run_ros2_cli as _run_ros2_cli

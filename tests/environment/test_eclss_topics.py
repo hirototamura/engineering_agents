@@ -1,6 +1,6 @@
 """Contract tests for SSOS ECLSS topic/action names (Phase 1a)."""
 
-from environment.ssos import eclss_topics as topics
+from environment.ssos.eclss.ros2 import topics
 
 
 def test_all_eclss_actions_are_unique():

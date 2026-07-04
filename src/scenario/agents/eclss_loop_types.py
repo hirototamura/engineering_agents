@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 from core.agents.types import AgentMessage
-from environment.ssos.eclss_types import EclssTelemetrySnapshot
+from environment.ssos.eclss.types import EclssTelemetrySnapshot
 
 
 @dataclass

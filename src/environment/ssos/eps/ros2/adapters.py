@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from environment.ssos.eps_types import BcduMode, BcduStatus, SarjReading
+from environment.scrubber.eps.types import BcduMode, BcduStatus, SarjReading
 
 
 def _extract_float(text: str, pattern: str) -> Optional[float]:

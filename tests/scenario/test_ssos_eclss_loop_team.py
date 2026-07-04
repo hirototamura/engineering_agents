@@ -8,7 +8,7 @@ from core.agents.base import Team
 from scenario.agents.eclss_loop_types import EclssLoopObservation
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
-from environment.ssos.eclss_types import EclssTelemetrySnapshot
+from environment.ssos.eclss.types import EclssTelemetrySnapshot
 
 
 def _team_config():
