@@ -1,0 +1,11 @@
+---
+description: Mission and anti-self-dealing reminders. Full guide: docs/ja/AGENTS.md
+alwaysApply: true
+---
+
+# Mission (read docs/ja/AGENTS.md)
+
+- The **mission must never be violated** — design and verification serve physics, not LLM convenience.
+- **No self-dealing:** virtual pass/fail must not use LLM subjectivity; use simulation output + deterministic checkers.
+- After code changes, run `./scripts/ci-local.sh` (or `pytest` at minimum).
+- Canonical run path: `python3 -m tools.cli run …` (see docs/en/cli.md).

@@ -24,7 +24,23 @@ dependencies = [
 ea = "tools.cli.main:app"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "mkdocs-material>=9.0", "mkdocs-static-i18n>=1.2.0"]
+dev = [
+    "pytest>=7.0",
+    "mkdocs-material>=9.0",
+    "mkdocs-static-i18n>=1.2.0",
+    "ruff>=0.4",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/scripts/**" = ["E402"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -15,7 +15,7 @@ readonly: false
 
 ## デバッグ手順
 
-1. **再現** — 失敗しているコマンドをそのまま実行する（例: `pytest tests/... -x`, `python -c "from scenario.runner import run_scenario; ..."`）
+1. **再現** — 失敗コマンドをそのまま実行（例: `pytest tests/... -x`, `python3 -m tools.cli run ...`）
 2. **分離** — 単体テストか E2E か、どのレイヤーで壊れているか切り分ける
 3. **根因特定** — 症状ではなく原因（ロジック、スキーマ不一致、import 違反、閾値、タイミング）を特定する
 4. **最小修正** — 必要最小限の diff。無関係なリファクタはしない
@@ -25,7 +25,7 @@ readonly: false
 
 | 症状 | 確認先 |
 |---|---|
-| シナリオ実行失敗 | `src/scenario/runner.py`, 各 `scenario.yaml`, `agents.mode` |
+| シナリオ / CLI 実行失敗 | `src/scenario/runner.py`, `src/tools/cli/commands/run.py`, `scenario.yaml`, `agents.mode` |
 | 検証（pass/fail）の不整合 | `health_metrics`, 純粋関数チェッカー, `telemetry.jsonl` スキーマ |
 | SSOS / ECLSS 関連 | `src/environment/ssos/`, `scripts/run_ssos_*.sh` |
 | import / レイヤー違反 | 下層から上層への import（例: `environment/` → `scenario/`、`core/` → `environment/`）がないか |
@@ -43,9 +43,9 @@ readonly: false
 
 ```bash
 pip install -e ".[dev]"
-pytest
-pytest tests/scenario/test_scrubber_baseline.py -x
-python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}}))"
+./scripts/ci-local.sh
+pytest tests/tools/test_cli.py -x
+python3 -m tools.cli run scrubber_degradation --agents-mode labeled_rule_base --steps 2 --output-dir /tmp/debug-run --quiet
 ```
 
 ## 返却フォーマット

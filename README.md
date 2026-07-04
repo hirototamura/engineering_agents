@@ -26,6 +26,7 @@ pip install -U pip
 pip install -e ".[dev]"
 
 ea doctor
+./scripts/ci-local.sh   # optional: local mirror of GitHub CI
 ```
 
 ### Install (Windows PowerShell)
@@ -113,6 +114,8 @@ python3 -m streamlit run src/tools/dashboard/app.py
 ---
 
 ## Documentation / ドキュメント
+
+![CI](https://github.com/hirototamura/engineering_agents/actions/workflows/ci.yml/badge.svg)
 
 | Language | Quick start | Overview | Engineering guide (AGENTS) |
 | --- | --- | --- | --- |

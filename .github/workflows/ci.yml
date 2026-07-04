@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - name: Ruff lint and format
+        run: python3 -m ruff check src tests && python3 -m ruff format --check src tests
+      - name: Pytest (unit and integration)
+        run: python3 -m pytest -q --ignore=tests/e2e
+      - name: Pytest tier-1 regression hook
+        run: python3 -m pytest -q tests/e2e/test_ssos_regression.py::test_regression_tier1_pytest_only
+      - name: Layer and docs pair checks
+        run: python3 -m pytest -q tests/test_layer_imports.py tests/test_docs_bilingual_pairs.py tests/test_verification_discipline.py
