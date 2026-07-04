@@ -48,7 +48,7 @@ def test_poll_telemetry_parses_jazzy_repr_float_topics(monkeypatch):
     assert snap.product_water_reserve_l == 42.0
 
 
-def testrun_ros2_cli_wraps_when_pythonpath_set(monkeypatch):
+def test_run_ros2_cli_wraps_when_pythonpath_set(monkeypatch):
     captured: dict[str, object] = {}
 
     def fake_run(cmd, **_kwargs):
