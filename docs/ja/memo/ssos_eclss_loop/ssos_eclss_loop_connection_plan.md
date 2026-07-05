@@ -13,7 +13,7 @@
 | 最新コミット | `95ebd1b` — Phase 7（graph_rewire client / Team ABC / Dashboard） |
 | テスト | `pytest` → **140 passed**, 4 skipped |
 | ユーザ向けドキュメント | ブランチ **`docs/ssos-mkdocs`** |
-| E2E 記録 | [`e2e_records/`](e2e_records/README.md) |
+| E2E 記録 | `memo/ssos_eclss_loop/e2e_records/` (repo only) |
 
 ---
 
@@ -353,7 +353,7 @@ ECLSS 未起動時は `ea-loop` が即エラー（空 ros2 グラフ検出）。
 PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_loop_llm_agents_invoke_ars -q
 ```
 
-**コンテナ E2E（ros2）— 記録済**: 詳細は [`e2e_records/README.md`](e2e_records/README.md)
+**コンテナ E2E（ros2）— 記録済**: 詳細は `memo/ssos_eclss_loop/e2e_records/` (repo only)
 
 | run | 結果 |
 |-----|------|

@@ -1,7 +1,7 @@
 # Persona LLM 再設計 + Core OOP 骨格抽出
 
 **ステータス**: Day 1–8 完了（本番 Ollama run は任意）  
-**関連**: [persona_workshop_draft.md](persona_workshop_draft.md), [backlog.md](backlog.md) BL-001
+**関連**: [persona_workshop_draft.md](persona_workshop_draft.md), [backlog.md](../backlog.md) BL-001
 
 ## ゴール（2本柱）
 
@@ -263,7 +263,7 @@ Day1 → Day2 → Day3 → Day4 → Day5 → Day6 → Day7(ワークショップ
 
 ## BL-001 との関係
 
-ラベル付き 4 ID を維持した創発の中間段階。完全な unlabeled `mode: base` は [backlog.md](backlog.md) BL-001 で将来実験。
+ラベル付き 4 ID を維持した創発の中間段階。完全な unlabeled `mode: base` は [backlog.md](../backlog.md) BL-001 で将来実験。
 
 ---
 

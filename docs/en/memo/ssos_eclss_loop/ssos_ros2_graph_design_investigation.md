@@ -1,4 +1,3 @@
-> Japanese: [../../../ja/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md](../../../ja/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md)
 
 # Adding External Nodes and Changing Connections on the SSOS DDS Graph — Investigation Report
 
@@ -307,4 +306,4 @@ On the next Run, `--apply-proposals`:
 - [ssos_eclss_loop_connection_plan.md](ssos_eclss_loop_connection_plan.md)
 - [ssos_eclss_physical_phenomena_overview.md](ssos_eclss_physical_phenomena_overview.md)
 - [ssos_eps_ros2_connection_plan.md](ssos_eps_ros2_connection_plan.md)
-- [docs/api-contracts.md](../../../api-contracts.md)
+- [docs/api-contracts.md](../../api-contracts.md)

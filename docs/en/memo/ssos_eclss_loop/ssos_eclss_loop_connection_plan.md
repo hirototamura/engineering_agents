@@ -1,4 +1,3 @@
-> Japanese: [../../../ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../../../ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
 
 # SSOS ECLSS Loop Integration Plan
 
@@ -15,7 +14,7 @@
 | Latest commit | `95ebd1b` — Phase 7 (graph_rewire client / Team ABC / Dashboard) |
 | Tests | `pytest` → **140 passed**, 4 skipped |
 | User-facing documentation | Branch **`docs/ssos-mkdocs`** |
-| E2E records | [`e2e_records/`](e2e_records/README.md) |
+| E2E records | `memo/ssos_eclss_loop/e2e_records/` (repo only) |
 
 ---
 
@@ -355,7 +354,7 @@ If ECLSS is not running, `ea-loop` fails immediately (empty ros2 graph detected)
 PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_loop_llm_agents_invoke_ars -q
 ```
 
-**Container E2E (ros2) — recorded**: See [`e2e_records/README.md`](e2e_records/README.md)
+**Container E2E (ros2) — recorded**: See `memo/ssos_eclss_loop/e2e_records/` (repo only)
 
 | run | Result |
 |-----|------|
@@ -490,4 +489,4 @@ Outstanding items are consolidated in **[backlog.md](../backlog.md)**:
 - [backlog.md](../backlog.md) — Phase 8 onward · EPS follow-up
 - [ssos_ros2_graph_design_investigation.md](ssos_ros2_graph_design_investigation.md)
 - SSOS MkDocs — `docs/ssos-mkdocs`
-- [docs/api-contracts.md](../../../api-contracts.md)
+- [docs/api-contracts.md](../../api-contracts.md)

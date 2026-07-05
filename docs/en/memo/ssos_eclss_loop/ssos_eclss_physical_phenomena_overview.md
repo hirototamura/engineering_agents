@@ -1,4 +1,3 @@
-> Japanese: [../../../ja/memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md](../../../ja/memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md)
 
 # SSOS ECLSS Physical Phenomena Overview
 

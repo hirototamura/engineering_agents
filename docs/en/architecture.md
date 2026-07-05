@@ -1,4 +1,3 @@
-> Japanese: [../ja/architecture.md](../ja/architecture.md)
 
 # Architecture — ECLSS Resilience Loop
 

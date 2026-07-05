@@ -158,7 +158,7 @@ class StationSimulator:
 ## Day 8: CLI（1日）
 
 - `src/tools/cli/` — `run`, `list-scenarios`
-- [pyproject.toml](../pyproject.toml) エントリポイント
+- [pyproject.toml](https://github.com/hirototamura/engineering_agents/blob/main/pyproject.toml) エントリポイント
 - `scrubber_demo.yaml`（E2E 用）
 
 **完了判定**: 1 コマンドで 4 agent modes 実行 + 出力パス表示。

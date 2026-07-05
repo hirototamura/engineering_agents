@@ -1,10 +1,9 @@
-> Japanese: [../ja/scenario-ssos-eclss-loop.md](../ja/scenario-ssos-eclss-loop.md)
 
 # Scenario: ssos_eclss_loop
 
 Reference scenario where an **agent team** operates real ROS2 **ECLSS** (Environmental Control and Life Support System) inside **SSOS** (Space Station OS) Docker instead of Crew Simulation. The team monitors **storage kg** for CO₂ / O₂ / product water, issues operational commands (ARS / OGS, etc.) when thresholds are exceeded, and proposes permanent `ssos_graph` design after the run.
 
-> Run commands: [README.md](README.md#how-to-run) and [How to run](#how-to-run) below. Architecture: [architecture.md](architecture.md). Contrast with scrubber: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md).
+> Run commands: [Overview](overview.md#how-to-run) and [How to run](#how-to-run) below. Architecture: [architecture.md](architecture.md). Contrast with scrubber: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md).
 
 ---
 
@@ -107,8 +106,8 @@ Each step: all N agents deliberate → representative issues `operational_comman
 
 | File | Purpose |
 | --- | --- |
-| [scenario.yaml](../../src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.mode`, run ID |
-| [agents.yaml](../../src/scenario/ssos_eclss_loop/agents.yaml) | Team (`eclss_operator_*`), Persona, `policy` (labeled only), Ollama |
+| [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.mode`, run ID |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Team (`eclss_operator_*`), Persona, `policy` (labeled only), Ollama |
 
 ### scenario.yaml (main fields)
 
@@ -342,7 +341,7 @@ Runs with `summary.scenario == "ssos_eclss_loop"` branch to `src/tools/dashboard
 2. **Step replay** — `operational_applied` timeline, utterances / reasoning, storage plots
 3. **Design proposals** — `ssos_graph` `action_profile` / `graph_rewire` preview
 
-Scrubber screenshots: [README.md](README.md#dashboard-at-a-glance).
+Scrubber screenshots: [Overview](overview.md#dashboard-at-a-glance).
 
 ---
 
@@ -360,7 +359,7 @@ pytest tests/scenario/test_ssos_eclss_loop*.py -q
 pytest tests/environment/test_graph_rewire*.py -q
 ```
 
-Container E2E records: [memo/ssos_eclss_loop/e2e_records/](memo/ssos_eclss_loop/e2e_records/README.md).
+Container E2E records: `memo/ssos_eclss_loop/e2e_records/` (repo only).
 
 ---
 

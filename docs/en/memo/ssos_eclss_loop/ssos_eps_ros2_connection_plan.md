@@ -1,4 +1,3 @@
-> Japanese: [../../../ja/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](../../../ja/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md)
 
 # engineering_agents → SSOS EPS Connection Implementation Plan (EPS-only)
 

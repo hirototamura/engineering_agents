@@ -1,4 +1,3 @@
-> Japanese: [../../ja/memo/backlog.md](../../ja/memo/backlog.md)
 
 # Backlog — Research & Design Topics
 
@@ -186,7 +185,7 @@ Phase 7a covers **client-side remap in `Ros2EclssBridge` only**. Without `--ros-
 ## BL-006: SSOS run reproducibility and dashboard enrichment (out of CLI v3 scope)
 
 **Status**: Not started (after CLI v3 mounts + `ea run`)  
-**Related**: [cli_v3_plan.md](cli_v3_plan.md), [scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md)
+**Related**: [CLI guide](../cli.md), [scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md)
 
 CLI v3 focuses on **host one-command runs and results mounts**. The items below belong to the simulation/visualization layer.
 

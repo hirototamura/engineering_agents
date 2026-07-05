@@ -142,7 +142,7 @@
   BL-002   進化ペルソナ
 ```
 
-詳細: [memo/mvp_plan.md](memo/mvp_plan.md)、[memo/ssos_eclss_loop/](memo/ssos_eclss_loop/)、[memo/backlog.md](memo/backlog.md)。
+詳細: [memo/scrubber_degradation/mvp_plan.md](memo/scrubber_degradation/mvp_plan.md)、[memo/ssos_eclss_loop/](memo/ssos_eclss_loop/)、[memo/backlog.md](memo/backlog.md)。
 
 ---
 
@@ -153,13 +153,13 @@
 
 | メモ                                                                                                                      | 内容                                                            |
 | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| [mvp_plan.md](memo/mvp_plan.md)                                                                                         | Week ロードマップ、Day 1–10                                          |
+| [mvp_plan.md](memo/scrubber_degradation/mvp_plan.md)                                                                                         | Week ロードマップ、Day 1–10                                          |
 | [ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)           | SSOS ECLSS Phase 0–7 詳細・検証手順                                  |
 | [ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md)               | EPS ROS2 ブリッジ（Phase 3）                                        |
 | [ssos_eclss_loop/ssos_ros2_graph_design_investigation.md](memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | ゲートウェイ・remap 調査                                               |
 | [backlog.md](memo/backlog.md)                                                                                           | BL-001〜BL-007（創発ロール、Phase 8、ECLSS/EPS、CLI v3 スコープ外、step 同期検討） |
 | [cli_v3_plan.md](memo/cli_v3_plan.md)                                                                                   | **CLI v3 最終** — SSOS マウント + `ea run` 1 コマンド                   |
-| [homogeneous_agent_team_plan.md](memo/homogeneous_agent_team_plan.md)                                                   | 同種 N 体チーム設計                                                   |
+| [homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md)                                                   | 同種 N 体チーム設計                                                   |
 | [eps_implementation_plan.md](memo/scrubber_degradation/eps_implementation_plan.md)                                      | EPS-1〜4、CLI Day 区切り                                           |
 
 

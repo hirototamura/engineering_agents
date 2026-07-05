@@ -1,4 +1,3 @@
-> Japanese: [../../ja/ssos/eps-integration.md](../../ja/ssos/eps-integration.md)
 
 # EPS Integration
 

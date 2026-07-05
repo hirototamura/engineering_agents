@@ -27,6 +27,8 @@
 
 === "Windows（PowerShell）"
 
+    #### 1. Python 環境
+
     ```powershell
     git clone <repository-url>
     cd engineering_agents
@@ -37,9 +39,38 @@
     python -m pip install -e ".[dev]"
 
     python -m tools.cli doctor
+    python -m pytest -q
     ```
 
-    SSOS 実機パスでは [Docker Desktop](https://www.docker.com/products/docker-desktop/)（**WSL 2** バックエンド）が必要です。`scripts/*.sh` は **Git Bash** から実行してください。
+    #### 2. Docker Desktop（実 SSOS のみ）
+
+    [Docker Desktop](https://www.docker.com/products/docker-desktop/) を **WSL 2** バックエンドでインストール。**Windows Containers** は無効のまま。
+
+    ```powershell
+    wsl --status
+    docker info --format "OSType={{.OSType}} OperatingSystem={{.OperatingSystem}}"
+    docker run --rm hello-world
+    ```
+
+    | インストーラ項目 | 推奨 |
+    | --- | --- |
+    | Use WSL 2 instead of Hyper-V | 有効 |
+    | Allow Windows Containers | 無効 |
+
+    `wsl --status` で WSL 未導入の場合: 管理者 PowerShell で `wsl --install` → 再起動 → Docker Desktop 起動。
+
+    #### 3. SSOS スクリプトの実行
+
+    `scripts/*.sh` は **Git Bash** から実行。例:
+
+    ```powershell
+    & "C:\Program Files\Git\bin\bash.exe" -lc "ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8"
+    ```
+
+    !!! tip "Windows で詰まりやすい点"
+        - `python` が Microsoft Store を開く → App Execution Alias を無効化するか、インストール済み Python のフルパスを使う。
+        - `Activate.ps1` がブロックされる → `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`、または `.\.venv\Scripts\python.exe` を直接呼ぶ。
+        - 詳細手順: [概要 §2B](overview.md#2b-windows-powershell--docker-desktop)。
 
 !!! note "Cloud / CI 環境"
     更新スクリプトが `pip install -e ".[dev]"` でシステム Python に入れる場合は、`ea` の代わりに `python3 -m tools.cli` を使ってください。

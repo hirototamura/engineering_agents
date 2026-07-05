@@ -6,10 +6,10 @@ Research repository that simulates **agent teams** detecting, responding to, and
 
 ## Documentation / ドキュメント
 
-| Language | README | Engineering guide (AGENTS) |
-| --- | --- | --- |
-| **English** | [docs/en/README.md](docs/en/README.md) | [docs/en/AGENTS.md](docs/en/AGENTS.md) |
-| **日本語** | [docs/ja/README.md](docs/ja/README.md) | [docs/ja/AGENTS.md](docs/ja/AGENTS.md) |
+| Language | Quick start | Overview | Engineering guide (AGENTS) |
+| --- | --- | --- | --- |
+| **English** | [docs/en/index.md](docs/en/index.md) | [docs/en/overview.md](docs/en/overview.md) | [docs/en/AGENTS.md](docs/en/AGENTS.md) |
+| **日本語** | [docs/ja/index.md](docs/ja/index.md) | [docs/ja/overview.md](docs/ja/overview.md) | [docs/ja/AGENTS.md](docs/ja/AGENTS.md) |
 
 ### Design docs / 設計ドキュメント
 
@@ -22,17 +22,17 @@ Research repository that simulates **agent teams** detecting, responding to, and
 | Scenario: scrubber_degradation | [docs/en/scenario-scrubber-degradation.md](docs/en/scenario-scrubber-degradation.md) | [docs/ja/scenario-scrubber-degradation.md](docs/ja/scenario-scrubber-degradation.md) |
 | Scenario: ssos_eclss_loop | [docs/en/scenario-ssos-eclss-loop.md](docs/en/scenario-ssos-eclss-loop.md) | [docs/ja/scenario-ssos-eclss-loop.md](docs/ja/scenario-ssos-eclss-loop.md) |
 | SSOS integration (MkDocs) | [docs/en/ssos/index.md](docs/en/ssos/index.md) | [docs/ja/ssos/index.md](docs/ja/ssos/index.md) |
-| **MkDocs site** | [docs/index.md](docs/index.md) | [docs/index.md](docs/index.md) |
 
-MkDocs catalog and preview: [docs/catalog.md](docs/catalog.md) (`mkdocs serve`).
+MkDocs preview: `mkdocs serve` → English [http://127.0.0.1:8000/](http://127.0.0.1:8000/) · 日本語 [http://127.0.0.1:8000/ja/](http://127.0.0.1:8000/ja/)  
+Catalog: [docs/en/catalog.md](docs/en/catalog.md) · [docs/ja/catalog.md](docs/ja/catalog.md)
 
 ---
 
 ## Quick start (macOS / Linux)
 
 This quick start is for macOS / Linux-style shells. For Windows setup, use the
-full Windows instructions in [docs/en/README.md](docs/en/README.md#2b-windows-powershell--docker-desktop)
-or [docs/ja/README.md](docs/ja/README.md#2b-windows-powershell--docker-desktop).
+full Windows instructions in [docs/en/index.md](docs/en/index.md) (Windows tab)
+or [docs/ja/index.md](docs/ja/index.md), or [Overview §2B](docs/en/overview.md#2b-windows-powershell--docker-desktop).
 
 Requires **Python 3.11+** on the host (`requires-python` in `pyproject.toml`). SSOS Docker jobs use the container’s own Python.
 
@@ -44,7 +44,7 @@ pytest
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}}))"
 ```
 
-See [docs/en/README.md](docs/en/README.md) or [docs/ja/README.md](docs/ja/README.md) for full setup, LLM mode, and the Streamlit dashboard.
+See [docs/en/overview.md](docs/en/overview.md) or [docs/ja/overview.md](docs/ja/overview.md) for full setup, LLM mode, and the Streamlit dashboard.
 
 ---
 

@@ -193,7 +193,7 @@ Phase 8（ROS launch remap + ゲートウェイ）: [backlog BL-003](memo/backlo
 
 - **JSON ファイル + 将来コネクタ** — provenance 形式が安定するまで One Piece パッケージへのハード依存を避ける
 - 取り込み必要時: git submodule または `pip install -e ../one-piece/packages/connectors`
-- 方針詳細: [memo/mvp_plan.md](memo/mvp_plan.md)
+- 方針詳細: [memo/scrubber_degradation/mvp_plan.md](memo/scrubber_degradation/mvp_plan.md)
 
 ---
 

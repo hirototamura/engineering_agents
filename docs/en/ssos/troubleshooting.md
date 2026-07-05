@@ -1,4 +1,3 @@
-> Japanese: [../../ja/ssos/troubleshooting.md](../../ja/ssos/troubleshooting.md)
 
 # Troubleshooting
 

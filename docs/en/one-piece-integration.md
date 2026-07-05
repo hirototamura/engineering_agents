@@ -1,4 +1,3 @@
-> Japanese: [../ja/one-piece-integration.md](../ja/one-piece-integration.md)
 
 # One Piece Integration
 

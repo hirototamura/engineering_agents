@@ -1,4 +1,3 @@
-> Japanese: [../ja/api-contracts.md](../ja/api-contracts.md)
 
 # API Contracts — Simulator Boundaries and Event Logs
 

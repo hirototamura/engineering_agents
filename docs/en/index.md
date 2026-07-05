@@ -27,6 +27,8 @@ Run your first simulation in a few minutes. Engineering Agents simulates how an 
 
 === "Windows (PowerShell)"
 
+    #### 1. Python environment
+
     ```powershell
     git clone <repository-url>
     cd engineering_agents
@@ -37,9 +39,38 @@ Run your first simulation in a few minutes. Engineering Agents simulates how an 
     python -m pip install -e ".[dev]"
 
     python -m tools.cli doctor
+    python -m pytest -q
     ```
 
-    Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) with the **WSL 2** backend for SSOS live runs. Use **Git Bash** for `scripts/*.sh` wrappers.
+    #### 2. Docker Desktop (SSOS live runs only)
+
+    Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) with the **WSL 2** backend. Do **not** enable Windows Containers.
+
+    ```powershell
+    wsl --status
+    docker info --format "OSType={{.OSType}} OperatingSystem={{.OperatingSystem}}"
+    docker run --rm hello-world
+    ```
+
+    | Installer option | Selection |
+    | --- | --- |
+    | Use WSL 2 instead of Hyper-V | Enabled |
+    | Allow Windows Containers | Disabled |
+
+    If `wsl --status` reports WSL is missing: run `wsl --install` from an administrator PowerShell, reboot, then start Docker Desktop.
+
+    #### 3. Run SSOS scripts
+
+    Use **Git Bash** for `scripts/*.sh` wrappers. Example:
+
+    ```powershell
+    & "C:\Program Files\Git\bin\bash.exe" -lc "ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8"
+    ```
+
+    !!! tip "Windows gotchas"
+        - If `python` opens the Microsoft Store, disable the Python App Execution Alias or use the full path to your install.
+        - If `Activate.ps1` is blocked: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or call `.\.venv\Scripts\python.exe` directly.
+        - Full Windows + Docker walkthrough: [Overview §2B](overview.md#2b-windows-powershell--docker-desktop).
 
 !!! note "Cloud / CI environments"
     The update script may install the package into system Python with `pip install -e ".[dev]"`. In that case use `python3 -m tools.cli` instead of `ea`.

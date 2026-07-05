@@ -2,7 +2,6 @@ site_name: Engineering Agents
 site_description: ECLSS resilience-loop design docs and SSOS integration guides
 docs_dir: docs
 exclude_docs: |
-  catalog.md
   ja/memo/ssos_eclss_loop/e2e_records/
   en/memo/ssos_eclss_loop/e2e_records/
 theme:
@@ -69,15 +68,26 @@ plugins:
               - ECLSS integration: ssos/eclss-integration.md
               - EPS integration: ssos/eps-integration.md
               - Troubleshooting: ssos/troubleshooting.md
+              - Roadmap: ssos/roadmap.md
               - API reference: ssos/api-reference.md
             - More:
               - CLI guide: cli.md
               - Development plan: development-plan.md
               - One Piece integration: one-piece-integration.md
+              - Document catalog: catalog.md
+              - Maintenance guide: MAINTENANCE.md
               - Development notes:
                 - Backlog: memo/backlog.md
                 - MVP plan: memo/scrubber_degradation/mvp_plan.md
+                - EPS implementation plan: memo/scrubber_degradation/eps_implementation_plan.md
+                - Homogeneous agent team: memo/agents/homogeneous_agent_team_plan.md
                 - SSOS ECLSS connection plan: memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md
+                - SSOS EPS ROS2 plan: memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md
+                - ROS2 graph investigation: memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md
+                - ECLSS physical phenomena: memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md
+                - EPS physical phenomena: memo/ssos_eclss_loop/ssos_eps_physical_phenomena_overview.md
+                - Persona LLM OOP plan: memo/agents/persona_llm_core_oop_plan.md
+                - Persona workshop draft: memo/agents/persona_workshop_draft.md
         - locale: ja
           name: 日本語
           build: true
@@ -112,15 +122,27 @@ plugins:
               - ECLSS 統合: ssos/eclss-integration.md
               - EPS 統合: ssos/eps-integration.md
               - トラブルシューティング: ssos/troubleshooting.md
+              - ロードマップ: ssos/roadmap.md
               - API リファレンス: ssos/api-reference.md
             - その他:
               - CLI ガイド: cli.md
               - 開発プラン: development-plan.md
               - One Piece 連携: one-piece-integration.md
+              - ドキュメント索引: catalog.md
+              - 保守ガイド: MAINTENANCE.md
               - 開発メモ:
                 - バックログ: memo/backlog.md
                 - MVP プラン: memo/scrubber_degradation/mvp_plan.md
+                - EPS 実装プラン: memo/scrubber_degradation/eps_implementation_plan.md
+                - 同種エージェントチーム: memo/agents/homogeneous_agent_team_plan.md
                 - SSOS ECLSS 接合プラン: memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md
+                - SSOS EPS ROS2 接合プラン: memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md
+                - ROS2 グラフ設計調査: memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md
+                - ECLSS 物理現象: memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md
+                - EPS 物理現象: memo/ssos_eclss_loop/ssos_eps_physical_phenomena_overview.md
+                - CLI v3 プラン: memo/cli_v3_plan.md
+                - Persona LLM OOP: memo/agents/persona_llm_core_oop_plan.md
+                - Persona ワークショップ: memo/agents/persona_workshop_draft.md
 markdown_extensions:
   - admonition
   - pymdownx.details
@@ -137,4 +159,4 @@ markdown_extensions:
       toc_depth: 3
 validation:
   links:
-    not_found: info
+    not_found: warn

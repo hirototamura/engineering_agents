@@ -95,7 +95,7 @@ Run simulations from the **Mac host** with `ea run`. Do **not** run `ea` inside 
 
 **Plant reset between runs**: every `ea run ssos_eclss_loop` (ros2) **stops and restarts** headless (solar + EPS + ECLSS) inside the container before the simulation. This prevents CO₂ storage, EPS state, and other plant variables from carrying over from the previous run. You do not need to keep headless running manually.
 
-Design: [docs/ja/memo/cli_v3_plan.md](../ja/memo/cli_v3_plan.md) · Helper scripts: [scripts/ssos/README.md](../../scripts/ssos/README.md)
+Design: [CLI guide](cli.md) · Helper scripts: [`scripts/ssos/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/scripts/ssos/README.md)
 
 ### First time: setup through simulation (full command list)
 

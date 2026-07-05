@@ -347,7 +347,7 @@ ollama pull gemma4:e4b
 ollama list
 ```
 
-Default LLM settings are in each scenario's `agents.yaml` (scrubber: [`scrubber_degradation/agents.yaml`](../../src/scenario/scrubber_degradation/agents.yaml), ssos: [`ssos_eclss_loop/agents.yaml`](../../src/scenario/ssos_eclss_loop/agents.yaml)). `llm` mode fails if Ollama is not running. Container `ea-loop` defaults to `OLLAMA_BASE_URL=host.docker.internal`.
+Default LLM settings are in each scenario's `agents.yaml` (scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml), ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)). `llm` mode fails if Ollama is not running. Container `ea-loop` defaults to `OLLAMA_BASE_URL=host.docker.internal`.
 
 ---
 
@@ -497,4 +497,4 @@ Dependency direction: `tools → scenario → environment → core`
 
 ## License
 
-[Apache License 2.0](LICENSE.txt) — Copyright 2026 Hiroto Tamura
+[Apache License 2.0](https://github.com/hirototamura/engineering_agents/blob/main/LICENSE.txt) — Copyright 2026 Hiroto Tamura

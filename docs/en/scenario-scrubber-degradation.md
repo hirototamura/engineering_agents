@@ -1,10 +1,9 @@
-> Japanese: [../ja/scenario-scrubber-degradation.md](../ja/scenario-scrubber-degradation.md)
 
 # Scenario: scrubber_degradation
 
 Reference scenario for the **ECLSS** (Environmental Control and Life Support System) resilience-loop MVP. Observe how an agent team detects and recovers from a single anomaly — CO2 scrubber performance degradation in life-support equipment — and what permanent design it proposes afterward.
 
-> Run commands: [README.md](README.md#how-to-run). Architecture: [architecture.md](architecture.md).
+> Run commands: [Overview](overview.md#how-to-run). Architecture: [architecture.md](architecture.md).
 
 ---
 
@@ -61,8 +60,8 @@ Life-support simulation phases are the same. Recovery **order, timing, and utter
 
 | File | Purpose |
 | --- | --- |
-| [scenario.yaml](../../src/scenario/scrubber_degradation/scenario.yaml) | Step count, initial state, design parameters, anomaly, `agents.mode`, run ID |
-| [agents.yaml](../../src/scenario/scrubber_degradation/agents.yaml) | Team, Persona, memory, `policy` (labeled only), Ollama settings |
+| [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/scenario.yaml) | Step count, initial state, design parameters, anomaly, `agents.mode`, run ID |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml) | Team, Persona, memory, `policy` (labeled only), Ollama settings |
 
 ### scenario.yaml (main fields)
 
@@ -277,7 +276,7 @@ In LLM mode, `decision_source: "llm"` and `changes` may include `add_node` (`byp
 2. **Step replay** — follow one run step by step; read reasoning at step 17, etc., to see why EPS boost was requested
 3. **Design proposal section** — confirm permanent change proposals in Before / After graphs (red dashed line = proposed edge)
 
-Screenshots: [README.md](README.md#dashboard-at-a-glance).
+Screenshots: [Overview](overview.md#dashboard-at-a-glance).
 
 ---
 

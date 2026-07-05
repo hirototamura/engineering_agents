@@ -1,4 +1,3 @@
-> Japanese: [../../ja/ssos/roadmap.md](../../ja/ssos/roadmap.md)
 
 # Roadmap — Phase 0–8
 

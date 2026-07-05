@@ -67,7 +67,7 @@ python3 -m streamlit run src/tools/dashboard/app.py
 
 **ラン間のプラント初期化**: 各 `ea run ssos_eclss_loop`（ros2）のたびに、CLI がコンテナ内で headless（solar + EPS + ECLSS）を **停止してから再起動** します。前回 run の CO₂ 貯蔵・EPS 状態などが次 run に持ち越されないようにするためです。手動で headless を起動し続ける必要はありません。
 
-設計メモ: [memo/cli_v3_plan.md](memo/cli_v3_plan.md) · ヘルパースクリプト: [scripts/ssos/README.md](../../scripts/ssos/README.md)
+設計メモ: [memo/cli_v3_plan.md](memo/cli_v3_plan.md) · ヘルパースクリプト: [`scripts/ssos/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/scripts/ssos/README.md)
 
 ### 初回：環境設定からシミュレーションまで（コマンド一式）
 

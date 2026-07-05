@@ -2,7 +2,7 @@
 
 **ECLSS**（Environmental Control and Life Support System / 環境制御・生命維持システム）レジリエンス・ループ MVP の参照シナリオ。生命維持装置である CO2 スクラバーの性能劣化という単一異常に対し、エージェントチームがどう検知・回復し、事後にどんな恒久設計を提案するかを観察する。
 
-> 実行コマンドは [README.md](README.md#実行方法)。アーキテクチャは [architecture.md](architecture.md)。
+> 実行コマンドは [概要](overview.md#実行方法)。アーキテクチャは [architecture.md](architecture.md)。
 
 ---
 
@@ -59,8 +59,8 @@
 
 | ファイル | 用途 |
 | --- | --- |
-| [scenario.yaml](../../src/scenario/scrubber_degradation/scenario.yaml) | ステップ数、初期状態、設計パラメータ、異常、`agents.mode`、run ID |
-| [agents.yaml](../../src/scenario/scrubber_degradation/agents.yaml) | チーム、Persona、メモリ、`policy`（labeled のみ）、Ollama 設定 |
+| [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/scenario.yaml) | ステップ数、初期状態、設計パラメータ、異常、`agents.mode`、run ID |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml) | チーム、Persona、メモリ、`policy`（labeled のみ）、Ollama 設定 |
 
 ### scenario.yaml（主要項目）
 
@@ -215,7 +215,7 @@ run_scenario(
 | 事後提案 | `bypass_edge` 固定 | LLM が `changes` 生成 |
 | 研究用途 | 正解比較・回帰 | モデル比較・発言分析 |
 
-LLM が `policy` を読まない理由: ルールの答えをプロンプトに混ぜず、**公平な比較実験**をするため。設計詳細: [memo/homogeneous_agent_team_plan.md](memo/homogeneous_agent_team_plan.md)。
+LLM が `policy` を読まない理由: ルールの答えをプロンプトに混ぜず、**公平な比較実験**をするため。設計詳細: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md)。
 
 ---
 
@@ -275,7 +275,7 @@ LLM モードでは `decision_source: "llm"`、`changes` に `add_node`（`bypas
 2. **Step replay** — 1 run を追い、step 17 などで「なぜ EPS ブーストしたか」を reasoning から読む
 3. **設計提案セクション** — Before / After グラフで恒久変更案を確認（赤破線 = 提案エッジ）
 
-スクリーンショット: [README.md](README.md#一目でわかるダッシュボード)。
+スクリーンショット: [概要](overview.md#一目でわかるダッシュボード)。
 
 ---
 
