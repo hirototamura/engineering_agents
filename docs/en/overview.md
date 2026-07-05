@@ -235,7 +235,7 @@ that path.
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/hirototamura/engineering_agents.git
 cd engineering_agents
 ```
 
@@ -497,4 +497,4 @@ Dependency direction: `tools → scenario → environment → core`
 
 ## License
 
-[Apache License 2.0](https://github.com/hirototamura/engineering_agents/blob/main/LICENSE.txt) — Copyright 2026 Hiroto Tamura
+[Apache License 2.0](https://github.com/hirototamura/engineering_agents/blob/main/LICENSE.txt) — Copyright 2026 One Piece Engineering

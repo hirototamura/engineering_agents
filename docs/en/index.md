@@ -14,7 +14,7 @@ Run your first simulation in a few minutes. Engineering Agents simulates how an 
 === "macOS / Linux"
 
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/hirototamura/engineering_agents.git
     cd engineering_agents
 
     python3 -m venv .venv
@@ -30,7 +30,7 @@ Run your first simulation in a few minutes. Engineering Agents simulates how an 
     #### 1. Python environment
 
     ```powershell
-    git clone <repository-url>
+    git clone https://github.com/hirototamura/engineering_agents.git
     cd engineering_agents
 
     python -m venv .venv

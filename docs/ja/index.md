@@ -14,7 +14,7 @@
 === "macOS / Linux"
 
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/hirototamura/engineering_agents.git
     cd engineering_agents
 
     python3 -m venv .venv
@@ -30,7 +30,7 @@
     #### 1. Python 環境
 
     ```powershell
-    git clone <repository-url>
+    git clone https://github.com/hirototamura/engineering_agents.git
     cd engineering_agents
 
     python -m venv .venv
