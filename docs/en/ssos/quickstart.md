@@ -9,7 +9,7 @@ Scenario specification: [ssos_eclss_loop scenario](../scenario-ssos-eclss-loop.m
 
 ---
 
-## ssos_eclss_loop — command cheat sheet (Mac)
+## ssos_eclss_loop — command cheat sheet (Mac) { #ssos_eclss_loop--command-cheat-sheet-mac }
 
 ### First time: setup through simulation
 
@@ -205,7 +205,7 @@ PYTHONPATH=/ea/src SSOS_ECLSS_BACKEND=ros2 EA_RESULTS_ROOT=/ea/results \
 
 ---
 
-## Container E2E regression (one command)
+## Container E2E regression (one command) { #container-e2e-regression-one-command }
 
 `scripts/run_ssos_regression.sh` chains **Tier 1** (host `pytest`) and optional **Tier 2** (live SSOS Docker smokes + `ea-loop`). Shared helpers live in `scripts/lib/ssos_docker.sh`.
 

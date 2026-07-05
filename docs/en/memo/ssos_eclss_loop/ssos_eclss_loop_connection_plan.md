@@ -32,7 +32,7 @@
 | **6** | LLM agents | ✅ | deliberation → operational → post-run design; mock pytest + container E2E |
 | **6.1** | Docker run UX (`ea-loop`) | ✅ | Default `ros2`, `OLLAMA_BASE_URL=host.docker.internal` |
 | **7** | graph_rewire (client) + Team ABC + Dashboard | ✅ | `graph_rewire.py`, `ssos_views.py`, re-arm improvements; E2E `run_graph_rewire_e2e.sh` |
-| **8** | ROS launch remap (A) + gateway | 📋 backlog | [backlog.md BL-003](../backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a) |
+| **8** | ROS launch remap (A) + gateway | 📋 backlog | [backlog.md BL-003](../backlog.md#bl-003) |
 
 ---
 
@@ -374,7 +374,7 @@ PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_lo
 | Consumer | `build_eclss_backend()` → `Ros2EclssBridge(topic_remap=…)` |
 | Tests | `tests/environment/test_graph_rewire.py`, `scripts/run_graph_rewire_e2e.sh` |
 
-Launch remap (A) is [backlog.md BL-003](../backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a).
+Launch remap (A) is [backlog.md BL-003](../backlog.md#bl-003).
 
 ### 7b — `Team` ABC unification
 
@@ -402,7 +402,7 @@ PYTHONPATH=src python3 -m streamlit run src/tools/dashboard/app.py
 | Item | Status |
 |------|------|
 | re-arm boundary / invalid ARS·OGS retry | **Implemented** |
-| `co2_critical` unused, provenance heuristics, command failure ignored, `set_parameter` optional path | [backlog.md BL-004](../backlog.md#bl-004-ssos-eclss-loop--follow-ups) |
+| `co2_critical` unused, provenance heuristics, command failure ignored, `set_parameter` optional path | [backlog.md BL-004](../backlog.md#bl-004) |
 
 ---
 

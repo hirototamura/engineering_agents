@@ -208,4 +208,4 @@ ros2 action send_goal /air_revitalisation \
 ## Related
 
 - [API reference — EclssBackend](api-reference.md#eclssbackend)
-- [ssos_eclss_loop scenario](scenario-eclss-loop.md)
+- [ssos_eclss_loop scenario](../scenario-ssos-eclss-loop.md)

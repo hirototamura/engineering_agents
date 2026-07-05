@@ -144,6 +144,7 @@ plugins:
                 - Persona LLM OOP: memo/agents/persona_llm_core_oop_plan.md
                 - Persona ワークショップ: memo/agents/persona_workshop_draft.md
 markdown_extensions:
+  - attr_list
   - admonition
   - pymdownx.details
   - pymdownx.superfences:

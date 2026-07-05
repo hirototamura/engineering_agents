@@ -207,4 +207,4 @@ ros2 action send_goal /air_revitalisation \
 ## 関連
 
 - [API リファレンス — EclssBackend](api-reference.md#eclssbackend)
-- [ssos_eclss_loop シナリオ](scenario-eclss-loop.md)
+- [ssos_eclss_loop シナリオ](../scenario-ssos-eclss-loop.md)

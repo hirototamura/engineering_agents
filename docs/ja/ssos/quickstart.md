@@ -9,7 +9,7 @@ SSOS 接合 smoke テストと `ssos_eclss_loop` の **ros2** バックエンド
 
 ---
 
-## ssos_eclss_loop — コマンド一式（Mac）
+## ssos_eclss_loop — コマンド一式（Mac） { #ssos_eclss_loop--コマンド一式mac }
 
 ### 初回：環境設定からシミュレーションまで
 
@@ -39,7 +39,7 @@ ea results
 
 出力例: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`（`telemetry.jsonl`, `summary.json` 等）
 
-詳細: [CLI ガイド — SSOS Docker](../cli.md#ssos-dockerssos_eclss_loop--ros2)
+詳細: [CLI ガイド — SSOS Docker](../cli.md#ssos-docker-ssos_eclss_loop--ros2)
 
 ### 2 回目以降：シミュレーションのみ
 
@@ -205,7 +205,7 @@ PYTHONPATH=/ea/src SSOS_ECLSS_BACKEND=ros2 EA_RESULTS_ROOT=/ea/results \
 
 ---
 
-## コンテナ E2E 回帰（ワンコマンド）
+## コンテナ E2E 回帰（ワンコマンド） { #container-e2e-regression-one-command }
 
 `scripts/run_ssos_regression.sh` は **Tier 1**（ホスト `pytest`）と任意の **Tier 2**（SSOS Docker 実機 smoke + `ea-loop`）を連鎖します。共通ヘルパは `scripts/lib/ssos_docker.sh` です。
 

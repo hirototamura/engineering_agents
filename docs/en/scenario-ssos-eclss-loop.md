@@ -196,7 +196,7 @@ None of these are **permanent graph changes**. In `events.jsonl` they are record
 
 `graph_rewire` in `design_proposals.json` or `ssos_graph.rewires` in `scenario.yaml` causes `Ros2EclssBridge` on the **next run** to replace topic names client-side for `ros2 topic echo`, etc. (`environment/ssos/graph_rewire.py`).
 
-ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a).
+ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 
 ---
 
@@ -224,7 +224,7 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003-ros-lau
 
 ---
 
-## How to run
+## How to run { #how-to-run }
 
 ### mock (host, no ROS2)
 

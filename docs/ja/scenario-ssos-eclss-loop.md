@@ -195,7 +195,7 @@ llm:
 
 `design_proposals.json` の `graph_rewire` または `scenario.yaml` の `ssos_graph.rewires` は、**次 run** の `Ros2EclssBridge` が `ros2 topic echo` 等で使うトピック名をクライアント側で置換する（`environment/ssos/graph_rewire.py`）。
 
-ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a)。
+ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlog.md#bl-003)。
 
 ---
 
@@ -223,7 +223,7 @@ ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlo
 
 ---
 
-## 実行方法
+## 実行方法 { #実行方法 }
 
 ### mock（ホスト、ROS2 不要）
 
@@ -261,7 +261,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
 
 ---
 
-## 出力の読み方
+## 出力の読み方 { #出力の読み方 }
 
 ### ファイル一覧
 
@@ -332,7 +332,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
 
 ---
 
-## ダッシュボードでの見方
+## ダッシュボードでの見方 { #ダッシュボードでの見方 }
 
 `summary.scenario == "ssos_eclss_loop"` の run は `src/tools/dashboard/ssos_views.py` に分岐。
 

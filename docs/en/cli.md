@@ -89,7 +89,7 @@ ea results
 python3 -m streamlit run src/tools/dashboard/app.py
 ```
 
-## SSOS Docker (`ssos_eclss_loop` + ros2)
+## SSOS Docker (`ssos_eclss_loop` + ros2) { #ssos-docker-ssos_eclss_loop--ros2 }
 
 Run simulations from the **Mac host** with `ea run`. Do **not** run `ea` inside the SSOS container (`ea` is installed in the host `.venv` only).
 

@@ -190,7 +190,7 @@ Details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_ag
 | provenance | ✅ EPS recovery | ✅ operational commands |
 | Post-run proposals → provenance | 📋 pending | 📋 pending |
 | CLI integration | 📋 pending | 📋 pending |
-| launch remap (Phase 8) | — | 📋 [BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a) |
+| launch remap (Phase 8) | — | 📋 [BL-003](memo/backlog.md#bl-003) |
 
 ---
 

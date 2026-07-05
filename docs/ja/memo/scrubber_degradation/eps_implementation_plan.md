@@ -31,7 +31,7 @@ flowchart LR
 
 ---
 
-## Day 区切りロードマップ
+## Day 区切りロードマップ { #day-区切りロードマップ }
 
 
 | Day        | 名称                      | 完了条件（要約）                                                                    | 状態   |
@@ -155,7 +155,7 @@ class StationSimulator:
 
 ---
 
-## Day 8: CLI（1日）
+## Day 8: CLI（1日） { #day-8-cli1日 }
 
 - `src/tools/cli/` — `run`, `list-scenarios`
 - [pyproject.toml](https://github.com/hirototamura/engineering_agents/blob/main/pyproject.toml) エントリポイント
@@ -165,7 +165,7 @@ class StationSimulator:
 
 ---
 
-## Day 9–10: 拡張
+## Day 9–10: 拡張 { #day-910-拡張 }
 
 **Day 9 — One Piece**: provenance summary index、[one-piece-integration.md](../../one-piece-integration.md) に EPS recovery handoff 例。
 

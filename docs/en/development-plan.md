@@ -40,13 +40,13 @@ This document aggregates **features not yet complete** and the **research backlo
 | 5 | `design_proposals.json` (`ssos_graph`) + `--apply-proposals` | ✅ |
 | 6 | LLM agents + Docker `ea-loop` (ros2 / Ollama defaults) | ✅ |
 | 7 | Client `graph_rewire`, `Team` ABC, ssos dashboard views | ✅ |
-| 8 | ROS launch remap + gateway | 📋 [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a) |
+| 8 | ROS launch remap + gateway | 📋 [backlog BL-003](memo/backlog.md#bl-003) |
 
 **Tests**: `pytest --ignore=tests/e2e` — **205 passed**, 4 skipped (ROS2 live / outside container tests skip).
 
 **Container regression**: `./scripts/run_ssos_regression.sh` (Tier 1 pytest; `SSOS_E2E=1` for Tier 2 smoke chain). CI: `.github/workflows/ssos-e2e.yml`.
 
-**Time model (current)**: `mock` — 1 EA step = 1 physics tick. `ros2` — SSOS wall-clock snapshots (no step sync). Run-to-run reset via headless restart. Step-sync strategy: [BL-007](memo/backlog.md#bl-007-ssos--ea-time-and-step-synchronization-next-integration-phase).
+**Time model (current)**: `mock` — 1 EA step = 1 physics tick. `ros2` — SSOS wall-clock snapshots (no step sync). Run-to-run reset via headless restart. Step-sync strategy: [BL-007](memo/backlog.md#bl-007).
 
 **Container runs (target)**: `scripts/ssos/mac/ssos-run-detached.sh` (src + results + helper mounts) → host `ea run ssos_eclss_loop` only. Headless restart is handled by internal CLI bash.
 
@@ -61,9 +61,9 @@ This document aggregates **features not yet complete** and the **research backlo
 | LLM comparison experiments | Trajectory comparison across models, temperature, run_id (dashboard compare) | [architecture.md](architecture.md) |
 | Documentation | Sync `docs/ja/` and `docs/en/` with memo | this update |
 
-**Out of CLI v3 scope** (backlog): CO2=500kg plant init, ros2 step-0 validation, rich SSOS Streamlit views — [BL-006](memo/backlog.md#bl-006-ssos-run-reproducibility-and-dashboard-enrichment-out-of-cli-v3-scope)
+**Out of CLI v3 scope** (backlog): CO2=500kg plant init, ros2 step-0 validation, rich SSOS Streamlit views — [BL-006](memo/backlog.md#bl-006)
 
-**Next integration phase (under consideration)**: EA step vs SSOS physics time — expanded mock vs upstream sim clock — [BL-007](memo/backlog.md#bl-007-ssos--ea-time-and-step-synchronization-next-integration-phase) (separate from CLI v3 / Phase 8)
+**Next integration phase (under consideration)**: EA step vs SSOS physics time — expanded mock vs upstream sim clock — [BL-007](memo/backlog.md#bl-007) (separate from CLI v3 / Phase 8)
 
 ---
 
@@ -87,7 +87,7 @@ This document aggregates **features not yet complete** and the **research backlo
 | WRS in `SsosEclssLoopTeam` | Backlog | BL-004 |
 | upstream CO₂ scrubber | Waiting on SSOS extension | BL-004 |
 | MkDocs CI deploy | `docs/ssos-mkdocs` branch | BL-004 |
-| SSOS ↔ EA step sync | Under consideration (mock vs upstream) | [BL-007](memo/backlog.md#bl-007-ssos--ea-time-and-step-synchronization-next-integration-phase) |
+| SSOS ↔ EA step sync | Under consideration (mock vs upstream) | [BL-007](memo/backlog.md#bl-007) |
 
 ---
 

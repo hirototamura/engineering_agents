@@ -25,7 +25,7 @@ Both target research toward future space-station operations software (SSOS). The
 
 ---
 
-## Dashboard at a glance
+## Dashboard at a glance { #dashboard-at-a-glance }
 
 Simulation results are recorded in JSONL and reviewed in the [Streamlit dashboard](#dashboard). `scrubber_degradation` shows CO₂ ppm, EPS, and topology Before/After; `ssos_eclss_loop` shows storage kg, operational timeline, and `ssos_graph` design proposals.
 
@@ -186,7 +186,7 @@ Each step: all agents discuss (llm) or rules emit diagnostics (labeled). **Post-
   ea-loop / graph_rewire (client remap) / ssos dashboard views
 
 [ Next / backlog ]
-  Phase 8 launch remap     … [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a)
+  Phase 8 launch remap     … [backlog BL-003](memo/backlog.md#bl-003)
   design → provenance      … [development-plan.md](development-plan.md)
   One Piece Web UI         … out of scope
 ```
@@ -203,7 +203,7 @@ Roadmap and research memos: [docs/development-plan.md](development-plan.md).
 
 ---
 
-## Documentation
+## Documentation { #documentation }
 
 | Document | Audience | Content |
 | --- | --- | --- |
@@ -253,7 +253,7 @@ pip install -e ".[dev]"
 
 This makes packages under `src/` (`scenario`, `environment`, `core`, etc.) importable.
 
-### 2B. Windows PowerShell + Docker Desktop
+### 2B. Windows PowerShell + Docker Desktop { #2b-windows-powershell--docker-desktop }
 
 #### 2B-1. Create the Python environment
 
@@ -351,7 +351,7 @@ Default LLM settings are in each scenario's `agents.yaml` (scrubber: [``scrubber
 
 ---
 
-## How to run
+## How to run { #how-to-run }
 
 ### scrubber_degradation
 

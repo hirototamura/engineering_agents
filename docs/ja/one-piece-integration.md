@@ -185,7 +185,7 @@ One Piece `SsotProvenanceRecord` 概念に準拠。必須フィールド:
 | SSOS 実 ECLSS 運用 | ssos — `Ros2EclssBridge` + `EclssBackend`（Phase 0–7 完了） |
 | One Piece コネクタ [`ssos.py`](https://github.com/hirototamura/one-piece/blob/main/packages/connectors/one_piece_connectors/ssos.py) | 任意 — 実 SSOS から初期 `SystemElement` + ICD グラフをシード |
 
-Phase 8（ROS launch remap + ゲートウェイ）: [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a)。
+Phase 8（ROS launch remap + ゲートウェイ）: [backlog BL-003](memo/backlog.md#bl-003)。
 
 ---
 

@@ -282,7 +282,7 @@ Previous phase: [eps_implementation_plan.md](../scrubber_degradation/eps_impleme
 | **PR-2** `Ros2EpsBridge` read + smoke | ✅ Complete | `ros2_eps_bridge.py`, `scripts/ssos_eps_smoke.py`, `scripts/run_ssos_eps_smoke.sh` |
 | **PR-3** `eps.backend: mock \| ssos_eps` switch | ✅ Complete | `build_eps_backend()` in `scenario/runner.py` |
 | **PR-4** `request_eps_boost` interim 3a | ✅ Complete | Bridge-side timer + BCDU `discharging` → `current_draw * bus_voltage` |
-| **PR-5** Operations documentation | 📋 backlog | `docs/ssos-eps-integration.md` → [backlog BL-005](../backlog.md#bl-005-ssos-eps-ros2-bridge--follow-ups) |
+| **PR-5** Operations documentation | 📋 backlog | `docs/ssos-eps-integration.md` → [backlog BL-005](../backlog.md#bl-005) |
 
 ### Added / Changed Files
 
@@ -338,7 +338,7 @@ All `tests/environment/` — **78 passed, 3 skipped** (as of 2026-06-14).
 
 ### Follow-ups (Not Started)
 
-PR-5, Phase 3b/3c, BCDU action, operations documentation, etc. are moved to **[backlog.md BL-005](../backlog.md#bl-005-ssos-eps-ros2-bridge--follow-ups)**.
+PR-5, Phase 3b/3c, BCDU action, operations documentation, etc. are moved to **[backlog.md BL-005](../backlog.md#bl-005)**.
 
 ### Known Limitations (3a interim)
 

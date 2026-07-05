@@ -18,7 +18,7 @@ SSOS integration progress on `main` and backlog items. See also [development-pla
 | **5** | `operational_proposals.json` + `design_proposals.json` + `--apply-proposals` | ✅ **Complete** | Post-run proposals and next-run apply |
 | **6** | LLM agents + Docker `ea-loop` (ros2 / Ollama defaults) | ✅ **Complete** | Container loop with LLM mode |
 | **7** | Client `graph_rewire`, `Team` ABC, SSOS dashboard views | ✅ **Complete** | Remap client + dashboard |
-| **8** | ROS launch remap + gateway | 📋 **Backlog** | Apply `graph_rewire` at launch ([BL-003](../memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a)) |
+| **8** | ROS launch remap + gateway | 📋 **Backlog** | Apply `graph_rewire` at launch ([BL-003](../memo/backlog.md#bl-003)) |
 
 ```mermaid
 gantt
@@ -171,7 +171,7 @@ Verification: potable vs electrolysis water tradeoff, `water_tradeoff_signal`
 
 | Item | Description |
 | --- | --- |
-| ROS launch remap | Apply `graph_rewire` at launch time ([BL-003](../memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a)) |
+| ROS launch remap | Apply `graph_rewire` at launch time ([BL-003](../memo/backlog.md#bl-003)) |
 | Gateway integration | ROS graph gateway for remap ([investigation memo](../memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md)) |
 
 ---

@@ -50,14 +50,14 @@
 | 5     | `design_proposals.json`（`ssos_graph`）+ `--apply-proposals` | ✅                                                                                   |
 | 6     | LLM エージェント + Docker `ea-loop`（ros2 / Ollama デフォルト）         | ✅                                                                                   |
 | 7     | クライアント `graph_rewire`、`Team` ABC、ダッシュボード ssos ビュー          | ✅                                                                                   |
-| 8     | ROS launch remap + ゲートウェイ                                  | 📋 [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a) |
+| 8     | ROS launch remap + ゲートウェイ                                  | 📋 [backlog BL-003](memo/backlog.md#bl-003) |
 
 
 **テスト**: `pytest --ignore=tests/e2e` — **205 passed**, 4 skipped（ROS2 live / コンテナ外は skip）。
 
 **コンテナ回帰**: `./scripts/run_ssos_regression.sh`（Tier 1 pytest。Tier 2 は `SSOS_E2E=1`）。CI: `.github/workflows/ssos-e2e.yml`。
 
-**時間モデル（現状）**: `mock` は 1 EA step = 1 物理 tick。`ros2` は SSOS 実時間のスナップショット駆動（step 同期なし）。run 間リセットは headless 再起動。step 同期の方針検討は [BL-007](memo/backlog.md#bl-007-ssos--ea-時間step-同期接続の次段階)。
+**時間モデル（現状）**: `mock` は 1 EA step = 1 物理 tick。`ros2` は SSOS 実時間のスナップショット駆動（step 同期なし）。run 間リセットは headless 再起動。step 同期の方針検討は [BL-007](memo/backlog.md#bl-007)。
 
 **コンテナ実行（目標）**: `scripts/ssos/mac/ssos-run-detached.sh`（src + results + ヘルパーマウント）→ ホスト `ea run ssos_eclss_loop` のみ。headless 再起動は CLI 内部 bash が担当。
 
@@ -76,9 +76,9 @@
 | ドキュメント整備                     | `docs/ja/` / `docs/en/` と memo の同期                                                          | 本更新                                                          |
 
 
-**CLI v3 スコープ外**（バックログ）: CO2=500kg 初期値・ros2 プラント検証、Streamlit SSOS リッチ表示 → [BL-006](memo/backlog.md#bl-006-ssos-run-再現性ダッシュボード強化cli-v3-スコープ外)
+**CLI v3 スコープ外**（バックログ）: CO2=500kg 初期値・ros2 プラント検証、Streamlit SSOS リッチ表示 → [BL-006](memo/backlog.md#bl-006)
 
-**接合の次段階（検討）**: EA step と SSOS 物理時間の同期 — Mock 拡充 vs upstream sim clock → [BL-007](memo/backlog.md#bl-007-ssos--ea-時間step-同期接続の次段階)（CLI v3 / Phase 8 とは別トラック）
+**接合の次段階（検討）**: EA step と SSOS 物理時間の同期 — Mock 拡充 vs upstream sim clock → [BL-007](memo/backlog.md#bl-007)（CLI v3 / Phase 8 とは別トラック）
 
 ---
 
@@ -107,7 +107,7 @@
 | WRS in `SsosEclssLoopTeam` | バックログ                    | BL-004                                                    |
 | upstream CO₂ スクラバ          | SSOS 拡張待ち                | BL-004                                                    |
 | MkDocs CI deploy           | `docs/ssos-mkdocs`       | BL-004                                                    |
-| SSOS ↔ EA step 同期          | 検討中（Mock 拡充 vs upstream） | [BL-007](memo/backlog.md#bl-007-ssos--ea-時間step-同期接続の次段階) |
+| SSOS ↔ EA step 同期          | 検討中（Mock 拡充 vs upstream） | [BL-007](memo/backlog.md#bl-007) |
 
 
 ---
