@@ -2,7 +2,7 @@
 
 # Development Plan (In Progress and Not Started)
 
-This document aggregates **features not yet complete** and the **research backlog**. For available functionality, see [README.md](README.md) and the scenario documents below.
+This document aggregates **features not yet complete** and the **research backlog**. For available functionality, see [Overview](overview.md) and the scenario documents below.
 
 | Document | Content |
 | --- | --- |

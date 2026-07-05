@@ -4,7 +4,7 @@
 
 Reference for layer structure, execution flow, and agent design. API schemas: [api-contracts.md](api-contracts.md). Scenario narratives: see each scenario document.
 
-> Usage: [README.md](README.md) · Incomplete features: [development-plan.md](development-plan.md)
+> Usage: [Quick start](index.md) · [Overview](overview.md) · Incomplete features: [development-plan.md](development-plan.md)
 
 ---
 

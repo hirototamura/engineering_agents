@@ -1,8 +1,11 @@
-> Japanese: [../../ja/ssos/quickstart.md](../../ja/ssos/quickstart.md)
-
 # Quickstart
 
-Shortest path to SSOS integration smoke tests and the `ssos_eclss_loop` scenario. **The Mac host has no ROS 2** — the real plant (ros2) runs in Docker, and you start simulations from the **host** with `ea run`.
+SSOS integration smoke tests and the `ssos_eclss_loop` **ros2** backend. **The Mac host has no ROS 2** — the real plant runs in Docker, and you start simulations from the **host** with `ea run`.
+
+!!! info "Start here for a first run"
+    If you only need a quick mock simulation without Docker, use the [Quick start](../index.md) page (`ea run ssos_eclss_loop --backend mock`).
+
+Scenario specification: [ssos_eclss_loop scenario](../scenario-ssos-eclss-loop.md)
 
 ---
 

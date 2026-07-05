@@ -1,10 +1,8 @@
-> Japanese: [../../ja/ssos/index.md](../../ja/ssos/index.md)
-
 # SSOS ECLSS + EPS Integration — Overview
 
-**Branch**: `main` (PR #9 merged)
-
 This document describes the integration layer for operating Space Station OS (SSOS) **ECLSS** (life support) and **EPS** (power) from `engineering_agents`. Instead of the Crew Simulation GUI, agents control ARS, OGS, WRS, and BCDU via `EclssBackend` / `EpsBackend`.
+
+For scenario specification (agents, outputs, dashboard), see [ssos_eclss_loop scenario](../scenario-ssos-eclss-loop.md). This section focuses on **Docker / ROS 2 operational integration**.
 
 !!! note "Scope"
     - The primary goal is **virtual verification**. Connecting to the physical world (on-orbit hardware) is out of scope for this demo.
@@ -133,11 +131,10 @@ flowchart TB
 
 ## Related links
 
-- [Quickstart](quickstart.md) — two-terminal workflow
+- [Docker setup](quickstart.md) — `ea run` and smoke tests
 - [ECLSS integration](eclss-integration.md) — topics and actions in detail
 - [EPS integration](eps-integration.md) — interim power-boost approach
-- [ssos_eclss_loop scenario](scenario-eclss-loop.md) — mock / ros2 execution
+- [ssos_eclss_loop scenario](../scenario-ssos-eclss-loop.md) — scenario spec and reading outputs
 - [Troubleshooting](troubleshooting.md)
-- [Roadmap](roadmap.md) — Phase 0–5 status
 - [API reference](api-reference.md)
 - Development memos: [SSOS ECLSS integration plan](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md), [SSOS EPS ROS2 integration plan](../memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md)

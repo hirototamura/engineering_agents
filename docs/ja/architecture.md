@@ -2,7 +2,7 @@
 
 レイヤ構成・実行フロー・エージェント設計のリファレンス。API スキーマは [api-contracts.md](api-contracts.md)、叙事は各シナリオドキュメントを参照。
 
-> 利用手順: [README.md](README.md) · 未完了: [development-plan.md](development-plan.md)
+> 利用手順: [クイックスタート](index.md) · [概要](overview.md) · 未完了: [development-plan.md](development-plan.md)
 
 ---
 

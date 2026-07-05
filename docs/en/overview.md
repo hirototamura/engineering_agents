@@ -1,6 +1,6 @@
-> Japanese: [../ja/README.md](../ja/README.md)
-
 # Engineering Agents — ECLSS Resilience Loop
+
+**→ [Quick start](index.md)** — install, run your first simulation, find result files
 
 Research repository that simulates how an **agent team detects and responds to anomalies in ECLSS** (Environmental Control and Life Support System) and **proposes design changes afterward**. ECLSS is not a physical experiment apparatus; it refers to **life-support equipment** required for crew survival.
 

@@ -2,33 +2,125 @@ site_name: Engineering Agents
 site_description: ECLSS resilience-loop design docs and SSOS integration guides
 docs_dir: docs
 exclude_docs: |
+  catalog.md
   ja/memo/ssos_eclss_loop/e2e_records/
   en/memo/ssos_eclss_loop/e2e_records/
 theme:
   name: material
-  language: ja
   palette:
     - scheme: default
       primary: indigo
       accent: indigo
       toggle:
         icon: material/brightness-7
-        name: ダークモード
+        name: Switch to dark mode
     - scheme: slate
       primary: indigo
       accent: indigo
       toggle:
         icon: material/brightness-4
-        name: ライトモード
+        name: Switch to light mode
   features:
-    - navigation.tabs
     - navigation.sections
     - navigation.top
+    - navigation.indexes
     - content.code.copy
     - search.suggest
     - search.highlight
 plugins:
   - search
+  - i18n:
+      docs_structure: folder
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          name: English
+          default: true
+          build: true
+          site_name: Engineering Agents
+          theme:
+            language: en
+            palette:
+              - scheme: default
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/brightness-7
+                  name: Switch to dark mode
+              - scheme: slate
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/brightness-4
+                  name: Switch to light mode
+          nav:
+            - Quick start: index.md
+            - Overview: overview.md
+            - Architecture: architecture.md
+            - API contracts: api-contracts.md
+            - Engineering guide: AGENTS.md
+            - Scenarios:
+              - scrubber_degradation: scenario-scrubber-degradation.md
+              - ssos_eclss_loop: scenario-ssos-eclss-loop.md
+            - SSOS integration:
+              - Overview: ssos/index.md
+              - Docker setup: ssos/quickstart.md
+              - ECLSS integration: ssos/eclss-integration.md
+              - EPS integration: ssos/eps-integration.md
+              - Troubleshooting: ssos/troubleshooting.md
+              - API reference: ssos/api-reference.md
+            - More:
+              - CLI guide: cli.md
+              - Development plan: development-plan.md
+              - One Piece integration: one-piece-integration.md
+              - Development notes:
+                - Backlog: memo/backlog.md
+                - MVP plan: memo/scrubber_degradation/mvp_plan.md
+                - SSOS ECLSS connection plan: memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md
+        - locale: ja
+          name: 日本語
+          build: true
+          site_name: Engineering Agents
+          theme:
+            language: ja
+            palette:
+              - scheme: default
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/brightness-7
+                  name: ダークモード
+              - scheme: slate
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/brightness-4
+                  name: ライトモード
+          nav:
+            - クイックスタート: index.md
+            - 概要: overview.md
+            - アーキテクチャ: architecture.md
+            - API 契約: api-contracts.md
+            - エージェントガイド: AGENTS.md
+            - シナリオ:
+              - scrubber_degradation: scenario-scrubber-degradation.md
+              - ssos_eclss_loop: scenario-ssos-eclss-loop.md
+            - SSOS 接合:
+              - 概要: ssos/index.md
+              - Docker セットアップ: ssos/quickstart.md
+              - ECLSS 統合: ssos/eclss-integration.md
+              - EPS 統合: ssos/eps-integration.md
+              - トラブルシューティング: ssos/troubleshooting.md
+              - API リファレンス: ssos/api-reference.md
+            - その他:
+              - CLI ガイド: cli.md
+              - 開発プラン: development-plan.md
+              - One Piece 連携: one-piece-integration.md
+              - 開発メモ:
+                - バックログ: memo/backlog.md
+                - MVP プラン: memo/scrubber_degradation/mvp_plan.md
+                - SSOS ECLSS 接合プラン: memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md
 markdown_extensions:
   - admonition
   - pymdownx.details
@@ -42,61 +134,7 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+      toc_depth: 3
 validation:
   links:
     not_found: info
-nav:
-  - ホーム: index.md
-  - ドキュメント索引: catalog.md
-  - 日本語:
-    - 概要: ja/README.md
-    - エージェントガイド: ja/AGENTS.md
-    - アーキテクチャ: ja/architecture.md
-    - API 契約: ja/api-contracts.md
-    - 開発プラン: ja/development-plan.md
-    - One Piece 連携: ja/one-piece-integration.md
-    - シナリオ scrubber_degradation: ja/scenario-scrubber-degradation.md
-    - シナリオ ssos_eclss_loop: ja/scenario-ssos-eclss-loop.md
-    - SSOS 接合:
-      - 概要: ja/ssos/index.md
-      - クイックスタート: ja/ssos/quickstart.md
-      - ECLSS 統合: ja/ssos/eclss-integration.md
-      - EPS 統合: ja/ssos/eps-integration.md
-      - ssos_eclss_loop シナリオ: ja/ssos/scenario-eclss-loop.md
-      - トラブルシューティング: ja/ssos/troubleshooting.md
-      - ロードマップ: ja/ssos/roadmap.md
-      - API リファレンス: ja/ssos/api-reference.md
-  - English:
-    - Overview: en/README.md
-    - Engineering guide: en/AGENTS.md
-    - Architecture: en/architecture.md
-    - API contracts: en/api-contracts.md
-    - Development plan: en/development-plan.md
-    - One Piece integration: en/one-piece-integration.md
-    - Scenario scrubber_degradation: en/scenario-scrubber-degradation.md
-    - Scenario ssos_eclss_loop: en/scenario-ssos-eclss-loop.md
-    - SSOS integration:
-      - Overview: en/ssos/index.md
-      - Quick start: en/ssos/quickstart.md
-      - ECLSS integration: en/ssos/eclss-integration.md
-      - EPS integration: en/ssos/eps-integration.md
-      - ssos_eclss_loop scenario: en/ssos/scenario-eclss-loop.md
-      - Troubleshooting: en/ssos/troubleshooting.md
-      - Roadmap: en/ssos/roadmap.md
-      - API reference: en/ssos/api-reference.md
-  - 開発メモ:
-    - バックログ: ja/memo/backlog.md
-    - MVP プラン: ja/memo/scrubber_degradation/mvp_plan.md
-    - EPS 実装プラン: ja/memo/scrubber_degradation/eps_implementation_plan.md
-    - 同種エージェントチーム: ja/memo/agents/homogeneous_agent_team_plan.md
-    - SSOS ECLSS 接合プラン: ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md
-    - SSOS EPS ROS2 接合プラン: ja/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md
-    - ROS2 グラフ設計調査: ja/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md
-  - Development notes:
-    - Backlog: en/memo/backlog.md
-    - MVP plan: en/memo/scrubber_degradation/mvp_plan.md
-    - EPS implementation plan: en/memo/scrubber_degradation/eps_implementation_plan.md
-    - Homogeneous agent team: en/memo/agents/homogeneous_agent_team_plan.md
-    - SSOS ECLSS connection plan: en/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md
-    - SSOS EPS ROS2 connection plan: en/memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md
-    - ROS2 graph design investigation: en/memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md

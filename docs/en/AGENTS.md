@@ -1,5 +1,3 @@
-> Japanese: [../ja/AGENTS.md](../ja/AGENTS.md)
-
 # AGENTS.md — Guide for Engineering Agents
 
 This file defines the north star and implementation discipline of the repository for **human contributors** and **coding agents (Cursor, etc.)** alike.
@@ -241,7 +239,7 @@ LLM mode requires Ollama. Prefer Fake LLM / `labeled_rule_base` for CI and regre
 
 | Document | Content |
 | ------------------------------------------------------------------------------ | ------------------------------------------ |
-| [README.md](README.md) | Overview, run instructions, dashboard |
+| [overview.md](overview.md) | Overview, run instructions, dashboard |
 | [architecture.md](architecture.md) | Layers, execution flow, agent design |
 | [api-contracts.md](api-contracts.md) | `SimulatorProtocol`, JSONL, design proposal schema |
 | [development-plan.md](development-plan.md) | Incomplete features, roadmap |

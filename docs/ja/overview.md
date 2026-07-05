@@ -1,6 +1,6 @@
 # Engineering Agents — ECLSS レジリエンス・ループ
 
-> English: [../en/README.md](../en/README.md)
+**→ [クイックスタート](index.md)** — インストール、初回シミュレーション、結果ファイルの場所
 
 **ECLSS**（Environmental Control and Life Support System / 環境制御・生命維持システム）の異常に対し、**エージェントチームが検知・対応し、事後に設計変更を提案する**までをシミュレートする研究用リポジトリです。ECLSS は物理実験装置ではなく、乗員の生存に必要な**生命維持装置**を指します。
 

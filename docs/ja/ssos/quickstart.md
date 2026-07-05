@@ -1,6 +1,11 @@
 # クイックスタート
 
-SSOS 接合 smoke テストと `ssos_eclss_loop` シナリオの最短手順です。**Mac ホストには ROS 2 がない**ため、実機プラント（ros2）は Docker コンテナ内で動き、シミュレーションの起動は **ホスト** から `ea run` します。
+SSOS 接合 smoke テストと `ssos_eclss_loop` の **ros2** バックエンド向け手順です。**Mac ホストには ROS 2 がない**ため、実機プラントは Docker 内で動き、シミュレーションの起動は **ホスト** から `ea run` します。
+
+!!! info "初回はこちらから"
+    Docker 不要の mock だけ試す場合は [クイックスタート](../index.md)（`ea run ssos_eclss_loop --backend mock`）を参照してください。
+
+シナリオ仕様: [ssos_eclss_loop シナリオ](../scenario-ssos-eclss-loop.md)
 
 ---
 
