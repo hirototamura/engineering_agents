@@ -119,7 +119,7 @@ mkdir -p "$ARTIFACT_DIR"
 run_tier1() {
   echo "==> Tier 1: pytest"
   cd "$REPO_ROOT"
-  "${PYTHON:-python3}" -m pytest -q --ignore=tests/e2e 2>&1 | tee "$ARTIFACT_DIR/pytest.log"
+  "$(ssos_host_python)" -m pytest -q --ignore=tests/e2e 2>&1 | tee "$ARTIFACT_DIR/pytest.log"
 }
 
 run_smoke() {

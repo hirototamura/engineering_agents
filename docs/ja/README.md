@@ -275,9 +275,10 @@ Docker Desktop は WSL 2 backend で入れます。Windows Containers は使い�
 ```powershell
 wsl --status
 
-curl.exe -L -o C:\tmp\DockerDesktopInstaller.exe `
+$installer = Join-Path $env:TEMP "DockerDesktopInstaller.exe"
+curl.exe -L -o $installer `
   "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
-Start-Process C:\tmp\DockerDesktopInstaller.exe
+Start-Process $installer
 ```
 
 このプロジェクトでの推奨選択は次のとおりです。
@@ -303,6 +304,7 @@ docker run --rm hello-world
 コンテナ名に合わせます。
 
 ```powershell
+$env:PYTHON = (Resolve-Path ".\.venv\Scripts\python.exe").Path
 $env:SSOS_CONTAINER = "ssos-regression-1807"
 & "C:\Program Files\Git\bin\bash.exe" -lc "scripts/run_ssos_regression.sh --skip-pytest --use-existing --steps 3 --artifact-dir artifacts/ssos-regression/windows-wrapper-fixed-cli --keep-container"
 ```

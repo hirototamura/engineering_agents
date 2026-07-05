@@ -44,6 +44,22 @@ if ssos_on_windows_bash; then
   export MSYS2_ARG_CONV_EXCL="${MSYS2_ARG_CONV_EXCL:-*}"
 fi
 
+ssos_host_python() {
+  if [[ -n "${PYTHON:-}" ]]; then
+    printf '%s\n' "$PYTHON"
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    printf '%s\n' python3
+    return 0
+  fi
+  if command -v python >/dev/null 2>&1; then
+    printf '%s\n' python
+    return 0
+  fi
+  printf '%s\n' python3
+}
+
 ssos_repo_root() {
   if [[ -n "${SSOS_REPO_ROOT:-}" ]]; then
     printf '%s\n' "$SSOS_REPO_ROOT"
@@ -337,9 +353,10 @@ _ssos_write_job_spec() {
     esac
   done
 
-  local repo_root
+  local repo_root host_python
   repo_root="$(ssos_repo_root)"
-  PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}" python3 -c "
+  host_python="$(ssos_host_python)"
+  PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}" "$host_python" -c "
 from pathlib import Path
 from scenario.jobs.spec import RunSpec
 
