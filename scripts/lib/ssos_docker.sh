@@ -26,6 +26,24 @@ SSOS_ROS_DOMAIN_ID="${SSOS_ROS_DOMAIN_ID:-23}"
 SSOS_GRAPH_WAIT_TIMEOUT_S="${SSOS_GRAPH_WAIT_TIMEOUT_S:-300}"
 SSOS_GRAPH_POLL_INTERVAL_S="${SSOS_GRAPH_POLL_INTERVAL_S:-5}"
 
+ssos_on_windows_bash() {
+  [[ -n "${MSYSTEM:-}" || "${OSTYPE:-}" == msys* || "${OSTYPE:-}" == cygwin* ]]
+}
+
+ssos_host_path_for_docker() {
+  local path="$1"
+  if ssos_on_windows_bash && command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$path"
+  else
+    printf '%s\n' "$path"
+  fi
+}
+
+if ssos_on_windows_bash; then
+  # Prevent MSYS from rewriting Linux container paths in docker exec/cp args.
+  export MSYS2_ARG_CONV_EXCL="${MSYS2_ARG_CONV_EXCL:-*}"
+fi
+
 ssos_repo_root() {
   if [[ -n "${SSOS_REPO_ROOT:-}" ]]; then
     printf '%s\n' "$SSOS_REPO_ROOT"
@@ -285,6 +303,7 @@ $(ssos_ros_env_snippet)
 cd '${SSOS_CONTAINER_REPO}'
 export PYTHONPATH='${SSOS_MOUNT_SRC}:'\"\${PYTHONPATH:-}\"
 export EA_RUN_IN_CONTAINER=1
+export SSOS_ECLSS_FORCE_CLI_TELEMETRY=\"\${SSOS_ECLSS_FORCE_CLI_TELEMETRY:-1}\"
 python3 -m ${module}${quoted_args}
 "
 }
@@ -347,7 +366,7 @@ ssos_run_scenario_job() {
   job_host="$(mktemp "${TMPDIR:-/tmp}/ea-job.XXXXXX.json")"
   _ssos_write_job_spec "$job_host" "$@" || return 1
 
-  docker cp "$job_host" "$SSOS_CONTAINER:$job_container"
+  docker cp "$(ssos_host_path_for_docker "$job_host")" "$SSOS_CONTAINER:$job_container"
   rm -f "$job_host"
 
   local tty_flag=""

@@ -28,7 +28,11 @@ MkDocs catalog and preview: [docs/catalog.md](docs/catalog.md) (`mkdocs serve`).
 
 ---
 
-## Quick start
+## Quick start (macOS / Linux)
+
+This quick start is for macOS / Linux-style shells. For Windows setup, use the
+full Windows instructions in [docs/en/README.md](docs/en/README.md#2b-windows-powershell--docker-desktop)
+or [docs/ja/README.md](docs/ja/README.md#2b-windows-powershell--docker-desktop).
 
 Requires **Python 3.11+** on the host (`requires-python` in `pyproject.toml`). SSOS Docker jobs use the container’s own Python.
 

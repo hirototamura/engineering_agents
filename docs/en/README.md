@@ -228,6 +228,10 @@ Roadmap and research memos: [docs/development-plan.md](development-plan.md).
 
 ## Installation (from scratch)
 
+Python mock scenarios run on the local host. SSOS `ros2` / live smoke connects
+to SSOS running in a Linux container, so both macOS and Windows use Docker for
+that path.
+
 ### 1. Clone the repository
 
 ```bash
@@ -235,16 +239,88 @@ git clone <repository-url>
 cd engineering_agents
 ```
 
-### 2. Python virtual environment and packages
+### 2A. macOS / Linux
+
+The validated macOS SSOS live path still runs SSOS itself inside a Docker Linux
+container. This step prepares the local Python environment.
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -U pip
 pip install -e ".[dev]"
 ```
 
 This makes packages under `src/` (`scenario`, `environment`, `core`, etc.) importable.
+
+### 2B. Windows PowerShell + Docker Desktop
+
+#### 2B-1. Create the Python environment
+
+Run these commands in PowerShell.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+python -m pip install -e ".[dev]"
+python -m pytest -q
+```
+
+#### 2B-2. Install Docker Desktop
+
+Install Docker Desktop with the WSL 2 backend. Do not enable Windows
+Containers; this project uses Linux containers.
+
+```powershell
+wsl --status
+
+curl.exe -L -o C:\tmp\DockerDesktopInstaller.exe `
+  "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
+Start-Process C:\tmp\DockerDesktopInstaller.exe
+```
+
+Recommended installer selections for this project:
+
+| Option | Selection | Why |
+| --- | --- | --- |
+| All-users installation | Enabled | Good default when administrator approval is available. |
+| Use WSL 2 instead of Hyper-V | Enabled | Recommended backend for Linux containers used by SSOS / ROS2. |
+| Allow Windows Containers | Disabled | Not needed; this project runs Linux containers. |
+| Add shortcut to desktop | Optional | Convenience only. |
+
+After installation, start Docker Desktop and verify it.
+
+```powershell
+docker info --format "OSType={{.OSType}} OperatingSystem={{.OperatingSystem}}"
+# OSType=linux OperatingSystem=Docker Desktop
+docker run --rm hello-world
+```
+
+#### 2B-3. Run the SSOS live smoke
+
+Run `scripts/*.sh` via Git Bash. Set `SSOS_CONTAINER` to the running SSOS
+container name.
+
+```powershell
+$env:SSOS_CONTAINER = "ssos-regression-1807"
+& "C:\Program Files\Git\bin\bash.exe" -lc "scripts/run_ssos_regression.sh --skip-pytest --use-existing --steps 3 --artifact-dir artifacts/ssos-regression/windows-wrapper-fixed-cli --keep-container"
+```
+
+Expected result: ARS, Phase 1b, Phase 2, graph_rewire smokes pass, followed by
+a short `ssos_eclss_loop` run with `backend: ros2`.
+
+Notes:
+
+- If `python` opens the Microsoft Store, disable the Windows Python App
+  Execution Alias or call the installed Python by full path.
+- If PowerShell blocks `Activate.ps1`, run
+  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or call
+  `.\.venv\Scripts\python.exe` directly.
+- If `wsl --status` says WSL is not installed, run `wsl --install` from an
+  administrator PowerShell, reboot, then start Docker Desktop.
+- Git Bash path conversion, CRLF `bash\r`, and shutdown aborts from the `rclpy`
+  reader are handled by the wrappers / `.gitattributes` in this PR.
 
 ### 3. Smoke test
 
@@ -320,6 +396,12 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm
 ```
 
 Example output: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`
+
+PowerShell equivalent:
+
+```powershell
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base --steps 8
+```
 
 #### ros2 (inside SSOS Docker)
 

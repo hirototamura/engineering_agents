@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -12,12 +14,38 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 REGRESSION_SCRIPT = REPO_ROOT / "scripts" / "run_ssos_regression.sh"
 
 
+def find_windows_bash() -> str | None:
+    candidates = [
+        os.environ.get("GIT_BASH"),
+        r"C:\Program Files\Git\bin\bash.exe",
+        r"C:\Program Files\Git\usr\bin\bash.exe",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return candidate
+
+    bash = shutil.which("bash")
+    if bash and "windows\\system32\\bash.exe" not in bash.lower():
+        return bash
+    return None
+
+
+def regression_command(*args: str) -> list[str]:
+    if os.name == "nt":
+        bash = find_windows_bash()
+        if bash is None:
+            pytest.skip("Git Bash is required to run shell regression scripts on Windows")
+        return [bash, str(REGRESSION_SCRIPT), *args]
+    return [str(REGRESSION_SCRIPT), *args]
+
+
 def test_regression_tier1_pytest_only():
     """Tier 1 path: run_ssos_regression.sh without SSOS_E2E always runs pytest."""
     env = {**os.environ}
     env.pop("SSOS_E2E", None)
+    env.setdefault("PYTHON", sys.executable)
     result = subprocess.run(
-        [str(REGRESSION_SCRIPT)],
+        regression_command(),
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -37,7 +65,7 @@ def test_ssos_container_regression_tier2():
     if not REGRESSION_SCRIPT.is_file():
         pytest.skip("regression script missing")
 
-    cmd = [str(REGRESSION_SCRIPT), "--skip-pytest"]
+    cmd = regression_command("--skip-pytest")
     if os.environ.get("SSOS_E2E_WITH_EPS") == "1":
         cmd.append("--with-eps")
     if os.environ.get("SSOS_E2E_WITH_LLM") == "1":

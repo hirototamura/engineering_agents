@@ -74,5 +74,8 @@ cd "$REPO"
 export PYTHONPATH="$SRC${PYTHONPATH:+:$PYTHONPATH}"
 export SSOS_ECLSS_BACKEND="${SSOS_ECLSS_BACKEND:-ros2}"
 export EA_RESULTS_ROOT="${EA_RESULTS_ROOT:-$RESULTS}"
+# Keep container runs on CLI telemetry by default. The persistent rclpy reader can
+# abort during Python shutdown on some SSOS Docker images.
+export SSOS_ECLSS_FORCE_CLI_TELEMETRY="${SSOS_ECLSS_FORCE_CLI_TELEMETRY:-1}"
 export OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
 exec python3 -m scenario.ssos_eclss_loop.scenario_run "$@"
