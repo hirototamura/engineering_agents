@@ -75,8 +75,8 @@ flowchart LR
 
 | 実装 | 選択方法 | ファイル |
 | --- | --- | --- |
-| `MockEpsBackend` | `eps.backend: mock`（デフォルト） | `mock_eps_backend.py` |
-| `Ros2EpsBridge` | `eps.backend: ssos_eps`（別名 `ros2`, `ssos`） | `ros2_eps_bridge.py` |
+| `MockEpsBackend` | `eps.backend: mock`（デフォルト） | `scrubber/eps/mock/backend.py` |
+| `Ros2EpsBridge` | `eps.backend: ssos_eps`（別名 `ros2`, `ssos`） | `ssos/eps/ros2/bridge.py` |
 
 `build_eps_backend()` は `src/scenario/runner.py` にあります。
 

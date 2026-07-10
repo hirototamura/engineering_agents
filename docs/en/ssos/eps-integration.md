@@ -76,8 +76,8 @@ flowchart LR
 
 | Implementation | Selection | File |
 | --- | --- | --- |
-| `MockEpsBackend` | `eps.backend: mock` (default) | `mock_eps_backend.py` |
-| `Ros2EpsBridge` | `eps.backend: ssos_eps` (aliases `ros2`, `ssos`) | `ros2_eps_bridge.py` |
+| `MockEpsBackend` | `eps.backend: mock` (default) | `scrubber/eps/mock/backend.py` |
+| `Ros2EpsBridge` | `eps.backend: ssos_eps` (aliases `ros2`, `ssos`) | `ssos/eps/ros2/bridge.py` |
 
 `build_eps_backend()` lives in `src/scenario/runner.py`.
 

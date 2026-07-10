@@ -59,8 +59,8 @@ gantt
 
 | File | Role |
 | --- | --- |
-| `src/environment/ssos/eclss_topics.py` | Action/Service/Topic constants |
-| `src/environment/ssos/eclss_types.py` | Goal / Report types |
+| `src/environment/ssos/eclss/ros2/topics.py` | Action/Service/Topic constants |
+| `src/environment/ssos/eclss/types.py` | Goal / Report types |
 | `src/scripts/ssos_eclss_ars_smoke.py` | In-container smoke |
 | `scripts/run_ssos_eclss_smoke.sh` | Host wrapper |
 
@@ -72,9 +72,9 @@ gantt
 
 | File | Role |
 | --- | --- |
-| `src/environment/ssos/eclss_backend.py` | Protocol |
-| `src/environment/ssos/mock_eclss_backend.py` | Mock |
-| `src/environment/ssos/ros2_eclss_bridge.py` | CLI bridge |
+| `src/environment/ssos/eclss/backend.py` | Protocol |
+| `src/environment/ssos/eclss/mock/backend.py` | Mock |
+| `src/environment/ssos/eclss/ros2/bridge.py` | CLI bridge |
 | `src/scripts/ssos_eclss_1b_smoke.py` | 1b smoke |
 | `scripts/run_ssos_eclss_1b_smoke.sh` | Wrapper |
 
@@ -86,7 +86,7 @@ gantt
 
 | File | Role |
 | --- | --- |
-| `ros2_eclss_bridge.py` (extended) | WRS action + product/grey water service |
+| `eclss/ros2/bridge.py` (extended) | WRS action + product/grey water service |
 | `src/scripts/ssos_eclss_2_smoke.py` | Phase 2 smoke |
 | `scripts/run_ssos_eclss_2_smoke.sh` | Wrapper |
 
@@ -100,12 +100,12 @@ Verification: potable vs electrolysis water tradeoff, `water_tradeoff_signal`
 
 | File | Role |
 | --- | --- |
-| `eps_backend.py` | Protocol |
-| `mock_eps_backend.py` | Mock wrapper |
-| `ros2_eps_bridge.py` | CLI bridge |
-| `topic_map.py` | SSOS live topic map |
-| `message_adapters.py` | BCDU parsing |
-| `station_simulator.py` | Refactored to use `EpsBackend` |
+| `scrubber/eps/backend.py` | Protocol |
+| `scrubber/eps/mock/backend.py` | Mock wrapper |
+| `ssos/eps/ros2/bridge.py` | CLI bridge |
+| `ssos/eps/ros2/topic_map.py` | SSOS live topic map |
+| `ssos/eps/ros2/adapters.py` | BCDU parsing |
+| `scrubber/station_simulator.py` | Refactored to use `EpsBackend` |
 | `src/scripts/ssos_eps_smoke.py` | EPS smoke |
 | `scripts/run_ssos_eps_smoke.sh` | Wrapper |
 

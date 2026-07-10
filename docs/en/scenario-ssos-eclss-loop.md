@@ -66,7 +66,7 @@ Questions this scenario answers:
 | Topic | `/o2_storage` | O₂ storage (kg) |
 | Topic | `/wrs/product_water_reserve` | Product water (L) |
 
-Type constants: `src/environment/ssos/eclss_topics.py`. Bridge: `src/environment/ssos/ros2_eclss_bridge.py`.
+Type constants: `src/environment/ssos/eclss/ros2/topics.py`. Bridge: `src/environment/ssos/eclss/ros2/bridge.py`.
 
 ---
 
@@ -229,8 +229,8 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 ### mock (host, no ROS2)
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode labeled_rule_base
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 ```
 
 ### ros2 (SSOS Docker)
@@ -250,7 +250,7 @@ Inside container directly: `ea-loop --agents-mode labeled_rule_base` (default `O
 ### Apply prior run design proposals to next run
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm \
   --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 

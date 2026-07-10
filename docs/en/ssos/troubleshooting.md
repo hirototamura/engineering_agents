@@ -36,7 +36,7 @@ ros2 action send_goal /air_revitalisation \
   "{initial_co2_mass: 1800.0, initial_moisture_content: 25.0, initial_contaminants: 5.0}"
 ```
 
-In code, use the `ACTION_TYPE_*` constants in `eclss_topics.py` (`Ros2EclssBridge` follows these).
+In code, use the `ACTION_TYPE_*` constants in `src/environment/ssos/eclss/ros2/topics.py` (`Ros2EclssBridge` follows these).
 
 ---
 

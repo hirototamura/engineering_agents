@@ -432,7 +432,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode lab
 前 run の設計提案を次 run に反映:
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm \
   --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 

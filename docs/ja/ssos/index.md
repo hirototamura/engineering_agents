@@ -110,15 +110,18 @@ flowchart TB
 
 | パス | 役割 |
 | --- | --- |
-| `src/environment/ssos/eclss_topics.py` | Action / Service / Topic 定数 |
-| `src/environment/ssos/eclss_backend.py` | `EclssBackend` Protocol |
-| `src/environment/ssos/mock_eclss_backend.py` | 契約テスト用 Mock |
-| `src/environment/ssos/ros2_eclss_bridge.py` | SSOS ECLSS ブリッジ（CLI） |
-| `src/environment/ssos/eps_backend.py` | `EpsBackend` Protocol |
-| `src/environment/ssos/mock_eps_backend.py` | SARJ/BCDU Mock ラッパ |
-| `src/environment/ssos/ros2_eps_bridge.py` | SSOS EPS ブリッジ（CLI） |
-| `src/environment/ssos/topic_map.py` | SSOS 実トピック ↔ 契約名 |
-| `src/environment/ssos/message_adapters.py` | ROS メッセージ ↔ dataclass |
+| `src/environment/ssos/eclss/backend.py` | `EclssBackend` Protocol |
+| `src/environment/ssos/eclss/types.py` | Goal / Report データ型 |
+| `src/environment/ssos/eclss/mock/backend.py` | 契約テスト用 Mock |
+| `src/environment/ssos/eclss/ros2/bridge.py` | SSOS ECLSS ブリッジ（CLI） |
+| `src/environment/ssos/eclss/ros2/topics.py` | Action / Service / Topic 定数 |
+| `src/environment/ssos/eclss/ros2/graph_rewire.py` | クライアント側グラフ remap |
+| `src/environment/ssos/ros2/cli.py` | 共有 `ros2` サブプロセスヘルパ |
+| `src/environment/scrubber/eps/backend.py` | `EpsBackend` Protocol（scrubber） |
+| `src/environment/scrubber/eps/mock/backend.py` | SARJ/BCDU Mock ラッパ |
+| `src/environment/ssos/eps/ros2/bridge.py` | SSOS EPS ブリッジ（CLI） |
+| `src/environment/ssos/eps/ros2/topic_map.py` | SSOS 実トピック ↔ 契約名 |
+| `src/environment/ssos/eps/ros2/adapters.py` | ROS メッセージ ↔ dataclass |
 | `src/scenario/ssos_eclss_loop/` | 新シナリオ（YAML + runner + health） |
 | `src/scenario/agents/ssos_eclss_loop_team.py` | Crew 代替エージェント |
 | `scripts/run_ssos_eclss_*.sh` | ホスト → Docker smoke ラッパ |
