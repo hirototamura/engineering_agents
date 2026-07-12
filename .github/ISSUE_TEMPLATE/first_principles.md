@@ -1,6 +1,6 @@
 ---
 name: First-principles proposal
-about: 第一原理に基づく変更・機能提案（必須4点）
+about: 第一原理思考に基づく Issue（§0 定義 + 必須 A–D）
 title: ""
 labels: []
 assignees: []
