@@ -10,9 +10,9 @@ assignees: []
 
 ## 0. 前提
 
-**First Principles（第一原理）** — 人によって定義は異なります。本リポジトリでは次の意味で使います。
+**第一原理思考（First-principles thinking）** — 人によって定義は異なります。本リポジトリでは次の意味で使います。
 
-> **定義**：物事を分解して、意味のない慣習や間違った前提に惑わされずに判断する。
+> **第一原理思考**：既存の常識や前例を疑い、問題を根本的な要素にまで分解し、確実に証明できる事実だけを積み上げて新しい解決策を構築するアプローチ。
 
 このテンプレートは、そうやって**知見・知恵を積み上げるための構造化手段**です。機能・設計・導入は「慣習」ではなく**本当に必要か**を常に問います。以下 4 点は、**必要／不必要の切り分け**のためです（テンプレートを埋める儀式ではありません）。**書けないものは、まだ起票する段階にない**と捉えてください。
 
@@ -86,9 +86,9 @@ assignees: []
 
 ## 0. Premise
 
-**First principles** — definitions vary by person. In this repository we use:
+**First-principles thinking** — definitions vary by person. In this repository we use:
 
-> **Definition**: Break things down and judge without being misled by meaningless conventions or wrong premises.
+> **First-principles thinking**: An approach that questions existing conventions and precedents, decomposes problems down to their fundamental elements, and builds new solutions by stacking only facts that can be reliably proven.
 
 This template is a **structured means to accumulate knowledge and wisdom** that way. Every feature, design change, or adoption must answer **is it truly necessary?** — not convention. The four sections below visualize **necessary vs unnecessary** functionality. **If you cannot fill them in, the item is not ready to file.**
 
