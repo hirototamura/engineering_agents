@@ -62,20 +62,6 @@ assignees: []
 
 ---
 
-## （任意）マルチエージェント設計 Issue の追加記載
-
-マルチエージェント設計に関わる場合は、上記に加えて次も記載してください。
-
-| 項目 | 記載内容 |
-| --- | --- |
-| **設計のいけてないところ** | 現行コードの具体的な弱点 |
-| **それによる課題** | その弱点が引き起こす問題 |
-| **提案による改善見込み** | 変更後にどう良くなるか |
-
-<!-- 該当する場合のみ記入 -->
-
----
-
 ## （参考）検証関連 Issue のスコープ上限
 
 本プラットフォーム（`engineering_agents`）の**検証上限は MIL（Model-in-the-Loop）**です。フライトソフトウェア・ターゲット処理系・実ハードウェアが無いため、**SIL / PIL / HIL は本リポジトリでは成立しません**。検証・接続に関する Issue では、この上限を Out of scope または前提として明記してください。
@@ -127,18 +113,6 @@ This template is a **structured means to accumulate knowledge and wisdom** that 
 - Acceptance criteria as a bullet list
 
 → **If you cannot state what gets better, reconsider priority.**
-
----
-
-## (Optional) Multi-agent design — additional fields
-
-For multi-agent design work, also state:
-
-| Item | What to write |
-| --- | --- |
-| **Design weakness** | Concrete weakness in existing code |
-| **Resulting problem** | Failures or risks that follow |
-| **Expected improvement** | How behavior improves after the change |
 
 ---
 
