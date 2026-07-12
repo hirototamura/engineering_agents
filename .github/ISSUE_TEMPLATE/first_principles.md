@@ -62,12 +62,6 @@ assignees: []
 
 ---
 
-## （参考）検証関連 Issue のスコープ上限
-
-本プラットフォーム（`engineering_agents`）の**検証上限は MIL（Model-in-the-Loop）**です。フライトソフトウェア・ターゲット処理系・実ハードウェアが無いため、**SIL / PIL / HIL は本リポジトリでは成立しません**。検証・接続に関する Issue では、この上限を Out of scope または前提として明記してください。
-
----
-
 # (English mirror)
 
 ## 0. Premise
@@ -113,9 +107,3 @@ This template is a **structured means to accumulate knowledge and wisdom** that 
 - Acceptance criteria as a bullet list
 
 → **If you cannot state what gets better, reconsider priority.**
-
----
-
-## (Reference) Verification ceiling
-
-This platform's verification ceiling is **MIL (Model-in-the-Loop)**. Without flight software, target processor, or hardware, **SIL / PIL / HIL do not apply in this repository**. State this ceiling in scope or assumptions for verification-related issues.
