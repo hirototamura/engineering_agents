@@ -367,8 +367,8 @@ Implementation: `environment/ssos/eclss/backend.py`, `eclss/ros2/bridge.py`, `ec
 ```json
 {
   "step": 3,
-  "co2_storage_kg": 1680.0,
-  "o2_storage_kg": 465.0,
+  "co2_storage_kg": 1.68,
+  "o2_storage_kg": 0.48,
   "product_water_reserve_l": 100.0,
   "ars_failure_enabled": false
 }
@@ -376,8 +376,8 @@ Implementation: `environment/ssos/eclss/backend.py`, `eclss/ros2/bridge.py`, `ec
 
 | Field | ROS2 topic |
 | --- | --- |
-| `co2_storage_kg` | `/co2_storage` |
-| `o2_storage_kg` | `/o2_storage` |
+| `co2_storage_kg` | `/co2_storage` (g on wire; kg in JSONL) |
+| `o2_storage_kg` | `/o2_storage` (g on wire; kg in JSONL) |
 | `product_water_reserve_l` | `/wrs/product_water_reserve` |
 
 ### EclssOperationalCommand — runtime
@@ -387,7 +387,7 @@ Implementation: `environment/ssos/eclss/backend.py`, `eclss/ros2/bridge.py`, `ec
 ```json
 {
   "kind": "air_revitalisation",
-  "payload": {"initial_co2_mass": 1800.0, "initial_moisture_content": 25.0},
+  "payload": {"initial_co2_mass": 1.8, "initial_moisture_content": 25.0},
   "issued_by": "eclss_operator_1"
 }
 ```
@@ -411,8 +411,8 @@ Thresholds from `scenario.yaml` `thresholds`.
 
 | Metric | safe | warning | critical |
 | --- | --- | --- | --- |
-| CO₂ storage (kg) | < 1500 (high) | 1500 to < 2200 | ≥ 2200 |
-| O₂ storage (kg) | > 450 (low) | 337.5 to 450 | ≤ 337.5 |
+| CO₂ storage (kg) | < high (1.5) | high to < critical | ≥ critical (2.2) |
+| O₂ storage (kg) | > low (0.45) | low×0.75 to low | ≤ low×0.75 (0.3375) |
 | Product water (L) | > 50 (low) | 25 to 50 | ≤ 25 |
 
 `thresholds.co2_storage_high_kg`, etc. are **operational triggers**, separate from health bands.
@@ -438,7 +438,7 @@ Thresholds from `scenario.yaml` `thresholds`.
       "change_kind": "action_profile",
       "payload": {
         "action": "air_revitalisation",
-        "fields": {"initial_co2_mass": 2000.0}
+        "fields": {"initial_co2_mass": 2.0}
       }
     }
   ],
@@ -472,7 +472,7 @@ Thresholds from `scenario.yaml` `thresholds`.
 {
   "step": 2,
   "kind": "/eclss/events/operational_applied",
-  "command": {"kind": "air_revitalisation", "issued_by": "eclss_operator_1", "payload": {"initial_co2_mass": 1800.0}},
+  "command": {"kind": "air_revitalisation", "issued_by": "eclss_operator_1", "payload": {"initial_co2_mass": 1.8}},
   "result": {"success": true},
   "message": "ARS goal dispatched"
 }
@@ -501,9 +501,9 @@ Every step, **before** agent action. Snapshot of `ssos_graph` (includes `rewires
   "backend": "ros2",
   "agents_mode": "labeled_rule_base",
   "steps": 8,
-  "peak_co2_storage_kg": 1680.0,
-  "final_co2_storage_kg": 1330.0,
-  "final_o2_storage_kg": 465.0,
+  "peak_co2_storage_kg": 1.68,
+  "final_co2_storage_kg": 1.33,
+  "final_o2_storage_kg": 0.48,
   "operational_command_count": 3,
   "ogs_invoked_step": 2,
   "final_health": {"co2_status": "safe", "o2_status": "warning", "overall": "warning"},
@@ -535,7 +535,7 @@ Every step, **before** agent action. Snapshot of `ssos_graph` (includes `rewires
   "scenario": "ssos_eclss_loop",
   "change_kind": "air_revitalisation",
   "actor": "eclss_operator_1",
-  "payload": {"initial_co2_mass": 1800.0},
+  "payload": {"initial_co2_mass": 1.8},
   "trace": {"event_kind": "/eclss/events/operational_applied", "result_success": true}
 }
 ```

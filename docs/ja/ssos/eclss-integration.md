@@ -16,6 +16,19 @@ SSOS の **ARS**（大気再生）、**OGS**（酸素生成）、**WRS**（水�
 
 ---
 
+## 単位
+
+engineering_agents では CO₂/O₂ 質量は **kg**、水は **L**（Python 型・YAML・JSONL）。上流 SSOS の ROS トピックと action/service の質量フィールドは **g** で publish される。`Ros2EclssBridge` が境界で変換する（トピック読取: g→kg、goal/service 送信: kg→g）。正本: `src/environment/ssos/eclss/units.py`。
+
+| レイヤ | CO₂ / O₂ 質量 | 水 | Action goal（`ArsGoal`, `OgsGoal`） |
+| --- | --- | --- | --- |
+| engineering_agents（内部） | kg | L | kg（`input_water_mass`, `initial_co2_mass`） |
+| SSOS ROS トピック / action | g | L | ワイヤ上は g |
+
+`LoopMockEclssBackend` の O₂ 増分は電解の化学量論（`o2_generated_kg`: 0.89 kg O₂ / kg H₂O × 効率 0.95）。`mock_dynamics.ogs_o2_gain_kg` は action 詳細に yield が無いときのフォールバックのみ。
+
+---
+
 ## ROS 2 インターフェース一覧
 
 ### Actions
@@ -40,11 +53,11 @@ SSOS の **ARS**（大気再生）、**OGS**（酸素生成）、**WRS**（水�
 
 ### Telemetry Topics
 
-| トピック | 型 | フィールド |
-| --- | --- | --- |
-| `/co2_storage` | `std_msgs/Float64` | CO₂ 貯留 [kg] |
-| `/o2_storage` | `std_msgs/Float64` | O₂ 貯留 [kg] |
-| `/wrs/product_water_reserve` | `std_msgs/Float64` | 飲料水貯留 [L] |
+| トピック | 型 | SSOS ワイヤ単位 | `EclssTelemetrySnapshot` フィールド |
+| --- | --- | --- | --- |
+| `/co2_storage` | `std_msgs/Float64` | g | `co2_storage_kg` |
+| `/o2_storage` | `std_msgs/Float64` | g | `o2_storage_kg` |
+| `/wrs/product_water_reserve` | `std_msgs/Float64` | L | `product_water_reserve_l` |
 | `/ars/diagnostics` | diagnostic | ARS 診断 |
 | `/ogs/diagnostics` | diagnostic | OGS 診断 |
 | `/wrs/diagnostics` | diagnostic | WRS 診断 |
@@ -111,7 +124,7 @@ classDiagram
 
 ```python
 ArsGoal(
-    initial_co2_mass=1800.0,
+    initial_co2_mass=1.8,
     initial_moisture_content=25.0,
     initial_contaminants=5.0,
 )
@@ -121,7 +134,7 @@ ArsGoal(
 
 ```python
 OgsGoal(
-    input_water_mass=15.0,
+    input_water_mass=0.015,
     iodine_concentration=2.0,
 )
 ```
@@ -168,14 +181,15 @@ sequenceDiagram
 
   Agent->>BE: poll_telemetry()
   BE->>SSOS: ros2 topic echo /co2_storage
-  SSOS-->>BE: co2_storage_kg
+  SSOS-->>BE: co2_storage_g
+  Note over BE: g_to_kg at bridge
   BE-->>Agent: EclssTelemetrySnapshot
 
   Agent->>BE: send_air_revitalisation_goal(ArsGoal)
   BE->>SSOS: ros2 action send_goal air_revitalisation
   SSOS-->>BE: SUCCEEDED
 
-  Agent->>BE: request_co2(25.0)
+  Agent->>BE: request_co2(0.025)
   BE->>SSOS: ros2 service call /ars/request_co2
   SSOS-->>BE: success
 
@@ -196,7 +210,7 @@ ros2 action list -t | grep -E 'air_revitalisation|oxygen|water_recovery'
 ros2 topic echo /co2_storage std_msgs/msg/Float64 --once
 ros2 node info /air_revitalisation | grep -A1 'Action Servers'
 
-# Action 型確認
+# Action 型確認（質量フィールドは SSOS ワイヤ上で g。`ArsGoal` 内部は kg — 1800.0 g = 1.8 kg）
 ros2 action send_goal /air_revitalisation \
   space_station_interfaces/action/AirRevitalisation \
   "{initial_co2_mass: 1800.0, initial_moisture_content: 25.0, initial_contaminants: 5.0}"

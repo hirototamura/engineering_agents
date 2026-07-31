@@ -606,8 +606,8 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 
 | 指標       | safe   | warning        | critical |
 | -------- | ------ | -------------- | -------- |
-| CO₂ (kg) | < 1500 | 1500 〜 2200 未満 | ≥ 2200   |
-| O₂ (kg)  | > 450  | 337.5 〜 450    | ≤ 337.5  |
+| CO₂ (kg) | < high（1.5） | high 〜 critical 未満 | ≥ critical（2.2） |
+| O₂ (kg)  | > low（0.45） | low×0.75 〜 low | ≤ low×0.75（0.3375） |
 | 製品水 (L)  | > 50   | 25 〜 50        | ≤ 25     |
 
 

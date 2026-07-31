@@ -11,11 +11,13 @@ Key methods on the `EclssBackend` and `EpsBackend` Protocols. Source docstrings 
 
 ECLSS operation interface replacing Crew Simulation. Phase 1b covers ARS+OGS; Phase 2 adds WRS.
 
+**Units**: All mass fields in Python types and JSONL are **kilograms**; water volumes are **liters**. `Ros2EclssBridge` converts to/from SSOS ROS **grams** at the boundary. See [ECLSS Integration — Units](eclss-integration.md#units) and `src/environment/ssos/eclss/units.py`.
+
 ### poll_telemetry() → EclssTelemetrySnapshot
 
-Fetch the latest snapshot from ROS 2 topics.
+Fetch the latest snapshot from ROS 2 topics (bridge converts g→kg for mass topics).
 
-| Field | Source topic | Unit |
+| Field | Source topic | Unit (internal) |
 | --- | --- | --- |
 | `co2_storage_kg` | `/co2_storage` | kg |
 | `o2_storage_kg` | `/o2_storage` | kg |
@@ -66,7 +68,7 @@ Phase 2 onward. Implemented in both Mock and Ros2.
 | --- | --- |
 | Service | `/ogs/request_o2` |
 | Type | `space_station_interfaces/srv/O2Request` |
-| Request | `{amount: <float>}` |
+| Request | `{amount: <float>}` (kg; bridge sends grams to SSOS) |
 
 ---
 
@@ -76,7 +78,7 @@ Phase 2 onward. Implemented in both Mock and Ros2.
 | --- | --- |
 | Service | `/ars/request_co2` |
 | Type | `space_station_interfaces/srv/Co2Request` |
-| Request | `{amount: <float>}` |
+| Request | `{amount: <float>}` (kg; bridge sends grams to SSOS) |
 
 Used to supply CO₂ feedstock before OGS (Sabatier).
 

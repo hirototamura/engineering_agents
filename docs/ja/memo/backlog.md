@@ -192,7 +192,7 @@ CLI v3 では **ホスト 1 コマンド実行と results マウント** に集�
 
 | 項目 | 説明 |
 |------|------|
-| `scenario.yaml` | `simulation.initial_co2_storage_kg: 500`（mock 用。現状 1500） |
+| `scenario.yaml` | `simulation.initial_co2_storage_kg: 1.5`（mock デフォルト。U1–U5 以降 kg 単位） |
 | ros2 step 0 | headless 再起動後の `/co2_storage` を `summary.plant_initial_co2_storage_kg` に記録 |
 | 検証 | `initial_co2_storage_kg`（500）との許容差外で fail fast（SSOS launch 設定を案内） |
 | テスト | `tests/scenario/test_ssos_eclss_loop.py` の CO2 期待値更新 |

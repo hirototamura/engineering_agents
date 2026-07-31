@@ -22,7 +22,7 @@ mkdocs serve
 
 PR では `mkdocs build --strict` を実行（`.github/workflows/docs.yml`）。
 
-SSOS / scrubber バックエンドのドキュメントを更新するときは、`src/environment/` の実パスと照合すること — ECLSS は `ssos/eclss/`、scrubber EPS は `scrubber/eps/`、SSOS EPS ブリッジは `ssos/eps/ros2/`（environment リファクタ後）。
+SSOS / scrubber バックエンドのドキュメントを更新するときは、`src/environment/` の実パスと照合すること — ECLSS は `ssos/eclss/`、scrubber EPS は `scrubber/eps/`、SSOS EPS ブリッジは `ssos/eps/ros2/`（environment リファクタ後）。ECLSS 質量単位は `ssos/eclss/units.py` に合わせる（内部 kg、SSOS ROS ワイヤ g）。
 
 ## 参照
 

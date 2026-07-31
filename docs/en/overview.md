@@ -141,11 +141,11 @@ Spec: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md).
 | **ARS** | Air Revitalisation System | CO₂ storage removal (`air_revitalisation` Action) |
 | **OGS** | Oxygen Generation System | O₂ generation (`oxygen_generation`). Sabatier needs CO₂ feedstock |
 | **WRS** | Water Recovery System | Water recovery (`water_recovery_systems`) — ros2 bridge implemented |
-| **Telemetry** | — | `/co2_storage`, `/o2_storage`, `/wrs/product_water_reserve` (kg / L) |
+| **Telemetry** | — | `/co2_storage`, `/o2_storage`, `/wrs/product_water_reserve` (kg / L in JSONL; SSOS ROS mass topics publish grams) |
 | **Operational command** | — | ARS / OGS Actions, `request_co2` / `request_o2` Services |
 | **Design proposal** | — | `ssos_graph` (`action_profile`, `graph_rewire`, etc.) |
 
-**Health thresholds (storage)**: CO₂ warning ≥ 1500 kg / critical ≥ 2200 kg; O₂ warning ≤ 450 kg / critical ≤ 337.5 kg. Details: [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md).
+**Health thresholds (storage)**: Defaults from `scenario.yaml` — CO₂ warning ≥ 1.5 kg / critical ≥ 2.2 kg; O₂ warning ≤ 0.45 kg / critical ≤ 0.3375 kg. Details: [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md).
 
 #### SSOS ECLSS subsystems (conceptual)
 

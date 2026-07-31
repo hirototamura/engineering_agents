@@ -143,11 +143,11 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | **ARS** | Air Revitalisation System | CO₂ ストレージ除去（`air_revitalisation` Action） |
 | **OGS** | Oxygen Generation System | O₂ 生成（`oxygen_generation`）。Sabatier に CO₂ feedstock が必要 |
 | **WRS** | Water Recovery System | 水回収（`water_recovery_systems`）— ros2 ブリッジ実装済み |
-| **テレメトリ** | — | `/co2_storage`、`/o2_storage`、`/wrs/product_water_reserve`（kg / L） |
+| **テレメトリ** | — | `/co2_storage`、`/o2_storage`、`/wrs/product_water_reserve`（JSONL は kg / L。SSOS ROS 質量トピックは g） |
 | **運用コマンド** | — | ARS / OGS Action、`request_co2` / `request_o2` Service |
 | **設計提案** | — | `ssos_graph`（`action_profile`、`graph_rewire` 等） |
 
-**ヘルス閾値（ストレージ）**: CO₂ warning ≥ 1500 kg / critical ≥ 2200 kg；O₂ warning ≤ 450 kg / critical ≤ 337.5 kg。詳細は [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md)。
+**ヘルス閾値（ストレージ）**: `scenario.yaml` のデフォルト — CO₂ warning ≥ 1.5 kg / critical ≥ 2.2 kg；O₂ warning ≤ 0.45 kg / critical ≤ 0.3375 kg。詳細は [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md)。
 
 #### SSOS ECLSS サブシステム（概念）
 

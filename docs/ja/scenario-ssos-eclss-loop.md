@@ -76,7 +76,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | フェーズ | 内容 |
 | --- | --- |
 | 各 step | `poll_telemetry()` のみ。運用コマンドなし |
-| mock | 毎 step CO₂ が `co2_growth_kg_per_step` だけ増加（デフォルト +60 kg/step） |
+| mock | 毎 step CO₂ が `co2_growth_kg_per_step` だけ増加（デフォルト +0.06 kg/step） |
 | ros2 | SSOS 実プラントの自然動態（Crew Simulation なしで放置） |
 | 事後 | `design_proposals.json` なし |
 
@@ -88,8 +88,8 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 
 | 条件（目安） | 運用コマンド |
 | --- | --- |
-| CO₂ ≥ `co2_storage_high_kg`（デフォルト 1500 kg） | `air_revitalisation`（ARS） |
-| O₂ ≤ `o2_storage_low_kg`（デフォルト 450 kg） | 先に `request_co2`（policy 既定 ON）→ `oxygen_generation`（OGS） |
+| CO₂ ≥ `co2_storage_high_kg`（デフォルト 1.5 kg） | `air_revitalisation`（ARS） |
+| O₂ ≤ `o2_storage_low_kg`（デフォルト 0.45 kg） | 先に `request_co2`（policy 既定 ON）→ `oxygen_generation`（OGS） |
 
 **re-arm**: ARS / OGS を打った後もストレージが改善しなければ、次 step で再試行可能（`co2_at_ars_dispatch` / `o2_at_ogs_dispatch` 境界）。
 
@@ -113,22 +113,22 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 ```yaml
 simulation:
   steps: 8
-  initial_co2_storage_kg: 1500.0
-  initial_o2_storage_kg: 480.0
+  initial_co2_storage_kg: 1.5
+  initial_o2_storage_kg: 0.48
   initial_product_water_l: 100.0
 
 backend:
   kind: mock  # mock | ros2 — SSOS_ECLSS_BACKEND 環境変数でも上書き可
 
 mock_dynamics:
-  co2_growth_kg_per_step: 60.0
-  ars_co2_reduction_kg: 350.0
-  ogs_o2_gain_kg: 100.0
+  co2_growth_kg_per_step: 0.06
+  ars_co2_reduction_kg: 0.35
+  ogs_o2_gain_kg: 0.1  # フォールバックのみ。OGS yield は o2_generated_kg の化学量論
 
 thresholds:
-  co2_storage_high_kg: 1500.0
-  co2_storage_critical_kg: 2200.0
-  o2_storage_low_kg: 450.0
+  co2_storage_high_kg: 1.5
+  co2_storage_critical_kg: 2.2
+  o2_storage_low_kg: 0.45
   product_water_low_l: 50.0
 
 agents:
@@ -151,11 +151,14 @@ team:
 
 policy:   # labeled_rule_base のみ。閾値は scenario.yaml から実行時マージ
   request_co2_before_ogs: true
-  request_co2_amount: 25.0
+  request_co2_amount: 0.025
   ars_goal:
-    initial_co2_mass: 1800.0
+    initial_co2_mass: 1.8
+    initial_moisture_content: 25.0
+    initial_contaminants: 5.0
   ogs_goal:
-    input_water_mass: 10.0
+    input_water_mass: 0.015
+    iodine_concentration: 2.0
 
 llm:
   base_url: http://localhost:11434   # Docker: host.docker.internal（ea-loop が設定）
@@ -172,8 +175,8 @@ llm:
 
 | 指標 | safe | warning | critical |
 | --- | --- | --- | --- |
-| CO₂ ストレージ (kg) | < high（1500） | high 〜 critical 未満 | ≥ critical（2200） |
-| O₂ ストレージ (kg) | > low（450） | low×0.75 〜 low | ≤ low×0.75（337.5） |
+| CO₂ ストレージ (kg) | < high（1.5） | high 〜 critical 未満 | ≥ critical（2.2） |
+| O₂ ストレージ (kg) | > low（0.45） | low×0.75 〜 low | ≤ low×0.75（0.3375） |
 | 製品水 (L) | > low（50） | low×0.5 〜 low | ≤ low×0.5（25） |
 | `overall` | 全 safe | より悪い方 | より悪い方 |
 
@@ -283,8 +286,8 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 ```json
 {
   "step": 3,
-  "co2_storage_kg": 1680.0,
-  "o2_storage_kg": 465.0,
+  "co2_storage_kg": 1.68,
+  "o2_storage_kg": 0.48,
   "product_water_reserve_l": 100.0
 }
 ```
@@ -302,7 +305,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
       "change_kind": "action_profile",
       "payload": {
         "action": "air_revitalisation",
-        "fields": {"initial_co2_mass": 2000.0}
+        "fields": {"initial_co2_mass": 2.0}
       }
     }
   ],

@@ -193,7 +193,7 @@ CLI v3 focuses on **host one-command runs and results mounts**. The items below 
 
 | Item | Description |
 | --- | --- |
-| `scenario.yaml` | `simulation.initial_co2_storage_kg: 500` (mock; currently 1500) |
+| `scenario.yaml` | `simulation.initial_co2_storage_kg: 1.5` (mock default; kg units since U1–U5) |
 | ros2 step 0 | Record `/co2_storage` after headless restart as `summary.plant_initial_co2_storage_kg` |
 | Validation | Fail fast if outside tolerance vs target 500 (point to SSOS launch params) |
 | SSOS side | Investigate launch params if headless default ≠ 500kg |

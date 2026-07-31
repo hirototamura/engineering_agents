@@ -22,7 +22,7 @@ Build output `site/` is gitignored. Do not commit it.
 
 Pull requests run `mkdocs build --strict` (see `.github/workflows/docs.yml`).
 
-When updating SSOS or scrubber backend docs, verify file paths against `src/environment/` — ECLSS lives under `ssos/eclss/`, scrubber EPS under `scrubber/eps/`, and SSOS EPS bridge under `ssos/eps/ros2/` (post–environment refactor).
+When updating SSOS or scrubber backend docs, verify file paths against `src/environment/` — ECLSS lives under `ssos/eclss/`, scrubber EPS under `scrubber/eps/`, and SSOS EPS bridge under `ssos/eps/ros2/` (post–environment refactor). For ECLSS mass units, align with `ssos/eclss/units.py` (internal kg; SSOS ROS wire grams).
 
 ## References
 

@@ -17,6 +17,19 @@ Constant: `LAUNCH_HEADLESS_ECLSS = "space_station/eclss.launch.py"`
 
 ---
 
+## Units
+
+engineering_agents uses **kilograms** for CO₂/O₂ mass and **liters** for water volumes in Python types, YAML, and JSONL. Upstream SSOS ROS topics and action/service mass fields publish **grams**. `Ros2EclssBridge` converts at the boundary (topic read: g→kg; goal/service send: kg→g). Source of truth: `src/environment/ssos/eclss/units.py`.
+
+| Layer | CO₂ / O₂ mass | Water volume | Action goals (`ArsGoal`, `OgsGoal`) |
+| --- | --- | --- | --- |
+| engineering_agents (internal) | kg | L | kg (`input_water_mass`, `initial_co2_mass`) |
+| SSOS ROS topics / actions | g | L | g on the wire |
+
+`LoopMockEclssBackend` O₂ gain follows electrolysis stoichiometry (`o2_generated_kg`: 0.89 kg O₂ per kg H₂O × 0.95 efficiency). `mock_dynamics.ogs_o2_gain_kg` is a fallback only when action details omit yield.
+
+---
+
 ## ROS 2 interface reference
 
 ### Actions
@@ -41,11 +54,11 @@ Constant: `LAUNCH_HEADLESS_ECLSS = "space_station/eclss.launch.py"`
 
 ### Telemetry Topics
 
-| Topic | Type | Field |
-| --- | --- | --- |
-| `/co2_storage` | `std_msgs/Float64` | CO₂ storage [kg] |
-| `/o2_storage` | `std_msgs/Float64` | O₂ storage [kg] |
-| `/wrs/product_water_reserve` | `std_msgs/Float64` | Potable water reserve [L] |
+| Topic | Type | SSOS wire unit | `EclssTelemetrySnapshot` field |
+| --- | --- | --- | --- |
+| `/co2_storage` | `std_msgs/Float64` | g | `co2_storage_kg` |
+| `/o2_storage` | `std_msgs/Float64` | g | `o2_storage_kg` |
+| `/wrs/product_water_reserve` | `std_msgs/Float64` | L | `product_water_reserve_l` |
 | `/ars/diagnostics` | diagnostic | ARS diagnostics |
 | `/ogs/diagnostics` | diagnostic | OGS diagnostics |
 | `/wrs/diagnostics` | diagnostic | WRS diagnostics |
@@ -112,7 +125,7 @@ classDiagram
 
 ```python
 ArsGoal(
-    initial_co2_mass=1800.0,
+    initial_co2_mass=1.8,
     initial_moisture_content=25.0,
     initial_contaminants=5.0,
 )
@@ -122,7 +135,7 @@ ArsGoal(
 
 ```python
 OgsGoal(
-    input_water_mass=15.0,
+    input_water_mass=0.015,
     iodine_concentration=2.0,
 )
 ```
@@ -169,14 +182,15 @@ sequenceDiagram
 
   Agent->>BE: poll_telemetry()
   BE->>SSOS: ros2 topic echo /co2_storage
-  SSOS-->>BE: co2_storage_kg
+  SSOS-->>BE: co2_storage_g
+  Note over BE: g_to_kg at bridge
   BE-->>Agent: EclssTelemetrySnapshot
 
   Agent->>BE: send_air_revitalisation_goal(ArsGoal)
   BE->>SSOS: ros2 action send_goal air_revitalisation
   SSOS-->>BE: SUCCEEDED
 
-  Agent->>BE: request_co2(25.0)
+  Agent->>BE: request_co2(0.025)
   BE->>SSOS: ros2 service call /ars/request_co2
   SSOS-->>BE: success
 
@@ -197,7 +211,7 @@ ros2 action list -t | grep -E 'air_revitalisation|oxygen|water_recovery'
 ros2 topic echo /co2_storage std_msgs/msg/Float64 --once
 ros2 node info /air_revitalisation | grep -A1 'Action Servers'
 
-# Confirm Action type
+# Confirm Action type (mass fields are grams on the SSOS wire)
 ros2 action send_goal /air_revitalisation \
   space_station_interfaces/action/AirRevitalisation \
   "{initial_co2_mass: 1800.0, initial_moisture_content: 25.0, initial_contaminants: 5.0}"

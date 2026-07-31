@@ -10,11 +10,13 @@
 
 Crew Simulation 代替の ECLSS 操作インターフェース。Phase 1b で ARS+OGS、Phase 2 で WRS をカバー。
 
+**単位**: Python 型と JSONL の質量は **kg**、水は **L**。`Ros2EclssBridge` が SSOS ROS の **g** と境界で相互変換する。[ECLSS 連携 — 単位](eclss-integration.md#_2) と `src/environment/ssos/eclss/units.py` を参照。
+
 ### poll_telemetry() → EclssTelemetrySnapshot
 
-ROS 2 トピックから最新スナップショットを取得。
+ROS 2 トピックから最新スナップショットを取得（ブリッジが質量トピックを g→kg 変換）。
 
-| フィールド | ソース topic | 単位 |
+| フィールド | ソース topic | 単位（内部） |
 | --- | --- | --- |
 | `co2_storage_kg` | `/co2_storage` | kg |
 | `o2_storage_kg` | `/o2_storage` | kg |
@@ -65,7 +67,7 @@ Phase 2 以降。Mock / Ros2 両方実装。
 | --- | --- |
 | Service | `/ogs/request_o2` |
 | 型 | `space_station_interfaces/srv/O2Request` |
-| Request | `{amount: <float>}` |
+| Request | `{amount: <float>}`（kg。ブリッジが SSOS へ g で送信） |
 
 ---
 
@@ -75,7 +77,7 @@ Phase 2 以降。Mock / Ros2 両方実装。
 | --- | --- |
 | Service | `/ars/request_co2` |
 | 型 | `space_station_interfaces/srv/Co2Request` |
-| Request | `{amount: <float>}` |
+| Request | `{amount: <float>}`（kg。ブリッジが SSOS へ g で送信） |
 
 OGS（Sabatier）前の CO₂ 原料供給に使用。
 
