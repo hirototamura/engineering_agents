@@ -187,12 +187,10 @@ def test_sabatier_full_reaction_when_co2_available():
     assert r["water_regenerated_kg"] == pytest.approx(h2 * H2O_PER_H2, **APPROX)
     assert r["ch4_generated_kg"] == pytest.approx(h2 * CH4_PER_H2, **APPROX)
     # Sabatier mass balance: CO2 + 4H2 -> CH4 + 2H2O.
-    # Tolerance is loose (~1e-4) because literature molecular weights do not sum
-    # exactly (CO2+4H2 = 52.07302 vs CH4+2H2O = 52.07306). Per-species inventory
-    # is still tracked exactly; this checks the reaction is ~mass-balanced.
-    assert r["sabatier_co2_used_kg"] + r["sabatier_h2_used_kg"] == pytest.approx(
-        r["water_regenerated_kg"] + r["ch4_generated_kg"], rel=1e-4
-    )
+    # Accept ≤ 2 mg per action (1000 actions → 2 g). Inventory bookkeeping is exact.
+    reactants = r["sabatier_co2_used_kg"] + r["sabatier_h2_used_kg"]
+    products = r["water_regenerated_kg"] + r["ch4_generated_kg"]
+    assert abs(reactants - products) < 2e-6  # 2 mg
 
 
 def test_sabatier_partial_when_co2_limited():
