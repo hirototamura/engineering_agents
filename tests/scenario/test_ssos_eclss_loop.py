@@ -79,6 +79,9 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     telemetry = _read_jsonl(run_dir / "telemetry.jsonl")
 
     assert summary["agents_mode"] == "labeled_rule_base"
+    assert "thresholds" in summary
+    assert summary["thresholds"]["co2_storage_high_kg"] == pytest.approx(1.5)
+    assert "health_inputs" in summary
     assert summary["team_count"] == 3
     assert summary["agent_ids"] == [
         "eclss_operator_1",
@@ -348,4 +351,42 @@ def test_ssos_eclss_loop_skips_empty_design_proposals_file(tmp_path: Path, monke
     assert summary.get("design_proposal_count") == 0
     assert "design_proposals_path" not in summary
     assert not (run_dir / "design_proposals.json").exists()
+
+
+def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "plant_sim",
+        overrides={
+            "backend": {"kind": "plant_sim"},
+            "agents": {"mode": "labeled_rule_base"},
+            "simulation": {"steps": 3},
+        },
+        recreate_output=True,
+    )
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    telemetry = _read_jsonl(run_dir / "telemetry.jsonl")
+
+    assert summary["backend"] == "plant_sim"
+    assert "thresholds" in summary
+    assert summary["thresholds"]["o2_storage_critical_kg"] == pytest.approx(
+        summary["thresholds"]["o2_storage_low_kg"] * 0.75
+    )
+
+    metabolism_rows = [
+        row
+        for row in telemetry
+        if isinstance((row.get("raw_topics") or {}).get("plant_sim"), dict)
+        and "last_metabolism" in (row["raw_topics"]["plant_sim"])
+        and row.get("post_ops") is not True
+    ]
+    assert len(metabolism_rows) == 2  # steps 2 and 3 (advance before poll)
+
+    proposals_path = run_dir / "design_proposals.json"
+    if proposals_path.exists():
+        proposals = json.loads(proposals_path.read_text(encoding="utf-8"))
+        for change in proposals.get("changes", []):
+            assert change.get("why")
+            assert change.get("what")
+            assert change.get("how")
 

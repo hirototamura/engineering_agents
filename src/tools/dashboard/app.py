@@ -11,11 +11,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
+import importlib
 import matplotlib.pyplot as plt
 import streamlit as st
 import streamlit.components.v1 as components
 
-from tools.dashboard import ssos_views
+from tools.dashboard import ssos_flow, ssos_views
+
+# Streamlit reruns app.py but may keep stale imported submodules; reload helpers.
+importlib.reload(ssos_flow)
+importlib.reload(ssos_views)
 from environment.scrubber.eclss_ops.telemetry import CO2_RECOVERY_PPM
 from tools.dashboard.jsonl_rows import select_row_for_step, series_by_step
 
@@ -467,8 +472,20 @@ def _replay_step_controls(max_step: int) -> int:
 
 def _render_ssos_center_panel(run: RunViewData, current_step: int) -> None:
     ssos_views.render_ssos_summary_highlights(run.summary)
+    ssos_views.render_ssos_status_strip(
+        run.summary, run.health, run.telemetry, current_step
+    )
+    st.subheader("Health bands")
     ssos_views.render_ssos_health_card(run.telemetry, run.health, current_step)
-    ssos_views.render_ssos_storage_plot(run.telemetry, highlight_step=current_step)
+    ssos_views.render_ssos_storage_plot(
+        run.telemetry, summary=run.summary, highlight_step=current_step
+    )
+    ssos_views.render_ssos_schematic(
+        step=current_step, telemetry_rows=run.telemetry, events=run.events
+    )
+    ssos_views.render_ssos_flow_detail(
+        step=current_step, telemetry_rows=run.telemetry, events=run.events
+    )
     ssos_views.render_plant_sim_panel(run.telemetry, highlight_step=current_step)
     st.subheader("Operational commands")
     ssos_views.render_ssos_operational_timeline(run.events)
@@ -1442,7 +1459,9 @@ def _render_dual_run_views(primary: RunViewData, compare: RunViewData, current_s
 
     def _render_plots_for(run: RunViewData) -> None:
         if ssos_views.is_ssos_eclss_loop(run.summary):
-            ssos_views.render_ssos_storage_plot(run.telemetry, highlight_step=current_step)
+            ssos_views.render_ssos_storage_plot(
+                run.telemetry, summary=run.summary, highlight_step=current_step
+            )
             ssos_views.render_plant_sim_panel(run.telemetry, highlight_step=current_step)
         else:
             _line_plot(run.telemetry, run.eps_telemetry, current_step)
@@ -1513,8 +1532,20 @@ def _render_run_detail_view(run: RunViewData, current_step: int) -> None:
     st.caption(f"`{run.run_dir}`")
     if ssos_views.is_ssos_eclss_loop(run.summary):
         ssos_views.render_ssos_summary_highlights(run.summary)
+        ssos_views.render_ssos_status_strip(
+            run.summary, run.health, run.telemetry, current_step
+        )
+        st.subheader("Health bands")
         ssos_views.render_ssos_health_card(run.telemetry, run.health, current_step)
-        ssos_views.render_ssos_storage_plot(run.telemetry, highlight_step=current_step)
+        ssos_views.render_ssos_storage_plot(
+            run.telemetry, summary=run.summary, highlight_step=current_step
+        )
+        ssos_views.render_ssos_schematic(
+            step=current_step, telemetry_rows=run.telemetry, events=run.events
+        )
+        ssos_views.render_ssos_flow_detail(
+            step=current_step, telemetry_rows=run.telemetry, events=run.events
+        )
         ssos_views.render_plant_sim_panel(run.telemetry, highlight_step=current_step)
         st.subheader("Operational commands")
         ssos_views.render_ssos_operational_timeline(run.events)
