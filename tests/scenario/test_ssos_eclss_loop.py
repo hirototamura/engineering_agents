@@ -188,6 +188,29 @@ def test_ssos_eclss_loop_apply_proposals(tmp_path: Path):
     )
     summary = json.loads((second / "summary.json").read_text(encoding="utf-8"))
     assert summary["operational_command_count"] >= 1
+    assert summary["apply_proposals_path"] == str(proposals_path)
+    assert (second / "scenario_config.yaml").exists()
+    assert (second / "agents_config.yaml").exists()
+
+    import yaml
+
+    proposals = json.loads(proposals_path.read_text(encoding="utf-8"))
+    effective_agents = yaml.safe_load((second / "agents_config.yaml").read_text(encoding="utf-8"))
+    effective_scenario = yaml.safe_load((second / "scenario_config.yaml").read_text(encoding="utf-8"))
+    assert effective_scenario.get("agents", {}).get("mode") == "labeled_rule_base"
+
+    # At least one applied change must appear in the dumped effective agents policy.
+    applied_kinds = {c["change_kind"] for c in proposals.get("changes", [])}
+    policy = effective_agents.get("policy") or {}
+    if "action_profile" in applied_kinds:
+        assert "ars_goal" in policy or "ogs_goal" in policy or "wrs_goal" in policy
+    if "service_config" in applied_kinds:
+        assert "request_co2_amount" in policy or "request_o2_amount" in policy
+    if "set_parameter" in applied_kinds:
+        # set_parameter may land in scenario thresholds and/or agents.policy
+        assert "thresholds" in effective_scenario or any(
+            k.endswith("_kg") or k.endswith("_l") for k in policy
+        )
 
 
 def test_ssos_eclss_loop_labeled_agents_ogs_when_o2_low(tmp_path: Path):
