@@ -245,6 +245,23 @@ def test_resolve_backend_kind_from_env(monkeypatch):
     assert resolve_backend_kind(config) == "ros2"
 
 
+def test_effective_config_records_env_resolved_backend(tmp_path: Path, monkeypatch):
+    """scenario_config.yaml must match the backend actually used (not stale YAML)."""
+    import yaml
+
+    monkeypatch.setenv(BACKEND_ENV_VAR, "plant_sim")
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "env_backend",
+        overrides={"simulation": {"steps": 2}},
+        recreate_output=True,
+    )
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    effective = yaml.safe_load((run_dir / "scenario_config.yaml").read_text(encoding="utf-8"))
+    assert summary["backend"] == "plant_sim"
+    assert effective["backend"]["kind"] == "plant_sim"
+
+
 def test_resolve_backend_kind_override_wins(monkeypatch):
     config = {"backend": {"kind": "mock"}}
     monkeypatch.setenv(BACKEND_ENV_VAR, "ros2")

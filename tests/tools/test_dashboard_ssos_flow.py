@@ -109,3 +109,22 @@ def test_build_step_node_numbers_maps_metabolism_and_ops():
     assert any("CO2 generated" in line for line in nodes["crew"])
     assert any("cabin CO2" in line for line in nodes["cabin"])
     assert any("CO2 removed" in line for line in nodes["ars"])
+
+
+def test_build_step_node_numbers_labels_mock_co2_as_storage():
+    """mock/ros2 co2_storage_kg is /co2_storage inventory, not cabin atmosphere."""
+    telemetry_row = {
+        "step": 1,
+        "co2_storage_kg": 1.8,
+        "o2_storage_kg": 0.6,
+        "product_water_reserve_l": 50.0,
+    }
+    nodes = ssos_flow.build_step_node_numbers(
+        step=1,
+        telemetry_row=telemetry_row,
+        ops_flows=[],
+        metabolism=None,
+    )
+    assert any("CO2 storage" in line for line in nodes["co2_tank"])
+    assert not any("cabin CO2" in line for line in nodes["cabin"])
+    assert any("available O2" in line for line in nodes["cabin"])

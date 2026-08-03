@@ -213,6 +213,12 @@ class SsosEclssLoopScenario(Scenario):
         steps = int(sim_cfg.get("steps", 8))
         output_cfg = config.get("output", {})
         backend_kind = resolve_backend_kind(config, overrides)
+        # Persist the resolved kind (CLI / SSOS_ECLSS_BACKEND may differ from YAML).
+        backend_section = config.get("backend")
+        if not isinstance(backend_section, dict):
+            backend_section = {}
+            config["backend"] = backend_section
+        backend_section["kind"] = backend_kind
 
         run_dir = resolve_run_directory(
             scenario_name=self.name,
