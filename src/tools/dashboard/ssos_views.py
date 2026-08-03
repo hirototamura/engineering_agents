@@ -10,15 +10,16 @@ import matplotlib.pyplot as plt
 import streamlit as st
 
 from tools.dashboard.jsonl_rows import select_row_for_step, series_by_step
-
-SSOS_OPERATIONAL_KINDS = frozenset(
-    {
-        "air_revitalisation",
-        "oxygen_generation",
-        "water_recovery",
-        "request_co2",
-        "request_o2",
-    }
+from tools.dashboard.ssos_flow import (
+    SSOS_OPERATIONAL_KINDS,
+    build_step_node_numbers,
+    extract_metabolism_by_step,
+    extract_ops_flows,
+    flatten_flow_table,
+    health_inputs_from_summary,
+    list_design_changes,
+    plant_sim_topic,
+    thresholds_from_summary,
 )
 
 
@@ -28,14 +29,6 @@ def scenario_name(summary: Dict[str, Any]) -> str:
 
 def is_ssos_eclss_loop(summary: Dict[str, Any]) -> bool:
     return scenario_name(summary) == "ssos_eclss_loop"
-
-
-def plant_sim_topic(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    raw = row.get("raw_topics")
-    if not isinstance(raw, dict):
-        return None
-    topic = raw.get("plant_sim")
-    return topic if isinstance(topic, dict) else None
 
 
 def has_plant_sim_topics(telemetry_rows: List[Dict[str, Any]]) -> bool:
@@ -74,6 +67,60 @@ def filter_ssos_operational_events(events: List[Dict[str, Any]]) -> List[Dict[st
     ]
 
 
+def render_ssos_status_strip(
+    summary: Dict[str, Any],
+    health_rows: List[Dict[str, Any]],
+    telemetry_rows: List[Dict[str, Any]],
+    current_step: int,
+) -> None:
+    """Status from health_metrics, failure flags, and shortfall ledgers."""
+    st.subheader("Status")
+    current_health = select_row_for_step(health_rows, current_step) or {}
+    current_telemetry = select_row_for_step(telemetry_rows, current_step) or {}
+    topic = plant_sim_topic(current_telemetry) if current_telemetry else None
+
+    health_inputs = health_inputs_from_summary(summary)
+    if health_inputs:
+        inputs_text = ", ".join(f"{k}={v}" for k, v in health_inputs.items())
+        st.caption(f"Health reads: {inputs_text}")
+    else:
+        st.caption(
+            "Health reads telemetry.co2_storage_kg, o2_storage_kg, product_water_reserve_l "
+            "(threshold numbers not recorded in this run)."
+        )
+
+    cols = st.columns(6)
+    with cols[0]:
+        st.metric("Overall", current_health.get("overall", "—"))
+    with cols[1]:
+        st.metric("CO2 band", current_health.get("co2_status", "—"))
+    with cols[2]:
+        st.metric("O2 band", current_health.get("o2_status", "—"))
+    with cols[3]:
+        st.metric("Water band", current_health.get("water_status", "—"))
+    with cols[4]:
+        failures = []
+        if current_telemetry.get("ars_failure_enabled"):
+            failures.append("ARS")
+        if current_telemetry.get("ogs_failure_enabled"):
+            failures.append("OGS")
+        if current_telemetry.get("wrs_failure_enabled"):
+            failures.append("WRS")
+        st.metric("Subsystem failures", ", ".join(failures) if failures else "none")
+    with cols[5]:
+        o2_short = topic.get("total_o2_shortfall_kg") if topic else None
+        water_short = topic.get("total_water_shortfall_l") if topic else None
+        if isinstance(o2_short, (int, float)) or isinstance(water_short, (int, float)):
+            parts = []
+            if isinstance(o2_short, (int, float)):
+                parts.append(f"O2 {o2_short:.3g} kg")
+            if isinstance(water_short, (int, float)):
+                parts.append(f"H2O {water_short:.3g} L")
+            st.metric("Crew shortfalls", " / ".join(parts))
+        else:
+            st.metric("Crew shortfalls", "—")
+
+
 def render_ssos_health_card(
     telemetry_rows: List[Dict[str, Any]],
     health_rows: List[Dict[str, Any]],
@@ -108,9 +155,37 @@ def render_ssos_health_card(
         )
 
 
+def _draw_threshold_bands(ax, thresholds: Dict[str, Any], *, co2: bool, o2: bool, water: bool) -> None:
+    if co2:
+        for key, color, style in (
+            ("co2_storage_high_kg", "#f0ad4e", "--"),
+            ("co2_storage_critical_kg", "#d9534f", "-"),
+        ):
+            value = thresholds.get(key)
+            if isinstance(value, (int, float)):
+                ax.axhline(value, color=color, linestyle=style, linewidth=1.0, alpha=0.8, label=key)
+    if o2:
+        for key, color, style in (
+            ("o2_storage_low_kg", "#f0ad4e", "--"),
+            ("o2_storage_critical_kg", "#d9534f", "-"),
+        ):
+            value = thresholds.get(key)
+            if isinstance(value, (int, float)):
+                ax.axhline(value, color=color, linestyle=style, linewidth=1.0, alpha=0.8, label=key)
+    if water:
+        for key, color, style in (
+            ("product_water_low_l", "#f0ad4e", "--"),
+            ("product_water_critical_l", "#d9534f", "-"),
+        ):
+            value = thresholds.get(key)
+            if isinstance(value, (int, float)):
+                ax.axhline(value, color=color, linestyle=style, linewidth=1.0, alpha=0.8, label=key)
+
+
 def render_ssos_storage_plot(
     telemetry_rows: List[Dict[str, Any]],
     *,
+    summary: Optional[Dict[str, Any]] = None,
     highlight_step: Optional[int] = None,
 ) -> None:
     if not telemetry_rows:
@@ -124,13 +199,18 @@ def render_ssos_storage_plot(
     water = [r.get("product_water_reserve_l") for r in plot_rows]
     cabin_co2 = has_plant_sim_topics(telemetry_rows)
     co2_label = "Cabin CO2 (kg)" if cabin_co2 else "CO2 storage (kg)"
+    thresholds = thresholds_from_summary(summary or {})
 
     fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
     axes[0].plot(steps, co2, label=co2_label, color="#c44e52")
     axes[1].plot(steps, o2, label="O2 storage (kg)", color="#4c72b0")
     axes[2].plot(steps, water, label="Product water (L)", color="#55a868")
+    if thresholds:
+        _draw_threshold_bands(axes[0], thresholds, co2=True, o2=False, water=False)
+        _draw_threshold_bands(axes[1], thresholds, co2=False, o2=True, water=False)
+        _draw_threshold_bands(axes[2], thresholds, co2=False, o2=False, water=True)
     for ax in axes:
-        ax.legend(loc="upper left")
+        ax.legend(loc="upper left", fontsize=8)
         ax.grid(True, alpha=0.3)
         if highlight_step is not None:
             ax.axvline(highlight_step, color="gray", linestyle="--", alpha=0.6)
@@ -140,7 +220,75 @@ def render_ssos_storage_plot(
             "plant_sim maps cabin CO₂ inventory to `co2_storage_kg` (danger signal); "
             "captured tank CO₂ is under raw_topics.plant_sim."
         )
+    if thresholds is None:
+        st.caption("Threshold band lines not in this run's summary.json — series and status chips only.")
+    else:
+        st.caption("Band lines from summary.json thresholds recorded at simulation time.")
     st.pyplot(fig, clear_figure=True)
+
+
+def render_ssos_schematic(
+    *,
+    step: int,
+    telemetry_rows: List[Dict[str, Any]],
+    events: List[Dict[str, Any]],
+) -> None:
+    """Fixed ECLSS block diagram; numbers only from run artifacts."""
+    st.subheader("ECLSS schematic")
+    telemetry_row = select_row_for_step(telemetry_rows, step)
+    metabolism_map = extract_metabolism_by_step(telemetry_rows)
+    ops_flows = extract_ops_flows(events)
+    node_numbers = build_step_node_numbers(
+        step=step,
+        telemetry_row=telemetry_row,
+        ops_flows=ops_flows,
+        metabolism=metabolism_map.get(step),
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 4.5))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 5)
+    ax.axis("off")
+
+    layout = {
+        "crew": (0.5, 3.2, 1.6, 1.2),
+        "cabin": (2.5, 3.2, 1.6, 1.2),
+        "ars": (4.5, 3.2, 1.6, 1.2),
+        "ogs": (6.5, 3.2, 1.6, 1.2),
+        "wrs": (8.2, 3.2, 1.6, 1.2),
+        "co2_tank": (4.5, 1.0, 1.6, 1.2),
+        "buffers": (6.5, 1.0, 1.6, 1.2),
+    }
+    for name, (x, y, w, h) in layout.items():
+        rect = plt.Rectangle((x, y), w, h, fill=False, edgecolor="#333333", linewidth=1.2)
+        ax.add_patch(rect)
+        lines = node_numbers.get(name) or []
+        body = "\n".join(lines) if lines else "—"
+        ax.text(x + w / 2, y + h - 0.15, name.upper(), ha="center", va="top", fontsize=9, fontweight="bold")
+        ax.text(x + 0.08, y + h - 0.45, body, ha="left", va="top", fontsize=7.5)
+
+    st.caption(f"Step {step}: values from telemetry, metabolism, and event result.details only.")
+    st.pyplot(fig, clear_figure=True)
+
+
+def render_ssos_flow_detail(
+    *,
+    step: int,
+    telemetry_rows: List[Dict[str, Any]],
+    events: List[Dict[str, Any]],
+) -> None:
+    st.subheader("Flow detail")
+    metabolism_map = extract_metabolism_by_step(telemetry_rows)
+    ops_flows = extract_ops_flows(events)
+    rows = flatten_flow_table(
+        step=step,
+        metabolism=metabolism_map.get(step),
+        ops_flows=ops_flows,
+    )
+    if not rows:
+        st.caption("No metabolism or operational flow details for this step in run artifacts.")
+        return
+    st.dataframe(rows, use_container_width=True, hide_index=True)
 
 
 def render_plant_sim_panel(
@@ -213,15 +361,28 @@ def render_ssos_design_proposals(run_dir: Path) -> None:
         st.caption("No design_proposals.json for this run.")
         return
     payload = json.loads(path.read_text(encoding="utf-8"))
-    changes = payload.get("changes") or []
+    changes = list_design_changes(payload)
     st.markdown(f"**Design proposals** ({len(changes)} change(s))")
-    graph = payload.get("ssos_graph") or {}
+    st.caption(
+        f"proposed_by={payload.get('proposed_by', '—')} · "
+        f"decision_source={payload.get('decision_source', '—')}"
+    )
+    for index, change in enumerate(changes, start=1):
+        with st.expander(f"Change {index}: {change.get('change_kind', '—')}", expanded=index == 1):
+            if change.get("why"):
+                st.markdown(f"**Why:** {change['why']}")
+            if change.get("what"):
+                st.markdown(f"**What:** {change['what']}")
+            if change.get("how"):
+                st.markdown(f"**How:** {change['how']}")
+            if not any(change.get(k) for k in ("why", "what", "how")):
+                st.caption("Why/What/How not recorded in this proposal file.")
+            st.json(change.get("payload") or {}, expanded=False)
+    graph = payload.get("baseline_graph") or payload.get("ssos_graph") or {}
     rewires = graph.get("rewires") or []
     if rewires:
         st.markdown("**Graph rewires**")
         st.dataframe(rewires, use_container_width=True, hide_index=True)
-    if changes:
-        st.json(payload, expanded=False)
 
 
 def render_ssos_summary_highlights(summary: Dict[str, Any]) -> None:
