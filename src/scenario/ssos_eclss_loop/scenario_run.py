@@ -28,7 +28,11 @@ from scenario.runner import (
     load_agents_config,
     scenario_config_path,
 )
-from scenario.ssos_eclss_loop.health import compute_eclss_storage_health
+from scenario.ssos_eclss_loop.health import (
+    build_effective_thresholds,
+    compute_eclss_storage_health,
+    health_inputs_note,
+)
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 from scenario.ssos_eclss_loop.design_proposals import (
     apply_design_proposals,
@@ -321,6 +325,8 @@ class SsosEclssLoopScenario(Scenario):
             "final_health": last_health,
             "message_count": message_count,
             "operational_command_count": operational_command_count,
+            "thresholds": build_effective_thresholds(thresholds),
+            "health_inputs": health_inputs_note(),
         }
         summary.update(
             _omit_nulls(
