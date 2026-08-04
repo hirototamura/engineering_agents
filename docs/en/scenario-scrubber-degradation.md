@@ -93,7 +93,7 @@ output:
 team:
   count: 4
   id_prefix: engineer
-  # Optional thinking-style lenses (round-robin → engineer_1..N). llm mode only;
+  # Optional thinking-style lenses (round-robin → engineer_1..N). Affect llm prompts only;
   # labeled_rule_base ignores personas. Logged in summary.json["archetypes"] always.
   archetypes: [first_principles, failure_mode, improviser, systems_integrator]
   persona: |

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any, Dict, Optional
 
 from environment.protocol import HealthStatus
@@ -13,9 +14,9 @@ def compute_eclss_storage_health(
     snap: EclssTelemetrySnapshot,
     thresholds: Dict[str, Any],
 ) -> Dict[str, Any]:
-    co2_high = float(thresholds.get("co2_storage_high_kg", 1500.0))
-    co2_critical = float(thresholds.get("co2_storage_critical_kg", 2200.0))
-    o2_low = float(thresholds.get("o2_storage_low_kg", 450.0))
+    co2_high = float(thresholds.get("co2_storage_high_kg", 1.5))
+    co2_critical = float(thresholds.get("co2_storage_critical_kg", 2.2))
+    o2_low = float(thresholds.get("o2_storage_low_kg", 0.45))
     water_low = float(thresholds.get("product_water_low_l", 50.0))
 
     co2_status = _co2_status(snap.co2_storage_kg, co2_high, co2_critical)
@@ -32,9 +33,14 @@ def compute_eclss_storage_health(
     }
 
 
+def _invalid_reading(value: Optional[float]) -> bool:
+    return value is None or not math.isfinite(float(value))
+
+
 def _co2_status(value: Optional[float], high: float, critical: float) -> HealthStatus:
-    if value is None:
+    if _invalid_reading(value):
         return HealthStatus.UNKNOWN
+    assert value is not None
     if value >= critical:
         return HealthStatus.CRITICAL
     if value >= high:
@@ -43,8 +49,9 @@ def _co2_status(value: Optional[float], high: float, critical: float) -> HealthS
 
 
 def _o2_status(value: Optional[float], low: float) -> HealthStatus:
-    if value is None:
+    if _invalid_reading(value):
         return HealthStatus.UNKNOWN
+    assert value is not None
     if value <= low * 0.75:
         return HealthStatus.CRITICAL
     if value <= low:
@@ -53,8 +60,9 @@ def _o2_status(value: Optional[float], low: float) -> HealthStatus:
 
 
 def _water_status(value: Optional[float], low: float) -> HealthStatus:
-    if value is None:
+    if _invalid_reading(value):
         return HealthStatus.UNKNOWN
+    assert value is not None
     if value <= low * 0.5:
         return HealthStatus.CRITICAL
     if value <= low:

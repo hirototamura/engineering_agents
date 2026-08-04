@@ -1,6 +1,6 @@
 # ECLSS 統合
 
-SSOS の **ARS**（大気再生）、**OGS**（酸素生成）、**WRS**（水再生）を `EclssBackend` Protocol 経由で操作します。実装の正本は `src/environment/ssos/eclss_topics.py` です。
+SSOS の **ARS**（大気再生）、**OGS**（酸素生成）、**WRS**（水再生）を `EclssBackend` Protocol 経由で操作します。ROS 2 定数の正本は `src/environment/ssos/eclss/ros2/topics.py` です。
 
 ---
 
@@ -93,9 +93,9 @@ classDiagram
 
 | 実装 | ファイル | 用途 |
 | --- | --- | --- |
-| `MockEclssBackend` | `mock_eclss_backend.py` | pytest / Phase 1b 契約 |
+| `MockEclssBackend` | `ssos/eclss/mock/backend.py` | pytest / Phase 1b 契約 |
 | `LoopMockEclssBackend` | `scenario/ssos_eclss_loop/loop_mock_backend.py` | シナリオ用簡易 dynamics |
-| `Ros2EclssBridge` | `ros2_eclss_bridge.py` | SSOS Docker 実グラフ |
+| `Ros2EclssBridge` | `ssos/eclss/ros2/bridge.py` | SSOS Docker 実グラフ |
 
 ### Ros2EclssBridge の設計
 

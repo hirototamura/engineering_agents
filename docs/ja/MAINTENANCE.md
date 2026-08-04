@@ -22,6 +22,8 @@ mkdocs serve
 
 PR では `mkdocs build --strict` を実行（`.github/workflows/docs.yml`）。
 
+SSOS / scrubber バックエンドのドキュメントを更新するときは、`src/environment/` の実パスと照合すること — ECLSS は `ssos/eclss/`、scrubber EPS は `scrubber/eps/`、SSOS EPS ブリッジは `ssos/eps/ros2/`（environment リファクタ後）。
+
 ## 参照
 
 - [ドキュメント索引](catalog.md) — メインナビ外の memo も含む全ページ一覧

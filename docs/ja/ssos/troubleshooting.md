@@ -35,7 +35,7 @@ ros2 action send_goal /air_revitalisation \
   "{initial_co2_mass: 1800.0, initial_moisture_content: 25.0, initial_contaminants: 5.0}"
 ```
 
-コード側は `eclss_topics.py` の `ACTION_TYPE_*` 定数を使用（`Ros2EclssBridge` はこれに従う）。
+コード側は `src/environment/ssos/eclss/ros2/topics.py` の `ACTION_TYPE_*` 定数を使用（`Ros2EclssBridge` はこれに従う）。
 
 ---
 

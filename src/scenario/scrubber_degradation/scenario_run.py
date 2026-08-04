@@ -13,7 +13,7 @@ from core.agents.base import Team
 from core.agents.types import AgentObservation
 from core.event_log import EventLog
 from core.scenario import Scenario
-from environment.scrubber.eclss_ops.telemetry import CO2_WARNING_PPM, compute_health_metrics
+from environment.scrubber.eclss_ops.telemetry import CO2_RECOVERY_PPM, compute_health_metrics
 from environment.protocol import HealthStatus, SimulatorProtocol
 from environment.scrubber.station_simulator import StationSimulator
 from environment.scrubber.topics import EVENT_RECOVERY
@@ -137,9 +137,9 @@ class ScrubberDegradationScenario(Scenario):
 
             if snap.anomaly_flags:
                 anomaly_seen = True
-            if snap.co2_ppm >= CO2_WARNING_PPM and co2_above_threshold_step is None:
+            if snap.co2_ppm >= CO2_RECOVERY_PPM and co2_above_threshold_step is None:
                 co2_above_threshold_step = snap.step
-            if snap.co2_ppm < CO2_WARNING_PPM and co2_above_threshold_step is not None:
+            if snap.co2_ppm < CO2_RECOVERY_PPM and co2_above_threshold_step is not None:
                 if co2_recovered_below_threshold_step is None:
                     co2_recovered_below_threshold_step = snap.step
 
@@ -156,6 +156,30 @@ class ScrubberDegradationScenario(Scenario):
                     log.append("messages", msg.to_dict())
                     message_count += 1
                 _log_sim_events(log, sim, snap.step, logged_event_ids)
+
+                # L5: refresh actuator / EPS fields after ops (same step, no physics advance).
+                # Append post_ops rows so JSONL matches summary / dashboard (ssos L5 parity).
+                if outcome.commands and last_snap is not None:
+                    from dataclasses import replace
+
+                    plant = station.eclss if station is not None else sim
+                    updates = {
+                        "fan_speed": getattr(plant, "fan_speed", last_snap.fan_speed),
+                        "bypass_enabled": getattr(plant, "bypass_enabled", last_snap.bypass_enabled),
+                        "load_reduced": getattr(plant, "load_reduced", last_snap.load_reduced),
+                    }
+                    if station is not None:
+                        updates["eps_support_w"] = round(station.eps.support_w, 2)
+                        updates["eps_support_steps_remaining"] = station.eps.support_steps_remaining
+                    last_snap = replace(last_snap, **updates)
+                    last_health = compute_health_metrics(last_snap)
+                    log.append("telemetry", {"post_ops": True, **last_snap.to_dict()})
+                    log.append("health_metrics", {"post_ops": True, **last_health.to_dict()})
+                    if station is not None:
+                        log.append(
+                            "eps_telemetry",
+                            {"post_ops": True, **station.eps_telemetry_dict(last_snap.step)},
+                        )
 
         for event in sim.get_events():
             if event.get("kind") != EVENT_RECOVERY:

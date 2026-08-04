@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 from environment.ssos.eclss.types import (
@@ -12,10 +13,20 @@ from environment.ssos.eclss.types import (
     ServiceResult,
     WrsGoal,
 )
+from environment.ssos.eclss.units import o2_generated_kg, water_kg_to_l
 
 # Approximate WRS pipeline recovery (UPA × filter × ionization from SSOS defaults).
 _WRS_URINE_RECOVERY = 0.95 * 0.90 * 0.98
 _GREY_WATER_RECOVERY = 0.50
+
+
+def _is_invalid_quantity(value: float, *, allow_zero: bool = True) -> bool:
+    """Reject NaN/Inf and negative (or non-positive when allow_zero is False)."""
+    if not math.isfinite(value):
+        return True
+    if allow_zero:
+        return value < 0.0
+    return value <= 0.0
 
 
 class MockEclssBackend:
@@ -23,8 +34,8 @@ class MockEclssBackend:
 
     def __init__(self) -> None:
         self._telemetry = EclssTelemetrySnapshot(
-            co2_storage_kg=1800.0,
-            o2_storage_kg=500.0,
+            co2_storage_kg=1.8,
+            o2_storage_kg=0.5,
             product_water_reserve_l=100.0,
         )
         self._grey_water_buffer_l = 0.0
@@ -50,21 +61,48 @@ class MockEclssBackend:
 
     def send_air_revitalisation_goal(self, goal: ArsGoal) -> ActionResult:
         self.last_ars_goal = goal
+        if self._failure_flags["ars"]:
+            return ActionResult(success=False, summary_message="mock ARS failure enabled")
+        if _is_invalid_quantity(goal.initial_co2_mass):
+            return ActionResult(
+                success=False,
+                summary_message="initial_co2_mass must be finite and non-negative",
+            )
         return ActionResult(success=True, summary_message="mock air_revitalisation complete")
 
     def send_oxygen_generation_goal(self, goal: OgsGoal) -> ActionResult:
         self.last_ogs_goal = goal
-        water_used = goal.input_water_mass
+        if self._failure_flags["ogs"]:
+            return ActionResult(success=False, summary_message="mock OGS failure enabled")
+        water_kg = float(goal.input_water_mass)
+        if _is_invalid_quantity(water_kg):
+            return ActionResult(
+                success=False,
+                summary_message="input_water_mass must be finite and non-negative",
+            )
+        water_used_l = water_kg_to_l(water_kg)
         reserve = self._telemetry.product_water_reserve_l or 0.0
-        self._telemetry.product_water_reserve_l = max(0.0, reserve - water_used)
+        self._telemetry.product_water_reserve_l = max(0.0, reserve - water_used_l)
+        o2_kg = o2_generated_kg(water_kg)
         return ActionResult(
             success=True,
             summary_message="mock oxygen_generation complete",
-            details={"total_o2_generated": 120.0, "input_water_mass": water_used},
+            details={
+                "total_o2_generated": o2_kg,
+                "input_water_mass": water_kg,
+                "water_used_l": water_used_l,
+            },
         )
 
     def send_water_recovery_goal(self, goal: WrsGoal) -> ActionResult:
         self.last_wrs_goal = goal
+        if self._failure_flags["wrs"]:
+            return ActionResult(success=False, summary_message="mock WRS failure enabled")
+        if _is_invalid_quantity(goal.urine_volume):
+            return ActionResult(
+                success=False,
+                summary_message="urine_volume must be finite and non-negative",
+            )
         purified_from_urine = goal.urine_volume * _WRS_URINE_RECOVERY
         grey_recovered = self._grey_water_buffer_l * _GREY_WATER_RECOVERY
         self._grey_water_buffer_l = max(0.0, self._grey_water_buffer_l - grey_recovered)
@@ -78,12 +116,30 @@ class MockEclssBackend:
         )
 
     def request_o2(self, amount: float) -> ServiceResult:
+        if _is_invalid_quantity(amount, allow_zero=False):
+            return ServiceResult(
+                success=False,
+                response_value=0.0,
+                message="o2 request amount must be finite and positive",
+            )
         return ServiceResult(success=True, response_value=amount, message="mock o2 delivered")
 
     def request_co2(self, amount: float) -> ServiceResult:
+        if _is_invalid_quantity(amount, allow_zero=False):
+            return ServiceResult(
+                success=False,
+                response_value=0.0,
+                message="co2 request amount must be finite and positive",
+            )
         return ServiceResult(success=True, response_value=amount, message="mock co2 delivered")
 
     def request_product_water(self, liters: float) -> ServiceResult:
+        if _is_invalid_quantity(liters, allow_zero=False):
+            return ServiceResult(
+                success=False,
+                response_value=0.0,
+                message="product water amount must be finite and positive",
+            )
         reserve = self._telemetry.product_water_reserve_l or 0.0
         granted = min(liters, reserve)
         self._telemetry.product_water_reserve_l = reserve - granted
@@ -95,6 +151,12 @@ class MockEclssBackend:
         )
 
     def submit_grey_water(self, liters: float) -> ServiceResult:
+        if _is_invalid_quantity(liters, allow_zero=False):
+            return ServiceResult(
+                success=False,
+                response_value=0.0,
+                message="grey water amount must be finite and positive",
+            )
         self._grey_water_buffer_l += liters
         return ServiceResult(success=True, message="mock grey water accepted")
 

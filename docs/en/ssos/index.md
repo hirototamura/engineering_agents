@@ -17,7 +17,7 @@ For scenario specification (agents, outputs, dashboard), see [ssos_eclss_loop sc
 | --- | --- |
 | Human operator controls ARS/OGS via GUI | AI agent reproduces the same operations via `EclssBackend` API |
 | Pass/fail can be subjective | Verification via telemetry JSONL + deterministic `health_metrics` |
-| Design and operations easily conflated | Runtime uses **operational commands only**; persistent changes are post-run proposals (Phase 5 planned) |
+| Design and operations easily conflated | Runtime uses **operational commands only**; persistent changes are post-run `design_proposals.json` (Phase 5) |
 
 Agents must not become a **self-grading** loop where an LLM declares pass in place of a physics simulator. Pass/fail is decided from raw telemetry on the SSOS Docker ROS 2 graph against scenario YAML thresholds (see [AGENTS.md](../AGENTS.md)).
 
@@ -35,7 +35,7 @@ Integration deepens in stages. Each tier can be smoke-tested independently.
 | **T2** | 2 | + WRS (potable water vs electrolysis water) | `Ros2EclssBridge` | `run_ssos_eclss_2_smoke.sh` |
 | **T3** | 3 | EPS read + `request_eps_boost` interim | `Ros2EpsBridge` | `run_ssos_eps_smoke.sh` |
 | **T4** | 4 | `ssos_eclss_loop` scenario + agents | mock \| ros2 switch | `scenario_run.py` |
-| **T5** | 5 | `operational_proposals.json` + apply on next run | — | Not started |
+| **T5** | 5 | `design_proposals.json` + `--apply-proposals` | — | `scenario_run.py` |
 | **Regression** | — | Container E2E orchestrator (pytest + smoke chain + ea-loop) | `run_ssos_regression.sh` | `.github/workflows/ssos-e2e.yml` |
 
 ---
@@ -110,15 +110,18 @@ flowchart TB
 
 | Path | Role |
 | --- | --- |
-| `src/environment/ssos/eclss_topics.py` | Action / Service / Topic constants |
-| `src/environment/ssos/eclss_backend.py` | `EclssBackend` Protocol |
-| `src/environment/ssos/mock_eclss_backend.py` | Mock for contract tests |
-| `src/environment/ssos/ros2_eclss_bridge.py` | SSOS ECLSS bridge (CLI) |
-| `src/environment/ssos/eps_backend.py` | `EpsBackend` Protocol |
-| `src/environment/ssos/mock_eps_backend.py` | SARJ/BCDU Mock wrapper |
-| `src/environment/ssos/ros2_eps_bridge.py` | SSOS EPS bridge (CLI) |
-| `src/environment/ssos/topic_map.py` | SSOS live topics ↔ contract names |
-| `src/environment/ssos/message_adapters.py` | ROS messages ↔ dataclass |
+| `src/environment/ssos/eclss/backend.py` | `EclssBackend` Protocol |
+| `src/environment/ssos/eclss/types.py` | Goal / Report datatypes |
+| `src/environment/ssos/eclss/mock/backend.py` | Mock for contract tests |
+| `src/environment/ssos/eclss/ros2/bridge.py` | SSOS ECLSS bridge (CLI) |
+| `src/environment/ssos/eclss/ros2/topics.py` | Action / Service / Topic constants |
+| `src/environment/ssos/eclss/ros2/graph_rewire.py` | Client-side graph remap |
+| `src/environment/ssos/ros2/cli.py` | Shared `ros2` subprocess helpers |
+| `src/environment/scrubber/eps/backend.py` | `EpsBackend` Protocol (scrubber) |
+| `src/environment/scrubber/eps/mock/backend.py` | SARJ/BCDU Mock wrapper |
+| `src/environment/ssos/eps/ros2/bridge.py` | SSOS EPS bridge (CLI) |
+| `src/environment/ssos/eps/ros2/topic_map.py` | SSOS live topics ↔ contract names |
+| `src/environment/ssos/eps/ros2/adapters.py` | ROS messages ↔ dataclass |
 | `src/scenario/ssos_eclss_loop/` | New scenario (YAML + runner + health) |
 | `src/scenario/agents/ssos_eclss_loop_team.py` | Crew-replacement agents |
 | `scripts/run_ssos_eclss_*.sh` | Host → Docker smoke wrappers |

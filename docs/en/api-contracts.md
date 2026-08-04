@@ -132,6 +132,8 @@ CO₂ scrubber anomaly on Python mock (`StationSimulator`). Frozen.
 | `eps_support_w` | Temporary EPS support watts |
 | `anomaly_flags` | Active anomaly names |
 
+When recovery commands run in a step, a second row may be appended with `"post_ops": true` (L5), mirroring `ssos_eclss_loop`. Readers prefer `post_ops` / the last row for that step so UI matches `summary.json`.
+
 ### RecoveryCommand — runtime
 
 Temporary operation via `apply_command()`.
@@ -153,11 +155,13 @@ Temporary operation via `apply_command()`.
 
 ### Health — `health_metrics.jsonl`
 
-`compute_health_metrics()` — `src/environment/eclss_ops/telemetry.py`
+`compute_health_metrics()` — `src/environment/scrubber/eclss_ops/telemetry.py`
 
 ```json
 {"step": 5, "co2_status": "safe", "power_status": "safe", "overall": "safe"}
 ```
+
+Same optional `"post_ops": true` duplicate-row rule as scrubber `telemetry.jsonl` when ops refresh health in-step.
 
 | Metric | safe | warning | critical |
 | --- | --- | --- | --- |
@@ -262,6 +266,8 @@ Only with `StationSimulator`.
 }
 ```
 
+May also carry `"post_ops": true` when L5 refreshes EPS after recovery commands in the same step.
+
 ### summary.json
 
 ```json
@@ -348,7 +354,7 @@ Operates live ROS2 ECLSS inside SSOS Docker (or `LoopMockEclssBackend`). Does **
 | `LoopMockEclssBackend` | Host dev / pytest (simple storage dynamics) |
 | `Ros2EclssBridge` | SSOS Docker — ros2 CLI bridge |
 
-Backend selection: `scenario.yaml` `backend.kind`, env var `SSOS_ECLSS_BACKEND`, CLI `--mock` / `--ros2`.
+Backend selection: `scenario.yaml` `backend.kind`, env var `SSOS_ECLSS_BACKEND`, CLI `--backend mock|ros2` (or `ea run … --backend mock`).
 
 | Method | Description |
 | --- | --- |
@@ -360,7 +366,7 @@ Backend selection: `scenario.yaml` `backend.kind`, env var `SSOS_ECLSS_BACKEND`,
 | `request_product_water(liters)` | Service |
 | `set_subsystem_failure(name, enabled)` | Failure injection |
 
-Implementation: `environment/ssos/eclss_backend.py`, `ros2_eclss_bridge.py`, `graph_rewire.py` (client remap).
+Implementation: `environment/ssos/eclss/backend.py`, `eclss/ros2/bridge.py`, `eclss/ros2/graph_rewire.py` (client remap).
 
 ### EclssTelemetrySnapshot — `telemetry.jsonl`
 
@@ -379,6 +385,8 @@ Implementation: `environment/ssos/eclss_backend.py`, `ros2_eclss_bridge.py`, `gr
 | `co2_storage_kg` | `/co2_storage` |
 | `o2_storage_kg` | `/o2_storage` |
 | `product_water_reserve_l` | `/wrs/product_water_reserve` |
+
+When operational commands run in a step, a second row may be appended with `"post_ops": true` (L5). Readers (dashboard) prefer `post_ops` / the last row for that step so UI matches `summary.json`.
 
 ### EclssOperationalCommand — runtime
 
@@ -408,6 +416,8 @@ Thresholds from `scenario.yaml` `thresholds`.
 ```json
 {"step": 3, "co2_status": "warning", "o2_status": "safe", "water_status": "safe", "overall": "warning"}
 ```
+
+Same optional `"post_ops": true` duplicate-row rule as `telemetry.jsonl` when ops refresh health in-step.
 
 | Metric | safe | warning | critical |
 | --- | --- | --- | --- |
@@ -544,7 +554,7 @@ Every step, **before** agent action. Snapshot of `ssos_graph` (includes `rewires
 
 ```bash
 # mock (host)
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode labeled_rule_base
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
 
 # ros2 (SSOS Docker)
 ./scripts/run_ssos_eclss_loop.sh --agents-mode labeled_rule_base

@@ -92,7 +92,7 @@ output:
 team:
   count: 4
   id_prefix: engineer
-  # 任意: 思考レンズ（round-robin → engineer_1..N）。llm のみ有効;
+  # 任意: 思考レンズ（round-robin → engineer_1..N）。llm プロンプトのみ影響;
   # labeled は persona 無視。summary.json["archetypes"] には常に記録。
   archetypes: [first_principles, failure_mode, improviser, systems_integrator]
   persona: |

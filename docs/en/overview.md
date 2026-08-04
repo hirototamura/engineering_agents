@@ -390,9 +390,9 @@ To use a different model or run name, change `llm.model` in `agents.yaml` or ove
 #### mock (host, no ROS2)
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode none
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode labeled_rule_base
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode none
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 ```
 
 Example output: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`
@@ -420,7 +420,7 @@ Inside container: `ea-loop --agents-mode labeled_rule_base` (requires synced `sr
 Apply prior run design proposals:
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm \
   --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 

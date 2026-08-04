@@ -55,12 +55,18 @@ from environment.ssos.eclss.types import (
     ServiceResult,
     WrsGoal,
 )
+from environment.ssos.eclss.units import g_to_kg, kg_to_g
 
 _SELF_DIAGNOSIS_BY_SUBSYSTEM = {
     "ars": TOPIC_ARS_SELF_DIAGNOSIS,
     "ogs": TOPIC_OGS_SELF_DIAGNOSIS,
     "wrs": TOPIC_WRS_SELF_DIAGNOSIS,
 }
+
+
+def _action_goal_succeeded(combined: str) -> bool:
+    """True only when the CLI reports SUCCEEDED (Result: alone is not enough)."""
+    return "Goal finished with status: SUCCEEDED" in combined
 
 
 def _force_cli_telemetry() -> bool:
@@ -120,6 +126,10 @@ class Ros2EclssBridge:
         else:
             co2, o2, water = self._poll_telemetry_cli()
 
+        # SSOS mass topics publish grams; expose kilograms internally.
+        co2_kg = g_to_kg(co2) if co2 is not None else None
+        o2_kg = g_to_kg(o2) if o2 is not None else None
+
         raw: dict[str, object] = {}
         if co2 is not None:
             raw[TOPIC_CO2_STORAGE] = co2
@@ -128,8 +138,8 @@ class Ros2EclssBridge:
         if water is not None:
             raw[TOPIC_WRS_PRODUCT_WATER_RESERVE] = water
         return EclssTelemetrySnapshot(
-            co2_storage_kg=co2,
-            o2_storage_kg=o2,
+            co2_storage_kg=co2_kg,
+            o2_storage_kg=o2_kg,
             product_water_reserve_l=water,
             ars_failure_enabled=self._failure_flags["ars"],
             ogs_failure_enabled=self._failure_flags["ogs"],
@@ -151,8 +161,9 @@ class Ros2EclssBridge:
         )
 
     def send_air_revitalisation_goal(self, goal: ArsGoal) -> ActionResult:
+        # SSOS action fields expect grams for CO₂ mass.
         goal_yaml = (
-            f"{{initial_co2_mass: {goal.initial_co2_mass}, "
+            f"{{initial_co2_mass: {kg_to_g(goal.initial_co2_mass)}, "
             f"initial_moisture_content: {goal.initial_moisture_content}, "
             f"initial_contaminants: {goal.initial_contaminants}}}"
         )
@@ -163,23 +174,25 @@ class Ros2EclssBridge:
         )
         if err:
             return ActionResult(success=False, summary_message=err)
-        success = "Goal finished with status: SUCCEEDED" in combined or "Result:" in combined
+        success = _action_goal_succeeded(combined)
         summary = extract_string(combined, r"summary_message:\s*'([^']*)'") or extract_string(
             combined, r'summary_message:\s*"([^"]*)"'
         )
+        co2_vented_g = extract_float(combined, r"total_co2_vented:\s*([-+]?[0-9]*\.?[0-9]+)")
         return ActionResult(
             success=success,
             summary_message=summary or "",
             details={
                 "cycles_completed": extract_float(combined, r"cycles_completed:\s*([-+]?[0-9]*\.?[0-9]+)"),
                 "total_vents": extract_float(combined, r"total_vents:\s*([-+]?[0-9]*\.?[0-9]+)"),
-                "total_co2_vented": extract_float(combined, r"total_co2_vented:\s*([-+]?[0-9]*\.?[0-9]+)"),
+                "total_co2_vented": g_to_kg(co2_vented_g) if co2_vented_g is not None else None,
             },
         )
 
     def send_oxygen_generation_goal(self, goal: OgsGoal) -> ActionResult:
+        # SSOS action fields expect grams for water mass; O₂/CH₄ results are grams.
         goal_yaml = (
-            f"{{input_water_mass: {goal.input_water_mass}, "
+            f"{{input_water_mass: {kg_to_g(goal.input_water_mass)}, "
             f"iodine_concentration: {goal.iodine_concentration}}}"
         )
         combined, err = self._send_action_goal(
@@ -189,20 +202,18 @@ class Ros2EclssBridge:
         )
         if err:
             return ActionResult(success=False, summary_message=err)
-        success = "Goal finished with status: SUCCEEDED" in combined or "Result:" in combined
+        success = _action_goal_succeeded(combined)
         summary = extract_string(combined, r"summary_message:\s*'([^']*)'") or extract_string(
             combined, r'summary_message:\s*"([^"]*)"'
         )
+        o2_g = extract_float(combined, r"total_o2_generated:\s*([-+]?[0-9]*\.?[0-9]+)")
+        ch4_g = extract_float(combined, r"total_ch4_vented:\s*([-+]?[0-9]*\.?[0-9]+)")
         return ActionResult(
             success=success,
             summary_message=summary or "",
             details={
-                "total_o2_generated": extract_float(
-                    combined, r"total_o2_generated:\s*([-+]?[0-9]*\.?[0-9]+)"
-                ),
-                "total_ch4_vented": extract_float(
-                    combined, r"total_ch4_vented:\s*([-+]?[0-9]*\.?[0-9]+)"
-                ),
+                "total_o2_generated": g_to_kg(o2_g) if o2_g is not None else None,
+                "total_ch4_vented": g_to_kg(ch4_g) if ch4_g is not None else None,
             },
         )
 
@@ -215,7 +226,7 @@ class Ros2EclssBridge:
         )
         if err:
             return ActionResult(success=False, summary_message=err)
-        success = "Goal finished with status: SUCCEEDED" in combined or "Result:" in combined
+        success = _action_goal_succeeded(combined)
         summary = extract_string(combined, r"summary_message:\s*'([^']*)'") or extract_string(
             combined, r'summary_message:\s*"([^"]*)"'
         )
@@ -231,19 +242,29 @@ class Ros2EclssBridge:
         )
 
     def request_o2(self, amount: float) -> ServiceResult:
-        return self._call_service(
+        result = self._call_service(
             self._ros_name(SERVICE_OGS_REQUEST_O2),
             SERVICE_TYPE_O2_REQUEST,
-            f"{{o2_req: {amount}}}",
+            f"{{o2_req: {kg_to_g(amount)}}}",
             response_field="o2_resp",
+        )
+        return ServiceResult(
+            success=result.success,
+            response_value=g_to_kg(result.response_value),
+            message=result.message,
         )
 
     def request_co2(self, amount: float) -> ServiceResult:
-        return self._call_service(
+        result = self._call_service(
             self._ros_name(SERVICE_ARS_REQUEST_CO2),
             SERVICE_TYPE_CO2_REQUEST,
-            f"{{co2_req: {amount}}}",
+            f"{{co2_req: {kg_to_g(amount)}}}",
             response_field="co2_resp",
+        )
+        return ServiceResult(
+            success=result.success,
+            response_value=g_to_kg(result.response_value),
+            message=result.message,
         )
 
     def request_product_water(self, liters: float) -> ServiceResult:

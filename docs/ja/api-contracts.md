@@ -129,6 +129,8 @@ Python モック（`StationSimulator`）上の CO₂ スクラバー異常シナ
 | `eps_support_w` | EPS 一時支援ワット |
 | `anomaly_flags` | 有効な異常名 |
 
+運用コマンドがあった step では、`"post_ops": true` 付きの 2 行目が追記されうる（L5、`ssos_eclss_loop` と同規約）。ダッシュボード等の読取側は `post_ops`／同 step の最終行を優先し、`summary.json` と揃える。
+
 ### RecoveryCommand — ランタイム
 
 `apply_command()` で適用される一時操作。
@@ -150,11 +152,13 @@ Python モック（`StationSimulator`）上の CO₂ スクラバー異常シナ
 
 ### ヘルス — `health_metrics.jsonl`
 
-`compute_health_metrics()` — `src/environment/eclss_ops/telemetry.py`
+`compute_health_metrics()` — `src/environment/scrubber/eclss_ops/telemetry.py`
 
 ```json
 {"step": 5, "co2_status": "safe", "power_status": "safe", "overall": "safe"}
 ```
+
+ops 後に health を更新する場合、scrubber `telemetry.jsonl` と同様に `"post_ops": true` の重複行がありうる。
 
 | 指標 | safe | warning | critical |
 | --- | --- | --- | --- |
@@ -259,6 +263,8 @@ Python モック（`StationSimulator`）上の CO₂ スクラバー異常シナ
 }
 ```
 
+同一 step で回復コマンド後に EPS を更新する場合、`"post_ops": true` 付き行が追記されうる。
+
 ### summary.json
 
 ```json
@@ -345,7 +351,7 @@ SSOS Docker 内の実 ROS2 ECLSS（または `LoopMockEclssBackend`）を操作�
 | `LoopMockEclssBackend` | ホスト dev / pytest（簡易ストレージ動態） |
 | `Ros2EclssBridge` | SSOS Docker 内 `ros2` CLI ブリッジ |
 
-backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BACKEND`、CLI `--mock` / `--ros2`。
+backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BACKEND`、CLI `--backend mock|ros2`（または `ea run … --backend mock`）。
 
 | メソッド | 説明 |
 | --- | --- |
@@ -357,7 +363,7 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 | `request_product_water(liters)` | Service |
 | `set_subsystem_failure(name, enabled)` | 故障注入 |
 
-実装: `environment/ssos/eclss_backend.py`、`ros2_eclss_bridge.py`、`graph_rewire.py`（client remap）。
+実装: `environment/ssos/eclss/backend.py`、`eclss/ros2/bridge.py`、`eclss/ros2/graph_rewire.py`（client remap）。
 
 ### EclssTelemetrySnapshot — `telemetry.jsonl`
 
@@ -376,6 +382,8 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 | `co2_storage_kg` | `/co2_storage` |
 | `o2_storage_kg` | `/o2_storage` |
 | `product_water_reserve_l` | `/wrs/product_water_reserve` |
+
+運用コマンドがあった step では、`"post_ops": true` 付きの 2 行目が追記されうる（L5）。ダッシュボード等の読取側は `post_ops`／同 step の最終行を優先し、`summary.json` と揃える。
 
 ### EclssOperationalCommand — ランタイム
 
@@ -405,6 +413,8 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 ```json
 {"step": 3, "co2_status": "warning", "o2_status": "safe", "water_status": "safe", "overall": "warning"}
 ```
+
+ops 後に health を更新する場合、`telemetry.jsonl` と同様に `"post_ops": true` の重複行がありうる。
 
 | 指標 | safe | warning | critical |
 | --- | --- | --- | --- |
@@ -541,7 +551,7 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 
 ```bash
 # mock（ホスト）
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode labeled_rule_base
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
 
 # ros2（SSOS Docker）
 ./scripts/run_ssos_eclss_loop.sh --agents-mode labeled_rule_base

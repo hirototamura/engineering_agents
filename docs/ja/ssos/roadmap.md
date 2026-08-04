@@ -1,6 +1,6 @@
 # ロードマップ — Phase 0–8
 
-`main` ブランチにおける SSOS 接合の進捗とバックログです。[development-plan.md](../development-plan.md) も参照してください。
+`main` ブランチにおける SSOS 接合の進捗とバックログです。[development-plan.md](../development-plan.md) も参照。
 
 ---
 
@@ -14,10 +14,10 @@
 | **2** | + WRS | ✅ **完了** | `run_ssos_eclss_2_smoke.sh`、水トレードオフ信号 |
 | **3** | EPS ROS2 接合 | ✅ **完了** | `EpsBackend`, `run_ssos_eps_smoke.sh`, `eps.backend` 切替 |
 | **4** | `ssos_eclss_loop` + `SsosEclssLoopTeam` | ✅ **完了** | mock/ros2 シナリオ実行、telemetry JSONL |
-| **5** | `operational_proposals.json` + `design_proposals.json` + `--apply-proposals` | ✅ **完了** | 事後提案と次 run への適用 |
-| **6** | LLM エージェント + Docker `ea-loop`（ros2 / Ollama デフォルト） | ✅ **完了** | LLM モードのコンテナループ |
-| **7** | クライアント `graph_rewire`、`Team` ABC、SSOS ダッシュボードビュー | ✅ **完了** | リマップクライアント + ダッシュボード |
-| **8** | ROS launch remap + ゲートウェイ | 📋 **バックログ** | launch 時の `graph_rewire` 適用（[BL-003](../memo/backlog.md#bl-003)） |
+| **5** | `design_proposals.json` + `--apply-proposals` | ✅ **完了** | 事後提案と次 run への適用 |
+| **6** | LLM エージェント + Docker `ea-loop`（ros2 / Ollama デフォルト） | ✅ **完了** | コンテナ内 LLM モード |
+| **7** | クライアント `graph_rewire`、`Team` ABC、SSOS ダッシュボード | ✅ **完了** | Remap クライアント + ダッシュボード |
+| **8** | ROS launch remap + ゲートウェイ | 📋 **バックログ** | 起動時 `graph_rewire` 適用（[BL-003](../memo/backlog.md#bl-003)） |
 
 ```mermaid
 gantt
@@ -33,7 +33,7 @@ gantt
   Phase 3 EPS bridge            :done, p3, 2026-06-13, 4d
   section シナリオ
   Phase 4 ssos_eclss_loop       :done, p4, 2026-06-14, 3d
-  Phase 5 operational + design proposals :done, p5, 2026-06-15, 7d
+  Phase 5 design proposals + apply :done, p5, 2026-06-15, 7d
   Phase 6 LLM + ea-loop         :done, p6, 2026-06-18, 5d
   Phase 7 graph_rewire + dashboard :done, p7, 2026-06-20, 5d
   section バックログ
@@ -48,7 +48,7 @@ gantt
 | --- | --- |
 | `SimulatorProtocol.apply_design_change` | 削除 |
 | `scrubber_degradation` | Mock 凍結、事後 `design_proposals.json` 維持 |
-| 新提案形式 | `operational_proposals.json`、`design_proposals.json`（`ssos_graph`）— Phase 5 |
+| 新提案形式 | `design_proposals.json`（`design_domain: ssos_graph`）— Phase 5 |
 
 ---
 
@@ -131,8 +131,7 @@ gantt
 
 | 項目 | 説明 |
 | --- | --- |
-| `operational_proposals.json` | 事後提案: `set_parameter` / `action_profile` / `service_config` |
-| `design_proposals.json` | `design_domain: ssos_graph` トポロジ提案 |
+| `design_proposals.json` | 事後提案（`design_domain: ssos_graph`）: `set_parameter` / `action_profile` / `service_config` / `graph_rewire` |
 | `--apply-proposals` | 次 run への提案適用 |
 
 ### Action/Service 提案の適用可否
@@ -150,9 +149,9 @@ gantt
 
 | 項目 | 説明 |
 | --- | --- |
-| LLM エージェントモード | `agents.mode: llm`（Ollama） |
+| LLM エージェントモード | `agents.mode: llm` + Ollama |
 | Docker `ea-loop` | ros2 / Ollama デフォルトのコンテナエントリ |
-| `run_ssos_eclss_loop.sh` | コンテナ実行のホストラッパ |
+| `run_ssos_eclss_loop.sh` | コンテナ実行用ホストラッパ |
 
 ---
 
@@ -160,9 +159,9 @@ gantt
 
 | 項目 | 説明 |
 | --- | --- |
-| クライアント `graph_rewire` | 設計提案から SSOS グラフ辺をリマップ |
-| `Team` ABC | scrubber / ssos 共通のチームインターフェース |
-| SSOS ダッシュボードビュー | 貯蔵 kg / 運用タイムライン |
+| クライアント `graph_rewire` | 設計提案から SSOS グラフ辺を remap |
+| `Team` ABC | scrubber / ssos 共通チーム IF |
+| SSOS ダッシュボード | 貯蔵 kg / 運用タイムライン |
 
 ---
 
@@ -170,8 +169,8 @@ gantt
 
 | 項目 | 説明 |
 | --- | --- |
-| ROS launch remap | launch 時の `graph_rewire` 適用（[BL-003](../memo/backlog.md#bl-003)） |
-| ゲートウェイ接合 | リマップ用 ROS グラフゲートウェイ（[調査メモ](../memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md)） |
+| ROS launch remap | 起動時に `graph_rewire` を適用（[BL-003](../memo/backlog.md#bl-003)） |
+| ゲートウェイ統合 | remap 用 ROS グラフゲートウェイ（[調査メモ](../memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md)） |
 
 ---
 
@@ -179,11 +178,11 @@ gantt
 
 | 項目 | 説明 |
 | --- | --- |
-| `ssos_eclss_loop` + EPS 統合シナリオ | 単一 run で ECLSS ros2 + EPS ros2（[BL-004](../memo/backlog.md)） |
+| `ssos_eclss_loop` + EPS 統合シナリオ | ECLSS ros2 + EPS ros2 を単一 run で（[BL-004](../memo/backlog.md)） |
 | rclpy ネイティブクライアント | CLI ブリッジからの移行（性能） |
 | `/bcdu/operation` Action | SSOS upstream PR（Phase 3c / [BL-005](../memo/backlog.md)） |
 | One Piece 要求 pull | 監督要求の正本連携（別リポジトリ） |
-| `SsosEclssLoopTeam` での WRS | [BL-004](../memo/backlog.md) |
+| `SsosEclssLoopTeam` の WRS | [BL-004](../memo/backlog.md) |
 
 ---
 
@@ -199,7 +198,7 @@ gantt
 
 ```bash
 python3 -m pytest --ignore=tests/e2e
-# 期待: 205 passed, 4 skipped（ROS2 live / コンテナ外は skip）
+# 期待: 238 passed, 4 skipped（ROS2 実機 / コンテナ外テストは skip）
 ```
 
 ---
