@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -45,6 +46,7 @@ _OGS_GOAL_FIELDS = frozenset({"input_water_mass", "iodine_concentration"})
 class EclssLoopTeamState:
     alert_sent: bool = False
     ars_invoked: bool = False
+    ars_critical_escalated: bool = False
     co2_requested: bool = False
     ogs_invoked: bool = False
     co2_at_ars_dispatch: Optional[float] = None
@@ -107,6 +109,7 @@ class SsosEclssLoopTeam(Team):
             proposed_by=rep,
             decision_source="rule",
             policy=self.policy,
+            summary=summary,
             baseline_graph=baseline_graph or None,
         )
 
@@ -150,23 +153,24 @@ class SsosEclssLoopTeam(Team):
     def _run_step_labeled(self, obs: EclssLoopObservation) -> StepEclssOutcome:
         outcome = StepEclssOutcome()
         rep = self.team_cfg.action_rep_id(obs.step)
-        agent_ids = self.team_cfg.agent_ids
-        n = len(agent_ids)
         co2_high = float(self.policy.get("co2_storage_high_kg", 1.5))
+        co2_critical = float(self.policy.get("co2_storage_critical_kg", 2.2))
         o2_low = float(self.policy.get("o2_storage_low_kg", 0.45))
         co2 = obs.telemetry.co2_storage_kg
         o2 = obs.telemetry.o2_storage_kg
 
         if co2 is not None and co2 >= co2_high and not self.state.alert_sent:
-            commenter = agent_ids[obs.step % n]
+            commenter = rep
             self.state.alert_sent = True
+            band = "critical" if co2 >= co2_critical else "high"
             outcome.messages.append(
                 AgentMessage(
                     step=obs.step,
                     from_role=commenter,
                     to_role="team",
                     message=(
-                        f"CO2 storage {co2:.1f} kg exceeds high band {co2_high:.1f} kg."
+                        f"CO2 storage {co2:.1f} kg exceeds {band} band "
+                        f"({co2_critical:.1f} kg critical / {co2_high:.1f} kg high)."
                     ),
                     message_type="alert",
                     reasoning="Storage telemetry threshold crossed.",
@@ -174,7 +178,9 @@ class SsosEclssLoopTeam(Team):
                 )
             )
 
-        messages, commands = self._labeled_recovery(obs, rep, co2_high, o2_low, co2, o2)
+        messages, commands = self._labeled_recovery(
+            obs, rep, co2_high, co2_critical, o2_low, co2, o2
+        )
         outcome.messages.extend(messages)
         outcome.commands.extend(commands)
         return outcome
@@ -189,6 +195,7 @@ class SsosEclssLoopTeam(Team):
         """Re-arm one-shot flags when telemetry returns to the safe band."""
         if co2 is not None and co2 < co2_high:
             self.state.ars_invoked = False
+            self.state.ars_critical_escalated = False
             self.state.alert_sent = False
             self.state.co2_at_ars_dispatch = None
         elif (
@@ -216,6 +223,7 @@ class SsosEclssLoopTeam(Team):
         obs: EclssLoopObservation,
         rep: str,
         co2_high: float,
+        co2_critical: float,
         o2_low: float,
         co2: Optional[float],
         o2: Optional[float],
@@ -224,8 +232,19 @@ class SsosEclssLoopTeam(Team):
         messages: List[AgentMessage] = []
         commands: List[EclssOperationalCommand] = []
 
-        if co2 is not None and co2 >= co2_high and not self.state.ars_invoked:
+        in_critical = co2 is not None and co2 >= co2_critical
+        # High/warning band is one-shot (ars_invoked). Critical band keeps
+        # recovering until CO₂ leaves critical — otherwise a partial ARS drop
+        # that stays >= critical stalls with both latches set.
+        need_ars = co2 is not None and co2 >= co2_high and (
+            not self.state.ars_invoked or in_critical
+        )
+        if need_ars:
             ars_payload = dict(self.policy.get("ars_goal", {}))
+            if in_critical:
+                # Escalate processed mass when verification critical band is breached (T3).
+                base_mass = float(ars_payload.get("initial_co2_mass", 1.8))
+                ars_payload["initial_co2_mass"] = base_mass * 1.5
             commands.append(
                 EclssOperationalCommand(
                     kind="air_revitalisation",
@@ -235,20 +254,34 @@ class SsosEclssLoopTeam(Team):
             )
             self.state.ars_invoked = True
             self.state.co2_at_ars_dispatch = co2
+            if in_critical:
+                self.state.ars_critical_escalated = True
+            reason = (
+                f"CO2 storage {co2:.1f} kg >= critical {co2_critical:.1f} kg; escalated ARS."
+                if in_critical
+                else f"CO2 storage {co2:.1f} kg >= {co2_high:.1f} kg."
+            )
             messages.append(
                 AgentMessage(
                     step=obs.step,
                     from_role=rep,
                     to_role="team",
-                    message="Starting ARS air_revitalisation to vent CO2 from storage.",
+                    message=(
+                        "Starting escalated ARS air_revitalisation (critical band)."
+                        if in_critical
+                        else "Starting ARS air_revitalisation to vent CO2 from storage."
+                    ),
                     message_type="operational_command",
-                    reasoning=f"CO2 storage {co2:.1f} kg >= {co2_high:.1f} kg.",
+                    reasoning=reason,
                     metadata=self._rule_metadata(),
                 )
             )
 
         if o2 is not None and o2 <= o2_low and not self.state.ogs_invoked:
-            if self.policy.get("request_co2_before_ogs", True) and not self.state.co2_requested:
+            # Opt-in: explicit request_co2 before OGS. Default is false because real SSOS
+            # OGS already calls /ars/request_co2 for Sabatier. With LoopMock (no CO₂ buffer),
+            # true also runs OGS Sabatier storage debit in the same step → double CO₂ draw.
+            if self.policy.get("request_co2_before_ogs", False) and not self.state.co2_requested:
                 amount = float(self.policy.get("request_co2_amount", 0.025))
                 commands.append(
                     EclssOperationalCommand(
@@ -569,6 +602,8 @@ class SsosEclssLoopTeam(Team):
                 amount = float(payload.get("amount"))
             except (TypeError, ValueError):
                 return None, f"{kind} payload.amount must be numeric"
+            if not math.isfinite(amount) or amount <= 0.0:
+                return None, f"{kind} payload.amount must be finite and positive"
             return (
                 EclssOperationalCommand(kind=kind, payload={"amount": amount}, issued_by=issued_by),
                 None,
@@ -588,9 +623,13 @@ class SsosEclssLoopTeam(Team):
             if key not in allowed:
                 continue
             try:
-                normalized[key] = float(value)
+                number = float(value)
             except (TypeError, ValueError):
                 return None
+            # L7/D5: reject NaN/Inf/negative quantities from LLM payloads.
+            if not math.isfinite(number) or number < 0.0:
+                return None
+            normalized[key] = number
         return normalized or None
 
     def _llm_skip(
@@ -648,8 +687,14 @@ class SsosEclssLoopTeam(Team):
                 "message": f"unsupported command kind: {kind}",
             }
 
+        success = bool(getattr(result, "success", False))
+        event_kind = (
+            "/eclss/events/operational_applied"
+            if success
+            else "/eclss/events/operational_rejected"
+        )
         return {
-            "kind": "/eclss/events/operational_applied",
+            "kind": event_kind,
             "command": cmd.to_dict(),
             "result": result.to_dict(),
             "message": getattr(result, "summary_message", None) or getattr(result, "message", ""),
@@ -680,7 +725,9 @@ _ECLSS_OPERATIONAL_LEVERS = """\
   initial_moisture_content (percent 0–100), initial_contaminants (percent 0–100).
 - oxygen_generation: OGS action — payload fields input_water_mass (kg),
   iodine_concentration (mg/L).
-- request_co2: Service call — payload {"amount": <kg>} Sabatier feedstock before OGS when needed.
+- request_co2: Service call — payload {"amount": <kg>} optional Sabatier feedstock;
+  default policy leaves this to OGS-internal /ars/request_co2 (use only when
+  request_co2_before_ogs is explicitly enabled or discourse justifies it).
 - request_o2: Service call — payload {"amount": <kg>} withdraw O2 from plant /o2_storage reserve.
 Actions are asynchronous; issue only commands justified by Telemetry and team discourse."""
 

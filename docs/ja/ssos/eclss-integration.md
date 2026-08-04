@@ -183,7 +183,7 @@ sequenceDiagram
   BE->>SSOS: ros2 action send_goal air_revitalisation
   SSOS-->>BE: SUCCEEDED
 
-  Agent->>BE: request_co2(25.0)
+  Agent->>BE: request_co2(0.025)
   BE->>SSOS: ros2 service call /ars/request_co2
   SSOS-->>BE: success
 
