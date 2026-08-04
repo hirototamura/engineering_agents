@@ -139,15 +139,22 @@ def build_step_node_numbers(
                 nodes["crew"].append(line)
 
     if telemetry_row:
+        topic = plant_sim_topic(telemetry_row)
+        # plant_sim maps cabin CO2 → co2_storage_kg; mock/ros2 use /co2_storage tank.
+        co2_line = _fmt_metric(
+            "cabin CO2" if topic else "CO2 storage",
+            telemetry_row.get("co2_storage_kg"),
+            "kg",
+        )
+        if co2_line:
+            nodes["cabin" if topic else "co2_tank"].append(co2_line)
         for key, label, unit in (
-            ("co2_storage_kg", "cabin CO2", "kg"),
             ("o2_storage_kg", "available O2", "kg"),
             ("product_water_reserve_l", "product water", "L"),
         ):
             line = _fmt_metric(label, telemetry_row.get(key), unit)
             if line:
                 nodes["cabin"].append(line)
-        topic = plant_sim_topic(telemetry_row)
         if topic:
             for key, label, unit in (
                 ("captured_co2_kg", "captured CO2", "kg"),
