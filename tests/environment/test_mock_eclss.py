@@ -4,15 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from environment.eclss_ops.telemetry import compute_health_metrics, co2_health
+from environment.scrubber.eclss_ops.telemetry import compute_health_metrics, co2_health
 from environment.protocol import (
     AnomalySpec,
     CommandKind,
     HealthStatus,
     RecoveryCommand,
 )
-from environment.eclss_ops.design_state import DesignStateManager
-from environment.ssos.mock_eclss import MockEclssSimulator
+from environment.scrubber.eclss_ops.design_state import DesignStateManager
+from environment.scrubber.mock_eclss import MockEclssSimulator
 
 
 def test_baseline_step_produces_telemetry():
@@ -70,6 +70,14 @@ def test_design_dict_change_adds_bypass_edge():
         {"node_a": "manifold", "node_b": "scrubber", "kind": "bypass"},
     )
     assert any(e.kind == "bypass" for e in state.topology.edges)
+
+
+def test_power_draw_uses_unified_margin_factor():
+    sim = MockEclssSimulator(initial_power_margin_w=150.0)
+    before = sim.power_margin_w
+    sim.step()
+    # default: (200 + 80*0.7) * 0.01875 = 4.8
+    assert before - sim.power_margin_w == pytest.approx(4.8)
 
 
 def test_health_metrics_critical_on_high_co2():

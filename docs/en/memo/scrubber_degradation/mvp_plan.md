@@ -1,4 +1,3 @@
-> Japanese: [../../../ja/memo/scrubber_degradation/mvp_plan.md](../../../ja/memo/scrubber_degradation/mvp_plan.md)
 
 # ECLSS Resilience Loop — Directory Layout & 1-Week MVP Plan
 
@@ -219,8 +218,8 @@ Details in [backlog.md](../backlog.md).
 ## References
 
 - **EPS day-by-day plan**: [eps_implementation_plan.md](eps_implementation_plan.md)
-- Doc index: [README.md](../../README.md#documentation), dev plan: [docs/development-plan.md](../../../development-plan.md)
-- API contracts: [docs/api-contracts.md](../../../api-contracts.md)
-- Architecture: [docs/architecture.md](../../../architecture.md)
-- Scenario: [docs/scenario-scrubber-degradation.md](../../../scenario-scrubber-degradation.md)
-- One Piece: [docs/one-piece-integration.md](../../../one-piece-integration.md)
+- Doc index: [README.md](../../overview.md#documentation), dev plan: [docs/development-plan.md](../../development-plan.md)
+- API contracts: [docs/api-contracts.md](../../api-contracts.md)
+- Architecture: [docs/architecture.md](../../architecture.md)
+- Scenario: [docs/scenario-scrubber-degradation.md](../../scenario-scrubber-degradation.md)
+- One Piece: [docs/one-piece-integration.md](../../one-piece-integration.md)

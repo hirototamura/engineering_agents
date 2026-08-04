@@ -4,7 +4,7 @@ MVP スコープ外だが、価値がありトラックしておくテーマ。�
 
 ---
 
-## BL-001: ロールラベル付与 vs 創発ロール（Base Role）
+## BL-001: ロールラベル付与 vs 創発ロール（Base Role） { #bl-001 }
 
 **ステータス**: 検討中（Week-1 以降）  
 **関連**: Day 4 エージェントチーム設計、lunar_agents の structured communication 実験
@@ -46,7 +46,7 @@ MVP スコープ外だが、価値がありトラックしておくテーマ。�
 
 ---
 
-## BL-002: 進化論的ペルソナ形成（同種 vs 多種チーム）
+## BL-002: 進化論的ペルソナ形成（同種 vs 多種チーム） { #bl-002 }
 
 **ステータス**: 検討中（同種 N 体チーム導入後）  
 **関連**: 同種エージェントチーム再設計プラン、BL-001（創発ロール）、Day 8 persona ワークショップ、ハードウェア開発組織論
@@ -86,7 +86,7 @@ MVP スコープ外だが、価値がありトラックしておくテーマ。�
 
 ---
 
-## BL-003: ROS launch remap（Phase 8 — graph_rewire A）
+## BL-003: ROS launch remap（Phase 8 — graph_rewire A） { #bl-003 }
 
 **ステータス**: 未着手（Phase 7 クライアント remap 完了後）  
 **関連**: [ssos_eclss_loop_connection_plan.md](ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) Phase 7a、[ssos_ros2_graph_design_investigation.md](ssos_eclss_loop/ssos_ros2_graph_design_investigation.md)
@@ -125,7 +125,7 @@ Phase 7a は **`Ros2EclssBridge` クライアント側 remap** のみ。SSOS ノ
 
 ---
 
-## BL-004: SSOS ECLSS ループ — フォローアップ
+## BL-004: SSOS ECLSS ループ — フォローアップ { #bl-004 }
 
 **ステータス**: 未着手  
 **関連**: [ssos_eclss_loop_connection_plan.md](ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)（Phase 0–7 完了）
@@ -144,14 +144,14 @@ Phase 7a は **`Ros2EclssBridge` クライアント側 remap** のみ。SSOS ノ
 
 | 項目 | メモ |
 |------|------|
-| `co2_critical` 未使用（labeled） | health は critical を評価するが labeled ルールは `co2_high` のみ |
+| `co2_critical` 未使用（labeled） | ~~health は critical を評価するが labeled ルールは `co2_high` のみ~~ → **修正済（T3）**: critical 帯で ARS をエスカレート再発行 |
 | One Piece provenance ヒューリスティック | operational イベントの message パース依存 |
 | labeled が command failure を無視 | 次ステップのルール分岐に未反映 |
 | `set_parameter` 任意パス | 本番 SSOS では allowlist 推奨 |
 
 ---
 
-## BL-005: SSOS EPS ROS2 ブリッジ — フォローアップ
+## BL-005: SSOS EPS ROS2 ブリッジ — フォローアップ { #bl-005 }
 
 **ステータス**: Phase 3a 完了（PR-1〜4）、残り未着手  
 **関連**: [ssos_eps_ros2_connection_plan.md](ssos_eclss_loop/ssos_eps_ros2_connection_plan.md)
@@ -181,7 +181,7 @@ Phase 7a は **`Ros2EclssBridge` クライアント側 remap** のみ。SSOS ノ
 
 ---
 
-## BL-006: SSOS run 再現性・ダッシュボード強化（CLI v3 スコープ外）
+## BL-006: SSOS run 再現性・ダッシュボード強化（CLI v3 スコープ外） { #bl-006 }
 
 **ステータス**: 未着手（CLI v3 マウント + `ea run` 完了後）  
 **関連**: [cli_v3_plan.md](cli_v3_plan.md)、[scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md)
@@ -220,7 +220,7 @@ CLI v3 では **ホスト 1 コマンド実行と results マウント** に集�
 
 ---
 
-## BL-007: SSOS ↔ EA 時間・step 同期（接続の次段階）
+## BL-007: SSOS ↔ EA 時間・step 同期（接続の次段階） { #bl-007 }
 
 **ステータス**: 検討中（CLI v3 / Phase 8 とは別トラック）  
 **関連**: [scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md)、[ssos_eclss_physical_phenomena_overview.md](ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md)、BL-004（WRS mock）、BL-006（run 境界の再現性）

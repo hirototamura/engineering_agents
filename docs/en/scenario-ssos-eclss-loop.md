@@ -1,10 +1,9 @@
-> Japanese: [../ja/scenario-ssos-eclss-loop.md](../ja/scenario-ssos-eclss-loop.md)
 
 # Scenario: ssos_eclss_loop
 
 Reference scenario where an **agent team** operates real ROS2 **ECLSS** (Environmental Control and Life Support System) inside **SSOS** (Space Station OS) Docker instead of Crew Simulation. The team monitors **storage kg** for CO₂ / O₂ / product water, issues operational commands (ARS / OGS, etc.) when thresholds are exceeded, and proposes permanent `ssos_graph` design after the run.
 
-> Run commands: [README.md](README.md#how-to-run) and [How to run](#how-to-run) below. Architecture: [architecture.md](architecture.md). Contrast with scrubber: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md).
+> Run commands: [Overview](overview.md#how-to-run) and [How to run](#how-to-run) below. Architecture: [architecture.md](architecture.md). Contrast with scrubber: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md).
 
 ---
 
@@ -67,7 +66,7 @@ Questions this scenario answers:
 | Topic | `/o2_storage` | O₂ storage (kg) |
 | Topic | `/wrs/product_water_reserve` | Product water (L) |
 
-Type constants: `src/environment/ssos/eclss_topics.py`. Bridge: `src/environment/ssos/ros2_eclss_bridge.py`.
+Type constants: `src/environment/ssos/eclss/ros2/topics.py`. Bridge: `src/environment/ssos/eclss/ros2/bridge.py`.
 
 ---
 
@@ -91,7 +90,9 @@ Baseline runs show how storage evolves without agent intervention.
 | Condition (typical) | Operational command |
 | --- | --- |
 | CO₂ ≥ `co2_storage_high_kg` (default 1500 kg) | `air_revitalisation` (ARS) |
-| O₂ ≤ `o2_storage_low_kg` (default 450 kg) | `request_co2` first (policy default ON) → `oxygen_generation` (OGS) |
+| O₂ ≤ `o2_storage_low_kg` (default 450 kg) | `oxygen_generation` (OGS); optional `request_co2` first when `request_co2_before_ogs: true` (default **false**) |
+
+**`request_co2_before_ogs`:** default off so feedstock matches real SSOS (OGS calls `/ars/request_co2` itself). Opt-in `true` (including via design proposals) can **double-debit CO₂ on LoopMock** in the same step: explicit `request_co2` plus OGS Sabatier storage subtract — LoopMock has no intermediate CO₂ buffer.
 
 **Re-arm**: If storage does not improve after ARS / OGS, the next step can retry (`co2_at_ars_dispatch` / `o2_at_ogs_dispatch` boundaries).
 
@@ -107,8 +108,8 @@ Each step: all N agents deliberate → representative issues `operational_comman
 
 | File | Purpose |
 | --- | --- |
-| [scenario.yaml](../../src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.mode`, run ID |
-| [agents.yaml](../../src/scenario/ssos_eclss_loop/agents.yaml) | Team (`eclss_operator_*`), Persona, `policy` (labeled only), Ollama |
+| [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.mode`, run ID |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Team (`eclss_operator_*`), Persona, `policy` (labeled only), Ollama |
 
 ### scenario.yaml (main fields)
 
@@ -152,7 +153,7 @@ team:
   id_prefix: eclss_operator
 
 policy:   # labeled_rule_base only. Thresholds merged from scenario.yaml at runtime
-  request_co2_before_ogs: true
+  request_co2_before_ogs: false
   request_co2_amount: 25.0
   ars_goal:
     initial_co2_mass: 1800.0
@@ -195,9 +196,9 @@ None of these are **permanent graph changes**. In `events.jsonl` they are record
 
 ### graph_rewire (client remap — Phase 7)
 
-`graph_rewire` in `design_proposals.json` or `ssos_graph.rewires` in `scenario.yaml` causes `Ros2EclssBridge` on the **next run** to replace topic names client-side for `ros2 topic echo`, etc. (`environment/ssos/graph_rewire.py`).
+`graph_rewire` in `design_proposals.json` or `ssos_graph.rewires` in `scenario.yaml` causes `Ros2EclssBridge` on the **next run** to replace topic names client-side for `ros2 topic echo`, etc. (`environment/ssos/eclss/ros2/graph_rewire.py`).
 
-ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a).
+ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 
 ---
 
@@ -210,7 +211,7 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003-ros-lau
 | IDs | `eclss_operator_1` … `eclss_operator_N` (default 3) |
 | deliberation | llm: one round for all. labeled: operational decision messages |
 | action rep | `eclss_operator_{(step-1) % N}` |
-| post-run rep | Representative at final step outputs `design_proposals.json` |
+| post-run rep | Representative at final step outputs `design_proposals.json` when `changes` is non-empty |
 
 `SsosEclssLoopTeam` extends the `Team` ABC. Signatures: `run_step(backend, obs)` / `apply_outcome(backend, outcome)`.
 
@@ -220,18 +221,18 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003-ros-lau
 | --- | --- | --- |
 | Decisions | `thresholds` + `policy` profile | Persona + storage telemetry + discussion |
 | Reproducibility | High | Model-dependent |
-| Post-run proposals | Rule-based `ssos_graph` | LLM generates `changes` |
+| Post-run proposals | Rule-based `ssos_graph` (non-empty when written; L8 fallback bumps goals/thresholds) | LLM generates `changes` (file omitted if empty) |
 | provenance | `operational_applied` → `record_type: operational` | Same |
 
 ---
 
-## How to run
+## How to run { #how-to-run }
 
 ### mock (host, no ROS2)
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode labeled_rule_base
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 ```
 
 ### ros2 (SSOS Docker)
@@ -251,7 +252,7 @@ Inside container directly: `ea-loop --agents-mode labeled_rule_base` (default `O
 ### Apply prior run design proposals to next run
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm \
   --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 
@@ -274,7 +275,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
 | `messages.jsonl` | `operational_command`, deliberation, reasoning |
 | `events.jsonl` | `operational_applied` / `operational_rejected` |
 | `design_state.jsonl` | `ssos_graph` snapshot each step (includes rewires) |
-| `design_proposals.json` | Post-run permanent `ssos_graph` proposals |
+| `design_proposals.json` | Post-run permanent `ssos_graph` proposals (written only when `changes` is non-empty) |
 | `summary.json` | Peak CO₂, operational count, backend kind, etc. |
 | `provenance.jsonl` | Operational records (`record_type: operational`) |
 
@@ -342,7 +343,7 @@ Runs with `summary.scenario == "ssos_eclss_loop"` branch to `src/tools/dashboard
 2. **Step replay** — `operational_applied` timeline, utterances / reasoning, storage plots
 3. **Design proposals** — `ssos_graph` `action_profile` / `graph_rewire` preview
 
-Scrubber screenshots: [README.md](README.md#dashboard-at-a-glance).
+Scrubber screenshots: [Overview](overview.md#dashboard-at-a-glance).
 
 ---
 
@@ -360,7 +361,7 @@ pytest tests/scenario/test_ssos_eclss_loop*.py -q
 pytest tests/environment/test_graph_rewire*.py -q
 ```
 
-Container E2E records: [memo/ssos_eclss_loop/e2e_records/](memo/ssos_eclss_loop/e2e_records/README.md).
+Container E2E records: `memo/ssos_eclss_loop/e2e_records/` (repo only).
 
 ---
 

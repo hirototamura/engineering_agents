@@ -1,4 +1,3 @@
-> Japanese: [../../ja/memo/backlog.md](../../ja/memo/backlog.md)
 
 # Backlog — Research & Design Topics
 
@@ -6,7 +5,7 @@ Topics outside MVP scope that are worth tracking. Implementation priority follow
 
 ---
 
-## BL-001: Labeled Roles vs Emergent Roles (Base Role)
+## BL-001: Labeled Roles vs Emergent Roles (Base Role) { #bl-001 }
 
 **Status**: Under consideration (Week-1 onward)  
 **Related**: Day 4 agent team design, lunar_agents structured communication experiments
@@ -48,7 +47,7 @@ Operational-phase agent teams (Monitor / Diagnostician / Operator / DesignEngine
 
 ---
 
-## BL-002: Evolutionary Persona Formation (Homogeneous vs Heterogeneous Teams)
+## BL-002: Evolutionary Persona Formation (Homogeneous vs Heterogeneous Teams) { #bl-002 }
 
 **Status**: Under consideration (after homogeneous N-agent team introduction)  
 **Related**: Homogeneous agent team redesign plan, BL-001 (emergent roles), Day 8 persona workshop, hardware development organization theory
@@ -88,7 +87,7 @@ As a substitute for human teams that develop hardware, the central question is *
 
 ---
 
-## BL-003: ROS launch remap (Phase 8 — graph_rewire A)
+## BL-003: ROS launch remap (Phase 8 — graph_rewire A) { #bl-003 }
 
 **Status**: Not started (after Phase 7 client remap complete)  
 **Related**: [ssos_eclss_loop_connection_plan.md](ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) Phase 7a, [ssos_ros2_graph_design_investigation.md](ssos_eclss_loop/ssos_ros2_graph_design_investigation.md)
@@ -127,7 +126,7 @@ Phase 7a covers **client-side remap in `Ros2EclssBridge` only**. Without `--ros-
 
 ---
 
-## BL-004: SSOS ECLSS loop — follow-ups
+## BL-004: SSOS ECLSS loop — follow-ups { #bl-004 }
 
 **Status**: Not started  
 **Related**: [ssos_eclss_loop_connection_plan.md](ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) (Phase 0–7 complete)
@@ -146,14 +145,14 @@ Phase 7a covers **client-side remap in `Ros2EclssBridge` only**. Without `--ros-
 
 | Item | Note |
 |------|------|
-| `co2_critical` unused (labeled) | health evaluates critical but labeled rules only use `co2_high` |
+| `co2_critical` unused (labeled) | ~~health evaluates critical but labeled rules only use `co2_high`~~ → **fixed (T3)**: escalate ARS when critical band is breached |
 | One Piece provenance heuristic | operational events depend on message parsing |
 | labeled ignores command failure | not reflected in next-step rule branching |
 | `set_parameter` arbitrary path | allowlist recommended for production SSOS |
 
 ---
 
-## BL-005: SSOS EPS ROS2 bridge — follow-ups
+## BL-005: SSOS EPS ROS2 bridge — follow-ups { #bl-005 }
 
 **Status**: Phase 3a complete (PR-1–4), remainder not started  
 **Related**: [ssos_eps_ros2_connection_plan.md](ssos_eclss_loop/ssos_eps_ros2_connection_plan.md)
@@ -183,10 +182,10 @@ Phase 7a covers **client-side remap in `Ros2EclssBridge` only**. Without `--ros-
 
 ---
 
-## BL-006: SSOS run reproducibility and dashboard enrichment (out of CLI v3 scope)
+## BL-006: SSOS run reproducibility and dashboard enrichment (out of CLI v3 scope) { #bl-006 }
 
 **Status**: Not started (after CLI v3 mounts + `ea run`)  
-**Related**: [cli_v3_plan.md](cli_v3_plan.md), [scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md)
+**Related**: [CLI guide](../cli.md), [scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md)
 
 CLI v3 focuses on **host one-command runs and results mounts**. The items below belong to the simulation/visualization layer.
 
@@ -207,7 +206,7 @@ Target: `src/tools/dashboard/ssos_views.py`, `app.py` — duration, threshold li
 
 ---
 
-## BL-007: SSOS ↔ EA time and step synchronization (next integration phase)
+## BL-007: SSOS ↔ EA time and step synchronization (next integration phase) { #bl-007 }
 
 **Status**: Under consideration (separate from CLI v3 / Phase 8)  
 **Related**: [scenario-ssos-eclss-loop.md](../scenario-ssos-eclss-loop.md), [ssos_eclss_physical_phenomena_overview.md](ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md), BL-004 (WRS mock), BL-006 (run-boundary reproducibility)

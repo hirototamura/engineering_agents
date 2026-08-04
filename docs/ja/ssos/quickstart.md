@@ -1,10 +1,15 @@
 # クイックスタート
 
-SSOS 接合 smoke テストと `ssos_eclss_loop` シナリオの最短手順です。**Mac ホストには ROS 2 がない**ため、実機プラント（ros2）は Docker コンテナ内で動き、シミュレーションの起動は **ホスト** から `ea run` します。
+SSOS 接合 smoke テストと `ssos_eclss_loop` の **ros2** バックエンド向け手順です。**Mac ホストには ROS 2 がない**ため、実機プラントは Docker 内で動き、シミュレーションの起動は **ホスト** から `ea run` します。
+
+!!! info "初回はこちらから"
+    Docker 不要の mock だけ試す場合は [クイックスタート](../index.md)（`ea run ssos_eclss_loop --backend mock`）を参照してください。
+
+シナリオ仕様: [ssos_eclss_loop シナリオ](../scenario-ssos-eclss-loop.md)
 
 ---
 
-## ssos_eclss_loop — コマンド一式（Mac）
+## ssos_eclss_loop — コマンド一式（Mac） { #ssos_eclss_loop--コマンド一式mac }
 
 ### 初回：環境設定からシミュレーションまで
 
@@ -34,7 +39,7 @@ ea results
 
 出力例: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`（`telemetry.jsonl`, `summary.json` 等）
 
-詳細: [CLI ガイド — SSOS Docker](../cli.md#ssos-dockerssos_eclss_loop--ros2)
+詳細: [CLI ガイド — SSOS Docker](../cli.md#ssos-docker-ssos_eclss_loop--ros2)
 
 ### 2 回目以降：シミュレーションのみ
 
@@ -200,7 +205,7 @@ PYTHONPATH=/ea/src SSOS_ECLSS_BACKEND=ros2 EA_RESULTS_ROOT=/ea/results \
 
 ---
 
-## コンテナ E2E 回帰（ワンコマンド）
+## コンテナ E2E 回帰（ワンコマンド） { #container-e2e-regression-one-command }
 
 `scripts/run_ssos_regression.sh` は **Tier 1**（ホスト `pytest`）と任意の **Tier 2**（SSOS Docker 実機 smoke + `ea-loop`）を連鎖します。共通ヘルパは `scripts/lib/ssos_docker.sh` です。
 

@@ -24,7 +24,7 @@ dependencies = [
 ea = "tools.cli.main:app"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "mkdocs-material>=9.0"]
+dev = ["pytest>=7.0", "mkdocs-material>=9.0", "mkdocs-static-i18n>=1.2.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,8 +1,7 @@
-> Japanese: [../../ja/ssos/eclss-integration.md](../../ja/ssos/eclss-integration.md)
 
 # ECLSS Integration
 
-Operate SSOS **ARS** (air revitalization), **OGS** (oxygen generation), and **WRS** (water recovery) via the `EclssBackend` Protocol. The source of truth for constants is `src/environment/ssos/eclss_topics.py`.
+Operate SSOS **ARS** (air revitalization), **OGS** (oxygen generation), and **WRS** (water recovery) via the `EclssBackend` Protocol. The source of truth for ROS 2 constants is `src/environment/ssos/eclss/ros2/topics.py`.
 
 ---
 
@@ -95,9 +94,9 @@ classDiagram
 
 | Implementation | File | Purpose |
 | --- | --- | --- |
-| `MockEclssBackend` | `mock_eclss_backend.py` | pytest / Phase 1b contract |
+| `MockEclssBackend` | `ssos/eclss/mock/backend.py` | pytest / Phase 1b contract |
 | `LoopMockEclssBackend` | `scenario/ssos_eclss_loop/loop_mock_backend.py` | Scenario simplified dynamics |
-| `Ros2EclssBridge` | `ros2_eclss_bridge.py` | SSOS Docker live graph |
+| `Ros2EclssBridge` | `ssos/eclss/ros2/bridge.py` | SSOS Docker live graph |
 
 ### Ros2EclssBridge design
 
@@ -209,4 +208,4 @@ ros2 action send_goal /air_revitalisation \
 ## Related
 
 - [API reference — EclssBackend](api-reference.md#eclssbackend)
-- [ssos_eclss_loop scenario](scenario-eclss-loop.md)
+- [ssos_eclss_loop scenario](../scenario-ssos-eclss-loop.md)

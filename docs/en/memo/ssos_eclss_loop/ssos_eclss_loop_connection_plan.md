@@ -1,4 +1,3 @@
-> Japanese: [../../../ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](../../../ja/memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
 
 # SSOS ECLSS Loop Integration Plan
 
@@ -15,7 +14,7 @@
 | Latest commit | `95ebd1b` — Phase 7 (graph_rewire client / Team ABC / Dashboard) |
 | Tests | `pytest` → **140 passed**, 4 skipped |
 | User-facing documentation | Branch **`docs/ssos-mkdocs`** |
-| E2E records | [`e2e_records/`](e2e_records/README.md) |
+| E2E records | `memo/ssos_eclss_loop/e2e_records/` (repo only) |
 
 ---
 
@@ -33,7 +32,7 @@
 | **6** | LLM agents | ✅ | deliberation → operational → post-run design; mock pytest + container E2E |
 | **6.1** | Docker run UX (`ea-loop`) | ✅ | Default `ros2`, `OLLAMA_BASE_URL=host.docker.internal` |
 | **7** | graph_rewire (client) + Team ABC + Dashboard | ✅ | `graph_rewire.py`, `ssos_views.py`, re-arm improvements; E2E `run_graph_rewire_e2e.sh` |
-| **8** | ROS launch remap (A) + gateway | 📋 backlog | [backlog.md BL-003](../backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a) |
+| **8** | ROS launch remap (A) + gateway | 📋 backlog | [backlog.md BL-003](../backlog.md#bl-003) |
 
 ---
 
@@ -355,7 +354,7 @@ If ECLSS is not running, `ea-loop` fails immediately (empty ros2 graph detected)
 PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_loop_llm_agents_invoke_ars -q
 ```
 
-**Container E2E (ros2) — recorded**: See [`e2e_records/README.md`](e2e_records/README.md)
+**Container E2E (ros2) — recorded**: See `memo/ssos_eclss_loop/e2e_records/` (repo only)
 
 | run | Result |
 |-----|------|
@@ -371,11 +370,11 @@ PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_lo
 | Item | Content |
 |------|------|
 | Layer | **C — `Ros2EclssBridge` client remap** (not ROS launch remap) |
-| Module | `environment/ssos/graph_rewire.py` |
+| Module | `environment/ssos/eclss/ros2/graph_rewire.py` |
 | Consumer | `build_eclss_backend()` → `Ros2EclssBridge(topic_remap=…)` |
 | Tests | `tests/environment/test_graph_rewire.py`, `scripts/run_graph_rewire_e2e.sh` |
 
-Launch remap (A) is [backlog.md BL-003](../backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a).
+Launch remap (A) is [backlog.md BL-003](../backlog.md#bl-003).
 
 ### 7b — `Team` ABC unification
 
@@ -403,7 +402,7 @@ PYTHONPATH=src python3 -m streamlit run src/tools/dashboard/app.py
 | Item | Status |
 |------|------|
 | re-arm boundary / invalid ARS·OGS retry | **Implemented** |
-| `co2_critical` unused, provenance heuristics, command failure ignored, `set_parameter` optional path | [backlog.md BL-004](../backlog.md#bl-004-ssos-eclss-loop--follow-ups) |
+| `co2_critical` unused, provenance heuristics, command failure ignored, `set_parameter` optional path | [backlog.md BL-004](../backlog.md#bl-004) |
 
 ---
 
@@ -490,4 +489,4 @@ Outstanding items are consolidated in **[backlog.md](../backlog.md)**:
 - [backlog.md](../backlog.md) — Phase 8 onward · EPS follow-up
 - [ssos_ros2_graph_design_investigation.md](ssos_ros2_graph_design_investigation.md)
 - SSOS MkDocs — `docs/ssos-mkdocs`
-- [docs/api-contracts.md](../../../api-contracts.md)
+- [docs/api-contracts.md](../../api-contracts.md)

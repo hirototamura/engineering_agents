@@ -1,13 +1,3 @@
-from environment.ssos.eps_stack import EpsStack
-from environment.ssos.mock_bcdu import MockBcdu
-from environment.ssos.mock_eclss import MockEclssSimulator
-from environment.ssos.mock_sarj import MockSarj
-from environment.ssos.station_simulator import StationSimulator
+"""SSOS integration — ECLSS backends and EPS ROS 2 (EPS not yet in eclss loop)."""
 
-__all__ = [
-    "MockEclssSimulator",
-    "MockSarj",
-    "MockBcdu",
-    "EpsStack",
-    "StationSimulator",
-]
+__all__: list[str] = []

@@ -8,7 +8,7 @@ from environment.protocol import (
     SimulatorProtocol,
     TelemetrySnapshot,
 )
-from environment.ssos.mock_eclss import MockEclssSimulator
+from environment.scrubber.mock_eclss import MockEclssSimulator
 
 __all__ = [
     "AnomalySpec",

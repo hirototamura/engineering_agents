@@ -22,12 +22,12 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from environment.ssos.eclss_topics import (
+from environment.ssos.eclss.ros2.topics import (
     LAUNCH_HEADLESS_ECLSS,
     TOPIC_WRS_PRODUCT_WATER_RESERVE,
 )
-from environment.ssos.eclss_types import OgsGoal, WrsGoal
-from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
+from environment.ssos.eclss.types import OgsGoal, WrsGoal
+from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 
 
 @dataclass
@@ -59,7 +59,7 @@ def run_2_smoke(
 ) -> Eclss2SmokeReport:
     """Exercise WRS paths on Ros2EclssBridge against a live SSOS ECLSS stack."""
     wrs_goal = wrs_goal or WrsGoal(urine_volume=2.0)
-    ogs_goal = ogs_goal or OgsGoal(input_water_mass=5.0)
+    ogs_goal = ogs_goal or OgsGoal()
     launch_hint = f"bash /root/ssos-eclss-headless.sh  # or: ros2 launch {LAUNCH_HEADLESS_ECLSS}"
     report = Eclss2SmokeReport(ok=False, launch_hint=launch_hint)
 
@@ -130,7 +130,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="SSOS ECLSS Phase 2 smoke (WRS bridge)")
     parser.add_argument("--json-out", type=Path, help="Write JSON report to this path")
     parser.add_argument("--urine-volume", type=float, default=2.0)
-    parser.add_argument("--input-water-mass", type=float, default=5.0)
+    parser.add_argument(
+        "--input-water-mass",
+        type=float,
+        default=0.015,
+        help="OGS input_water_mass in kilograms (converted to grams for SSOS)",
+    )
     parser.add_argument("--product-water-liters", type=float, default=5.0)
     parser.add_argument("--grey-water-liters", type=float, default=3.0)
     parser.add_argument("--action-timeout", type=float, default=120.0)

@@ -1,9 +1,9 @@
 # CLI v3 最終プラン — SSOS ホスト 1 コマンド + マウント
 
 > **2026-06 確定版**  
-> 前提: [v2 統一 CLI](.cursor/plans/unified_simulation_cli.plan.md)（Day 8）は `ea run` / `RunSpec` / `ea job run` まで完了。  
-> 利用者向け手順: [docs/cli.md](../cli.md)  
-> v3 スコープ外: [backlog.md](backlog.md#bl-006-ssos-run-再現性ダッシュボード強化cli-v3-スコープ外)（BL-006）
+> 前提: [v2 統一 CLI](https://github.com/hirototamura/engineering_agents/blob/main/.cursor/plans/unified_simulation_cli.plan.md)（Day 8）は `ea run` / `RunSpec` / `ea job run` まで完了。  
+> 利用者向け手順: [CLI ガイド](../cli.md)  
+> v3 スコープ外: [backlog.md](backlog.md#bl-006)（BL-006）
 
 ---
 
@@ -63,7 +63,7 @@ ea run ssos_eclss_loop
 
 ## ボリュームマウント（初回設定）
 
-**コマンド一式**: [CLI ガイド](../../cli.md#ssos-dockerssos_eclss_loop--ros2) / [quickstart](../ssos/quickstart.md#ssos_eclss_loop--コマンド一式mac)
+**コマンド一式**: [CLI ガイド](../../cli.md#ssos-docker-ssos_eclss_loop--ros2) / [quickstart](../ssos/quickstart.md#ssos_eclss_loop--コマンド一式mac)
 
 ```bash
 ./scripts/ssos/mac/ssos-run-detached.sh
@@ -180,8 +180,8 @@ python3 -m streamlit run src/tools/dashboard/app.py
 
 | ドキュメント | 内容 |
 | --- | --- |
-| [unified_simulation_cli.plan.md](../../../.cursor/plans/unified_simulation_cli.plan.md) | v2（Day 8）設計・実装記録 |
-| [cli_v3_ssos_container.plan.md](../../../.cursor/plans/cli_v3_ssos_container.plan.md) | v3 初期案（フル版。Lean に縮小して本メモが正本） |
+| [unified_simulation_cli.plan.md](https://github.com/hirototamura/engineering_agents/blob/main/https://github.com/hirototamura/engineering_agents/blob/main/.cursor/plans/unified_simulation_cli.plan.md) | v2（Day 8）設計・実装記録 |
+| [cli_v3_ssos_container.plan.md](https://github.com/hirototamura/engineering_agents/blob/main/.cursor/plans/cli_v3_ssos_container.plan.md) | v3 初期案（フル版。Lean に縮小して本メモが正本） |
 | [eps_implementation_plan.md](scrubber_degradation/eps_implementation_plan.md) | Day 8 CLI 区切り |
 | [ssos_eclss_loop_connection_plan.md](ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | SSOS 接合 Phase 0–7 |
 | [development-plan.md](../development-plan.md) | 進行中マイルストーン |

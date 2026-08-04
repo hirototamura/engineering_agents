@@ -1,8 +1,8 @@
 """Unit tests for Phase 2 smoke helpers (no ROS runtime)."""
 
 from scripts.ssos_eclss_2_smoke import Eclss2SmokeReport, run_2_smoke
-from environment.ssos.eclss_types import EclssTelemetrySnapshot, OgsGoal, WrsGoal
-from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
+from environment.ssos.eclss.types import EclssTelemetrySnapshot, OgsGoal, WrsGoal
+from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 
 
 def test_2_smoke_report_serializes():
@@ -37,12 +37,12 @@ def test_run_2_smoke_detects_water_tradeoff(monkeypatch):
             return EclssTelemetrySnapshot(product_water_reserve_l=45.0)
 
         def submit_grey_water(self, liters: float):
-            from environment.ssos.eclss_types import ServiceResult
+            from environment.ssos.eclss.types import ServiceResult
 
             return ServiceResult(success=True, message="ok")
 
         def send_water_recovery_goal(self, goal: WrsGoal):
-            from environment.ssos.eclss_types import ActionResult
+            from environment.ssos.eclss.types import ActionResult
 
             return ActionResult(
                 success=True,
@@ -50,12 +50,12 @@ def test_run_2_smoke_detects_water_tradeoff(monkeypatch):
             )
 
         def request_product_water(self, liters: float):
-            from environment.ssos.eclss_types import ServiceResult
+            from environment.ssos.eclss.types import ServiceResult
 
             return ServiceResult(success=True, response_value=liters, message="ok")
 
         def send_oxygen_generation_goal(self, goal: OgsGoal):
-            from environment.ssos.eclss_types import ActionResult
+            from environment.ssos.eclss.types import ActionResult
 
             return ActionResult(success=True, details={"total_o2_generated": 10.0})
 

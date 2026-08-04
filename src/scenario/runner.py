@@ -10,13 +10,13 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 from core.event_log import EventLog
-from environment.eclss_ops.design_state import DesignStateManager
+from environment.scrubber.eclss_ops.design_state import DesignStateManager
 from environment.protocol import AnomalySpec, SimulatorProtocol
-from environment.ssos.mock_eclss import MockEclssSimulator
-from environment.ssos.station_simulator import StationSimulator
-from environment.ssos.eps_backend import EpsBackend
-from environment.ssos.mock_eps_backend import build_mock_eps_backend
-from environment.ssos.ros2_eps_bridge import Ros2EpsBridge
+from environment.scrubber.mock_eclss import MockEclssSimulator
+from environment.scrubber.station_simulator import StationSimulator
+from environment.scrubber.eps.backend import EpsBackend
+from environment.scrubber.eps.mock.backend import build_mock_eps_backend
+from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
 from scenario.jobs.executor import execute_run

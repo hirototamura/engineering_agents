@@ -5,9 +5,9 @@ from scripts.ssos_eclss_1b_smoke import (
     _expected_insufficient_co2,
     run_1b_smoke,
 )
-from environment.ssos.eclss_types import ServiceResult
-from environment.ssos.eclss_types import EclssTelemetrySnapshot, OgsGoal
-from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
+from environment.ssos.eclss.types import ServiceResult
+from environment.ssos.eclss.types import EclssTelemetrySnapshot, OgsGoal
+from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 
 
 def test_1b_smoke_report_serializes():
@@ -59,7 +59,7 @@ def test_run_1b_smoke_passes_when_co2_storage_empty(monkeypatch):
             )
 
         def send_oxygen_generation_goal(self, goal: OgsGoal):
-            from environment.ssos.eclss_types import ActionResult
+            from environment.ssos.eclss.types import ActionResult
 
             return ActionResult(
                 success=True,
@@ -89,12 +89,12 @@ def test_run_1b_smoke_detects_sabatier_signal(monkeypatch):
             return EclssTelemetrySnapshot(co2_storage_kg=90.0, o2_storage_kg=5.0)
 
         def request_co2(self, amount: float):
-            from environment.ssos.eclss_types import ServiceResult
+            from environment.ssos.eclss.types import ServiceResult
 
             return ServiceResult(success=True, response_value=amount, message="ok")
 
         def send_oxygen_generation_goal(self, goal: OgsGoal):
-            from environment.ssos.eclss_types import ActionResult
+            from environment.ssos.eclss.types import ActionResult
 
             return ActionResult(
                 success=True,

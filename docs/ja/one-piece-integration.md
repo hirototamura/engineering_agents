@@ -181,11 +181,11 @@ One Piece `SsotProvenanceRecord` 概念に準拠。必須フィールド:
 
 | 経路 | 状態 |
 | --- | --- |
-| Mock ECLSS デフォルトトポロジ | scrubber — `environment/eclss_ops/design_state.py` |
+| Mock ECLSS デフォルトトポロジ | scrubber — `environment/scrubber/eclss_ops/design_state.py` |
 | SSOS 実 ECLSS 運用 | ssos — `Ros2EclssBridge` + `EclssBackend`（Phase 0–7 完了） |
 | One Piece コネクタ [`ssos.py`](https://github.com/hirototamura/one-piece/blob/main/packages/connectors/one_piece_connectors/ssos.py) | 任意 — 実 SSOS から初期 `SystemElement` + ICD グラフをシード |
 
-Phase 8（ROS launch remap + ゲートウェイ）: [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a)。
+Phase 8（ROS launch remap + ゲートウェイ）: [backlog BL-003](memo/backlog.md#bl-003)。
 
 ---
 
@@ -193,7 +193,7 @@ Phase 8（ROS launch remap + ゲートウェイ）: [backlog BL-003](memo/backlo
 
 - **JSON ファイル + 将来コネクタ** — provenance 形式が安定するまで One Piece パッケージへのハード依存を避ける
 - 取り込み必要時: git submodule または `pip install -e ../one-piece/packages/connectors`
-- 方針詳細: [memo/mvp_plan.md](memo/mvp_plan.md)
+- 方針詳細: [memo/scrubber_degradation/mvp_plan.md](memo/scrubber_degradation/mvp_plan.md)
 
 ---
 

@@ -1,10 +1,8 @@
-> English: [../../en/ssos/index.md](../../en/ssos/index.md)
-
 # SSOS ECLSS + EPS 接合 — 概要
 
-**ブランチ**: `main`（PR #9 マージ済み）
-
 本ドキュメントは、Space Station OS（SSOS）の **ECLSS**（生命維持）と **EPS**（電力）を `engineering_agents` から操作するための接合レイヤを説明します。Crew Simulation GUI の代わりに、エージェントが `EclssBackend` / `EpsBackend` 経由で ARS・OGS・WRS および BCDU を制御します。
+
+シナリオ仕様（エージェント・出力・ダッシュボード）は [ssos_eclss_loop シナリオ](../scenario-ssos-eclss-loop.md) を参照してください。ここでは **Docker / ROS 2 接合の運用** に焦点を当てます。
 
 !!! note "スコープ"
     - **仮想検証**が主目的です。物理世界（軌道上実機）への接続は本デモのスコープ外です。
@@ -112,15 +110,18 @@ flowchart TB
 
 | パス | 役割 |
 | --- | --- |
-| `src/environment/ssos/eclss_topics.py` | Action / Service / Topic 定数 |
-| `src/environment/ssos/eclss_backend.py` | `EclssBackend` Protocol |
-| `src/environment/ssos/mock_eclss_backend.py` | 契約テスト用 Mock |
-| `src/environment/ssos/ros2_eclss_bridge.py` | SSOS ECLSS ブリッジ（CLI） |
-| `src/environment/ssos/eps_backend.py` | `EpsBackend` Protocol |
-| `src/environment/ssos/mock_eps_backend.py` | SARJ/BCDU Mock ラッパ |
-| `src/environment/ssos/ros2_eps_bridge.py` | SSOS EPS ブリッジ（CLI） |
-| `src/environment/ssos/topic_map.py` | SSOS 実トピック ↔ 契約名 |
-| `src/environment/ssos/message_adapters.py` | ROS メッセージ ↔ dataclass |
+| `src/environment/ssos/eclss/backend.py` | `EclssBackend` Protocol |
+| `src/environment/ssos/eclss/types.py` | Goal / Report データ型 |
+| `src/environment/ssos/eclss/mock/backend.py` | 契約テスト用 Mock |
+| `src/environment/ssos/eclss/ros2/bridge.py` | SSOS ECLSS ブリッジ（CLI） |
+| `src/environment/ssos/eclss/ros2/topics.py` | Action / Service / Topic 定数 |
+| `src/environment/ssos/eclss/ros2/graph_rewire.py` | クライアント側グラフ remap |
+| `src/environment/ssos/ros2/cli.py` | 共有 `ros2` サブプロセスヘルパ |
+| `src/environment/scrubber/eps/backend.py` | `EpsBackend` Protocol（scrubber） |
+| `src/environment/scrubber/eps/mock/backend.py` | SARJ/BCDU Mock ラッパ |
+| `src/environment/ssos/eps/ros2/bridge.py` | SSOS EPS ブリッジ（CLI） |
+| `src/environment/ssos/eps/ros2/topic_map.py` | SSOS 実トピック ↔ 契約名 |
+| `src/environment/ssos/eps/ros2/adapters.py` | ROS メッセージ ↔ dataclass |
 | `src/scenario/ssos_eclss_loop/` | 新シナリオ（YAML + runner + health） |
 | `src/scenario/agents/ssos_eclss_loop_team.py` | Crew 代替エージェント |
 | `scripts/run_ssos_eclss_*.sh` | ホスト → Docker smoke ラッパ |
@@ -133,11 +134,10 @@ flowchart TB
 
 ## 関連リンク
 
-- [クイックスタート](quickstart.md) — 2 ターミナル手順
+- [Docker セットアップ](quickstart.md) — `ea run` と smoke テスト
 - [ECLSS 統合](eclss-integration.md) — トピック・アクション詳細
 - [EPS 統合](eps-integration.md) — 電力ブースト interim 方式
-- [ssos_eclss_loop シナリオ](scenario-eclss-loop.md) — mock / ros2 の実行
+- [ssos_eclss_loop シナリオ](../scenario-ssos-eclss-loop.md) — シナリオ仕様・出力の読み方
 - [トラブルシューティング](troubleshooting.md)
-- [ロードマップ](roadmap.md) — Phase 0–5 状態
 - [API リファレンス](api-reference.md)
 - 開発メモ: [SSOS ECLSS 接合プラン](../memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md), [SSOS EPS ROS2 接合プラン](../memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md)

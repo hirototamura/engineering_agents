@@ -2,7 +2,7 @@
 
 import time
 
-from environment.ssos import ros2_eclss_telemetry as telemetry
+from environment.ssos.eclss.ros2 import telemetry
 
 
 def test_rclpy_telemetry_available_false_without_rclpy(monkeypatch):

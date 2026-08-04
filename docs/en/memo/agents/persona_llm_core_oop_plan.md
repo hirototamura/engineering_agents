@@ -1,4 +1,3 @@
-> Japanese: [../../../ja/memo/agents/persona_llm_core_oop_plan.md](../../../ja/memo/agents/persona_llm_core_oop_plan.md)
 
 # Persona LLM Redesign + Core OOP Skeleton Extraction
 

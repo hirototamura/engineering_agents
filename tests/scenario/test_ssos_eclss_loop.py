@@ -57,11 +57,11 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     assert summary["message_count"] == 0
     assert summary.get("ars_invoked_step") is None
     assert (run_dir / "provenance.jsonl").exists()
-    assert (run_dir / "design_state.jsonl").exists() is False
+    assert (run_dir / "design_state.jsonl").exists()
     assert not (run_dir / "design_proposals.json").exists()
 
     co2_series = [row["co2_storage_kg"] for row in telemetry]
-    assert co2_series[0] == pytest.approx(1500.0)
+    assert co2_series[0] == pytest.approx(1.5)
     assert co2_series[-1] > co2_series[0], "CO2 should rise without agent intervention"
 
 
@@ -100,7 +100,7 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     )
 
     assert telemetry[0]["step"] == 1
-    assert telemetry[0]["co2_storage_kg"] == pytest.approx(1500.0)
+    assert telemetry[0]["co2_storage_kg"] == pytest.approx(1.5)
     assert telemetry[1]["co2_storage_kg"] < telemetry[0]["co2_storage_kg"], (
         "ARS should reduce CO2 storage after step 1"
     )
@@ -116,8 +116,8 @@ def test_ssos_eclss_loop_labeled_policy_matches_thresholds(tmp_path: Path):
         output_dir=tmp_path / "policy_thresholds",
         overrides={
             "agents": {"mode": "labeled_rule_base"},
-            "thresholds": {"co2_storage_high_kg": 1600.0, "o2_storage_low_kg": 430.0},
-            "simulation": {"initial_co2_storage_kg": 1650.0},
+            "thresholds": {"co2_storage_high_kg": 1.6, "o2_storage_low_kg": 0.43},
+            "simulation": {"initial_co2_storage_kg": 1.65},
         },
         recreate_output=True,
     )
@@ -193,7 +193,7 @@ def test_ssos_eclss_loop_labeled_agents_ogs_when_o2_low(tmp_path: Path):
         output_dir=tmp_path / "ogs",
         overrides={
             "agents": {"mode": "labeled_rule_base"},
-            "simulation": {"initial_o2_storage_kg": 420.0},
+            "simulation": {"initial_o2_storage_kg": 0.42},
         },
         recreate_output=True,
     )
@@ -202,14 +202,15 @@ def test_ssos_eclss_loop_labeled_agents_ogs_when_o2_low(tmp_path: Path):
     events = _read_jsonl(run_dir / "events.jsonl")
 
     assert summary["ogs_invoked_step"] == 1
-    assert summary["co2_requested_step"] == 1
+    # Default policy leaves CO₂ feedstock to OGS-internal Sabatier (no explicit request_co2).
+    assert summary.get("co2_requested_step") is None
     applied_kinds = {
         (e.get("command") or {}).get("kind")
         for e in events
         if e.get("kind") == "/eclss/events/operational_applied"
     }
     assert "oxygen_generation" in applied_kinds
-    assert "request_co2" in applied_kinds
+    assert "request_co2" not in applied_kinds
 
 
 def test_resolve_backend_kind_from_env(monkeypatch):
@@ -270,7 +271,7 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
                             {
                                 "kind": "air_revitalisation",
                                 "payload": {
-                                    "initial_co2_mass": 1800.0,
+                                    "initial_co2_mass": 1.8,
                                     "initial_moisture_content": 25.0,
                                     "initial_contaminants": 5.0,
                                 },
@@ -289,7 +290,7 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
                                 "payload": {
                                     "subsystem": "ars",
                                     "action": "air_revitalisation",
-                                    "fields": {"initial_co2_mass": 2000.0},
+                                    "fields": {"initial_co2_mass": 2.0},
                                 },
                             }
                         ],
@@ -320,4 +321,31 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
     assert design_proposals.get("decision_source") == "llm"
     assert design_proposals.get("design_domain") == "ssos_graph"
     assert any(c.get("change_kind") == "action_profile" for c in design_proposals.get("changes", []))
+
+
+def test_ssos_eclss_loop_skips_empty_design_proposals_file(tmp_path: Path, monkeypatch):
+    """L8/B: do not write design_proposals.json when changes is empty."""
+    from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
+
+    monkeypatch.setattr(
+        SsosEclssLoopTeam,
+        "propose_post_run_design",
+        lambda self, summary: {
+            "design_domain": "ssos_graph",
+            "proposed_by": "op_1",
+            "decision_source": "rule",
+            "message": "",
+            "changes": [],
+        },
+    )
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "empty_proposals",
+        overrides={"agents": {"mode": "labeled_rule_base"}},
+        recreate_output=True,
+    )
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary.get("design_proposal_count") == 0
+    assert "design_proposals_path" not in summary
+    assert not (run_dir / "design_proposals.json").exists()
 

@@ -1,4 +1,3 @@
-> Japanese: [../../../../ja/memo/ssos_eclss_loop/e2e_records/README.md](../../../../ja/memo/ssos_eclss_loop/e2e_records/README.md)
 
 # ssos_eclss_loop — Container ros2 E2E Records
 

@@ -31,7 +31,7 @@ flowchart LR
 
 ---
 
-## Day 区切りロードマップ
+## Day 区切りロードマップ { #day-区切りロードマップ }
 
 
 | Day        | 名称                      | 完了条件（要約）                                                                    | 状態   |
@@ -155,17 +155,17 @@ class StationSimulator:
 
 ---
 
-## Day 8: CLI（1日）
+## Day 8: CLI（1日） { #day-8-cli1日 }
 
 - `src/tools/cli/` — `run`, `list-scenarios`
-- [pyproject.toml](../pyproject.toml) エントリポイント
+- [pyproject.toml](https://github.com/hirototamura/engineering_agents/blob/main/pyproject.toml) エントリポイント
 - `scrubber_demo.yaml`（E2E 用）
 
 **完了判定**: 1 コマンドで 4 agent modes 実行 + 出力パス表示。
 
 ---
 
-## Day 9–10: 拡張
+## Day 9–10: 拡張 { #day-910-拡張 }
 
 **Day 9 — One Piece**: provenance summary index、[one-piece-integration.md](../../one-piece-integration.md) に EPS recovery handoff 例。
 

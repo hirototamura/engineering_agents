@@ -73,7 +73,7 @@ def execute_run(spec: RunSpec) -> RunResult:
 
 def _teardown_rclpy_telemetry() -> None:
     try:
-        from environment.ssos.ros2_eclss_telemetry import reset_rclpy_telemetry_reader
+        from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
 
         reset_rclpy_telemetry_reader()
     except Exception:

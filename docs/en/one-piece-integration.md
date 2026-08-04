@@ -1,4 +1,3 @@
-> Japanese: [../ja/one-piece-integration.md](../ja/one-piece-integration.md)
 
 # One Piece Integration
 
@@ -168,11 +167,11 @@ Baseline (`agents.mode: none`) also emits **`provenance.jsonl` with 0 records** 
 
 | Path | Status |
 | --- | --- |
-| Mock ECLSS default topology | scrubber — `environment/eclss_ops/design_state.py` |
+| Mock ECLSS default topology | scrubber — `environment/scrubber/eclss_ops/design_state.py` |
 | SSOS live ECLSS operations | ssos — `Ros2EclssBridge` + `EclssBackend` (Phase 0–7 complete) |
 | One Piece connector [`ssos.py`](https://github.com/hirototamura/one-piece/blob/main/packages/connectors/one_piece_connectors/ssos.py) | Optional — seed initial `SystemElement` + ICD graph from real SSOS |
 
-Phase 8 (ROS launch remap + gateway): [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a).
+Phase 8 (ROS launch remap + gateway): [backlog BL-003](memo/backlog.md#bl-003).
 
 ---
 

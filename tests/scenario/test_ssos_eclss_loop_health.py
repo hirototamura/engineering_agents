@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from environment.protocol import HealthStatus
-from environment.ssos.eclss_types import EclssTelemetrySnapshot
+from environment.ssos.eclss.types import EclssTelemetrySnapshot
 from scenario.ssos_eclss_loop.health import compute_eclss_storage_health
 from scenario.ssos_eclss_loop.scenario_run import (
     _assert_ros2_storage_telemetry,
@@ -20,6 +20,16 @@ def test_health_unknown_when_telemetry_missing():
     assert health["co2_status"] == HealthStatus.UNKNOWN.value
     assert health["o2_status"] == HealthStatus.UNKNOWN.value
     assert health["water_status"] == HealthStatus.UNKNOWN.value
+    assert health["overall"] == HealthStatus.UNKNOWN.value
+
+
+def test_health_unknown_for_nan_telemetry():
+    import math
+
+    snap = EclssTelemetrySnapshot(co2_storage_kg=math.nan, o2_storage_kg=math.nan)
+    health = compute_eclss_storage_health(0, snap, {"co2_storage_high_kg": 1.5, "o2_storage_low_kg": 0.45})
+    assert health["co2_status"] == HealthStatus.UNKNOWN.value
+    assert health["o2_status"] == HealthStatus.UNKNOWN.value
     assert health["overall"] == HealthStatus.UNKNOWN.value
 
 

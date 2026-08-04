@@ -1,4 +1,3 @@
-> Japanese: [../../ja/ssos/roadmap.md](../../ja/ssos/roadmap.md)
 
 # Roadmap — Phase 0–8
 
@@ -19,7 +18,7 @@ SSOS integration progress on `main` and backlog items. See also [development-pla
 | **5** | `operational_proposals.json` + `design_proposals.json` + `--apply-proposals` | ✅ **Complete** | Post-run proposals and next-run apply |
 | **6** | LLM agents + Docker `ea-loop` (ros2 / Ollama defaults) | ✅ **Complete** | Container loop with LLM mode |
 | **7** | Client `graph_rewire`, `Team` ABC, SSOS dashboard views | ✅ **Complete** | Remap client + dashboard |
-| **8** | ROS launch remap + gateway | 📋 **Backlog** | Apply `graph_rewire` at launch ([BL-003](../memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a)) |
+| **8** | ROS launch remap + gateway | 📋 **Backlog** | Apply `graph_rewire` at launch ([BL-003](../memo/backlog.md#bl-003)) |
 
 ```mermaid
 gantt
@@ -60,8 +59,8 @@ gantt
 
 | File | Role |
 | --- | --- |
-| `src/environment/ssos/eclss_topics.py` | Action/Service/Topic constants |
-| `src/environment/ssos/eclss_types.py` | Goal / Report types |
+| `src/environment/ssos/eclss/ros2/topics.py` | Action/Service/Topic constants |
+| `src/environment/ssos/eclss/types.py` | Goal / Report types |
 | `src/scripts/ssos_eclss_ars_smoke.py` | In-container smoke |
 | `scripts/run_ssos_eclss_smoke.sh` | Host wrapper |
 
@@ -73,9 +72,9 @@ gantt
 
 | File | Role |
 | --- | --- |
-| `src/environment/ssos/eclss_backend.py` | Protocol |
-| `src/environment/ssos/mock_eclss_backend.py` | Mock |
-| `src/environment/ssos/ros2_eclss_bridge.py` | CLI bridge |
+| `src/environment/ssos/eclss/backend.py` | Protocol |
+| `src/environment/ssos/eclss/mock/backend.py` | Mock |
+| `src/environment/ssos/eclss/ros2/bridge.py` | CLI bridge |
 | `src/scripts/ssos_eclss_1b_smoke.py` | 1b smoke |
 | `scripts/run_ssos_eclss_1b_smoke.sh` | Wrapper |
 
@@ -87,7 +86,7 @@ gantt
 
 | File | Role |
 | --- | --- |
-| `ros2_eclss_bridge.py` (extended) | WRS action + product/grey water service |
+| `eclss/ros2/bridge.py` (extended) | WRS action + product/grey water service |
 | `src/scripts/ssos_eclss_2_smoke.py` | Phase 2 smoke |
 | `scripts/run_ssos_eclss_2_smoke.sh` | Wrapper |
 
@@ -101,12 +100,12 @@ Verification: potable vs electrolysis water tradeoff, `water_tradeoff_signal`
 
 | File | Role |
 | --- | --- |
-| `eps_backend.py` | Protocol |
-| `mock_eps_backend.py` | Mock wrapper |
-| `ros2_eps_bridge.py` | CLI bridge |
-| `topic_map.py` | SSOS live topic map |
-| `message_adapters.py` | BCDU parsing |
-| `station_simulator.py` | Refactored to use `EpsBackend` |
+| `scrubber/eps/backend.py` | Protocol |
+| `scrubber/eps/mock/backend.py` | Mock wrapper |
+| `ssos/eps/ros2/bridge.py` | CLI bridge |
+| `ssos/eps/ros2/topic_map.py` | SSOS live topic map |
+| `ssos/eps/ros2/adapters.py` | BCDU parsing |
+| `scrubber/station_simulator.py` | Refactored to use `EpsBackend` |
 | `src/scripts/ssos_eps_smoke.py` | EPS smoke |
 | `scripts/run_ssos_eps_smoke.sh` | Wrapper |
 
@@ -172,7 +171,7 @@ Verification: potable vs electrolysis water tradeoff, `water_tradeoff_signal`
 
 | Item | Description |
 | --- | --- |
-| ROS launch remap | Apply `graph_rewire` at launch time ([BL-003](../memo/backlog.md#bl-003-ros-launch-remap-phase-8--graph_rewire-a)) |
+| ROS launch remap | Apply `graph_rewire` at launch time ([BL-003](../memo/backlog.md#bl-003)) |
 | Gateway integration | ROS graph gateway for remap ([investigation memo](../memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md)) |
 
 ---

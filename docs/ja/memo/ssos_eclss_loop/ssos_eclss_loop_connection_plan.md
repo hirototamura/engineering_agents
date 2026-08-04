@@ -13,7 +13,7 @@
 | 最新コミット | `95ebd1b` — Phase 7（graph_rewire client / Team ABC / Dashboard） |
 | テスト | `pytest` → **140 passed**, 4 skipped |
 | ユーザ向けドキュメント | ブランチ **`docs/ssos-mkdocs`** |
-| E2E 記録 | [`e2e_records/`](e2e_records/README.md) |
+| E2E 記録 | `memo/ssos_eclss_loop/e2e_records/` (repo only) |
 
 ---
 
@@ -31,7 +31,7 @@
 | **6** | LLM エージェント | ✅ | deliberation → operational → 事後 design；mock pytest + コンテナ E2E |
 | **6.1** | Docker 実行 UX（`ea-loop`） | ✅ | デフォルト `ros2`、`OLLAMA_BASE_URL=host.docker.internal` |
 | **7** | graph_rewire（client）+ Team ABC + Dashboard | ✅ | `graph_rewire.py`、`ssos_views.py`、re-arm 改善；E2E `run_graph_rewire_e2e.sh` |
-| **8** | ROS launch remap（A）+ ゲートウェイ | 📋 backlog | [backlog.md BL-003](../backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a) |
+| **8** | ROS launch remap（A）+ ゲートウェイ | 📋 backlog | [backlog.md BL-003](../backlog.md#bl-003) |
 
 ---
 
@@ -353,7 +353,7 @@ ECLSS 未起動時は `ea-loop` が即エラー（空 ros2 グラフ検出）。
 PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_loop_llm_agents_invoke_ars -q
 ```
 
-**コンテナ E2E（ros2）— 記録済**: 詳細は [`e2e_records/README.md`](e2e_records/README.md)
+**コンテナ E2E（ros2）— 記録済**: 詳細は `memo/ssos_eclss_loop/e2e_records/` (repo only)
 
 | run | 結果 |
 |-----|------|
@@ -369,11 +369,11 @@ PYTHONPATH=src pytest tests/scenario/test_ssos_eclss_loop.py::test_ssos_eclss_lo
 | 項目 | 内容 |
 |------|------|
 | レイヤ | **C — `Ros2EclssBridge` クライアント remap**（ROS launch remap ではない） |
-| モジュール | `environment/ssos/graph_rewire.py` |
+| モジュール | `environment/ssos/eclss/ros2/graph_rewire.py` |
 | 消費側 | `build_eclss_backend()` → `Ros2EclssBridge(topic_remap=…)` |
 | テスト | `tests/environment/test_graph_rewire.py`、`scripts/run_graph_rewire_e2e.sh` |
 
-Launch remap（A）は [backlog.md BL-003](../backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a)。
+Launch remap（A）は [backlog.md BL-003](../backlog.md#bl-003)。
 
 ### 7b — `Team` ABC 統一
 
@@ -401,7 +401,7 @@ PYTHONPATH=src python3 -m streamlit run src/tools/dashboard/app.py
 | 項目 | 状態 |
 |------|------|
 | re-arm 境界 / 無効 ARS・OGS 再試行 | **実装** |
-| `co2_critical` 未使用、provenance ヒューリスティック、command failure 無視、`set_parameter` 任意パス | [backlog.md BL-004](../backlog.md#bl-004-ssos-eclss-ループ--フォローアップ) |
+| `co2_critical` 未使用、provenance ヒューリスティック、command failure 無視、`set_parameter` 任意パス | [backlog.md BL-004](../backlog.md#bl-004) |
 
 ---
 

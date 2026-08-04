@@ -2,7 +2,7 @@
 
 > 設計プロセス記録。Cursor プラン `ECLSS Agent Directory MVP` から export（2026-05-30）。  
 > **2026-05-30 更新**: Day 1–2 完了後の振り返りに基づきロードマップを修正。  
-> **2026-05-30 更新**: Day 4 ロール設計方針・研究バックログ（[backlog.md](backlog.md)）を追記。  
+> **2026-05-30 更新**: Day 4 ロール設計方針・研究バックログ（[backlog.md](../backlog.md)）を追記。  
 > **2026-05-31 更新**: Day 5 を **LLM統合優先（Day5A: labeled_shadow）** に再編。  
 > **2026-05-31 更新**: Day5B 完了を反映し、Day6 以降の実装順を再計画。  
 > **2026-06-02 更新**: ECLSS 単独では power margin 回復手段が不足するため、次フェーズ最優先を **EPS モック統合** に変更。  
@@ -118,7 +118,7 @@
 | Monitor / Diagnostician / Operator / DesignEngineer を **ルールベース**で実装 | LLM 必須化 |
 | `agents.mode: none \| labeled`（baseline 維持） | `agents.mode: base`（創発ロール実験） |
 
-4 ロールは「異常を溶かす」ための **暫定ラベル**である。人間の分業をそのまま写したものなので、ラベルを与えない場合に Base Role エージェントが状況に即した役割を創発するかは別問題 — **[backlog.md BL-001](backlog.md)** でトラックする。
+4 ロールは「異常を溶かす」ための **暫定ラベル**である。人間の分業をそのまま写したものなので、ラベルを与えない場合に Base Role エージェントが状況に即した役割を創発するかは別問題 — **[backlog.md BL-001](../backlog.md)** でトラックする。
 
 **Day 4 完了条件（labeled モード）**
 
@@ -156,7 +156,7 @@
 
 ## バックログ（MVP 外・研究）
 
-詳細は [memo/backlog.md](backlog.md)。
+詳細は [memo/backlog.md](../backlog.md)。
 
 | ID | テーマ | 概要 |
 | --- | --- | --- |
@@ -217,7 +217,7 @@
 ## 参考
 
 - **EPS Day 区切り実装プラン**: [eps_implementation_plan.md](eps_implementation_plan.md)
-- ドキュメント索引: [README.md](../../README.md#ドキュメント)、開発プラン: [docs/development-plan.md](../../development-plan.md)
+- ドキュメント索引: [README.md](../../overview.md#ドキュメント)、開発プラン: [docs/development-plan.md](../../development-plan.md)
 - API 契約: [docs/api-contracts.md](../../api-contracts.md)
 - アーキテクチャ: [docs/architecture.md](../../architecture.md)
 - シナリオ: [docs/scenario-scrubber-degradation.md](../../scenario-scrubber-degradation.md)

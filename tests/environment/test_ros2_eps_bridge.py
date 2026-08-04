@@ -4,12 +4,12 @@ import subprocess
 
 import pytest
 
-from environment.ssos.eps_backend import EpsBackend
-from environment.ssos.eps_types import BcduMode
-from environment.ssos.message_adapters import estimate_discharge_w, parse_bcdu_status
-from environment.ssos.ros2_eps_bridge import Ros2EpsBridge
-from environment.ssos.eps_topics import BCDU_STATUS
-from environment.ssos.topic_map import SSOS_TOPIC_SOLAR_VOLTAGE
+from environment.scrubber.eps.backend import EpsBackend
+from environment.scrubber.eps.types import BcduMode
+from environment.ssos.eps.ros2.adapters import estimate_discharge_w, parse_bcdu_status
+from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
+from environment.scrubber.eps.topics import BCDU_STATUS
+from environment.ssos.eps.ros2.topic_map import SSOS_TOPIC_SOLAR_VOLTAGE
 
 
 def test_ros2_eps_bridge_satisfies_protocol():
@@ -20,7 +20,7 @@ def test_ros2_available_false_when_cli_missing(monkeypatch):
     def fake_run(*_args, **_kwargs):
         raise FileNotFoundError("ros2")
 
-    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    monkeypatch.setattr("environment.ssos.ros2.cli.subprocess.run", fake_run)
     assert Ros2EpsBridge.ros2_available() is False
 
 
@@ -69,7 +69,7 @@ def test_poll_solar_reads_ssu_voltage_and_beta(monkeypatch):
             return subprocess.CompletedProcess(args, 0, "data: 30.0\n", "")
         return subprocess.CompletedProcess(args, 0, "", "")
 
-    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    monkeypatch.setattr("environment.ssos.ros2.cli.subprocess.run", fake_run)
     solar = Ros2EpsBridge().poll_solar()
     assert solar.solar_voltage_v == 140.0
     assert solar.beta_angle_deg == 30.0
@@ -92,7 +92,7 @@ def test_poll_bcdu_parses_status_topic(monkeypatch):
             return subprocess.CompletedProcess(args, 0, bcdu_yaml, "")
         return subprocess.CompletedProcess(args, 0, "", "")
 
-    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    monkeypatch.setattr("environment.ssos.ros2.cli.subprocess.run", fake_run)
     status = Ros2EpsBridge().poll_bcdu()
     assert status.mode == BcduMode.IDLE
     assert status.bus_voltage_v == 108.0
@@ -114,7 +114,7 @@ def test_request_discharge_arms_timer_and_consume_uses_live_watts(monkeypatch):
             return subprocess.CompletedProcess(args, 0, bcdu_yaml, "")
         return subprocess.CompletedProcess(args, 0, "", "")
 
-    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    monkeypatch.setattr("environment.ssos.ros2.cli.subprocess.run", fake_run)
     bridge = Ros2EpsBridge()
     result = bridge.request_discharge(150.0, 3)
     assert result.success
@@ -136,7 +136,7 @@ def test_request_discharge_jazzy_repr_bcdu(monkeypatch):
             return subprocess.CompletedProcess(args, 0, bcdu_repr, "")
         return subprocess.CompletedProcess(args, 0, "", "")
 
-    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    monkeypatch.setattr("environment.ssos.ros2.cli.subprocess.run", fake_run)
     bridge = Ros2EpsBridge()
     bridge.request_discharge(200.0, 2)
     assert bridge.consume_scheduled_support() == 220.0
@@ -158,7 +158,7 @@ def test_request_discharge_rejects_fault(monkeypatch):
             return subprocess.CompletedProcess(args, 0, bcdu_yaml, "")
         return subprocess.CompletedProcess(args, 0, "", "")
 
-    monkeypatch.setattr("environment.ssos.ros2_eclss_bridge.subprocess.run", fake_run)
+    monkeypatch.setattr("environment.ssos.ros2.cli.subprocess.run", fake_run)
     result = Ros2EpsBridge().request_discharge(100.0, 2)
     assert not result.success
     assert "fault" in result.message.lower()
@@ -176,11 +176,11 @@ def test_poll_topics_reports_none_when_topics_missing(monkeypatch):
         return None
 
     monkeypatch.setattr(
-        "environment.ssos.ros2_eps_bridge._echo_float_topic",
+        "environment.ssos.ros2.cli.echo_float_topic",
         fake_echo,
     )
     monkeypatch.setattr(
-        "environment.ssos.ros2_eps_bridge._echo_topic_once",
+        "environment.ssos.eps.ros2.bridge._echo_topic_once",
         lambda *_args, **_kwargs: (None, "timeout"),
     )
     payload = Ros2EpsBridge().poll_topics()

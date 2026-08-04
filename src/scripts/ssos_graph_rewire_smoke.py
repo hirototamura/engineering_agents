@@ -22,9 +22,9 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from environment.ssos.eclss_topics import TOPIC_CO2_STORAGE
-from environment.ssos.graph_rewire import build_topic_remap
-from environment.ssos.ros2_eclss_bridge import Ros2EclssBridge
+from environment.ssos.eclss.ros2.topics import TOPIC_CO2_STORAGE
+from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
+from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 from scenario.ssos_eclss_loop.scenario_run import build_eclss_backend
 
 

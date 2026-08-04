@@ -2,7 +2,7 @@
 
 **SSOS**（Space Station OS）Docker 内の実 ROS2 **ECLSS**（Environmental Control and Life Support System）を、エージェントチームが Crew Simulation の代わりに操作する参照シナリオ。CO₂ / O₂ / 製品水の**ストレージ kg** を監視し、閾値超過時に ARS / OGS 等の運用コマンドを打ち、ラン終了後に `ssos_graph` ドメインの恒久設計を提案する。
 
-> 実行コマンドは [README.md](README.md#実行方法) および本ドキュメント [実行方法](#実行方法)。アーキテクチャは [architecture.md](architecture.md)。scrubber との対比は [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md)。
+> 実行コマンドは [概要](overview.md#実行方法) および本ドキュメント [実行方法](#実行方法)。アーキテクチャは [architecture.md](architecture.md)。scrubber との対比は [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md)。
 
 ---
 
@@ -65,7 +65,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | Topic | `/o2_storage` | O₂ 貯蔵量（kg） |
 | Topic | `/wrs/product_water_reserve` | 製品水（L） |
 
-型定数: `src/environment/ssos/eclss_topics.py`。ブリッジ: `src/environment/ssos/ros2_eclss_bridge.py`。
+型定数: `src/environment/ssos/eclss/ros2/topics.py`。ブリッジ: `src/environment/ssos/eclss/ros2/bridge.py`。
 
 ---
 
@@ -89,7 +89,9 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | 条件（目安） | 運用コマンド |
 | --- | --- |
 | CO₂ ≥ `co2_storage_high_kg`（デフォルト 1500 kg） | `air_revitalisation`（ARS） |
-| O₂ ≤ `o2_storage_low_kg`（デフォルト 450 kg） | 先に `request_co2`（policy 既定 ON）→ `oxygen_generation`（OGS） |
+| O₂ ≤ `o2_storage_low_kg`（デフォルト 450 kg） | `oxygen_generation`（OGS）。`request_co2_before_ogs: true` のときだけ先に `request_co2`（既定は **false**） |
+
+**`request_co2_before_ogs`:** 既定 OFF。実 SSOS では OGS が Sabatier 用に `/ars/request_co2` を内部呼び出しするため。`true` にすると（設計提案含む）、同一 step で明示 `request_co2` と LoopMock の OGS Sabatier 減算が両方走り、**バッファなしの簡略 mock では CO₂ が二重減算されうる**。
 
 **re-arm**: ARS / OGS を打った後もストレージが改善しなければ、次 step で再試行可能（`co2_at_ars_dispatch` / `o2_at_ogs_dispatch` 境界）。
 
@@ -105,8 +107,8 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 
 | ファイル | 用途 |
 | --- | --- |
-| [scenario.yaml](../../src/scenario/ssos_eclss_loop/scenario.yaml) | step 数、初期ストレージ、backend 種別、閾値、`agents.mode`、run ID |
-| [agents.yaml](../../src/scenario/ssos_eclss_loop/agents.yaml) | チーム（`eclss_operator_*`）、Persona、`policy`（labeled のみ）、Ollama |
+| [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | step 数、初期ストレージ、backend 種別、閾値、`agents.mode`、run ID |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | チーム（`eclss_operator_*`）、Persona、`policy`（labeled のみ）、Ollama |
 
 ### scenario.yaml（主要項目）
 
@@ -150,7 +152,7 @@ team:
   id_prefix: eclss_operator
 
 policy:   # labeled_rule_base のみ。閾値は scenario.yaml から実行時マージ
-  request_co2_before_ogs: true
+  request_co2_before_ogs: false
   request_co2_amount: 25.0
   ars_goal:
     initial_co2_mass: 1800.0
@@ -193,9 +195,9 @@ llm:
 
 ### graph_rewire（client remap — Phase 7）
 
-`design_proposals.json` の `graph_rewire` または `scenario.yaml` の `ssos_graph.rewires` は、**次 run** の `Ros2EclssBridge` が `ros2 topic echo` 等で使うトピック名をクライアント側で置換する（`environment/ssos/graph_rewire.py`）。
+`design_proposals.json` の `graph_rewire` または `scenario.yaml` の `ssos_graph.rewires` は、**次 run** の `Ros2EclssBridge` が `ros2 topic echo` 等で使うトピック名をクライアント側で置換する（`environment/ssos/eclss/ros2/graph_rewire.py`）。
 
-ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlog.md#bl-003-ros-launch-remapphase-8--graph_rewire-a)。
+ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlog.md#bl-003)。
 
 ---
 
@@ -208,7 +210,7 @@ ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlo
 | ID | `eclss_operator_1` … `eclss_operator_N`（デフォルト 3） |
 | deliberation | llm: 全員 1 ラウンド。labeled: 運用判断メッセージ |
 | action rep | `eclss_operator_{(step-1) % N}` |
-| post-run rep | 最終 step の代表が `design_proposals.json` |
+| post-run rep | 最終 step の代表が `design_proposals.json`（`changes` 非空のときのみ） |
 
 `SsosEclssLoopTeam` は `Team` ABC を継承。`run_step(backend, obs)` / `apply_outcome(backend, outcome)` シグネチャ。
 
@@ -218,18 +220,18 @@ ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlo
 | --- | --- | --- |
 | 判断 | `thresholds` + `policy` プロファイル | Persona + ストレージテレメトリ + 議論 |
 | 再現性 | 高い | モデル依存 |
-| 事後提案 | ルールベース `ssos_graph` | LLM が `changes` 生成 |
+| 事後提案 | ルールベース `ssos_graph`（書くときは非空。L8 で goal/閾値フォールバック） | LLM が `changes` 生成（空ならファイルなし） |
 | provenance | `operational_applied` → `record_type: operational` | 同上 |
 
 ---
 
-## 実行方法
+## 実行方法 { #実行方法 }
 
 ### mock（ホスト、ROS2 不要）
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode labeled_rule_base
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 ```
 
 ### ros2（SSOS Docker）
@@ -249,7 +251,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm
 ### 前 run の設計提案を次 run に適用
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm \
   --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 
@@ -261,7 +263,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
 
 ---
 
-## 出力の読み方
+## 出力の読み方 { #出力の読み方 }
 
 ### ファイル一覧
 
@@ -272,7 +274,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
 | `messages.jsonl` | `operational_command`、deliberation、reasoning |
 | `events.jsonl` | `operational_applied` / `operational_rejected` |
 | `design_state.jsonl` | 各 step の `ssos_graph` スナップショット（rewires 含む） |
-| `design_proposals.json` | 事後の `ssos_graph` 恒久案 |
+| `design_proposals.json` | 事後の `ssos_graph` 恒久案（`changes` 非空のときのみ書込） |
 | `summary.json` | peak CO₂、operational 回数、backend 種別など |
 | `provenance.jsonl` | 運用レコード（`record_type: operational`） |
 
@@ -332,7 +334,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
 
 ---
 
-## ダッシュボードでの見方
+## ダッシュボードでの見方 { #ダッシュボードでの見方 }
 
 `summary.scenario == "ssos_eclss_loop"` の run は `src/tools/dashboard/ssos_views.py` に分岐。
 
@@ -340,7 +342,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --mock --agents-mode llm \
 2. **Step replay** — `operational_applied` タイムライン、発言・reasoning、ストレージプロット
 3. **設計提案** — `ssos_graph` の `action_profile` / `graph_rewire` プレビュー
 
-scrubber 向けスクリーンショット: [README.md](README.md#一目でわかるダッシュボード)。
+scrubber 向けスクリーンショット: [概要](overview.md#一目でわかるダッシュボード)。
 
 ---
 
@@ -358,7 +360,7 @@ pytest tests/scenario/test_ssos_eclss_loop*.py -q
 pytest tests/environment/test_graph_rewire*.py -q
 ```
 
-コンテナ E2E 記録: [memo/ssos_eclss_loop/e2e_records/](memo/ssos_eclss_loop/e2e_records/README.md)。
+コンテナ E2E 記録: `memo/ssos_eclss_loop/e2e_records/` (repo only)。
 
 ---
 
