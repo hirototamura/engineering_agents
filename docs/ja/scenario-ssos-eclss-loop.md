@@ -10,11 +10,11 @@
 
 | 観点 | scrubber_degradation | ssos_eclss_loop |
 | --- | --- | --- |
-| バックエンド | `StationSimulator`（Python モック） | `EclssBackend`（`LoopMockEclssBackend` / `Ros2EclssBridge`） |
+| バックエンド | `StationSimulator`（Python モック） | `EclssBackend`（`LoopMockEclssBackend` / `PlantSimEclssBackend` / `Ros2EclssBridge`） |
 | テレメトリ | CO₂ ppm、スクラバー効率、電力マージン | `/co2_storage`、`/o2_storage`、`/wrs/product_water_reserve`（kg / L） |
 | ランタイム操作 | 回復コマンド（ファン、EPS ブースト等） | 運用コマンド（ARS Action、OGS Action、CO₂ Service 等） |
 | 事後提案 | scrubber トポロジ（`add_edge` 等） | `design_domain: ssos_graph`（`action_profile`、`graph_rewire` 等） |
-| 実行環境 | ホスト Python のみ | mock はホスト可。**ros2** は SSOS Docker + ECLSS headless |
+| 実行環境 | ホスト Python のみ | `mock` / `plant_sim` はホスト可。**ros2** は SSOS Docker + ECLSS headless |
 | 状態 | Mock 凍結 | Phase 0–7 完了（launch remap は Phase 8 バックログ） |
 
 ---
@@ -120,7 +120,7 @@ simulation:
   initial_product_water_l: 100.0
 
 backend:
-  kind: mock  # mock | ros2 — SSOS_ECLSS_BACKEND 環境変数でも上書き可
+  kind: mock  # mock | plant_sim | ros2 — SSOS_ECLSS_BACKEND 環境変数でも上書き可
 
 mock_dynamics:
   co2_growth_kg_per_step: 0.06
@@ -187,7 +187,7 @@ llm:
 | --- | --- | --- |
 | `air_revitalisation` | `send_air_revitalisation_goal()` | ARS サイクル — CO₂ 除去 |
 | `oxygen_generation` | `send_oxygen_generation_goal()` | OGS サイクル — O₂ 生成 |
-| `water_recovery_systems` | `send_water_recovery_goal()` | WRS サイクル（ros2 のみ；mock は未実装） |
+| `water_recovery_systems` | `send_water_recovery_goal()` | WRS サイクル（`plant_sim` と `ros2`；LoopMock は未実装） |
 | `request_co2` | `request_co2(amount)` | Sabatier feedstock 供給 |
 | `request_o2` | `request_o2(amount)` | O₂ 引き出し |
 
@@ -233,6 +233,16 @@ ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlo
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 ```
+
+### plant_sim（ホスト、物質収支プラント）
+
+乗員代謝・WRS 水循環・ledger テレメトリ付きの中忠実度モデル。Docker 不要。
+
+```bash
+python -m scenario.ssos_eclss_loop.scenario_run --backend plant_sim --agents-mode labeled_rule_base --steps 72
+```
+
+詳細: [Plant Sim backend 解説](memo/ssos_eclss_loop/plant_sim_backend.md)。
 
 ### ros2（SSOS Docker）
 

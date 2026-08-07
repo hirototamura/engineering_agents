@@ -11,11 +11,11 @@ Reference scenario where an **agent team** operates real ROS2 **ECLSS** (Environ
 
 | Aspect | scrubber_degradation | ssos_eclss_loop |
 | --- | --- | --- |
-| Backend | `StationSimulator` (Python mock) | `EclssBackend` (`LoopMockEclssBackend` / `Ros2EclssBridge`) |
+| Backend | `StationSimulator` (Python mock) | `EclssBackend` (`LoopMockEclssBackend` / `PlantSimEclssBackend` / `Ros2EclssBridge`) |
 | Telemetry | CO₂ ppm, scrubber efficiency, power margin | `/co2_storage`, `/o2_storage`, `/wrs/product_water_reserve` (kg / L) |
 | Runtime ops | Recovery commands (fan, EPS boost, etc.) | Operational commands (ARS Action, OGS Action, CO₂ Service, etc.) |
 | Post-run proposals | Scrubber topology (`add_edge`, etc.) | `design_domain: ssos_graph` (`action_profile`, `graph_rewire`, etc.) |
-| Environment | Host Python only | mock on host OK. **ros2** requires SSOS Docker + ECLSS headless |
+| Environment | Host Python only | `mock` / `plant_sim` on host OK. **ros2** requires SSOS Docker + ECLSS headless |
 | Status | Mock frozen | Phase 0–7 complete (launch remap is Phase 8 backlog) |
 
 ---
@@ -121,7 +121,7 @@ simulation:
   initial_product_water_l: 100.0
 
 backend:
-  kind: mock  # mock | ros2 — also overridable via SSOS_ECLSS_BACKEND env var
+  kind: mock  # mock | plant_sim | ros2 — also overridable via SSOS_ECLSS_BACKEND env var
 
 mock_dynamics:
   co2_growth_kg_per_step: 0.06
@@ -188,7 +188,7 @@ Agent operational triggers (`co2_storage_high_kg`, etc.) come from `scenario.yam
 | --- | --- | --- |
 | `air_revitalisation` | `send_air_revitalisation_goal()` | ARS cycle — CO₂ removal |
 | `oxygen_generation` | `send_oxygen_generation_goal()` | OGS cycle — O₂ generation |
-| `water_recovery_systems` | `send_water_recovery_goal()` | WRS cycle (ros2 only; mock not implemented) |
+| `water_recovery_systems` | `send_water_recovery_goal()` | WRS cycle (`plant_sim` and `ros2`; LoopMock not implemented) |
 | `request_co2` | `request_co2(amount)` | Sabatier feedstock supply |
 | `request_o2` | `request_o2(amount)` | O₂ withdrawal |
 
@@ -234,6 +234,17 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 ```
+
+### plant_sim (host, mass-balance plant)
+
+Deterministic crew + ARS/OGS/Sabatier/WRS model with explainable ledgers. No Docker.
+
+```bash
+python -m scenario.ssos_eclss_loop.scenario_run --backend plant_sim --agents-mode labeled_rule_base --steps 72
+python3 -m tools.cli run ssos_eclss_loop --backend plant_sim --agents-mode labeled_rule_base --steps 72
+```
+
+Details: [Plant Sim backend](memo/ssos_eclss_loop/plant_sim_backend.md).
 
 ### ros2 (SSOS Docker)
 

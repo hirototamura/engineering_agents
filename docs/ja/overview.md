@@ -20,7 +20,7 @@
 | | [scrubber_degradation](scenario-scrubber-degradation.md) | [ssos_eclss_loop](scenario-ssos-eclss-loop.md) |
 | --- | --- | --- |
 | 目的 | Mock 上の CO₂ スクラバー異常と EPS 連動 | SSOS 実 ROS2 ECLSS の運用代替（Crew Simulation 置換） |
-| バックエンド | `StationSimulator` | `EclssBackend`（mock / `Ros2EclssBridge`） |
+| バックエンド | `StationSimulator` | `EclssBackend`（mock / plant_sim / `Ros2EclssBridge`） |
 | テレメトリ | CO₂ ppm、電力マージン | CO₂/O₂/水ストレージ（kg / L） |
 | ランタイム | 回復コマンド（ファン、EPS ブースト） | 運用コマンド（ARS、OGS、request_co2） |
 | 事後提案 | scrubber トポロジ | `ssos_graph`（action_profile、graph_rewire） |
