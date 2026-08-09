@@ -97,13 +97,18 @@ def _episode_onset(
     step: int,
     is_active,
 ) -> Optional[int]:
-    """Earliest step of the contiguous active episode ending at ``step``."""
+    """Earliest step of the active episode ending at ``step``.
+
+    Walks backward only through adjacent recorded steps (``prior == onset - 1``).
+    Gaps in the series break the episode so elapsed is not inflated across missing steps.
+    """
     by_step = {int(row["step"]): row for row in series if "step" in row}
     if step not in by_step or not is_active(by_step[step]):
         return None
     onset = step
-    for prior in sorted((s for s in by_step if s <= step), reverse=True):
-        if not is_active(by_step[prior]):
+    while True:
+        prior = onset - 1
+        if prior not in by_step or not is_active(by_step[prior]):
             break
         onset = prior
     return onset
@@ -455,14 +460,19 @@ def extract_design_drivers(
 def _contiguous_segments(
     series: Sequence[Tuple[int, Optional[str]]],
 ) -> List[Dict[str, Any]]:
-    """Merge contiguous equal states into [start_step, end_step) segments."""
+    """Merge equal states into [start_step, end_step) segments.
+
+    Only adjacent recorded steps (``step - prev_step == 1``) stay in one segment;
+    gaps split segments even when the state value matches on both sides.
+    """
     segments: List[Dict[str, Any]] = []
     if not series:
         return segments
     start_step, current = series[0]
     prev_step = start_step
     for step, value in series[1:]:
-        if value != current:
+        gap = int(step) - int(prev_step) > 1
+        if value != current or gap:
             if current is not None:
                 segments.append(
                     {

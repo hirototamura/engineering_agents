@@ -95,6 +95,10 @@ def render_ssos_status_strip(
             "Health reads telemetry.co2_storage_kg, o2_storage_kg, product_water_reserve_l "
             "(threshold numbers not recorded in this run)."
         )
+    st.caption(
+        "Bands use the post-ops health row when a step has pre/post_ops duplicates "
+        "(final state after commands). Anomaly / stress below uses the worst band for the step."
+    )
 
     cols = st.columns(6)
     with cols[0]:
@@ -333,8 +337,15 @@ def render_plant_sim_panel(
     axes[-1].set_xlabel("Step")
     st.pyplot(fig, clear_figure=True)
 
-    latest = select_row_for_step(series, highlight_step) if highlight_step is not None else series[-1]
-    if latest is None:
+    if highlight_step is not None:
+        latest = select_row_for_step(series, highlight_step)
+        if latest is None:
+            st.caption(
+                f"No plant_sim ledger at step {highlight_step}; "
+                "cumulative metrics omitted (chart still shows the full run)."
+            )
+            return
+    else:
         latest = series[-1]
     cols = st.columns(4)
     with cols[0]:
@@ -404,9 +415,10 @@ def render_anomaly_status_panel(
         summary=summary,
     )
     st.caption(
-        "Derived from telemetry failure flags, health bands (worst of pre/post_ops for the step), "
+        "Derived from telemetry failure flags, health bands (worst of pre/post_ops for the step; "
+        "may differ from Status above when ops recovered the band), "
         "scrubber anomaly_flags/events, and plant_sim shortfall ledgers — "
-        "elapsed = steps since contiguous onset."
+        "elapsed = steps since onset across adjacent recorded steps (gaps break the episode)."
     )
     if not rows:
         st.caption("No active anomaly, subsystem failure, or health stress at this step.")
@@ -481,8 +493,11 @@ def _draw_state_timeline(
     title: str,
     lanes: List[Dict[str, Any]],
     empty_caption: str,
+    policy_caption: Optional[str] = None,
 ) -> None:
     st.subheader(title)
+    if policy_caption:
+        st.caption(policy_caption)
     if not lanes or not any(lane.get("segments") for lane in lanes):
         st.caption(empty_caption)
         return
@@ -534,7 +549,10 @@ def _draw_state_timeline(
             for state, color in sorted(used_states.items())
         ]
         ax.legend(handles=handles, loc="upper right", fontsize=8, framealpha=0.85)
-    st.caption("Contiguous state segments from run artifacts (gaps omitted when state is missing).")
+    st.caption(
+        "Segments merge equal states only across adjacent recorded steps; "
+        "missing steps split segments rather than stretching across gaps."
+    )
     st.pyplot(fig, clear_figure=True)
 
 
@@ -544,6 +562,10 @@ def render_status_state_timeline(health_rows: List[Dict[str, Any]]) -> None:
         title="Status timeline",
         lanes=lanes,
         empty_caption="No health_metrics rows available for a status timeline.",
+        policy_caption=(
+            "Uses the post-ops health row when a step has pre/post_ops duplicates "
+            "(final state after commands). Step Replay's Anomaly panel uses worst-of-step instead."
+        ),
     )
 
 

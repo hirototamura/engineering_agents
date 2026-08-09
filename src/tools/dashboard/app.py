@@ -11,17 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-import importlib
 import matplotlib.pyplot as plt
 import streamlit as st
 import streamlit.components.v1 as components
 
-from tools.dashboard import run_status, ssos_flow, ssos_views
-
-# Streamlit reruns app.py but may keep stale imported submodules; reload helpers.
-importlib.reload(ssos_flow)
-importlib.reload(run_status)
-importlib.reload(ssos_views)
+from tools.dashboard import ssos_views
 from environment.scrubber.eclss_ops.telemetry import CO2_RECOVERY_PPM
 from tools.dashboard.jsonl_rows import select_row_for_step, series_by_step
 
@@ -461,8 +455,13 @@ def _init_step_state(run_name: str, *, run_key: str, step_key: str, default_step
     )
 
 
-def _bind_arrow_key_step_nav(*, prev_label: str, next_label: str) -> None:
-    """Left/Right arrows click the matching Prev/Next buttons (ignore text inputs)."""
+def _should_show_step_slider(max_step: int) -> bool:
+    """Streamlit sliders require min_value < max_value; omit when only one step."""
+    return int(max_step) > 1
+
+
+def _bind_arrow_key_step_nav(*, prev_key: str, next_key: str) -> None:
+    """Left/Right arrows click Prev/Next via Streamlit ``st-key-*`` widget classes."""
     components.html(
         f"""
 <script>
@@ -488,18 +487,22 @@ def _bind_arrow_key_step_nav(*, prev_label: str, next_label: str) -> None:
     }}
     return false;
   }};
+  const buttonForKey = (widgetKey) => {{
+    const host = doc.querySelector('.st-key-' + widgetKey);
+    if (!host) return null;
+    return host.querySelector('button');
+  }};
   if (doc[handlerKey]) {{
     doc.removeEventListener('keydown', doc[handlerKey]);
   }}
   doc[handlerKey] = (event) => {{
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
     if (shouldIgnoreTarget(event.target)) return;
-    let label = null;
-    if (event.key === 'ArrowLeft') label = {prev_label!r};
-    else if (event.key === 'ArrowRight') label = {next_label!r};
+    let widgetKey = null;
+    if (event.key === 'ArrowLeft') widgetKey = {prev_key!r};
+    else if (event.key === 'ArrowRight') widgetKey = {next_key!r};
     else return;
-    const buttons = Array.from(doc.querySelectorAll('button'));
-    const button = buttons.find((node) => (node.innerText || '').trim() === label);
+    const button = buttonForKey(widgetKey);
     if (!button || button.disabled) return;
     event.preventDefault();
     button.click();
@@ -521,24 +524,27 @@ def _step_nav_controls(
     reset_to: int = 1,
 ) -> int:
     """Slider plus Previous / Next / Reset; Left/Right arrows mirror the buttons."""
+    max_step = max(int(max_step), 1)
     if step_key not in st.session_state:
         st.session_state[step_key] = reset_to
     st.session_state[step_key] = min(max(int(st.session_state[step_key]), 1), max_step)
 
     prev_label = "◀ Previous"
     next_label = "Next ▶"
+    prev_key = f"{key_prefix}_prev"
+    next_key = f"{key_prefix}_next"
     cols = st.columns([1.1, 1.1, 5.2, 1.0])
     with cols[0]:
         prev_clicked = st.button(
             prev_label,
-            key=f"{key_prefix}_prev",
+            key=prev_key,
             disabled=int(st.session_state[step_key]) <= 1,
             use_container_width=True,
         )
     with cols[1]:
         next_clicked = st.button(
             next_label,
-            key=f"{key_prefix}_next",
+            key=next_key,
             disabled=int(st.session_state[step_key]) >= max_step,
             use_container_width=True,
         )
@@ -553,14 +559,18 @@ def _step_nav_controls(
         st.session_state[step_key] = min(max(reset_to, 1), max_step)
 
     with cols[2]:
-        st.session_state[step_key] = st.slider(
-            slider_label,
-            min_value=1,
-            max_value=max_step,
-            value=int(st.session_state[step_key]),
-        )
+        if _should_show_step_slider(max_step):
+            st.session_state[step_key] = st.slider(
+                slider_label,
+                min_value=1,
+                max_value=max_step,
+                value=int(st.session_state[step_key]),
+            )
+        else:
+            st.session_state[step_key] = 1
+            st.caption(f"{slider_label}: 1 (single-step run)")
 
-    _bind_arrow_key_step_nav(prev_label=prev_label, next_label=next_label)
+    _bind_arrow_key_step_nav(prev_key=prev_key, next_key=next_key)
     st.caption("Tip: use ◀ Previous / Next ▶ or Left / Right arrow keys to move one step.")
     return int(st.session_state[step_key])
 

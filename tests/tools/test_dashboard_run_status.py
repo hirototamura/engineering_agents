@@ -1,6 +1,8 @@
 """Tests for dashboard anomaly / operator / design-driver / timeline extractors."""
 
 from tools.dashboard.run_status import (
+    _contiguous_segments,
+    _episode_onset,
     build_anomaly_timeline_lanes,
     build_status_timeline_lanes,
     extract_anomaly_status,
@@ -97,6 +99,8 @@ def test_extract_anomaly_status_subsystem_failure_and_scrubber_flag():
     telemetry = [
         {"step": 1, "ars_failure_enabled": False, "anomaly_flags": []},
         {"step": 2, "ars_failure_enabled": True, "anomaly_flags": []},
+        {"step": 3, "ars_failure_enabled": True, "anomaly_flags": []},
+        {"step": 4, "ars_failure_enabled": True, "anomaly_flags": []},
         {
             "step": 5,
             "ars_failure_enabled": True,
@@ -367,3 +371,32 @@ def test_build_anomaly_timeline_lanes_failures_and_scrubber_flags():
     assert {"start_step": 4, "end_step": 5, "state": "ok"} in ars
     scrubber = lanes["anomaly:scrubber_degradation"]["segments"]
     assert {"start_step": 3, "end_step": 5, "state": "active"} in scrubber
+
+
+def test_episode_onset_breaks_on_missing_adjacent_steps():
+    series = [
+        {"step": 2, "ars_failure_enabled": True},
+        {"step": 5, "ars_failure_enabled": True},
+    ]
+    onset = _episode_onset(
+        series,
+        step=5,
+        is_active=lambda row: bool(row.get("ars_failure_enabled")),
+    )
+    assert onset == 5
+
+
+def test_contiguous_segments_split_on_step_gaps():
+    segments = _contiguous_segments(
+        [
+            (2, "warning"),
+            (5, "warning"),
+            (6, "warning"),
+            (7, "safe"),
+        ]
+    )
+    assert segments == [
+        {"start_step": 2, "end_step": 3, "state": "warning"},
+        {"start_step": 5, "end_step": 7, "state": "warning"},
+        {"start_step": 7, "end_step": 8, "state": "safe"},
+    ]
