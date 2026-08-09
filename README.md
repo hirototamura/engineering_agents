@@ -98,17 +98,18 @@ python3 -m streamlit run src/tools/dashboard/app.py   # optional dashboard
 
 Overview and Step replay walkthrough for run `plant-sim-labeled-rule-base` (`ssos_eclss_loop` + `--backend plant_sim` + `--agents-mode labeled_rule_base`).
 
-GitHub’s README sanitizer strips `<video>` tags that point at repo-relative files, so the inline preview below is a sped-up GIF. Use the MP4 for the full recording.
+<video src="https://github.com/user-attachments/assets/f2c778af-bd48-4188-98ca-00ce106a7b38" controls muted playsinline width="100%">
+  <a href="docs/assets/dashboard-demo-plant-sim-labeled-rule-base.mp4">Download MP4</a>
+</video>
 
-![Dashboard demo — plant-sim-labeled-rule-base (sped-up preview)](docs/assets/dashboard-demo.gif)
-
-[Full MP4 walkthrough](docs/assets/dashboard-demo-plant-sim-labeled-rule-base.mp4) · [Poster frame](docs/assets/dashboard-demo-poster.png)
+[Repo copy (MP4)](docs/assets/dashboard-demo-plant-sim-labeled-rule-base.mp4) · [Sped-up GIF preview](docs/assets/dashboard-demo.gif)
 
 ```bash
 ea run ssos_eclss_loop --backend plant_sim --agents-mode labeled_rule_base --steps 40 \
   --run-id plant-sim-labeled-rule-base
 python3 -m streamlit run src/tools/dashboard/app.py
 ```
+
 **Next:** [Overview](docs/en/overview.md) · [Architecture](docs/en/architecture.md) · [CLI guide](docs/en/cli.md) · [SSOS integration](docs/en/ssos/index.md) · Japanese quick start: [docs/ja/index.md](docs/ja/index.md)
 
 ---
