@@ -13,15 +13,41 @@ _FAILURE_FLAGS = (
     ("wrs_failure_enabled", "WRS", "water recovery subsystem"),
 )
 
-_HEALTH_BANDS = (
+_HEALTH_BAND_CANDIDATES = (
     ("overall", "overall health"),
     ("co2_status", "CO2 band"),
     ("o2_status", "O2 band"),
     ("water_status", "water band"),
+    ("power_status", "power band"),
 )
 
 _STRESS_STATUSES = frozenset({"warning", "critical"})
 _STATUS_RANK = {"safe": 0, "unknown": 1, "warning": 2, "critical": 3}
+
+
+def _health_bands_for_rows(health_rows: Sequence[Dict[str, Any]]) -> List[Tuple[str, str]]:
+    """Return health bands present in the run (scrubber: power; SSOS: O2/water)."""
+    bands: List[Tuple[str, str]] = []
+    for band_key, label in _HEALTH_BAND_CANDIDATES:
+        if band_key == "overall":
+            bands.append((band_key, label))
+            continue
+        if any(str(row.get(band_key) or "").strip() for row in health_rows):
+            bands.append((band_key, label))
+    return bands
+
+
+def _failure_flags_for_telemetry(
+    telemetry_rows: Sequence[Dict[str, Any]],
+) -> List[Tuple[str, str, str]]:
+    """Return SSOS failure flags that actually appear in telemetry."""
+    keys_present = {
+        flag_key
+        for row in telemetry_rows
+        for flag_key, _, _ in _FAILURE_FLAGS
+        if flag_key in row
+    }
+    return [item for item in _FAILURE_FLAGS if item[0] in keys_present]
 
 
 def _fmt_num(value: Any, digits: int = 3) -> Optional[str]:
@@ -45,6 +71,7 @@ def _worst_health_row(rows: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]
             _status_rank(row.get("co2_status")),
             _status_rank(row.get("o2_status")),
             _status_rank(row.get("water_status")),
+            _status_rank(row.get("power_status")),
             0 if row.get("post_ops") is True else 1,
         ),
     )
@@ -82,6 +109,45 @@ def _episode_onset(
     return onset
 
 
+def _plant_sim_shortfall_series(telemetry_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    series: List[Dict[str, Any]] = []
+    for row in series_by_step(telemetry_rows):
+        topic = plant_sim_topic(row)
+        if topic is None:
+            continue
+        series.append({"step": int(row["step"]), **topic})
+    return series
+
+
+def _ledger_increased_at(
+    current: Dict[str, Any],
+    prior: Optional[Dict[str, Any]],
+    key: str,
+) -> bool:
+    cur_val = current.get(key)
+    if not isinstance(cur_val, (int, float)) or float(cur_val) <= 0:
+        return False
+    if prior is None:
+        return True
+    prev_val = prior.get(key)
+    if not isinstance(prev_val, (int, float)):
+        return True
+    return float(cur_val) > float(prev_val)
+
+
+def _crew_shortfall_active(series: Sequence[Dict[str, Any]], step: int) -> bool:
+    by_step = {int(row["step"]): row for row in series if "step" in row}
+    if step not in by_step:
+        return False
+    ordered = sorted(by_step)
+    idx = ordered.index(step)
+    current = by_step[step]
+    prior = by_step[ordered[idx - 1]] if idx > 0 else None
+    return _ledger_increased_at(current, prior, "total_o2_shortfall_kg") or _ledger_increased_at(
+        current, prior, "total_water_shortfall_l"
+    )
+
+
 def extract_anomaly_status(
     *,
     step: int,
@@ -99,7 +165,7 @@ def extract_anomaly_status(
     current_health = _worst_health_row(step_health_rows) or {}
     thresholds = thresholds_from_summary(summary or {}) or {}
 
-    for flag_key, short_name, where in _FAILURE_FLAGS:
+    for flag_key, short_name, where in _failure_flags_for_telemetry(telemetry_rows):
         onset = _episode_onset(
             tel_series,
             step=step,
@@ -119,7 +185,7 @@ def extract_anomaly_status(
             }
         )
 
-    for band_key, where in _HEALTH_BANDS:
+    for band_key, where in _health_bands_for_rows(health_rows):
         status = str(current_health.get(band_key, "") or "").lower()
         if status not in _STRESS_STATUSES:
             continue
@@ -166,6 +232,11 @@ def extract_anomaly_status(
                 thr_s = _fmt_num(thr)
                 if thr_s is not None:
                     impact_parts.append(f"{thr_key}={thr_s}")
+        if band_key in {"power_status", "overall"}:
+            power_margin = current_tel.get("power_margin_w")
+            power_s = _fmt_num(power_margin)
+            if power_s is not None:
+                impact_parts.append(f"power_margin_w={power_s}")
         rows.append(
             {
                 "type": "health_stress",
@@ -239,27 +310,34 @@ def extract_anomaly_status(
             }
         )
 
-    topic = plant_sim_topic(current_tel)
-    if topic:
+    shortfall_series = _plant_sim_shortfall_series(telemetry_rows)
+    if shortfall_series and _crew_shortfall_active(shortfall_series, step):
+        current_topic = next(row for row in shortfall_series if int(row["step"]) == int(step))
         shortfall_bits: List[str] = []
-        o2_short = topic.get("total_o2_shortfall_kg")
-        water_short = topic.get("total_water_shortfall_l")
+        o2_short = current_topic.get("total_o2_shortfall_kg")
+        water_short = current_topic.get("total_water_shortfall_l")
         if isinstance(o2_short, (int, float)) and float(o2_short) > 0:
             shortfall_bits.append(f"total_o2_shortfall_kg={_fmt_num(o2_short)}")
         if isinstance(water_short, (int, float)) and float(water_short) > 0:
             shortfall_bits.append(f"total_water_shortfall_l={_fmt_num(water_short)}")
-        if shortfall_bits:
-            rows.append(
-                {
-                    "type": "plant_sim_shortfall",
-                    "name": "crew_shortfall",
-                    "where": "plant_sim crew demand",
-                    "severity": "shortfall",
-                    "onset_step": step,
-                    "elapsed_steps": 0,
-                    "telemetry": "; ".join(shortfall_bits),
-                }
-            )
+        onset = _episode_onset(
+            shortfall_series,
+            step=step,
+            is_active=lambda row: _crew_shortfall_active(shortfall_series, int(row["step"])),
+        )
+        if onset is None:
+            onset = step
+        rows.append(
+            {
+                "type": "plant_sim_shortfall",
+                "name": "crew_shortfall",
+                "where": "plant_sim crew demand",
+                "severity": "shortfall",
+                "onset_step": onset,
+                "elapsed_steps": int(step) - int(onset),
+                "telemetry": "; ".join(shortfall_bits),
+            }
+        )
 
     return rows
 
@@ -398,7 +476,7 @@ def build_status_timeline_lanes(
     """Health-band state timeline lanes for Overview (Grafana-style state history)."""
     series = series_by_step(health_rows)
     lanes: List[Dict[str, Any]] = []
-    for band_key, label in _HEALTH_BANDS:
+    for band_key, label in _health_bands_for_rows(health_rows):
         points = [
             (int(row["step"]), str(row.get(band_key) or "").lower() or None)
             for row in series
@@ -423,7 +501,7 @@ def build_anomaly_timeline_lanes(
     tel_series = series_by_step(telemetry_rows)
     lanes: List[Dict[str, Any]] = []
 
-    for flag_key, short_name, _where in _FAILURE_FLAGS:
+    for flag_key, short_name, _where in _failure_flags_for_telemetry(telemetry_rows):
         points = [
             (
                 int(row["step"]),

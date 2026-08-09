@@ -200,6 +200,89 @@ def test_extract_design_drivers_uses_recorded_fields_only():
     assert sparse["change_count"] == 1
 
 
+def test_build_status_timeline_lanes_includes_power_band_for_scrubber_runs():
+    health = [
+        {"step": 1, "overall": "safe", "co2_status": "safe", "power_status": "safe"},
+        {"step": 2, "overall": "warning", "co2_status": "safe", "power_status": "warning"},
+        {"step": 3, "overall": "critical", "co2_status": "safe", "power_status": "critical"},
+    ]
+    lanes = {lane["key"]: lane for lane in build_status_timeline_lanes(health)}
+    assert "power_status" in lanes
+    assert "o2_status" not in lanes
+    assert "water_status" not in lanes
+    assert lanes["power_status"]["segments"][-1]["state"] == "critical"
+
+
+def test_build_anomaly_timeline_lanes_omits_missing_failure_flags():
+    telemetry = [
+        {"step": 1, "anomaly_flags": []},
+        {"step": 2, "anomaly_flags": ["scrubber_degradation"]},
+    ]
+    lanes = build_anomaly_timeline_lanes(telemetry, [])
+    lane_keys = {lane["key"] for lane in lanes}
+    assert "ars_failure_enabled" not in lane_keys
+    assert "ogs_failure_enabled" not in lane_keys
+    assert "wrs_failure_enabled" not in lane_keys
+    assert "anomaly:scrubber_degradation" in lane_keys
+
+
+def test_extract_anomaly_status_crew_shortfall_only_when_ledger_increases():
+    telemetry = [
+        {
+            "step": 1,
+            "raw_topics": {
+                "plant_sim": {"total_o2_shortfall_kg": 0.0, "total_water_shortfall_l": 0.0}
+            },
+        },
+        {
+            "step": 2,
+            "raw_topics": {
+                "plant_sim": {"total_o2_shortfall_kg": 0.02, "total_water_shortfall_l": 0.0}
+            },
+        },
+        {
+            "step": 3,
+            "raw_topics": {
+                "plant_sim": {"total_o2_shortfall_kg": 0.02, "total_water_shortfall_l": 0.0}
+            },
+        },
+        {
+            "step": 4,
+            "raw_topics": {
+                "plant_sim": {"total_o2_shortfall_kg": 0.05, "total_water_shortfall_l": 0.01}
+            },
+        },
+    ]
+    rows_at_2 = extract_anomaly_status(
+        step=2,
+        telemetry_rows=telemetry,
+        health_rows=[{"step": 2, "overall": "safe", "co2_status": "safe"}],
+        events=[],
+    )
+    assert any(row["type"] == "plant_sim_shortfall" for row in rows_at_2)
+    shortfall_2 = next(row for row in rows_at_2 if row["type"] == "plant_sim_shortfall")
+    assert shortfall_2["onset_step"] == 2
+    assert shortfall_2["elapsed_steps"] == 0
+
+    rows_at_3 = extract_anomaly_status(
+        step=3,
+        telemetry_rows=telemetry,
+        health_rows=[{"step": 3, "overall": "safe", "co2_status": "safe"}],
+        events=[],
+    )
+    assert not any(row["type"] == "plant_sim_shortfall" for row in rows_at_3)
+
+    rows_at_4 = extract_anomaly_status(
+        step=4,
+        telemetry_rows=telemetry,
+        health_rows=[{"step": 4, "overall": "safe", "co2_status": "safe"}],
+        events=[],
+    )
+    shortfall_4 = next(row for row in rows_at_4 if row["type"] == "plant_sim_shortfall")
+    assert shortfall_4["onset_step"] == 4
+    assert shortfall_4["elapsed_steps"] == 0
+
+
 def test_build_status_timeline_lanes_prefers_post_ops_health_row():
     health = [
         {"step": 6, "overall": "warning", "co2_status": "warning", "o2_status": "safe", "water_status": "safe"},
