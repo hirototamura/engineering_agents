@@ -148,6 +148,18 @@ def _crew_shortfall_active(series: Sequence[Dict[str, Any]], step: int) -> bool:
     )
 
 
+def _crew_shortfall_ledger_positive(series: Sequence[Dict[str, Any]], step: int) -> bool:
+    by_step = {int(row["step"]): row for row in series if "step" in row}
+    if step not in by_step:
+        return False
+    current = by_step[step]
+    for key in ("total_o2_shortfall_kg", "total_water_shortfall_l"):
+        value = current.get(key)
+        if isinstance(value, (int, float)) and float(value) > 0:
+            return True
+    return False
+
+
 def extract_anomaly_status(
     *,
     step: int,
@@ -323,7 +335,9 @@ def extract_anomaly_status(
         onset = _episode_onset(
             shortfall_series,
             step=step,
-            is_active=lambda row: _crew_shortfall_active(shortfall_series, int(row["step"])),
+            is_active=lambda row: _crew_shortfall_ledger_positive(
+                shortfall_series, int(row["step"])
+            ),
         )
         if onset is None:
             onset = step

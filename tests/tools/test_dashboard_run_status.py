@@ -279,8 +279,40 @@ def test_extract_anomaly_status_crew_shortfall_only_when_ledger_increases():
         events=[],
     )
     shortfall_4 = next(row for row in rows_at_4 if row["type"] == "plant_sim_shortfall")
-    assert shortfall_4["onset_step"] == 4
-    assert shortfall_4["elapsed_steps"] == 0
+    assert shortfall_4["onset_step"] == 2
+    assert shortfall_4["elapsed_steps"] == 2
+
+
+def test_extract_anomaly_status_crew_shortfall_episode_onset_across_consecutive_increases():
+    telemetry = [
+        {
+            "step": 1,
+            "raw_topics": {
+                "plant_sim": {"total_o2_shortfall_kg": 0.0, "total_water_shortfall_l": 0.0}
+            },
+        },
+        {
+            "step": 2,
+            "raw_topics": {
+                "plant_sim": {"total_o2_shortfall_kg": 0.02, "total_water_shortfall_l": 0.0}
+            },
+        },
+        {
+            "step": 3,
+            "raw_topics": {
+                "plant_sim": {"total_o2_shortfall_kg": 0.04, "total_water_shortfall_l": 0.01}
+            },
+        },
+    ]
+    rows_at_3 = extract_anomaly_status(
+        step=3,
+        telemetry_rows=telemetry,
+        health_rows=[{"step": 3, "overall": "safe", "co2_status": "safe"}],
+        events=[],
+    )
+    shortfall = next(row for row in rows_at_3 if row["type"] == "plant_sim_shortfall")
+    assert shortfall["onset_step"] == 2
+    assert shortfall["elapsed_steps"] == 1
 
 
 def test_build_status_timeline_lanes_prefers_post_ops_health_row():
