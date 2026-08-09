@@ -469,18 +469,31 @@ def _bind_arrow_key_step_nav(*, prev_label: str, next_label: str) -> None:
 (() => {{
   const doc = window.parent.document;
   const handlerKey = '__ea_arrow_step_nav_handler';
+  const shouldIgnoreTarget = (target) => {{
+    if (!target || !(target instanceof Element)) return false;
+    const tag = (target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) {{
+      return true;
+    }}
+    // Sidebar widgets (run selectbox, etc.) use custom elements, not native inputs.
+    if (target.closest('[data-testid="stSidebar"]')) {{
+      return true;
+    }}
+    // Other Streamlit controls that consume arrow keys (selectbox, slider, popovers).
+    if (target.closest(
+      '[role="combobox"], [role="listbox"], [role="option"], [role="slider"], ' +
+      '[data-testid="stSelectbox"], [data-testid="stSlider"], [data-baseweb="select"], [data-baseweb="popover"]'
+    )) {{
+      return true;
+    }}
+    return false;
+  }};
   if (doc[handlerKey]) {{
     doc.removeEventListener('keydown', doc[handlerKey]);
   }}
   doc[handlerKey] = (event) => {{
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-    const target = event.target;
-    if (target) {{
-      const tag = (target.tagName || '').toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) {{
-        return;
-      }}
-    }}
+    if (shouldIgnoreTarget(event.target)) return;
     let label = null;
     if (event.key === 'ArrowLeft') label = {prev_label!r};
     else if (event.key === 'ArrowRight') label = {next_label!r};
