@@ -210,34 +210,34 @@ def extract_anomaly_status(
                     "telemetry": "; ".join(impact_parts),
                 }
             )
-    else:
-        # Scheduled anomaly not yet reflected in flags (pre-onset or missing flags).
-        for event in events:
-            if event.get("kind") != "anomaly_injected":
-                continue
-            spec = event.get("spec") or {}
-            start = spec.get("start_step")
-            if not isinstance(start, int) or step < start:
-                continue
-            name = str(spec.get("name") or "anomaly")
-            if any(r.get("name") == name and r.get("type") == "scrubber_anomaly" for r in rows):
-                continue
-            impact_parts = [f"scheduled_from_step={start}"]
-            eff = current_tel.get("scrubber_efficiency")
-            eff_s = _fmt_num(eff)
-            if eff_s is not None:
-                impact_parts.append(f"scrubber_efficiency={eff_s}")
-            rows.append(
-                {
-                    "type": "scrubber_anomaly",
-                    "name": name,
-                    "where": "scrubber / cabin atmosphere",
-                    "severity": "scheduled_or_active",
-                    "onset_step": start,
-                    "elapsed_steps": int(step) - int(start),
-                    "telemetry": "; ".join(impact_parts),
-                }
-            )
+
+    # Scheduled anomaly not yet reflected in flags (pre-onset or missing flags).
+    for event in events:
+        if event.get("kind") != "anomaly_injected":
+            continue
+        spec = event.get("spec") or {}
+        start = spec.get("start_step")
+        if not isinstance(start, int) or step < start:
+            continue
+        name = str(spec.get("name") or "anomaly")
+        if any(r.get("name") == name and r.get("type") == "scrubber_anomaly" for r in rows):
+            continue
+        impact_parts = [f"scheduled_from_step={start}"]
+        eff = current_tel.get("scrubber_efficiency")
+        eff_s = _fmt_num(eff)
+        if eff_s is not None:
+            impact_parts.append(f"scrubber_efficiency={eff_s}")
+        rows.append(
+            {
+                "type": "scrubber_anomaly",
+                "name": name,
+                "where": "scrubber / cabin atmosphere",
+                "severity": "scheduled_or_active",
+                "onset_step": start,
+                "elapsed_steps": int(step) - int(start),
+                "telemetry": "; ".join(impact_parts),
+            }
+        )
 
     topic = plant_sim_topic(current_tel)
     if topic:

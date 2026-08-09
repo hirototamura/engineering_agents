@@ -65,6 +65,34 @@ def test_extract_anomaly_status_prefers_pre_ops_stress_when_post_ops_safe():
     assert by_name["overall"]["severity"] == "warning"
 
 
+def test_extract_anomaly_status_scheduled_scrubber_when_other_flags_present():
+    telemetry = [
+        {
+            "step": 5,
+            "anomaly_flags": ["other_anomaly"],
+            "scrubber_efficiency": 0.9,
+            "co2_ppm": 900.0,
+        }
+    ]
+    rows = extract_anomaly_status(
+        step=5,
+        telemetry_rows=telemetry,
+        health_rows=[
+            {"step": 5, "overall": "safe", "co2_status": "safe", "o2_status": "safe", "water_status": "safe"}
+        ],
+        events=[
+            {"kind": "anomaly_injected", "spec": {"name": "scrubber_degradation", "start_step": 4}},
+        ],
+    )
+    by_name = {row["name"]: row for row in rows if row["type"] == "scrubber_anomaly"}
+    assert "other_anomaly" in by_name
+    assert by_name["other_anomaly"]["severity"] == "active"
+    assert "scrubber_degradation" in by_name
+    assert by_name["scrubber_degradation"]["severity"] == "scheduled_or_active"
+    assert by_name["scrubber_degradation"]["onset_step"] == 4
+    assert "scheduled_from_step=4" in by_name["scrubber_degradation"]["telemetry"]
+
+
 def test_extract_anomaly_status_subsystem_failure_and_scrubber_flag():
     telemetry = [
         {"step": 1, "ars_failure_enabled": False, "anomaly_flags": []},
