@@ -10,6 +10,13 @@ import matplotlib.pyplot as plt
 import streamlit as st
 
 from tools.dashboard.jsonl_rows import select_row_for_step, series_by_step
+from tools.dashboard.run_status import (
+    build_anomaly_timeline_lanes,
+    build_status_timeline_lanes,
+    extract_anomaly_status,
+    extract_design_drivers,
+    extract_operator_step,
+)
 from tools.dashboard.ssos_flow import (
     SSOS_OPERATIONAL_KINDS,
     build_step_node_numbers,
@@ -188,6 +195,7 @@ def render_ssos_storage_plot(
     summary: Optional[Dict[str, Any]] = None,
     highlight_step: Optional[int] = None,
 ) -> None:
+    st.subheader("Storage trajectories")
     if not telemetry_rows:
         st.info("No telemetry rows.")
         return
@@ -276,6 +284,7 @@ def render_ssos_flow_detail(
     step: int,
     telemetry_rows: List[Dict[str, Any]],
     events: List[Dict[str, Any]],
+    table_height: Optional[int] = None,
 ) -> None:
     st.subheader("Flow detail")
     metabolism_map = extract_metabolism_by_step(telemetry_rows)
@@ -288,19 +297,25 @@ def render_ssos_flow_detail(
     if not rows:
         st.caption("No metabolism or operational flow details for this step in run artifacts.")
         return
-    st.dataframe(rows, use_container_width=True, hide_index=True)
+    df_kwargs: Dict[str, Any] = {"use_container_width": True, "hide_index": True}
+    if isinstance(table_height, int) and table_height > 0:
+        df_kwargs["height"] = table_height
+    st.dataframe(rows, **df_kwargs)
 
 
 def render_plant_sim_panel(
     telemetry_rows: List[Dict[str, Any]],
     *,
     highlight_step: Optional[int] = None,
+    show_empty: bool = False,
 ) -> None:
     series = plant_sim_series(telemetry_rows)
+    st.subheader("plant_sim ledgers")
     if not series:
+        if show_empty:
+            st.caption("No plant_sim ledgers in this run.")
         return
 
-    st.subheader("plant_sim ledgers")
     steps = [row["step"] for row in series]
     captured = [row.get("captured_co2_kg") for row in series]
     urine = [row.get("urine_buffer_l") for row in series]
@@ -336,7 +351,12 @@ def render_plant_sim_panel(
         st.metric("WRS brine loss (L)", f"{val:.3f}" if isinstance(val, (int, float)) else "—")
 
 
-def render_ssos_operational_timeline(events: List[Dict[str, Any]]) -> None:
+def render_ssos_operational_timeline(
+    events: List[Dict[str, Any]],
+    *,
+    table_height: Optional[int] = None,
+) -> None:
+    st.subheader("Operational commands")
     operational = filter_ssos_operational_events(events)
     if not operational:
         st.caption("No operational commands recorded.")
@@ -344,44 +364,268 @@ def render_ssos_operational_timeline(events: List[Dict[str, Any]]) -> None:
     rows = []
     for event in operational:
         cmd = event.get("command") or {}
+        result = event.get("result") if isinstance(event.get("result"), dict) else {}
+        details = result.get("details") or event.get("details")
+        detail_text = ""
+        if isinstance(details, dict) and details:
+            detail_text = ", ".join(f"{k}={v}" for k, v in sorted(details.items()))
         rows.append(
             {
                 "step": event.get("step"),
                 "kind": cmd.get("kind"),
-                "success": event.get("success"),
+                "success": event.get("success", result.get("success")),
                 "issued_by": cmd.get("issued_by"),
+                "details": detail_text or None,
+                "message": event.get("message") or result.get("message"),
             }
         )
-    st.dataframe(rows, use_container_width=True, hide_index=True)
+    df_kwargs: Dict[str, Any] = {"use_container_width": True, "hide_index": True}
+    if isinstance(table_height, int) and table_height > 0:
+        df_kwargs["height"] = table_height
+    st.dataframe(rows, **df_kwargs)
 
 
-def render_ssos_design_proposals(run_dir: Path) -> None:
+def render_anomaly_status_panel(
+    *,
+    step: int,
+    telemetry_rows: List[Dict[str, Any]],
+    health_rows: List[Dict[str, Any]],
+    events: List[Dict[str, Any]],
+    summary: Optional[Dict[str, Any]] = None,
+    table_height: Optional[int] = None,
+) -> None:
+    """Active anomaly / health stress at the selected step (additive panel)."""
+    st.subheader("Anomaly / stress status")
+    rows = extract_anomaly_status(
+        step=step,
+        telemetry_rows=telemetry_rows,
+        health_rows=health_rows,
+        events=events,
+        summary=summary,
+    )
+    st.caption(
+        "Derived from telemetry failure flags, health bands (worst of pre/post_ops for the step), "
+        "scrubber anomaly_flags/events, and plant_sim shortfall ledgers — "
+        "elapsed = steps since contiguous onset."
+    )
+    if not rows:
+        st.caption("No active anomaly, subsystem failure, or health stress at this step.")
+        return
+    df_kwargs: Dict[str, Any] = {"use_container_width": True, "hide_index": True}
+    if isinstance(table_height, int) and table_height > 0:
+        df_kwargs["height"] = table_height
+    st.dataframe(rows, **df_kwargs)
+
+
+def render_operator_step_panel(
+    *,
+    step: int,
+    messages: List[Dict[str, Any]],
+    events: List[Dict[str, Any]],
+    summary: Optional[Dict[str, Any]] = None,
+) -> None:
+    """What operators did and thought at the selected step."""
+    st.subheader("Operators at this step")
+    payload = extract_operator_step(
+        step=step,
+        messages=messages,
+        events=events,
+        summary=summary,
+    )
+    mode = payload.get("agents_mode") or "—"
+    st.caption(f"agents_mode={mode} · step={step}")
+
+    step_messages = payload.get("messages") or []
+    if not step_messages:
+        st.caption("No agent messages at this step.")
+    else:
+        for index, row in enumerate(step_messages, start=1):
+            role = row.get("from_role") or "?"
+            msg_type = row.get("message_type") or "—"
+            source = row.get("decision_source") or "—"
+            phase = row.get("deliberation_phase")
+            title = f"{index}. {role} · {msg_type} · {source}"
+            if phase:
+                title += f" · {phase}"
+            with st.expander(title, expanded=index == 1):
+                st.markdown(f"**Did / said:** {row.get('message') or '—'}")
+                thought = row.get("reasoning")
+                if thought:
+                    st.markdown(f"**Thought:** {thought}")
+                else:
+                    st.caption("No reasoning field on this message.")
+
+    ops = payload.get("operations") or []
+    if ops:
+        st.markdown("**Applied / rejected commands at this step**")
+        st.dataframe(ops, use_container_width=True, hide_index=True)
+    else:
+        st.caption("No operational/recovery events at this step.")
+
+
+_STATE_TIMELINE_COLORS = {
+    "safe": "#2ca02c",
+    "ok": "#2ca02c",
+    "inactive": "#2ca02c",
+    "warning": "#ff7f0e",
+    "critical": "#d62728",
+    "failure": "#d62728",
+    "active": "#d62728",
+    "unknown": "#7f7f7f",
+    "shortfall": "#ff7f0e",
+}
+
+
+def _draw_state_timeline(
+    *,
+    title: str,
+    lanes: List[Dict[str, Any]],
+    empty_caption: str,
+) -> None:
+    st.subheader(title)
+    if not lanes or not any(lane.get("segments") for lane in lanes):
+        st.caption(empty_caption)
+        return
+
+    fig_h = max(2.2, 0.7 + 0.55 * len(lanes))
+    fig, ax = plt.subplots(figsize=(11, fig_h))
+    yticks = []
+    ylabels = []
+    used_states: Dict[str, str] = {}
+
+    for index, lane in enumerate(reversed(lanes)):
+        y = index
+        yticks.append(y + 0.35)
+        ylabels.append(str(lane.get("lane") or lane.get("key") or f"lane-{index}"))
+        for segment in lane.get("segments") or []:
+            state = str(segment.get("state") or "unknown").lower()
+            start = float(segment.get("start_step", 0))
+            end = float(segment.get("end_step", start + 1))
+            width = max(end - start, 0.05)
+            color = _STATE_TIMELINE_COLORS.get(state, "#7f7f7f")
+            used_states[state] = color
+            ax.broken_barh(
+                [(start, width)],
+                (y, 0.7),
+                facecolors=color,
+                edgecolors="#111111",
+                linewidth=0.4,
+            )
+            if width >= 1.2:
+                ax.text(
+                    start + min(0.15, width * 0.05),
+                    y + 0.35,
+                    state,
+                    va="center",
+                    ha="left",
+                    fontsize=8,
+                    color="white",
+                    clip_on=True,
+                )
+
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(ylabels)
+    ax.set_xlabel("Step")
+    ax.set_ylim(-0.2, len(lanes))
+    ax.grid(True, axis="x", alpha=0.25)
+    if used_states:
+        handles = [
+            plt.Rectangle((0, 0), 1, 1, color=color, label=state)
+            for state, color in sorted(used_states.items())
+        ]
+        ax.legend(handles=handles, loc="upper right", fontsize=8, framealpha=0.85)
+    st.caption("Contiguous state segments from run artifacts (gaps omitted when state is missing).")
+    st.pyplot(fig, clear_figure=True)
+
+
+def render_status_state_timeline(health_rows: List[Dict[str, Any]]) -> None:
+    lanes = build_status_timeline_lanes(health_rows)
+    _draw_state_timeline(
+        title="Status timeline",
+        lanes=lanes,
+        empty_caption="No health_metrics rows available for a status timeline.",
+    )
+
+
+def render_anomaly_state_timeline(
+    telemetry_rows: List[Dict[str, Any]],
+    events: List[Dict[str, Any]],
+) -> None:
+    lanes = build_anomaly_timeline_lanes(telemetry_rows, events)
+    _draw_state_timeline(
+        title="Anomaly status timeline",
+        lanes=lanes,
+        empty_caption="No subsystem failure flags or scrubber anomaly flags in this run.",
+    )
+
+
+def render_ssos_design_proposals(
+    run_dir: Path,
+    *,
+    summary: Optional[Dict[str, Any]] = None,
+) -> None:
+    st.subheader("Design proposals")
     path = run_dir / "design_proposals.json"
     if not path.exists():
         st.caption("No design_proposals.json for this run.")
         return
     payload = json.loads(path.read_text(encoding="utf-8"))
     changes = list_design_changes(payload)
-    st.markdown(f"**Design proposals** ({len(changes)} change(s))")
-    st.caption(
-        f"proposed_by={payload.get('proposed_by', '—')} · "
-        f"decision_source={payload.get('decision_source', '—')}"
-    )
+    drivers = extract_design_drivers(payload, summary)
+
+    meta_cols = st.columns(3)
+    with meta_cols[0]:
+        st.metric("Changes", len(changes))
+    with meta_cols[1]:
+        st.metric("Proposed by", payload.get("proposed_by", "—"))
+    with meta_cols[2]:
+        st.metric("Decision source", payload.get("decision_source", "—"))
+
+    st.markdown("##### What observation drove these proposals?")
+    if drivers.get("message"):
+        st.markdown(f"**Message:** {drivers['message']}")
+    if drivers.get("reasoning"):
+        st.markdown(f"**Reasoning:** {drivers['reasoning']}")
+    change_whys = drivers.get("change_whys") or []
+    if change_whys:
+        st.markdown("**Per-change why:**")
+        for why in change_whys:
+            st.markdown(f"- {why}")
+    observations = drivers.get("summary_observations") or []
+    if observations:
+        st.caption("Summary observations: " + " · ".join(observations))
+    if not any(
+        [
+            drivers.get("message"),
+            drivers.get("reasoning"),
+            change_whys,
+            observations,
+        ]
+    ):
+        st.caption("No proposal message, reasoning, why text, or summary observations recorded.")
+
+    if not changes:
+        st.caption("Proposal file has no changes[].")
+        return
+
+    st.markdown("##### Proposed changes")
     for index, change in enumerate(changes, start=1):
-        with st.expander(f"Change {index}: {change.get('change_kind', '—')}", expanded=index == 1):
+        kind = change.get("change_kind", "—")
+        with st.expander(f"{index}. {kind}", expanded=index == 1):
             if change.get("why"):
-                st.markdown(f"**Why:** {change['why']}")
+                st.markdown(f"**Why (observation):** {change['why']}")
             if change.get("what"):
-                st.markdown(f"**What:** {change['what']}")
+                st.markdown(f"**What (intent):** {change['what']}")
             if change.get("how"):
-                st.markdown(f"**How:** {change['how']}")
+                st.markdown(f"**How (concrete change):** {change['how']}")
             if not any(change.get(k) for k in ("why", "what", "how")):
-                st.caption("Why/What/How not recorded in this proposal file.")
+                st.caption("Why/What/How not recorded for this change.")
+            st.markdown("**Payload**")
             st.json(change.get("payload") or {}, expanded=False)
     graph = payload.get("baseline_graph") or payload.get("ssos_graph") or {}
     rewires = graph.get("rewires") or []
     if rewires:
-        st.markdown("**Graph rewires**")
+        st.markdown("##### Graph rewires")
         st.dataframe(rewires, use_container_width=True, hide_index=True)
 
 
