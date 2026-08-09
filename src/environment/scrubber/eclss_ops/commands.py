@@ -12,7 +12,9 @@ def validate_command(cmd: RecoveryCommand) -> Optional[CommandResult]:
         try:
             speed = float(cmd.value)
         except (TypeError, ValueError):
-            return CommandResult(success=False, message=f"fan_speed must be numeric, got: {cmd.value!r}")
+            return CommandResult(
+                success=False, message=f"fan_speed must be numeric, got: {cmd.value!r}"
+            )
         if not 0.0 <= speed <= 1.0:
             return CommandResult(success=False, message=f"fan_speed out of range: {speed}")
     elif cmd.kind == CommandKind.ENABLE_BYPASS:
@@ -25,7 +27,9 @@ def validate_command(cmd: RecoveryCommand) -> Optional[CommandResult]:
         try:
             watts = float(cmd.value)
         except (TypeError, ValueError):
-            return CommandResult(success=False, message=f"eps_boost must be numeric, got: {cmd.value!r}")
+            return CommandResult(
+                success=False, message=f"eps_boost must be numeric, got: {cmd.value!r}"
+            )
         if not 0.0 < watts <= 500.0:
             return CommandResult(success=False, message=f"eps_boost out of range: {watts}")
     else:
@@ -42,7 +46,17 @@ def apply_command_to_state(
     if cmd.kind == CommandKind.SET_FAN_SPEED:
         return float(cmd.value), bypass_enabled, load_reduced, f"fan_speed set to {cmd.value}"
     if cmd.kind == CommandKind.ENABLE_BYPASS:
-        return fan_speed, bool(cmd.value), load_reduced, f"bypass {'enabled' if cmd.value else 'disabled'}"
+        return (
+            fan_speed,
+            bool(cmd.value),
+            load_reduced,
+            f"bypass {'enabled' if cmd.value else 'disabled'}",
+        )
     if cmd.kind == CommandKind.REDUCE_LOAD:
-        return fan_speed, bypass_enabled, bool(cmd.value), f"load {'reduced' if cmd.value else 'restored'}"
+        return (
+            fan_speed,
+            bypass_enabled,
+            bool(cmd.value),
+            f"load {'reduced' if cmd.value else 'restored'}",
+        )
     raise ValueError(f"unsupported command: {cmd.kind}")

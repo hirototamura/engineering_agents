@@ -26,7 +26,9 @@ integrations/one_piece ← called from scenario
 
 Do not import upward across layers. Do not put LLM or Persona logic in `environment/`.
 
-After changes, run `pytest`.
+After changes, run `./scripts/ci-local.sh` (or `pytest` at minimum).
+
+Contributing: [docs/en/CONTRIBUTING.md](docs/en/CONTRIBUTING.md) · CLI: [docs/en/cli.md](docs/en/cli.md)
 
 ---
 

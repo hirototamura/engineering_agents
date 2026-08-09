@@ -1,8 +1,7 @@
 """Smoke tests that core packages import correctly."""
 
-from core.agents import AgentMessage, Persona, Team
-from core.agents.memory import AgentMemory, DiscourseBuffer, TeamMemoryStore
-from core.agents.persona import PersonaAgent, PersonaPromptBuilder
+from core.agents import Persona, Team
+from core.agents.persona import PersonaAgent
 from core.event_log import EventLog
 from core.llm.base import LLMClient
 from core.llm.ollama import OllamaClient

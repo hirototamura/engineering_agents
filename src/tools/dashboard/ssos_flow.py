@@ -22,6 +22,7 @@ def plant_sim_topic(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     topic = raw.get("plant_sim")
     return topic if isinstance(topic, dict) else None
 
+
 METABOLISM_KEYS = frozenset(
     {
         "co2_generated_kg",
@@ -156,15 +157,11 @@ def build_step_node_numbers(
             if line:
                 nodes["cabin"].append(line)
         if topic:
-            for key, label, unit in (
-                ("captured_co2_kg", "captured CO2", "kg"),
-            ):
+            for key, label, unit in (("captured_co2_kg", "captured CO2", "kg"),):
                 line = _fmt_metric(label, topic.get(key), unit)
                 if line:
                     nodes["co2_tank"].append(line)
-            for key, label, unit in (
-                ("urine_buffer_l", "urine buffer", "L"),
-            ):
+            for key, label, unit in (("urine_buffer_l", "urine buffer", "L"),):
                 line = _fmt_metric(label, topic.get(key), unit)
                 if line:
                     nodes["buffers"].append(line)

@@ -1,8 +1,8 @@
 """Unit tests for Phase 2 smoke helpers (no ROS runtime)."""
 
-from scripts.ssos_eclss_2_smoke import Eclss2SmokeReport, run_2_smoke
-from environment.ssos.eclss.types import EclssTelemetrySnapshot, OgsGoal, WrsGoal
 from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
+from environment.ssos.eclss.types import EclssTelemetrySnapshot, OgsGoal, WrsGoal
+from scripts.ssos_eclss_2_smoke import Eclss2SmokeReport, run_2_smoke
 
 
 def test_2_smoke_report_serializes():

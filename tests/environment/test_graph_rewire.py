@@ -4,8 +4,8 @@ import subprocess
 
 import pytest
 
-from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap, remap_name
 from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
+from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap, remap_name
 
 
 def test_build_topic_remap_from_rewires():

@@ -10,12 +10,12 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 from core.event_log import EventLog
-from environment.scrubber.eclss_ops.design_state import DesignStateManager
 from environment.protocol import AnomalySpec, SimulatorProtocol
-from environment.scrubber.mock_eclss import MockEclssSimulator
-from environment.scrubber.station_simulator import StationSimulator
+from environment.scrubber.eclss_ops.design_state import DesignStateManager
 from environment.scrubber.eps.backend import EpsBackend
 from environment.scrubber.eps.mock.backend import build_mock_eps_backend
+from environment.scrubber.mock_eclss import MockEclssSimulator
+from environment.scrubber.station_simulator import StationSimulator
 from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
@@ -66,7 +66,9 @@ def load_agents_config(name: str, scenario_config: Dict[str, Any]) -> Optional[D
     else:
         agents_yaml = {}
 
-    merged = _deep_merge(agents_yaml, {k: v for k, v in agents_section.items() if k != "config_file"})
+    merged = _deep_merge(
+        agents_yaml, {k: v for k, v in agents_section.items() if k != "config_file"}
+    )
     merged["mode"] = mode
     return merged
 
@@ -175,7 +177,9 @@ def build_agent_team(scenario_name: str, agents_config: Optional[Dict[str, Any]]
     raise ValueError(f"No agent team for scenario: {scenario_name}")
 
 
-def _log_sim_events(log: EventLog, sim: SimulatorProtocol, step: int, logged_event_ids: set) -> None:
+def _log_sim_events(
+    log: EventLog, sim: SimulatorProtocol, step: int, logged_event_ids: set
+) -> None:
     for idx, event in enumerate(sim.get_events()):
         if "step" not in event:
             key = ("static", idx, event.get("kind"), json.dumps(event, sort_keys=True, default=str))
@@ -192,7 +196,9 @@ def _log_sim_events(log: EventLog, sim: SimulatorProtocol, step: int, logged_eve
         if key in logged_event_ids:
             continue
         logged_event_ids.add(key)
-        log.append("events", {"step": event_step, **{k: v for k, v in event.items() if k != "step"}})
+        log.append(
+            "events", {"step": event_step, **{k: v for k, v in event.items() if k != "step"}}
+        )
 
 
 def _scenario_registry() -> Dict[str, Any]:

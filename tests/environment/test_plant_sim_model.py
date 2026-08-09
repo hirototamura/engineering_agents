@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 import pytest
 
 from environment.ssos.eclss.plant_sim.config import PlantConfigError, PlantSimConfig
@@ -88,7 +86,9 @@ def test_advance_step_scales_linearly_with_time():
     b = _model(step_seconds=2400.0)
     a.advance_step()
     b.advance_step()
-    assert b.state.total_co2_generated_kg == pytest.approx(2 * a.state.total_co2_generated_kg, **APPROX)
+    assert b.state.total_co2_generated_kg == pytest.approx(
+        2 * a.state.total_co2_generated_kg, **APPROX
+    )
 
 
 def test_crew_water_ledger_closes():

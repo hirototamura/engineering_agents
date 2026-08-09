@@ -29,7 +29,9 @@ def test_scrubber_degradation_baseline_runs(tmp_path: Path):
     assert len(health) == 50
     assert (run_dir / "design_state.jsonl").exists()
 
-    anomaly_steps = [row for row in telemetry if "scrubber_degradation" in row.get("anomaly_flags", [])]
+    anomaly_steps = [
+        row for row in telemetry if "scrubber_degradation" in row.get("anomaly_flags", [])
+    ]
     assert anomaly_steps, "anomaly should activate by step 20"
     assert min(row["step"] for row in anomaly_steps) == 20
 
@@ -66,4 +68,6 @@ def test_scrubber_degradation_pre_anomaly_near_equilibrium(tmp_path: Path):
     pre = [row for row in telemetry if row["step"] < 20]
     assert pre, "need pre-anomaly window"
     co2_values = [row["co2_ppm"] for row in pre]
-    assert max(co2_values) - min(co2_values) < 150.0, "CO2 should stay near equilibrium before anomaly"
+    assert max(co2_values) - min(co2_values) < 150.0, (
+        "CO2 should stay near equilibrium before anomaly"
+    )

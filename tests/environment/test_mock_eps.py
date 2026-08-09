@@ -1,9 +1,9 @@
 """Tests for mock EPS (SARJ + BCDU) — EPS-2."""
 
-from environment.scrubber.eps.mock.stack import EpsStack
-from environment.scrubber.eps.types import BcduMode
 from environment.scrubber.eps.mock.bcdu import MockBcdu
 from environment.scrubber.eps.mock.sarj import MockSarj
+from environment.scrubber.eps.mock.stack import EpsStack
+from environment.scrubber.eps.types import BcduMode
 
 
 def test_sarj_eclipse_produces_low_solar_voltage():

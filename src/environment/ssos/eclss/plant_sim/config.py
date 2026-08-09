@@ -23,14 +23,14 @@ class PlantConfigError(ValueError):
 @dataclass(frozen=True)
 class PlantSimConfig:
     # --- time ---
-    step_seconds: float = 1200.0            # observation interval (Q6)
-    ars_operation_seconds: float = 4800.0   # operation quantum per ARS action
+    step_seconds: float = 1200.0  # observation interval (Q6)
+    ars_operation_seconds: float = 4800.0  # operation quantum per ARS action
     ogs_operation_seconds: float = 1200.0
     wrs_operation_seconds: float = 1200.0
 
     # --- crew (BVAD, kg/day/person) ---
     crew_size: int = 4
-    activity_factor: float = 1.0            # nominal 1.0 / exercise 4.0 / sleep 0.7
+    activity_factor: float = 1.0  # nominal 1.0 / exercise 4.0 / sleep 0.7
     co2_kg_day_person: float = 1.04
     o2_kg_day_person: float = 0.84
     potable_water_kg_day_person: float = 2.28
@@ -50,7 +50,7 @@ class PlantSimConfig:
     sabatier_conversion_efficiency: float = 1.00  # Q2
 
     # --- WRS ---
-    wrs_urine_recovery: float = 0.98        # Q3 (BPA-inclusive)
+    wrs_urine_recovery: float = 0.98  # Q3 (BPA-inclusive)
     wrs_grey_recovery: float = 0.90
     wrs_max_feed_l_per_operation: float = 10.0
 
@@ -191,7 +191,9 @@ class PlantSimConfig:
             ),
             ars_capacity_kg_day=pick(ars, "capacity_kg_day", "ars_capacity_kg_day"),
             ars_capture_efficiency=pick(ars, "capture_efficiency", "ars_capture_efficiency"),
-            ars_reference_goal_co2_kg=pick(ars, "reference_goal_co2_kg", "ars_reference_goal_co2_kg"),
+            ars_reference_goal_co2_kg=pick(
+                ars, "reference_goal_co2_kg", "ars_reference_goal_co2_kg"
+            ),
             ogs_max_o2_kg_day=pick(ogs, "max_o2_kg_day", "ogs_max_o2_kg_day"),
             sabatier_conversion_efficiency=pick(
                 sab, "conversion_efficiency", "sabatier_conversion_efficiency"

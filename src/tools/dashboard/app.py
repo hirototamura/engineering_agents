@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import streamlit.components.v1 as components
 
-from tools.dashboard import ssos_views
 from environment.scrubber.eclss_ops.telemetry import CO2_RECOVERY_PPM
+from tools.dashboard import ssos_views
 from tools.dashboard.jsonl_rows import select_row_for_step, series_by_step
 
 RESULTS_ROOT = Path(__file__).resolve().parents[2] / "experiments" / "results"
@@ -78,11 +78,7 @@ def _build_line_plot_figure(
     power = [float(r["power_margin_w"]) for r in plot_rows]
     eps_support = [float(r.get("eps_support_w", 0.0)) for r in plot_rows]
     anomaly_start = next(
-        (
-            int(r["step"])
-            for r in plot_rows
-            if "scrubber_degradation" in r.get("anomaly_flags", [])
-        ),
+        (int(r["step"]) for r in plot_rows if "scrubber_degradation" in r.get("anomaly_flags", [])),
         None,
     )
 
@@ -117,7 +113,9 @@ def _build_line_plot_figure(
     axes[2].axhline(0.0, color="#ff7f0e", linestyle="--", linewidth=1)
     _maybe_highlight(axes[2])
     axes[2].set_ylabel("Power margin (W)")
-    axes[2].set_title("ECLSS net power margin (loads − generation budget; EPS boost added per step)")
+    axes[2].set_title(
+        "ECLSS net power margin (loads − generation budget; EPS boost added per step)"
+    )
     axes[2].grid(alpha=0.2)
 
     axes[3].plot(steps, eps_support, color="#9467bd", linewidth=2)
@@ -141,7 +139,14 @@ def _build_line_plot_figure(
 
         ax_mode = axes[5]
         ax_support = ax_mode.twinx()
-        ax_mode.plot(eps_steps, bcdu_y, color="#17becf", linewidth=2, drawstyle="steps-post", label="BCDU mode")
+        ax_mode.plot(
+            eps_steps,
+            bcdu_y,
+            color="#17becf",
+            linewidth=2,
+            drawstyle="steps-post",
+            label="BCDU mode",
+        )
         ax_support.plot(
             eps_steps,
             bcdu_support,
@@ -183,7 +188,9 @@ def _line_plot(
     )
     if fig is None:
         if telemetry_rows:
-            st.info("Scrubber telemetry fields (co2_ppm / power_margin_w) not present for this run.")
+            st.info(
+                "Scrubber telemetry fields (co2_ppm / power_margin_w) not present for this run."
+            )
         else:
             st.info("No telemetry data found.")
         return
@@ -215,7 +222,9 @@ def _render_static_replay_plot(run: RunViewData, current_step: int) -> None:
     fig = st.session_state.get("replay_static_plot_fig")
     if fig is None:
         if run.telemetry:
-            st.info("Scrubber telemetry fields (co2_ppm / power_margin_w) not present for this run.")
+            st.info(
+                "Scrubber telemetry fields (co2_ppm / power_margin_w) not present for this run."
+            )
         else:
             st.info("No telemetry data found.")
         return
@@ -265,7 +274,12 @@ _REPLAY_FIXED_OPS = 300
 def _step_visual_state(step: int, current_step: int) -> Tuple[float, str, str, str]:
     """Opacity, title color, body color, dot style for timeline nodes."""
     if step == current_step:
-        return 1.0, "#ffffff", "#e8e8e8", "background:#ffffff;box-shadow:0 0 6px rgba(255,255,255,0.8);"
+        return (
+            1.0,
+            "#ffffff",
+            "#e8e8e8",
+            "background:#ffffff;box-shadow:0 0 6px rgba(255,255,255,0.8);",
+        )
     if step < current_step:
         return 0.45, "#8a8a8a", "#6f6f6f", "background:#666666;"
     return 0.25, "#5a5a5a", "#4a4a4a", "background:#3a3a3a;"
@@ -358,9 +372,7 @@ def _render_event_timeline(events: List[Dict[str, Any]], current_step: int) -> N
         "<div style='background:#0a0a0a;border-radius:8px;padding:14px 10px 8px 6px;"
         "position:relative;min-height:100%;'>"
         "<div style='position:absolute;left:16px;top:18px;bottom:18px;width:2px;"
-        "background:rgba(255,255,255,0.35);z-index:0;'></div>"
-        + "".join(nodes)
-        + "</div>"
+        "background:rgba(255,255,255,0.35);z-index:0;'></div>" + "".join(nodes) + "</div>"
     )
     _render_scrolling_html(
         inner,
@@ -369,11 +381,15 @@ def _render_event_timeline(events: List[Dict[str, Any]], current_step: int) -> N
     )
 
 
-def _messages_through_step(messages: List[Dict[str, Any]], current_step: int) -> List[Dict[str, Any]]:
+def _messages_through_step(
+    messages: List[Dict[str, Any]], current_step: int
+) -> List[Dict[str, Any]]:
     return [row for row in messages if int(row.get("step", -1)) <= current_step]
 
 
-def _group_messages_by_step(messages: List[Dict[str, Any]]) -> List[Tuple[int, List[Dict[str, Any]]]]:
+def _group_messages_by_step(
+    messages: List[Dict[str, Any]],
+) -> List[Tuple[int, List[Dict[str, Any]]]]:
     ordered = sorted(messages, key=lambda row: int(row.get("step", -1)))
     groups: List[Tuple[int, List[Dict[str, Any]]]] = []
     for step, rows in itertools.groupby(ordered, key=lambda row: int(row.get("step", -1))):
@@ -445,7 +461,9 @@ def _render_agent_scroll_feed(
     )
 
 
-def _init_step_state(run_name: str, *, run_key: str, step_key: str, default_step: int, max_step: int) -> None:
+def _init_step_state(
+    run_name: str, *, run_key: str, step_key: str, default_step: int, max_step: int
+) -> None:
     if st.session_state.get(run_key) != run_name:
         st.session_state[run_key] = run_name
         st.session_state[step_key] = default_step
@@ -585,9 +603,7 @@ def _render_ssos_replay_detail_grid(run: RunViewData, current_step: int) -> None
     ssos_views.render_ssos_summary_highlights(run.summary)
 
     with _fixed_replay_panel(_REPLAY_FIXED_STATUS):
-        ssos_views.render_ssos_status_strip(
-            run.summary, run.health, run.telemetry, current_step
-        )
+        ssos_views.render_ssos_status_strip(run.summary, run.health, run.telemetry, current_step)
 
     with _fixed_replay_panel(_REPLAY_FIXED_STATUS):
         st.subheader("Health bands")
@@ -1057,10 +1073,7 @@ def _topology_display_bundle(
         }
         for node in nodes
     ]
-    table_edges = [
-        {**edge, "proposed": _edge_key(edge) in proposed_edge_keys}
-        for edge in edges
-    ]
+    table_edges = [{**edge, "proposed": _edge_key(edge) in proposed_edge_keys} for edge in edges]
     return nodes, edges, table_nodes, table_edges
 
 
@@ -1147,7 +1160,9 @@ def _load_topology_proposal_context(
         changes,
     )
 
-    delta_edge_keys = _topology_edge_keys(proposed_topology) - _topology_edge_keys(baseline_topology)
+    delta_edge_keys = _topology_edge_keys(proposed_topology) - _topology_edge_keys(
+        baseline_topology
+    )
     delta_node_ids = _topology_node_ids(proposed_topology) - _topology_node_ids(baseline_topology)
 
     _, _, before_nodes, before_edges = _topology_display_bundle(baseline_topology, set(), set())
@@ -1199,7 +1214,9 @@ def _load_topology_proposal_context(
     )
 
 
-def _render_topology_proposal_blurb(ctx: Optional[TopologyProposalContext], *, missing: str) -> None:
+def _render_topology_proposal_blurb(
+    ctx: Optional[TopologyProposalContext], *, missing: str
+) -> None:
     if ctx is None:
         st.info(missing)
         return
@@ -1346,12 +1363,16 @@ def _render_dual_topology_proposal(primary: RunViewData, compare: RunViewData) -
 
     st.markdown("**Before (run-end baseline)**")
     _render_paired_columns(
-        lambda: _render_topology_baseline_graph(primary_ctx)
-        if primary_ctx
-        else st.info("No topology data."),
-        lambda: _render_topology_baseline_graph(compare_ctx)
-        if compare_ctx
-        else st.info("No topology data."),
+        lambda: (
+            _render_topology_baseline_graph(primary_ctx)
+            if primary_ctx
+            else st.info("No topology data.")
+        ),
+        lambda: (
+            _render_topology_baseline_graph(compare_ctx)
+            if compare_ctx
+            else st.info("No topology data.")
+        ),
     )
 
     st.markdown("**Before — Nodes**")
@@ -1380,12 +1401,16 @@ def _render_dual_topology_proposal(primary: RunViewData, compare: RunViewData) -
 
     st.markdown("**After (if proposals applied)**")
     _render_paired_columns(
-        lambda: _render_topology_proposed_graph(primary_ctx)
-        if primary_ctx
-        else st.info("No topology data."),
-        lambda: _render_topology_proposed_graph(compare_ctx)
-        if compare_ctx
-        else st.info("No topology data."),
+        lambda: (
+            _render_topology_proposed_graph(primary_ctx)
+            if primary_ctx
+            else st.info("No topology data.")
+        ),
+        lambda: (
+            _render_topology_proposed_graph(compare_ctx)
+            if compare_ctx
+            else st.info("No topology data.")
+        ),
     )
 
     st.markdown("**After — Nodes**")
@@ -1427,8 +1452,7 @@ def _render_dual_topology_proposal(primary: RunViewData, compare: RunViewData) -
 
     baseline_legend = ", ".join(f"{kind}={color}" for kind, color in _EDGE_COLORS.items())
     st.caption(
-        f"Baseline edges: {baseline_legend}. "
-        f"Proposed additions: dashed {_DESIGN_EDGE_COLOR} (*)."
+        f"Baseline edges: {baseline_legend}. Proposed additions: dashed {_DESIGN_EDGE_COLOR} (*)."
     )
 
 

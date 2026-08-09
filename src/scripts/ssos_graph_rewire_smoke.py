@@ -22,9 +22,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from environment.ssos.eclss.ros2.topics import TOPIC_CO2_STORAGE
-from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
 from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
+from environment.ssos.eclss.ros2.topics import TOPIC_CO2_STORAGE
 from scenario.ssos_eclss_loop.scenario_run import build_eclss_backend
 
 
@@ -44,9 +43,7 @@ class GraphRewireSmokeReport:
 
 
 def run_graph_rewire_smoke(*, topic_timeout_s: float = 15.0) -> GraphRewireSmokeReport:
-    launch_hint = (
-        "host: ~/dev/ssos/ssos-run.sh  |  container: bash /root/ssos-eclss-headless.sh"
-    )
+    launch_hint = "host: ~/dev/ssos/ssos-run.sh  |  container: bash /root/ssos-eclss-headless.sh"
     report = GraphRewireSmokeReport(ok=False, launch_hint=launch_hint)
 
     if not Ros2EclssBridge.ros2_available():
@@ -103,7 +100,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     payload = report.to_dict()
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     if args.json_out:
-        args.json_out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        args.json_out.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
     if not report.ok:
         print(f"\ngraph_rewire smoke FAILED. Prerequisites: {report.launch_hint}", file=sys.stderr)

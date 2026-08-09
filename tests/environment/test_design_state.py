@@ -16,6 +16,5 @@ def test_apply_dict_change_add_node_and_edge():
     node_ids = {node.id for node in state.topology.nodes}
     assert "aux_scrubber" in node_ids
     assert any(
-        edge.source == "manifold" and edge.target == "aux_scrubber"
-        for edge in state.topology.edges
+        edge.source == "manifold" and edge.target == "aux_scrubber" for edge in state.topology.edges
     )

@@ -13,9 +13,27 @@ from tools.dashboard.run_status import (
 
 def test_extract_anomaly_status_health_band_elapsed():
     health = [
-        {"step": 1, "overall": "safe", "co2_status": "safe", "o2_status": "safe", "water_status": "safe"},
-        {"step": 2, "overall": "warning", "co2_status": "warning", "o2_status": "safe", "water_status": "safe"},
-        {"step": 3, "overall": "critical", "co2_status": "critical", "o2_status": "safe", "water_status": "safe"},
+        {
+            "step": 1,
+            "overall": "safe",
+            "co2_status": "safe",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
+        {
+            "step": 2,
+            "overall": "warning",
+            "co2_status": "warning",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
+        {
+            "step": 3,
+            "overall": "critical",
+            "co2_status": "critical",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
     ]
     telemetry = [
         {"step": 1, "co2_storage_kg": 1.0, "o2_storage_kg": 1.0, "product_water_reserve_l": 10.0},
@@ -44,7 +62,13 @@ def test_extract_anomaly_status_health_band_elapsed():
 
 def test_extract_anomaly_status_prefers_pre_ops_stress_when_post_ops_safe():
     health = [
-        {"step": 6, "overall": "warning", "co2_status": "warning", "o2_status": "safe", "water_status": "safe"},
+        {
+            "step": 6,
+            "overall": "warning",
+            "co2_status": "warning",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
         {
             "step": 6,
             "overall": "safe",
@@ -54,7 +78,9 @@ def test_extract_anomaly_status_prefers_pre_ops_stress_when_post_ops_safe():
             "post_ops": True,
         },
     ]
-    telemetry = [{"step": 6, "co2_storage_kg": 1.6, "o2_storage_kg": 1.0, "product_water_reserve_l": 10.0}]
+    telemetry = [
+        {"step": 6, "co2_storage_kg": 1.6, "o2_storage_kg": 1.0, "product_water_reserve_l": 10.0}
+    ]
     rows = extract_anomaly_status(
         step=6,
         telemetry_rows=telemetry,
@@ -80,7 +106,13 @@ def test_extract_anomaly_status_scheduled_scrubber_when_other_flags_present():
         step=5,
         telemetry_rows=telemetry,
         health_rows=[
-            {"step": 5, "overall": "safe", "co2_status": "safe", "o2_status": "safe", "water_status": "safe"}
+            {
+                "step": 5,
+                "overall": "safe",
+                "co2_status": "safe",
+                "o2_status": "safe",
+                "water_status": "safe",
+            }
         ],
         events=[
             {"kind": "anomaly_injected", "spec": {"name": "scrubber_degradation", "start_step": 4}},
@@ -113,7 +145,13 @@ def test_extract_anomaly_status_subsystem_failure_and_scrubber_flag():
         step=5,
         telemetry_rows=telemetry,
         health_rows=[
-            {"step": 5, "overall": "safe", "co2_status": "safe", "o2_status": "safe", "water_status": "safe"}
+            {
+                "step": 5,
+                "overall": "safe",
+                "co2_status": "safe",
+                "o2_status": "safe",
+                "water_status": "safe",
+            }
         ],
         events=[
             {"kind": "anomaly_injected", "spec": {"name": "scrubber_degradation", "start_step": 4}},
@@ -181,7 +219,11 @@ def test_extract_design_drivers_uses_recorded_fields_only():
         "message": "Raise ARS capacity",
         "reasoning": "CO2 peaked above high band",
         "changes": [
-            {"change_kind": "action_profile", "why": "peak_co2_storage_kg=1.54 >= 1.5", "payload": {}}
+            {
+                "change_kind": "action_profile",
+                "why": "peak_co2_storage_kg=1.54 >= 1.5",
+                "payload": {},
+            }
         ],
     }
     drivers = extract_design_drivers(
@@ -321,7 +363,13 @@ def test_extract_anomaly_status_crew_shortfall_episode_onset_across_consecutive_
 
 def test_build_status_timeline_lanes_prefers_post_ops_health_row():
     health = [
-        {"step": 6, "overall": "warning", "co2_status": "warning", "o2_status": "safe", "water_status": "safe"},
+        {
+            "step": 6,
+            "overall": "warning",
+            "co2_status": "warning",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
         {
             "step": 6,
             "overall": "safe",
@@ -340,11 +388,41 @@ def test_build_status_timeline_lanes_prefers_post_ops_health_row():
 
 def test_build_status_timeline_lanes_merges_contiguous_states():
     health = [
-        {"step": 1, "overall": "safe", "co2_status": "safe", "o2_status": "safe", "water_status": "safe"},
-        {"step": 2, "overall": "safe", "co2_status": "safe", "o2_status": "safe", "water_status": "safe"},
-        {"step": 3, "overall": "warning", "co2_status": "warning", "o2_status": "safe", "water_status": "safe"},
-        {"step": 4, "overall": "warning", "co2_status": "warning", "o2_status": "safe", "water_status": "safe"},
-        {"step": 5, "overall": "critical", "co2_status": "critical", "o2_status": "safe", "water_status": "safe"},
+        {
+            "step": 1,
+            "overall": "safe",
+            "co2_status": "safe",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
+        {
+            "step": 2,
+            "overall": "safe",
+            "co2_status": "safe",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
+        {
+            "step": 3,
+            "overall": "warning",
+            "co2_status": "warning",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
+        {
+            "step": 4,
+            "overall": "warning",
+            "co2_status": "warning",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
+        {
+            "step": 5,
+            "overall": "critical",
+            "co2_status": "critical",
+            "o2_status": "safe",
+            "water_status": "safe",
+        },
     ]
     lanes = {lane["key"]: lane for lane in build_status_timeline_lanes(health)}
     overall = lanes["overall"]["segments"]

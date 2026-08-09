@@ -232,7 +232,9 @@ def _container_spec(
         results_root=_CONTAINER_RESULTS_ROOT,
         recreate_output=spec.recreate_output,
         seed=spec.seed,
-        apply_proposals_path=apply_proposals_path if apply_proposals_path is not None else spec.apply_proposals_path,
+        apply_proposals_path=apply_proposals_path
+        if apply_proposals_path is not None
+        else spec.apply_proposals_path,
     )
 
 
@@ -271,6 +273,4 @@ def _read_summary(run_dir: Path) -> Dict[str, Any]:
     try:
         return json.loads(summary_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise ValueError(
-            f"summary.json is not valid JSON at {summary_path}: {exc}"
-        ) from exc
+        raise ValueError(f"summary.json is not valid JSON at {summary_path}: {exc}") from exc

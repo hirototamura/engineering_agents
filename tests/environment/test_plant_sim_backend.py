@@ -23,9 +23,7 @@ def test_satisfies_eclss_backend_protocol():
 
 
 def test_from_scenario_config():
-    backend = PlantSimEclssBackend.from_scenario_config(
-        {"plant_sim": {"crew": {"size": 5}}}
-    )
+    backend = PlantSimEclssBackend.from_scenario_config({"plant_sim": {"crew": {"size": 5}}})
     assert backend.config.crew_size == 5
 
 

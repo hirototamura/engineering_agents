@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from environment.scrubber.eclss_ops.telemetry import CO2_RECOVERY_PPM, CO2_SAFE_PPM, CO2_WARNING_PPM
 from environment.protocol import HealthMetrics, HealthStatus, TelemetrySnapshot
-from scenario.runner import run_scenario
+from environment.scrubber.eclss_ops.telemetry import CO2_RECOVERY_PPM, CO2_SAFE_PPM, CO2_WARNING_PPM
 from scenario.agents.scrubber_degradation_team import ScrubberDegradationTeam
 from scenario.agents.types import AgentObservation
+from scenario.runner import run_scenario
 
 
 def _read_jsonl(path: Path) -> list:
@@ -83,9 +83,7 @@ def test_scrubber_degradation_labeled_agents_recover(tmp_path: Path):
     last_design_state = design_state[-1]
     edges = last_design_state["topology"]["edges"]
     assert not any(
-        edge["kind"] == "bypass"
-        and edge["source"] == "manifold"
-        and edge["target"] == "scrubber"
+        edge["kind"] == "bypass" and edge["source"] == "manifold" and edge["target"] == "scrubber"
         for edge in edges
     ), "runtime simulation should not apply design engineer topology changes"
     assert provenance, "provenance should include recovery records"
@@ -152,7 +150,9 @@ def test_scrubber_degradation_llm_post_run_design_proposals(tmp_path: Path, monk
                 )
             return "{}"
 
-    monkeypatch.setattr(ScrubberDegradationTeam, "_build_llm_client", staticmethod(lambda _: FakeClient()))
+    monkeypatch.setattr(
+        ScrubberDegradationTeam, "_build_llm_client", staticmethod(lambda _: FakeClient())
+    )
 
     run_dir = run_scenario(
         "scrubber_degradation",
@@ -230,23 +230,33 @@ def test_llm_operator_parse_allows_repeated_commands_without_team_state():
         }
     )
 
-    cmd1, note1 = team._parse_llm_operator_command({"kind": "set_fan_speed", "value": 0.8}, issued_by="engineer_1")
-    cmd2, note2 = team._parse_llm_operator_command({"kind": "set_fan_speed", "value": 1.0}, issued_by="engineer_1")
+    cmd1, note1 = team._parse_llm_operator_command(
+        {"kind": "set_fan_speed", "value": 0.8}, issued_by="engineer_1"
+    )
+    cmd2, note2 = team._parse_llm_operator_command(
+        {"kind": "set_fan_speed", "value": 1.0}, issued_by="engineer_1"
+    )
     assert cmd1 is not None and note1 is None
     assert cmd2 is not None and note2 is None
     assert not team.state.fan_boost_applied
 
-    cmd, note = team._parse_llm_operator_command({"kind": "enable_bypass", "value": "true"}, issued_by="engineer_1")
+    cmd, note = team._parse_llm_operator_command(
+        {"kind": "enable_bypass", "value": "true"}, issued_by="engineer_1"
+    )
     assert cmd is not None
     assert note is None
     assert cmd.value is True
 
-    cmd, note = team._parse_llm_operator_command({"kind": "enable_bypass", "value": "false"}, issued_by="engineer_1")
+    cmd, note = team._parse_llm_operator_command(
+        {"kind": "enable_bypass", "value": "false"}, issued_by="engineer_1"
+    )
     assert cmd is not None
     assert note is None
     assert cmd.value is False
 
-    cmd, note = team._parse_llm_operator_command({"kind": "request_eps_boost", "value": 120.0}, issued_by="engineer_1")
+    cmd, note = team._parse_llm_operator_command(
+        {"kind": "request_eps_boost", "value": 120.0}, issued_by="engineer_1"
+    )
     assert cmd is not None
     assert note is None
     assert not team.state.eps_boost_requested

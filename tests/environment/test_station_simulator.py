@@ -23,8 +23,6 @@ def test_eps_boost_routes_through_bcdu():
 
 def test_mock_eclss_rejects_eps_boost_without_facade():
     sim = MockEclssSimulator()
-    result = sim.apply_command(
-        RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=120.0)
-    )
+    result = sim.apply_command(RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=120.0))
     assert not result.success
     assert "StationSimulator" in result.message

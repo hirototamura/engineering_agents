@@ -11,34 +11,24 @@ import os
 import subprocess
 from typing import Mapping, Optional, Tuple
 
-from environment.ssos.ros2.cli import (
-    echo_float_topics_parallel,
-    extract_bool,
-    extract_float,
-    extract_service_field_float,
-    extract_service_message,
-    extract_service_success,
-    extract_string,
-    run_ros2_cli,
-)
 from environment.ssos.eclss.ros2.graph_rewire import remap_name
 from environment.ssos.eclss.ros2.telemetry import get_rclpy_telemetry_reader
 from environment.ssos.eclss.ros2.topics import (
     ACTION_AIR_REVITALISATION,
     ACTION_OXYGEN_GENERATION,
-    ACTION_WATER_RECOVERY,
     ACTION_TYPE_AIR_REVITALISATION,
     ACTION_TYPE_OXYGEN_GENERATION,
     ACTION_TYPE_WATER_RECOVERY,
+    ACTION_WATER_RECOVERY,
     MSG_TYPE_BOOL,
     SERVICE_ARS_REQUEST_CO2,
     SERVICE_GREY_WATER,
     SERVICE_OGS_REQUEST_O2,
-    SERVICE_WRS_PRODUCT_WATER,
     SERVICE_TYPE_CO2_REQUEST,
     SERVICE_TYPE_GREY_WATER,
     SERVICE_TYPE_O2_REQUEST,
     SERVICE_TYPE_PRODUCT_WATER,
+    SERVICE_WRS_PRODUCT_WATER,
     TOPIC_ARS_SELF_DIAGNOSIS,
     TOPIC_CO2_STORAGE,
     TOPIC_O2_STORAGE,
@@ -56,6 +46,15 @@ from environment.ssos.eclss.types import (
     WrsGoal,
 )
 from environment.ssos.eclss.units import g_to_kg, kg_to_g
+from environment.ssos.ros2.cli import (
+    echo_float_topics_parallel,
+    extract_float,
+    extract_service_field_float,
+    extract_service_message,
+    extract_service_success,
+    extract_string,
+    run_ros2_cli,
+)
 
 _SELF_DIAGNOSIS_BY_SUBSYSTEM = {
     "ars": TOPIC_ARS_SELF_DIAGNOSIS,
@@ -183,7 +182,9 @@ class Ros2EclssBridge:
             success=success,
             summary_message=summary or "",
             details={
-                "cycles_completed": extract_float(combined, r"cycles_completed:\s*([-+]?[0-9]*\.?[0-9]+)"),
+                "cycles_completed": extract_float(
+                    combined, r"cycles_completed:\s*([-+]?[0-9]*\.?[0-9]+)"
+                ),
                 "total_vents": extract_float(combined, r"total_vents:\s*([-+]?[0-9]*\.?[0-9]+)"),
                 "total_co2_vented": g_to_kg(co2_vented_g) if co2_vented_g is not None else None,
             },
@@ -341,22 +342,22 @@ class Ros2EclssBridge:
         except FileNotFoundError:
             return ServiceResult(success=False, message="ros2 CLI not found")
         except subprocess.TimeoutExpired:
-            return ServiceResult(success=False, message=f"service call timed out after {self.service_timeout_s}s")
+            return ServiceResult(
+                success=False, message=f"service call timed out after {self.service_timeout_s}s"
+            )
 
         combined = f"{out}\n{err}"
         if code != 0:
-            return ServiceResult(success=False, message=combined.strip() or f"ros2 service call exited {code}")
+            return ServiceResult(
+                success=False, message=combined.strip() or f"ros2 service call exited {code}"
+            )
 
         success = extract_service_success(combined) or False
         response_value = (
-            extract_service_field_float(combined, response_field) or 0.0
-            if response_field
-            else 0.0
+            extract_service_field_float(combined, response_field) or 0.0 if response_field else 0.0
         )
         message = extract_service_message(combined)
         return ServiceResult(success=success, response_value=response_value, message=message or "")
 
 
 # Re-export CLI helpers for tests that imported from this module historically.
-from environment.ssos.ros2.cli import echo_float_topic as _echo_float_topic
-from environment.ssos.ros2.cli import run_ros2_cli as _run_ros2_cli

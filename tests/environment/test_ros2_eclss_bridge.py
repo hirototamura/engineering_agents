@@ -6,8 +6,8 @@ import threading
 import pytest
 
 from environment.ssos.eclss.backend import EclssBackend
-from environment.ssos.eclss.types import ArsGoal, OgsGoal, WrsGoal
 from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
+from environment.ssos.eclss.types import OgsGoal, WrsGoal
 from environment.ssos.ros2.cli import echo_float_topic, run_ros2_cli
 
 
@@ -384,7 +384,9 @@ def test_integration_poll_telemetry_when_eclss_running():
     """Requires SSOS ECLSS stack running (Docker). Skips on dev machines without ros2."""
     snap = Ros2EclssBridge(topic_timeout_s=5.0).poll_telemetry()
     # At least one storage topic should respond when ECLSS is up; otherwise fields stay None.
-    assert snap.co2_storage_kg is not None or snap.o2_storage_kg is not None or snap.raw_topics == {}
+    assert (
+        snap.co2_storage_kg is not None or snap.o2_storage_kg is not None or snap.raw_topics == {}
+    )
 
 
 @pytest.mark.skipif(not Ros2EclssBridge.ros2_available(), reason="ros2 CLI not available")

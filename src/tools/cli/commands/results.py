@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Optional
 
@@ -42,9 +41,7 @@ def _list_runs(root: Path, *, limit: int) -> list[Path]:
     if not root.exists():
         return []
     runs = [
-        entry
-        for entry in root.iterdir()
-        if entry.is_dir() and (entry / "summary.json").exists()
+        entry for entry in root.iterdir() if entry.is_dir() and (entry / "summary.json").exists()
     ]
     runs.sort(key=lambda path: path.stat().st_mtime, reverse=True)
     return runs[:limit]

@@ -72,9 +72,8 @@ def _coerce_value(raw_value: str) -> Any:
             return float(raw_value)
         return int(raw_value)
     except ValueError:
-        if (
-            (raw_value.startswith('"') and raw_value.endswith('"'))
-            or (raw_value.startswith("'") and raw_value.endswith("'"))
+        if (raw_value.startswith('"') and raw_value.endswith('"')) or (
+            raw_value.startswith("'") and raw_value.endswith("'")
         ):
             return raw_value[1:-1]
         return raw_value

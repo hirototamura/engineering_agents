@@ -5,13 +5,15 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   mkdocs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install -e ".[dev]"
-      - run: mkdocs build --strict
+      - uses: ./.github/actions/setup-project
+      - name: MkDocs strict build
+        run: python3 -m mkdocs build --strict

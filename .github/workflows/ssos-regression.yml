@@ -1,0 +1,118 @@
+# SSOS container regression — Tier 2 only (weekly cron + manual dispatch).
+#
+# PR quality gates live in ci.yml. This workflow does NOT run on pull_request.
+#
+# Two SSOS execution paths (same SSOS_IMAGE env var):
+#   1. scripts/run_ssos_regression.sh  — self-hosted CI, full artifact bundle
+#   2. python3 -m tools.cli run ssos_eclss_loop — developer golden path (see docs/ja/memo/cli_v3_plan.md)
+#
+# Pin SSOS_IMAGE_DIGEST in env below for reproducible weekly runs; leave empty to use :latest.
+name: SSOS Regression
+
+on:
+  workflow_dispatch:
+    inputs:
+      with_eps:
+        description: Include EPS smoke (ssos-headless.sh)
+        type: boolean
+        default: false
+      with_llm:
+        description: Include ea-loop llm mode (needs Ollama on host)
+        type: boolean
+        default: false
+      use_existing:
+        description: Use existing SSOS container instead of creating one
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 3 * * 1"
+
+env:
+  SSOS_IMAGE: ghcr.io/space-station-os/space_station_os:latest
+  # Set to sha256:... when pinning; workflow writes digest to artifact metadata.json
+  SSOS_IMAGE_DIGEST: ""
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - run: python3 -m pytest -q --ignore=tests/e2e
+      - run: python3 -m pytest -q tests/e2e/test_ssos_regression.py::test_regression_tier1_pytest_only
+
+  ssos-regression:
+    needs: pytest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: [self-hosted, ssos]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - name: Resolve SSOS image reference
+        id: image
+        run: |
+          if [[ -n "${SSOS_IMAGE_DIGEST}" ]]; then
+            echo "ref=${SSOS_IMAGE}@${SSOS_IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${SSOS_IMAGE}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run SSOS container regression
+        env:
+          SSOS_E2E: "1"
+          SSOS_IMAGE: ${{ steps.image.outputs.ref }}
+          SSOS_E2E_WITH_EPS: ${{ github.event.inputs.with_eps == 'true' && '1' || '0' }}
+          SSOS_E2E_WITH_LLM: ${{ github.event.inputs.with_llm == 'true' && '1' || '0' }}
+          SSOS_USE_EXISTING: ${{ github.event.inputs.use_existing == 'true' && '1' || '0' }}
+        run: |
+          chmod +x scripts/run_ssos_regression.sh scripts/lib/ssos_docker.sh
+          args=(--skip-pytest)
+          if [[ "${{ github.event.inputs.with_eps }}" == "true" ]]; then
+            args+=(--with-eps)
+          fi
+          if [[ "${{ github.event.inputs.with_llm }}" == "true" ]]; then
+            args+=(--with-llm)
+          fi
+          if [[ "${{ github.event.inputs.use_existing }}" == "true" ]]; then
+            args+=(--use-existing)
+          fi
+          ./scripts/run_ssos_regression.sh "${args[@]}"
+      - name: Write regression metadata
+        if: always()
+        run: |
+          mkdir -p artifacts/ssos-regression
+          python3 -c "import json,os; json.dump({'ssos_image':os.environ.get('SSOS_IMAGE',''),'ssos_image_digest':os.environ.get('SSOS_IMAGE_DIGEST','')}, open('artifacts/ssos-regression/metadata.json','w'), indent=2)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ssos-regression-reports
+          path: artifacts/ssos-regression/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  notify-on-schedule-failure:
+    needs: ssos-regression
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'SSOS weekly regression failed';
+            const body = `Scheduled ssos-regression workflow failed on ${context.sha}.\n\nSee workflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'ssos-regression-failure',
+              state: 'open',
+            });
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['ssos-regression-failure'],
+              });
+            }

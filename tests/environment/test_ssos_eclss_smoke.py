@@ -1,12 +1,12 @@
 """Unit tests for SSOS ECLSS smoke helpers (no ROS runtime required)."""
 
+from environment.ssos.eclss.types import ArsGoal
 from scripts.ssos_eclss_ars_smoke import (
     _filter_eclss_topics,
     _match_expected,
     discover_ros_graph,
     send_ars_goal_cli,
 )
-from environment.ssos.eclss.types import ArsGoal
 
 
 def test_filter_eclss_topics():

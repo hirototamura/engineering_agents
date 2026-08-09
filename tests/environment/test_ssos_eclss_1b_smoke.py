@@ -1,13 +1,12 @@
 """Unit tests for Phase 1b smoke helpers (no ROS runtime)."""
 
+from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
+from environment.ssos.eclss.types import EclssTelemetrySnapshot, OgsGoal, ServiceResult
 from scripts.ssos_eclss_1b_smoke import (
     Eclss1bSmokeReport,
     _expected_insufficient_co2,
     run_1b_smoke,
 )
-from environment.ssos.eclss.types import ServiceResult
-from environment.ssos.eclss.types import EclssTelemetrySnapshot, OgsGoal
-from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 
 
 def test_1b_smoke_report_serializes():

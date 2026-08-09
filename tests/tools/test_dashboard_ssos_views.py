@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from tools.dashboard.app import _build_line_plot_figure, _read_jsonl
 from tools.dashboard import ssos_views
+from tools.dashboard.app import _build_line_plot_figure, _read_jsonl
 
 
 def test_filter_ssos_operational_events_includes_water_recovery():
@@ -73,7 +73,5 @@ def test_build_line_plot_figure_skips_plant_sim_telemetry():
 
 
 def test_is_ssos_eclss_loop_detects_plant_sim_summary():
-    assert ssos_views.is_ssos_eclss_loop(
-        {"scenario": "ssos_eclss_loop", "backend": "plant_sim"}
-    )
+    assert ssos_views.is_ssos_eclss_loop({"scenario": "ssos_eclss_loop", "backend": "plant_sim"})
     assert not ssos_views.is_ssos_eclss_loop({"scenario": "scrubber_degradation"})

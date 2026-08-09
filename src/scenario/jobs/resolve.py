@@ -29,9 +29,7 @@ def sanitize_run_id(run_id: str) -> str:
     if "/" in run_id or "\\" in run_id or ".." in run_id:
         raise ValueError(f"Invalid run id (path separators not allowed): {run_id!r}")
     if not _RUN_ID_PATTERN.match(run_id):
-        raise ValueError(
-            f"Invalid run id: {run_id!r}. Use letters, digits, '.', '_', or '-'."
-        )
+        raise ValueError(f"Invalid run id: {run_id!r}. Use letters, digits, '.', '_', or '-'.")
     return run_id
 
 
@@ -50,9 +48,7 @@ def resolve_run_id(
 
     mode = agents_config.get("mode")
     if mode == "labeled_rule_base":
-        return str(
-            output_cfg.get("run_id_labeled_rule_base", f"{scenario_name}_labeled_rule_base")
-        )
+        return str(output_cfg.get("run_id_labeled_rule_base", f"{scenario_name}_labeled_rule_base"))
     if mode == "llm":
         return str(output_cfg.get("run_id_llm", f"{scenario_name}_llm"))
     return str(run_id)

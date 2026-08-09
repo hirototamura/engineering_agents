@@ -21,8 +21,8 @@ from environment.ssos.eclss.mock.backend import MockEclssBackend
 from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 from environment.ssos.eclss.types import (
     ActionResult,
-    ArsGoal,
     ArsActionResult,
+    ArsGoal,
     EclssSmokeReport,
     EclssTelemetrySnapshot,
     OgsGoal,

@@ -43,9 +43,7 @@ def test_archetypes_assigned_one_to_one():
 
 
 def test_archetypes_round_robin_when_fewer_lenses_than_agents():
-    team = load_team(
-        {"team": {"count": 5, "archetypes": ["first_principles", "failure_mode"]}}
-    )
+    team = load_team({"team": {"count": 5, "archetypes": ["first_principles", "failure_mode"]}})
     assert dict(team.archetypes) == {
         "engineer_1": "first_principles",
         "engineer_2": "failure_mode",

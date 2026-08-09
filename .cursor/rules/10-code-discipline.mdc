@@ -1,0 +1,20 @@
+---
+description: Layer imports, agents.mode, api-contracts, cli.md sync. Full guide: docs/ja/AGENTS.md
+globs:
+  - src/**
+  - "**/scenario.yaml"
+  - "**/agents.yaml"
+  - docs/**
+alwaysApply: false
+---
+
+# Code discipline
+
+- Layers: `tools → scenario → environment → core`; `integrations/one_piece` only from scenario.
+- Never import upward; `environment/` must not import LLM or Persona (`tests/test_layer_imports.py`).
+- `tools/cli/` may import `scenario` — that is correct.
+- Environment layout: scrubber track under `environment/scrubber/`, SSOS ECLSS under `environment/ssos/eclss/`, SSOS EPS under `environment/ssos/eps/` (incl. `plant_sim` backends).
+- Keep `labeled_rule_base` policy separate from `llm` prompts.
+- JSONL / API changes: update docs/en/api-contracts.md and docs/ja/api-contracts.md.
+- `src/tools/cli/` changes: update docs/en/cli.md and docs/ja/cli.md.
+- After changes: `./scripts/ci-local.sh` (ruff + mkdocs strict + pytest).

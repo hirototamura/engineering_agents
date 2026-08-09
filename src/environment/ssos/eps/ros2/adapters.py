@@ -63,7 +63,9 @@ def parse_bcdu_status(
 
     bus_voltage = _extract_float(text, r"bus_voltage:\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)")
     if bus_voltage is None:
-        bus_voltage = _extract_float(text, r"bus_voltage=([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)")
+        bus_voltage = _extract_float(
+            text, r"bus_voltage=([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)"
+        )
 
     regulation_voltage = _extract_float(
         text, r"regulation_voltage:\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)"
@@ -73,7 +75,9 @@ def parse_bcdu_status(
             text, r"regulation_voltage=([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)"
         )
 
-    current_draw = _extract_float(text, r"current_draw:\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)")
+    current_draw = _extract_float(
+        text, r"current_draw:\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)"
+    )
     if current_draw is None:
         current_draw = _extract_float(
             text, r"current_draw=([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)"

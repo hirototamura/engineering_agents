@@ -1,0 +1,14 @@
+name: Setup project
+
+description: Python 3.11, pip cache, editable install with dev extras
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: pip
+    - name: Install package
+      shell: bash
+      run: pip install -e ".[dev]"

@@ -3,8 +3,8 @@
 import pytest
 
 from environment.ssos.eclss.backend import EclssBackend
-from environment.ssos.eclss.types import ArsGoal, OgsGoal, WrsGoal
 from environment.ssos.eclss.mock.backend import MockEclssBackend
+from environment.ssos.eclss.types import ArsGoal, OgsGoal, WrsGoal
 from environment.ssos.eclss.units import o2_generated_kg
 
 

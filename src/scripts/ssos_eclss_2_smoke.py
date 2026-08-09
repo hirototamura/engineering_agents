@@ -22,12 +22,12 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 from environment.ssos.eclss.ros2.topics import (
     LAUNCH_HEADLESS_ECLSS,
     TOPIC_WRS_PRODUCT_WATER_RESERVE,
 )
 from environment.ssos.eclss.types import OgsGoal, WrsGoal
-from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 
 
 @dataclass
@@ -112,8 +112,11 @@ def run_2_smoke(
     report.water_tradeoff_signal = bool(
         (purified is not None and purified > 0)
         or (water_granted is not None and water_granted > 0)
-        or (water_after_recovery is not None and before.product_water_reserve_l is not None
-            and water_after_recovery > before.product_water_reserve_l)
+        or (
+            water_after_recovery is not None
+            and before.product_water_reserve_l is not None
+            and water_after_recovery > before.product_water_reserve_l
+        )
         or (report.product_water_delta is not None and report.product_water_delta != 0)
         or grey_result.success
     )
@@ -155,7 +158,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     payload = report.to_dict()
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     if args.json_out:
-        args.json_out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        args.json_out.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
     if not report.ok:
         print(f"\nPhase 2 smoke FAILED. Start ECLSS with: {report.launch_hint}", file=sys.stderr)
