@@ -94,6 +94,20 @@ ea results
 python3 -m streamlit run src/tools/dashboard/app.py   # optional dashboard
 ```
 
+### Dashboard demo
+
+Overview and Step replay walkthrough for run `plant-sim-labeled-rule-base` (`ssos_eclss_loop` + `--backend plant_sim` + `--agents-mode labeled_rule_base`).
+
+<video src="docs/assets/dashboard-demo-plant-sim-labeled-rule-base.mp4" controls width="100%"></video>
+
+[Download MP4](docs/assets/dashboard-demo-plant-sim-labeled-rule-base.mp4)
+
+```bash
+ea run ssos_eclss_loop --backend plant_sim --agents-mode labeled_rule_base --steps 40 \
+  --run-id plant-sim-labeled-rule-base
+python3 -m streamlit run src/tools/dashboard/app.py
+```
+
 **Next:** [Overview](docs/en/overview.md) · [Architecture](docs/en/architecture.md) · [CLI guide](docs/en/cli.md) · [SSOS integration](docs/en/ssos/index.md) · Japanese quick start: [docs/ja/index.md](docs/ja/index.md)
 
 ---
