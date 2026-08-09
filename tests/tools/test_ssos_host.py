@@ -6,8 +6,6 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from scenario.jobs.spec import RunSpec
 from tools.cli.ssos_host import (
     _HOST_RESULTS_MOUNT,
@@ -148,7 +146,9 @@ def test_run_ssos_in_container_copies_apply_proposals(tmp_path: Path):
             MagicMock(returncode=0),  # docker exec rm
         ]
         with patch("tools.cli.ssos_host._host_run_directory", return_value=summary_dir):
-            with patch("tools.cli.ssos_host._read_summary", return_value={"scenario": "ssos_eclss_loop"}):
+            with patch(
+                "tools.cli.ssos_host._read_summary", return_value={"scenario": "ssos_eclss_loop"}
+            ):
                 result = run_ssos_in_container(spec)
 
     assert result.exit_code == 0

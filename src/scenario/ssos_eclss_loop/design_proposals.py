@@ -101,7 +101,9 @@ def _filter_action_profile_fields(subsystem: str, fields: Dict[str, Any]) -> Dic
             raise ValueError(f"action_profile.fields.{key} must be finite and non-negative")
         filtered[key] = number
     if not filtered:
-        raise ValueError(f"action_profile.fields must include at least one known field for {subsystem!r}")
+        raise ValueError(
+            f"action_profile.fields must include at least one known field for {subsystem!r}"
+        )
     return filtered
 
 
@@ -250,7 +252,9 @@ def _co2_stress_why(
     if status in {"warning", "critical"}:
         parts.append(f"final co2_status={status}")
     if final_co2 is not None and float(final_co2) >= co2_high:
-        parts.append(f"final_co2_storage_kg={float(final_co2):.3g} >= co2_storage_high_kg={co2_high}")
+        parts.append(
+            f"final_co2_storage_kg={float(final_co2):.3g} >= co2_storage_high_kg={co2_high}"
+        )
     if peak_co2 is not None and float(peak_co2) >= co2_high:
         parts.append(f"peak_co2_storage_kg={float(peak_co2):.3g} >= co2_storage_high_kg={co2_high}")
     return "; ".join(parts) if parts else f"co2_storage_high_kg policy={co2_high}"
@@ -309,9 +313,8 @@ def build_design_proposals_from_run(
         or (final_co2 is not None and float(final_co2) >= co2_high)
         or (peak_co2 is not None and float(peak_co2) >= co2_high)
     )
-    o2_stressed = (
-        str(final_health.get("o2_status", "")).lower() in {"warning", "critical"}
-        or (min_o2 is not None and float(min_o2) <= o2_low)
+    o2_stressed = str(final_health.get("o2_status", "")).lower() in {"warning", "critical"} or (
+        min_o2 is not None and float(min_o2) <= o2_low
     )
 
     if co2_stressed:
@@ -386,9 +389,7 @@ def build_design_proposals_from_run(
                             "payload": {
                                 "service": "request_co2",
                                 "amount": proposed_amt,
-                                "before_ogs": bool(
-                                    policy.get("request_co2_before_ogs", False)
-                                ),
+                                "before_ogs": bool(policy.get("request_co2_before_ogs", False)),
                             },
                         },
                         why=o2_why,

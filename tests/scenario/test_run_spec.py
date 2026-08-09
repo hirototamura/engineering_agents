@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from scenario.jobs.resolve import resolve_run_id, resolve_run_directory
-from scenario.jobs.spec import RunSpec
 from scenario.jobs.executor import execute_run
+from scenario.jobs.resolve import resolve_run_directory, resolve_run_id
+from scenario.jobs.spec import RunSpec
 
 
 def test_run_spec_json_roundtrip(tmp_path: Path):

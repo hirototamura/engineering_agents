@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List
 
 from environment.protocol import AnomalySpec
@@ -16,9 +16,7 @@ class ActiveAnomaly:
 
 class AnomalyManager:
     def __init__(self, specs: List[AnomalySpec] | None = None):
-        self._anomalies: List[ActiveAnomaly] = [
-            ActiveAnomaly(spec=s) for s in (specs or [])
-        ]
+        self._anomalies: List[ActiveAnomaly] = [ActiveAnomaly(spec=s) for s in (specs or [])]
 
     def register(self, spec: AnomalySpec) -> None:
         self._anomalies.append(ActiveAnomaly(spec=spec))

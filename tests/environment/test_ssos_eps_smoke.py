@@ -1,7 +1,7 @@
 """Unit tests for Phase 3 EPS smoke helpers (no ROS runtime)."""
 
-from scripts.ssos_eps_smoke import EpsSmokeReport, run_eps_smoke
 from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
+from scripts.ssos_eps_smoke import EpsSmokeReport, run_eps_smoke
 
 
 def test_eps_smoke_report_serializes():

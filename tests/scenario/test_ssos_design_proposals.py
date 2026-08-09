@@ -225,9 +225,7 @@ def test_build_design_proposals_fallback_empty_policy_uses_default_threshold():
         policy={},
     )
     assert doc["changes"]
-    assert any(
-        c["payload"]["target"] == "thresholds.co2_storage_high_kg" for c in doc["changes"]
-    )
+    assert any(c["payload"]["target"] == "thresholds.co2_storage_high_kg" for c in doc["changes"])
 
 
 def test_write_rejects_scrubber_change_kind(tmp_path):

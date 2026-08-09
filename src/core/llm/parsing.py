@@ -34,13 +34,13 @@ Status semantics (used downstream by emergence_metrics for
                   NOT treat the action as agent decision.
   empty_response — LLM returned empty or whitespace-only text.
 """
+
 from __future__ import annotations
 
 import json
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Optional, Tuple
-
 
 # Multiple thinking-tag conventions seen across Ollama-served models.
 # Closed forms first; unclosed last (so we only strip-to-end if no closer).
@@ -133,10 +133,10 @@ def extract_json_block(text: str) -> Optional[str]:
 @dataclass
 class ParsedResponse:
     data: Dict[str, Any]
-    status: str          # "ok" | "partial" | "fallback" | "empty_response"
+    status: str  # "ok" | "partial" | "fallback" | "empty_response"
     error: Optional[str]
-    raw_excerpt: str     # truncated raw response for logging
-    clean_excerpt: str   # post strip-thinking-tags excerpt
+    raw_excerpt: str  # truncated raw response for logging
+    clean_excerpt: str  # post strip-thinking-tags excerpt
 
     def to_log_fields(self) -> Dict[str, Any]:
         """Flat fields ready to embed in a JSONL log row."""
@@ -177,23 +177,23 @@ def parse_json_response(
     """
     raw_excerpt = _excerpt(text or "")
     if not text or not text.strip():
-        return ParsedResponse({}, "empty_response", "empty or whitespace only",
-                              raw_excerpt, "")
+        return ParsedResponse({}, "empty_response", "empty or whitespace only", raw_excerpt, "")
 
     cleaned = strip_thinking_tags(text)
     clean_excerpt = _excerpt(cleaned)
     block = extract_json_block(cleaned)
     if block is None:
-        return ParsedResponse({}, "fallback", "no balanced JSON object found",
-                              raw_excerpt, clean_excerpt)
+        return ParsedResponse(
+            {}, "fallback", "no balanced JSON object found", raw_excerpt, clean_excerpt
+        )
     try:
         data = json.loads(block)
     except json.JSONDecodeError as exc:
-        return ParsedResponse({}, "fallback", f"json decode: {exc.msg}",
-                              raw_excerpt, clean_excerpt)
+        return ParsedResponse({}, "fallback", f"json decode: {exc.msg}", raw_excerpt, clean_excerpt)
     if not isinstance(data, dict):
-        return ParsedResponse({}, "fallback", "JSON root is not an object",
-                              raw_excerpt, clean_excerpt)
+        return ParsedResponse(
+            {}, "fallback", "JSON root is not an object", raw_excerpt, clean_excerpt
+        )
 
     aliases = aliases or {}
     used_alias = False
@@ -208,11 +208,12 @@ def parse_json_response(
     missing = [k for k in required if k not in data]
     if missing:
         return ParsedResponse(
-            data, "partial",
+            data,
+            "partial",
             f"missing required: {', '.join(missing)}",
-            raw_excerpt, clean_excerpt,
+            raw_excerpt,
+            clean_excerpt,
         )
     if used_alias:
-        return ParsedResponse(data, "partial", "used alias mapping",
-                              raw_excerpt, clean_excerpt)
+        return ParsedResponse(data, "partial", "used alias mapping", raw_excerpt, clean_excerpt)
     return ParsedResponse(data, "ok", None, raw_excerpt, clean_excerpt)

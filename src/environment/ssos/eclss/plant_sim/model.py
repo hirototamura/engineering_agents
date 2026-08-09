@@ -149,7 +149,9 @@ class PlantModel:
 
         # crew water outputs scale with actual hydration (mass conserved at crew)
         urine_kg = per_interval(c.urine_kg_day_person, c.step_seconds) * factor * hydration
-        condensate_kg = per_interval(c.condensate_kg_day_person, c.step_seconds) * factor * hydration
+        condensate_kg = (
+            per_interval(c.condensate_kg_day_person, c.step_seconds) * factor * hydration
+        )
         loss_kg = (
             per_interval(c.unrecoverable_water_kg_day_person, c.step_seconds) * factor * hydration
         )

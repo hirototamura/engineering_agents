@@ -188,18 +188,14 @@ def _build_overrides(
     if agents_mode is not None:
         if agents_mode not in VALID_AGENTS_MODES:
             allowed = ", ".join(sorted(VALID_AGENTS_MODES))
-            raise ValueError(
-                f"Unsupported agents mode: {agents_mode!r}. Choose one of: {allowed}"
-            )
+            raise ValueError(f"Unsupported agents mode: {agents_mode!r}. Choose one of: {allowed}")
         parts.append({"agents": {"mode": agents_mode}})
     if steps is not None:
         parts.append({"simulation": {"steps": steps}})
     if backend is not None:
         if backend not in VALID_SSOS_BACKENDS:
             allowed = ", ".join(sorted(VALID_SSOS_BACKENDS))
-            raise ValueError(
-                f"Unsupported backend kind: {backend!r}. Choose one of: {allowed}"
-            )
+            raise ValueError(f"Unsupported backend kind: {backend!r}. Choose one of: {allowed}")
         parts.append({"backend": {"kind": backend}})
     if set_values:
         parts.append(parse_set_values(set_values))
@@ -225,15 +221,11 @@ def _validate_merged_overrides(overrides: dict | None) -> None:
     agents_mode = (overrides.get("agents") or {}).get("mode")
     if agents_mode is not None and agents_mode not in VALID_AGENTS_MODES:
         allowed = ", ".join(sorted(VALID_AGENTS_MODES))
-        raise ValueError(
-            f"Unsupported agents mode: {agents_mode!r}. Choose one of: {allowed}"
-        )
+        raise ValueError(f"Unsupported agents mode: {agents_mode!r}. Choose one of: {allowed}")
     backend_kind = (overrides.get("backend") or {}).get("kind")
     if backend_kind is not None and backend_kind not in VALID_SSOS_BACKENDS:
         allowed = ", ".join(sorted(VALID_SSOS_BACKENDS))
-        raise ValueError(
-            f"Unsupported backend kind: {backend_kind!r}. Choose one of: {allowed}"
-        )
+        raise ValueError(f"Unsupported backend kind: {backend_kind!r}. Choose one of: {allowed}")
 
 
 def _preflight_llm() -> int:

@@ -8,7 +8,6 @@ from typing import Any, Dict, Optional
 from environment.protocol import HealthStatus
 from environment.ssos.eclss.types import EclssTelemetrySnapshot
 
-
 HEALTH_INPUT_FIELDS = {
     "co2": "telemetry.co2_storage_kg",
     "o2": "telemetry.o2_storage_kg",

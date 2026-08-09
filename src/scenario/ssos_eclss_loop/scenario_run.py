@@ -17,6 +17,8 @@ import yaml
 from core.event_log import EventLog
 from core.scenario import Scenario
 from environment.ssos.eclss.backend import EclssBackend
+from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
+from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
 from environment.ssos.eclss.types import EclssTelemetrySnapshot
 from integrations.one_piece import export_run_provenance
 from scenario.agents.eclss_loop_types import EclssLoopObservation
@@ -28,20 +30,17 @@ from scenario.runner import (
     scenario_config_path,
     write_effective_configs,
 )
+from scenario.ssos_eclss_loop.design_proposals import (
+    apply_design_proposals,
+    load_design_proposals,
+    write_design_proposals,
+)
 from scenario.ssos_eclss_loop.health import (
     build_effective_thresholds,
     compute_eclss_storage_health,
     health_inputs_note,
 )
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
-from scenario.ssos_eclss_loop.design_proposals import (
-    apply_design_proposals,
-    load_design_proposals,
-    write_design_proposals,
-)
-from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
-from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
-
 from scenario.ssos_eclss_loop.policy import merge_labeled_policy_from_thresholds
 
 logger = logging.getLogger(__name__)
@@ -265,16 +264,10 @@ class SsosEclssLoopScenario(Scenario):
             last_snap = snap
             if snap.co2_storage_kg is not None:
                 peak_co2 = (
-                    snap.co2_storage_kg
-                    if peak_co2 is None
-                    else max(peak_co2, snap.co2_storage_kg)
+                    snap.co2_storage_kg if peak_co2 is None else max(peak_co2, snap.co2_storage_kg)
                 )
             if snap.o2_storage_kg is not None:
-                min_o2 = (
-                    snap.o2_storage_kg
-                    if min_o2 is None
-                    else min(min_o2, snap.o2_storage_kg)
-                )
+                min_o2 = snap.o2_storage_kg if min_o2 is None else min(min_o2, snap.o2_storage_kg)
 
             health = compute_eclss_storage_health(step, snap, thresholds)
             last_health = health
@@ -301,7 +294,7 @@ class SsosEclssLoopScenario(Scenario):
                     log.append("events", {"step": step, **event})
                     if event.get("kind") != "/eclss/events/operational_applied":
                         continue
-                    cmd = (event.get("command") or {})
+                    cmd = event.get("command") or {}
                     cmd_kind = cmd.get("kind")
                     if cmd_kind == "air_revitalisation" and ars_invoked_step is None:
                         ars_invoked_step = step

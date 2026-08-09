@@ -90,7 +90,9 @@ class RclpyEclssTelemetryReader:
                 10,
             )
 
-        self._spin_thread = threading.Thread(target=self._spin_loop, name="eclss-telemetry-spin", daemon=True)
+        self._spin_thread = threading.Thread(
+            target=self._spin_loop, name="eclss-telemetry-spin", daemon=True
+        )
         self._spin_thread.start()
 
     def _make_callback(self, topic: str):
@@ -105,7 +107,9 @@ class RclpyEclssTelemetryReader:
         while not self._stop.is_set() and self._rclpy.ok():
             self._rclpy.spin_once(self._node, timeout_sec=0.1)
 
-    def read(self, wait_timeout_s: float) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    def read(
+        self, wait_timeout_s: float
+    ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         """Return (co2, o2, water), waiting up to ``wait_timeout_s`` for first samples."""
         return self._read_locked(wait_timeout_s=wait_timeout_s, max_age_s=None)
 

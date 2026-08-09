@@ -86,7 +86,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     payload = report.to_dict()
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     if args.json_out:
-        args.json_out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        args.json_out.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
     if not report.ok:
         print(f"\nPhase 3 EPS smoke FAILED. Start SSOS with: {report.launch_hint}", file=sys.stderr)

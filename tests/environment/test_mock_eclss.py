@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from environment.scrubber.eclss_ops.telemetry import compute_health_metrics, co2_health
 from environment.protocol import (
     AnomalySpec,
     CommandKind,
@@ -12,6 +11,7 @@ from environment.protocol import (
     RecoveryCommand,
 )
 from environment.scrubber.eclss_ops.design_state import DesignStateManager
+from environment.scrubber.eclss_ops.telemetry import compute_health_metrics
 from environment.scrubber.mock_eclss import MockEclssSimulator
 
 
@@ -90,7 +90,9 @@ def test_health_metrics_critical_on_high_co2():
 def test_run_mock_writes_telemetry_jsonl(tmp_path: Path):
     from scripts.run_mock_eclss import run_mock_simulation
 
-    run_dir = run_mock_simulation(steps=10, output_dir=tmp_path / "run", inject_scrubber_anomaly=False)
+    run_dir = run_mock_simulation(
+        steps=10, output_dir=tmp_path / "run", inject_scrubber_anomaly=False
+    )
     telemetry_file = run_dir / "telemetry.jsonl"
     assert telemetry_file.exists()
     lines = telemetry_file.read_text(encoding="utf-8").strip().splitlines()

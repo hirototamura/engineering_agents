@@ -97,7 +97,9 @@ def test_ars_preserves_co2_mass_across_cabin_capture_and_vent():
     s = m.state
 
     assert before.cabin_co2_kg - s.cabin_co2_kg == pytest.approx(r["co2_removed_kg"], **EXACT)
-    assert s.captured_co2_kg - before.captured_co2_kg == pytest.approx(r["captured_co2_kg"], **EXACT)
+    assert s.captured_co2_kg - before.captured_co2_kg == pytest.approx(
+        r["captured_co2_kg"], **EXACT
+    )
     assert s.total_co2_vented_kg - before.total_co2_vented_kg == pytest.approx(
         r["vented_co2_kg"], **EXACT
     )
@@ -113,7 +115,9 @@ def test_electrolysis_inventory_follows_stoichiometric_ratios():
     assert water_l_to_kg(before.product_water_l - s.product_water_l) == pytest.approx(
         r["processed_water_kg"], **EXACT
     )
-    assert s.available_o2_kg - before.available_o2_kg == pytest.approx(r["o2_generated_kg"], **EXACT)
+    assert s.available_o2_kg - before.available_o2_kg == pytest.approx(
+        r["o2_generated_kg"], **EXACT
+    )
     assert r["o2_generated_kg"] == pytest.approx(r["processed_water_kg"] / WATER_PER_O2, **EXACT)
     assert r["h2_generated_kg"] == pytest.approx(r["o2_generated_kg"] * H2_PER_O2, **EXACT)
     # No Sabatier: all H2 vents; water tank only loses electrolysis feed.
@@ -139,8 +143,10 @@ def test_sabatier_inventory_matches_reaction_outputs():
         r["sabatier_co2_used_kg"], **EXACT
     )
     # Net product-water change = -electrolysis + Sabatier regen
-    expected_water_l = before.product_water_l - water_kg_to_l(r["processed_water_kg"]) + water_kg_to_l(
-        r["water_regenerated_kg"]
+    expected_water_l = (
+        before.product_water_l
+        - water_kg_to_l(r["processed_water_kg"])
+        + water_kg_to_l(r["water_regenerated_kg"])
     )
     assert s.product_water_l == pytest.approx(expected_water_l, **EXACT)
     assert s.total_ch4_vented_kg - before.total_ch4_vented_kg == pytest.approx(
@@ -156,10 +162,7 @@ def test_ogs_plus_sabatier_chemical_mass_within_accept_budget():
     r = m.run_ogs(0.06)
     reactants = r["processed_water_kg"] + r["sabatier_co2_used_kg"]
     products = (
-        r["o2_generated_kg"]
-        + r["water_regenerated_kg"]
-        + r["ch4_generated_kg"]
-        + r["h2_vented_kg"]
+        r["o2_generated_kg"] + r["water_regenerated_kg"] + r["ch4_generated_kg"] + r["h2_vented_kg"]
     )
     assert abs(reactants - products) < CHEM_MASS_ACCEPT_KG  # 2 mg; 1000 actions → 2 g
 
@@ -184,7 +187,9 @@ def test_wrs_preserves_water_volume_across_buffers_product_and_brine():
     assert feed == pytest.approx(r["recovered_water_l"] + r["brine_loss_l"], **EXACT)
     assert before.urine_buffer_l - s.urine_buffer_l == pytest.approx(r["urine_feed_l"], **EXACT)
     assert before.grey_water_l - s.grey_water_l == pytest.approx(r["grey_feed_l"], **EXACT)
-    assert s.product_water_l - before.product_water_l == pytest.approx(r["recovered_water_l"], **EXACT)
+    assert s.product_water_l - before.product_water_l == pytest.approx(
+        r["recovered_water_l"], **EXACT
+    )
     assert s.total_wrs_brine_loss_l - before.total_wrs_brine_loss_l == pytest.approx(
         r["brine_loss_l"], **EXACT
     )
@@ -284,4 +289,6 @@ def test_crew_metabolism_does_not_create_or_destroy_water():
         + (s.total_unrecoverable_crew_water_l - before.total_unrecoverable_crew_water_l)
     )
     assert drunk == pytest.approx(produced, **EXACT)
-    assert drunk == pytest.approx(s.total_potable_water_consumed_l - before.total_potable_water_consumed_l, **EXACT)
+    assert drunk == pytest.approx(
+        s.total_potable_water_consumed_l - before.total_potable_water_consumed_l, **EXACT
+    )

@@ -5,10 +5,10 @@ import subprocess
 import pytest
 
 from environment.scrubber.eps.backend import EpsBackend
+from environment.scrubber.eps.topics import BCDU_STATUS
 from environment.scrubber.eps.types import BcduMode
 from environment.ssos.eps.ros2.adapters import estimate_discharge_w, parse_bcdu_status
 from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
-from environment.scrubber.eps.topics import BCDU_STATUS
 from environment.ssos.eps.ros2.topic_map import SSOS_TOPIC_SOLAR_VOLTAGE
 
 

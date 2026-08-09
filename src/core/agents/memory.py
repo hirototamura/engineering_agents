@@ -66,7 +66,9 @@ class TeamMemoryStore:
             llm_memory = msg.metadata.get("llm_memory")
             if llm_memory:
                 memory.append(str(llm_memory))
-            summary = f"step {msg.step} [{msg.metadata.get('deliberation_phase', '?')}]: {msg.message}"
+            summary = (
+                f"step {msg.step} [{msg.metadata.get('deliberation_phase', '?')}]: {msg.message}"
+            )
             if msg.reasoning:
                 summary += f" ({msg.reasoning})"
             memory.append(summary)

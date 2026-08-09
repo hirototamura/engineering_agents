@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from environment.scrubber.eclss_ops.anomalies import AnomalyManager
-from environment.scrubber.eclss_ops.commands import apply_command_to_state, validate_command
-from environment.scrubber.eclss_ops.design_state import DesignStateManager, default_parameters
 from environment.protocol import (
     AnomalySpec,
     CommandKind,
@@ -16,6 +13,9 @@ from environment.protocol import (
     TelemetrySnapshot,
     TopologyGraph,
 )
+from environment.scrubber.eclss_ops.anomalies import AnomalyManager
+from environment.scrubber.eclss_ops.commands import apply_command_to_state, validate_command
+from environment.scrubber.eclss_ops.design_state import DesignStateManager
 from environment.scrubber.topics import EVENT_ANOMALY, EVENT_RECOVERY
 
 
@@ -92,7 +92,9 @@ class MockEclssSimulator:
         self.power_margin_w -= load_w * margin_factor
 
         if active_flags:
-            self._event_log.append({"step": self.step_count, "kind": EVENT_ANOMALY, "flags": active_flags})
+            self._event_log.append(
+                {"step": self.step_count, "kind": EVENT_ANOMALY, "flags": active_flags}
+            )
 
         return self._snapshot(active_flags)
 

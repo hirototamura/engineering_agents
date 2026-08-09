@@ -1,7 +1,6 @@
 """Contract tests for MockEpsBackend (Phase 3)."""
 
 from environment.scrubber.eps.backend import EpsBackend
-from environment.scrubber.eps.types import BcduMode
 from environment.scrubber.eps.mock.backend import MockEpsBackend, build_mock_eps_backend
 
 

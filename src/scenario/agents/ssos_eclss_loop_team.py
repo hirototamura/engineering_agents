@@ -28,9 +28,9 @@ from scenario.agents.eclss_loop_types import (
     StepEclssOutcome,
 )
 from scenario.ssos_eclss_loop.design_proposals import (
+    ACTION_PROFILE_FIELDS_BY_SUBSYSTEM,
     DESIGN_DOMAIN,
     SSOS_CHANGE_KINDS,
-    ACTION_PROFILE_FIELDS_BY_SUBSYSTEM,
     build_design_proposals_from_run,
 )
 
@@ -38,7 +38,9 @@ _ECLSS_OPERATIONAL_KINDS = frozenset(
     {"air_revitalisation", "oxygen_generation", "water_recovery", "request_co2", "request_o2"}
 )
 
-_ARS_GOAL_FIELDS = frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"})
+_ARS_GOAL_FIELDS = frozenset(
+    {"initial_co2_mass", "initial_moisture_content", "initial_contaminants"}
+)
 _OGS_GOAL_FIELDS = frozenset({"input_water_mass", "iodine_concentration"})
 _WRS_GOAL_FIELDS = frozenset({"urine_volume"})
 
@@ -93,7 +95,9 @@ class SsosEclssLoopTeam(Team):
             return outcome
         return self._run_step_labeled(obs)
 
-    def apply_outcome(self, backend: EclssBackend, outcome: StepEclssOutcome) -> List[Dict[str, Any]]:
+    def apply_outcome(
+        self, backend: EclssBackend, outcome: StepEclssOutcome
+    ) -> List[Dict[str, Any]]:
         events: List[Dict[str, Any]] = []
         for cmd in outcome.commands:
             event = self._apply_command(backend, cmd)
@@ -238,8 +242,8 @@ class SsosEclssLoopTeam(Team):
         # High/warning band is one-shot (ars_invoked). Critical band keeps
         # recovering until CO₂ leaves critical — otherwise a partial ARS drop
         # that stays >= critical stalls with both latches set.
-        need_ars = co2 is not None and co2 >= co2_high and (
-            not self.state.ars_invoked or in_critical
+        need_ars = (
+            co2 is not None and co2 >= co2_high and (not self.state.ars_invoked or in_critical)
         )
         if need_ars:
             ars_payload = dict(self.policy.get("ars_goal", {}))
@@ -729,9 +733,7 @@ class SsosEclssLoopTeam(Team):
 
         success = bool(getattr(result, "success", False))
         event_kind = (
-            "/eclss/events/operational_applied"
-            if success
-            else "/eclss/events/operational_rejected"
+            "/eclss/events/operational_applied" if success else "/eclss/events/operational_rejected"
         )
         return {
             "kind": event_kind,
@@ -814,9 +816,9 @@ def build_llm_post_run_situation(
     )
     final_health = summary.get("final_health") or {}
     world_state = json.dumps(final_health, ensure_ascii=False)
-    discourse_lines = "\n".join(
-        f"- {msg.from_role}: {msg.message}" for msg in discourse[-8:]
-    ) or "(none)"
+    discourse_lines = (
+        "\n".join(f"- {msg.from_role}: {msg.message}" for msg in discourse[-8:]) or "(none)"
+    )
     graph = json.dumps(baseline_graph, ensure_ascii=False)
     return (
         "Post-run SSOS graph design review. Simulation complete.\n\n"

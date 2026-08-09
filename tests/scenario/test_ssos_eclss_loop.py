@@ -8,12 +8,12 @@ from pathlib import Path
 import pytest
 
 from scenario.runner import list_scenarios, run_scenario
+from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 from scenario.ssos_eclss_loop.scenario_run import (
     BACKEND_ENV_VAR,
     build_eclss_backend,
     resolve_backend_kind,
 )
-from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 
 
 def _read_jsonl(path: Path) -> list:
@@ -98,9 +98,7 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     assert "design_change" not in message_types
 
     applied = [e for e in events if e.get("kind") == "/eclss/events/operational_applied"]
-    assert any(
-        (e.get("command") or {}).get("kind") == "air_revitalisation" for e in applied
-    )
+    assert any((e.get("command") or {}).get("kind") == "air_revitalisation" for e in applied)
 
     assert telemetry[0]["step"] == 1
     assert telemetry[0]["co2_storage_kg"] == pytest.approx(1.5)
@@ -147,7 +145,9 @@ def test_ssos_eclss_loop_labeled_reinvokes_ars_when_co2_reexceeds(tmp_path: Path
 
     assert summary["operational_command_count"] >= 2
     assert 1 in ars_steps
-    assert any(step > 1 for step in ars_steps), "ARS should re-fire after CO2 regrows past threshold"
+    assert any(step > 1 for step in ars_steps), (
+        "ARS should re-fire after CO2 regrows past threshold"
+    )
 
 
 def test_ssos_eclss_loop_provenance_includes_operational_records(tmp_path: Path):
@@ -196,7 +196,9 @@ def test_ssos_eclss_loop_apply_proposals(tmp_path: Path):
 
     proposals = json.loads(proposals_path.read_text(encoding="utf-8"))
     effective_agents = yaml.safe_load((second / "agents_config.yaml").read_text(encoding="utf-8"))
-    effective_scenario = yaml.safe_load((second / "scenario_config.yaml").read_text(encoding="utf-8"))
+    effective_scenario = yaml.safe_load(
+        (second / "scenario_config.yaml").read_text(encoding="utf-8")
+    )
     assert effective_scenario.get("agents", {}).get("mode") == "labeled_rule_base"
 
     # At least one applied change must appear in the dumped effective agents policy.
@@ -341,7 +343,9 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
                 )
             return "{}"
 
-    monkeypatch.setattr(SsosEclssLoopTeam, "_build_llm_client", staticmethod(lambda _: FakeClient()))
+    monkeypatch.setattr(
+        SsosEclssLoopTeam, "_build_llm_client", staticmethod(lambda _: FakeClient())
+    )
 
     run_dir = run_scenario(
         "ssos_eclss_loop",
@@ -363,7 +367,9 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
     assert any(m.get("deliberation_phase") == "action" for m in messages)
     assert design_proposals.get("decision_source") == "llm"
     assert design_proposals.get("design_domain") == "ssos_graph"
-    assert any(c.get("change_kind") == "action_profile" for c in design_proposals.get("changes", []))
+    assert any(
+        c.get("change_kind") == "action_profile" for c in design_proposals.get("changes", [])
+    )
 
 
 def test_ssos_eclss_loop_skips_empty_design_proposals_file(tmp_path: Path, monkeypatch):
@@ -429,4 +435,3 @@ def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Pa
             assert change.get("why")
             assert change.get("what")
             assert change.get("how")
-

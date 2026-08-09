@@ -42,10 +42,7 @@ def _failure_flags_for_telemetry(
 ) -> List[Tuple[str, str, str]]:
     """Return SSOS failure flags that actually appear in telemetry."""
     keys_present = {
-        flag_key
-        for row in telemetry_rows
-        for flag_key, _, _ in _FAILURE_FLAGS
-        if flag_key in row
+        flag_key for row in telemetry_rows for flag_key, _, _ in _FAILURE_FLAGS if flag_key in row
     }
     return [item for item in _FAILURE_FLAGS if item[0] in keys_present]
 
@@ -209,8 +206,9 @@ def extract_anomaly_status(
         onset = _episode_onset(
             health_series,
             step=step,
-            is_active=lambda row, key=band_key: str(row.get(key, "") or "").lower()
-            in _STRESS_STATUSES,
+            is_active=lambda row, key=band_key: (
+                str(row.get(key, "") or "").lower() in _STRESS_STATUSES
+            ),
         )
         if onset is None:
             continue
@@ -502,8 +500,7 @@ def build_status_timeline_lanes(
     lanes: List[Dict[str, Any]] = []
     for band_key, label in _health_bands_for_rows(health_rows):
         points = [
-            (int(row["step"]), str(row.get(band_key) or "").lower() or None)
-            for row in series
+            (int(row["step"]), str(row.get(band_key) or "").lower() or None) for row in series
         ]
         # Normalize empty to None (gap).
         points = [(step, state if state else None) for step, state in points]

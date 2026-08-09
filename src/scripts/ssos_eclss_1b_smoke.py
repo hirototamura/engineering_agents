@@ -21,13 +21,13 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 from environment.ssos.eclss.ros2.topics import (
     LAUNCH_HEADLESS_ECLSS,
     TOPIC_CO2_STORAGE,
     TOPIC_O2_STORAGE,
 )
 from environment.ssos.eclss.types import OgsGoal, ServiceResult
-from environment.ssos.eclss.ros2.bridge import Ros2EclssBridge
 
 
 def _expected_insufficient_co2(
@@ -125,9 +125,7 @@ def run_1b_smoke(
         or (report.co2_storage_delta is not None and report.co2_storage_delta != 0)
     )
     if not report.sabatier_signal:
-        report.errors.append(
-            "no O2/CO2 Sabatier competition signal in telemetry or OGS result"
-        )
+        report.errors.append("no O2/CO2 Sabatier competition signal in telemetry or OGS result")
 
     report.ok = not report.errors
     return report
@@ -163,7 +161,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     payload = report.to_dict()
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     if args.json_out:
-        args.json_out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        args.json_out.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
     if not report.ok:
         print(f"\nPhase 1b smoke FAILED. Start ECLSS with: {report.launch_hint}", file=sys.stderr)

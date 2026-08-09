@@ -42,9 +42,7 @@ def test_team_memory_store_commit_step():
                 metadata={"deliberation_phase": "action", "llm_memory": "watch bypass"},
             )
         ],
-        commands=[
-            RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value=1.0, issued_by="operator")
-        ],
+        commands=[RecoveryCommand(kind=CommandKind.SET_FAN_SPEED, value=1.0, issued_by="operator")],
     )
     store.commit_step(outcome)
     assert len(store.discourse.recent()) == 1

@@ -63,28 +63,22 @@ class TeamConfig:
         return self.agent_ids[self.action_rep_index(step)]
 
 
-def _resolve_archetypes(
-    raw: Any, agent_ids: Tuple[str, ...]
-) -> Tuple[Tuple[str, str], ...]:
+def _resolve_archetypes(raw: Any, agent_ids: Tuple[str, ...]) -> Tuple[Tuple[str, str], ...]:
     """Map a list of lens names onto agent_ids (round-robin). Empty/missing => ()."""
     if not raw:
         return ()
     if not isinstance(raw, (list, tuple)):
-        raise ValueError(
-            f"team.archetypes must be a list of lens names, got {type(raw).__name__}"
-        )
+        raise ValueError(f"team.archetypes must be a list of lens names, got {type(raw).__name__}")
     lens_names = [str(name).strip() for name in raw if str(name).strip()]
     if not lens_names:
         return ()
     unknown = [name for name in lens_names if name not in ARCHETYPE_LENSES]
     if unknown:
         raise ValueError(
-            f"Unknown archetype lens(es): {unknown}. "
-            f"Known lenses: {sorted(ARCHETYPE_LENSES)}"
+            f"Unknown archetype lens(es): {unknown}. Known lenses: {sorted(ARCHETYPE_LENSES)}"
         )
     return tuple(
-        (agent_id, lens_names[i % len(lens_names)])
-        for i, agent_id in enumerate(agent_ids)
+        (agent_id, lens_names[i % len(lens_names)]) for i, agent_id in enumerate(agent_ids)
     )
 
 
@@ -197,9 +191,9 @@ def eclss_operational_action_contract() -> str:
         f"{output_word_limits_clause()} "
         '"commands" is a list of {"kind","payload"} objects. '
         'kind in ["air_revitalisation","oxygen_generation","request_co2","request_o2"]. '
-        'air_revitalisation payload fields: initial_co2_mass, initial_moisture_content, '
-        'initial_contaminants (numeric). '
-        'oxygen_generation payload fields: input_water_mass, iodine_concentration (numeric). '
+        "air_revitalisation payload fields: initial_co2_mass, initial_moisture_content, "
+        "initial_contaminants (numeric). "
+        "oxygen_generation payload fields: input_water_mass, iodine_concentration (numeric). "
         'request_co2 / request_o2 payload: {"amount": <kg>}. '
         "Empty commands when you and teammates agree to hold this step."
     )

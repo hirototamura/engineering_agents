@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from environment.scrubber.eps.types import BcduMode, BcduStatus, DischargeResult, EpsDiagnostics
 
@@ -109,10 +109,7 @@ class MockBcdu:
         self.support_w = float(support_w)
         self.support_steps_remaining = int(duration_steps)
         self.mode = BcduMode.DISCHARGING
-        msg = (
-            f"discharge armed {self.support_w:.1f} W "
-            f"for {self.support_steps_remaining} steps"
-        )
+        msg = f"discharge armed {self.support_w:.1f} W for {self.support_steps_remaining} steps"
         self._diagnostics.append(
             EpsDiagnostics(
                 step=self.step_count,

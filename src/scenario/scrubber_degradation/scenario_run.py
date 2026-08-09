@@ -13,8 +13,8 @@ from core.agents.base import Team
 from core.agents.types import AgentObservation
 from core.event_log import EventLog
 from core.scenario import Scenario
-from environment.scrubber.eclss_ops.telemetry import CO2_RECOVERY_PPM, compute_health_metrics
 from environment.protocol import HealthStatus, SimulatorProtocol
+from environment.scrubber.eclss_ops.telemetry import CO2_RECOVERY_PPM, compute_health_metrics
 from environment.scrubber.station_simulator import StationSimulator
 from environment.scrubber.topics import EVENT_RECOVERY
 from integrations.one_piece import export_run_provenance
@@ -45,7 +45,9 @@ def load_agents_config(name: str, scenario_config: Dict[str, Any]) -> Optional[D
     else:
         agents_yaml = {}
 
-    merged = _deep_merge(agents_yaml, {k: v for k, v in agents_section.items() if k != "config_file"})
+    merged = _deep_merge(
+        agents_yaml, {k: v for k, v in agents_section.items() if k != "config_file"}
+    )
     merged["mode"] = mode
     return merged
 
@@ -171,7 +173,9 @@ class ScrubberDegradationScenario(Scenario):
                     plant = station.eclss if station is not None else sim
                     updates = {
                         "fan_speed": getattr(plant, "fan_speed", last_snap.fan_speed),
-                        "bypass_enabled": getattr(plant, "bypass_enabled", last_snap.bypass_enabled),
+                        "bypass_enabled": getattr(
+                            plant, "bypass_enabled", last_snap.bypass_enabled
+                        ),
                         "load_reduced": getattr(plant, "load_reduced", last_snap.load_reduced),
                     }
                     if station is not None:
@@ -205,7 +209,9 @@ class ScrubberDegradationScenario(Scenario):
             "peak_co2_ppm": round(peak_co2, 2),
             "final_co2_ppm": last_snap.co2_ppm if last_snap else None,
             "final_power_margin_w": last_snap.power_margin_w if last_snap else None,
-            "min_power_margin_w": round(min_power_margin_w, 2) if min_power_margin_w is not None else None,
+            "min_power_margin_w": round(min_power_margin_w, 2)
+            if min_power_margin_w is not None
+            else None,
             "eps_boost_applied_step": eps_boost_applied_step,
             "power_recovered_above_critical_step": power_recovered_above_critical_step,
             "final_health": last_health.to_dict() if last_health else None,

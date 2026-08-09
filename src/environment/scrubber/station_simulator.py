@@ -15,9 +15,9 @@ from environment.protocol import (
     TopologyGraph,
 )
 from environment.scrubber.eps.backend import EpsBackend
+from environment.scrubber.eps.mock.backend import MockEpsBackend
 from environment.scrubber.eps.types import BcduStatus, SarjReading
 from environment.scrubber.mock_eclss import MockEclssSimulator
-from environment.scrubber.eps.mock.backend import MockEpsBackend
 from environment.scrubber.topics import EVENT_RECOVERY
 
 

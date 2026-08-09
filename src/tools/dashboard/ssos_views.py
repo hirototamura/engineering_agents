@@ -67,11 +67,7 @@ def plant_sim_series(telemetry_rows: List[Dict[str, Any]]) -> List[Dict[str, Any
 
 
 def filter_ssos_operational_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return [
-        e
-        for e in events
-        if (e.get("command") or {}).get("kind") in SSOS_OPERATIONAL_KINDS
-    ]
+    return [e for e in events if (e.get("command") or {}).get("kind") in SSOS_OPERATIONAL_KINDS]
 
 
 def render_ssos_status_strip(
@@ -166,7 +162,9 @@ def render_ssos_health_card(
         )
 
 
-def _draw_threshold_bands(ax, thresholds: Dict[str, Any], *, co2: bool, o2: bool, water: bool) -> None:
+def _draw_threshold_bands(
+    ax, thresholds: Dict[str, Any], *, co2: bool, o2: bool, water: bool
+) -> None:
     if co2:
         for key, color, style in (
             ("co2_storage_high_kg", "#f0ad4e", "--"),
@@ -233,7 +231,9 @@ def render_ssos_storage_plot(
             "captured tank CO₂ is under raw_topics.plant_sim."
         )
     if thresholds is None:
-        st.caption("Threshold band lines not in this run's summary.json — series and status chips only.")
+        st.caption(
+            "Threshold band lines not in this run's summary.json — series and status chips only."
+        )
     else:
         st.caption("Band lines from summary.json thresholds recorded at simulation time.")
     st.pyplot(fig, clear_figure=True)
@@ -276,7 +276,15 @@ def render_ssos_schematic(
         ax.add_patch(rect)
         lines = node_numbers.get(name) or []
         body = "\n".join(lines) if lines else "—"
-        ax.text(x + w / 2, y + h - 0.15, name.upper(), ha="center", va="top", fontsize=9, fontweight="bold")
+        ax.text(
+            x + w / 2,
+            y + h - 0.15,
+            name.upper(),
+            ha="center",
+            va="top",
+            fontsize=9,
+            fontweight="bold",
+        )
         ax.text(x + 0.08, y + h - 0.45, body, ha="left", va="top", fontsize=7.5)
 
     st.caption(f"Step {step}: values from telemetry, metabolism, and event result.details only.")

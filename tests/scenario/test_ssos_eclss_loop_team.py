@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 
 from core.agents.base import Team
+from environment.ssos.eclss.types import ArsGoal, EclssTelemetrySnapshot, OgsGoal
 from scenario.agents.eclss_loop_types import EclssLoopObservation
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
-from environment.ssos.eclss.types import ArsGoal, OgsGoal, EclssTelemetrySnapshot
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 
 
@@ -190,9 +190,9 @@ def test_team_keeps_ars_while_critical_after_partial_recovery():
     assert snap1.co2_storage_kg >= 2.2
     obs1 = EclssLoopObservation(step=1, telemetry=snap1, health={"overall": "critical"})
     outcome1 = team.run_step(backend, obs1)
-    assert any(
-        c.kind == "air_revitalisation" for c in outcome1.commands
-    ), "must keep dispatching ARS while still in critical after partial recovery"
+    assert any(c.kind == "air_revitalisation" for c in outcome1.commands), (
+        "must keep dispatching ARS while still in critical after partial recovery"
+    )
 
 
 def test_loop_mock_request_o2_withdraws_plant_storage():
@@ -231,7 +231,9 @@ def test_loop_mock_water_tracks_ogs_without_double_subtract():
     backend.send_oxygen_generation_goal(OgsGoal(input_water_mass=5.0))
     after = backend.poll_telemetry()
     assert after.product_water_reserve_l == pytest.approx(before - 5.0)
-    assert backend._telemetry.product_water_reserve_l == pytest.approx(after.product_water_reserve_l)
+    assert backend._telemetry.product_water_reserve_l == pytest.approx(
+        after.product_water_reserve_l
+    )
 
 
 def test_loop_mock_request_co2_withdraws_storage():
@@ -344,7 +346,7 @@ def test_llm_operational_parse_rejects_negative_amount():
 
 
 def test_apply_command_emits_rejected_on_failure():
-    from environment.ssos.eclss.types import ActionResult, ArsGoal
+    from environment.ssos.eclss.types import ActionResult
     from scenario.agents.eclss_loop_types import EclssOperationalCommand
 
     class _FailingBackend:
@@ -428,4 +430,3 @@ def test_llm_design_parse_rejects_unknown_action_profile_fields():
     )
     assert changes == []
     assert notes
-

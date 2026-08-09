@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from environment.protocol import (
     AnomalySpec,
@@ -13,8 +13,8 @@ from environment.protocol import (
     TopologyGraph,
 )
 from environment.scrubber.mock_eclss import MockEclssSimulator
-from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
 from environment.scrubber.station_simulator import StationSimulator
+from environment.ssos.eps.ros2.bridge import Ros2EpsBridge
 
 
 class SsosAdapter:

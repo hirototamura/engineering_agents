@@ -22,8 +22,8 @@ python3 -m tools.cli doctor   # ローカルのみ — CI では実行しない
 
 GitHub Actions のミラー:
 
-- [ci.yml](../../.github/workflows/ci.yml) — ruff + pytest（`tests/tools/` 含む）+ レイヤー/日英 docs/検証規律テスト
-- [docs.yml](../../.github/workflows/docs.yml) — `mkdocs build --strict`
+- `.github/workflows/ci.yml` — ruff + pytest（`tests/tools/` 含む）+ レイヤー/日英 docs/検証規律テスト
+- `.github/workflows/docs.yml` — `mkdocs build --strict`
 
 ブランチ保護では **`ci`** と **`mkdocs`** の両方を必須にする。
 

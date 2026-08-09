@@ -27,12 +27,10 @@ import time
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
-from environment.ssos.eclss.units import g_to_kg, kg_to_g
 from environment.ssos.eclss.ros2.topics import (
     ACTION_AIR_REVITALISATION,
     ACTION_TYPE_AIR_REVITALISATION,
     ALL_ECLSS_ACTIONS,
-    ALL_ECLSS_TELEMETRY_TOPICS,
     LAUNCH_HEADLESS_ECLSS,
     TOPIC_ARS_DIAGNOSTICS,
     TOPIC_CO2_STORAGE,
@@ -41,6 +39,7 @@ from environment.ssos.eclss.ros2.topics import (
     ros_cli_action_name,
 )
 from environment.ssos.eclss.types import ArsActionResult, ArsGoal, EclssSmokeReport
+from environment.ssos.eclss.units import g_to_kg, kg_to_g
 
 _ECLSS_TOPIC_PATTERN = re.compile(r"(co2|o2|ars|ogs|wrs|grey)", re.IGNORECASE)
 
@@ -84,17 +83,13 @@ def _discover_ros_graph_snapshot() -> Tuple[List[str], List[str], Optional[str]]
         code, out, err = _run_ros2_cli(["topic", "list"])
         if code != 0:
             return [], [], err or f"ros2 topic list exited {code}"
-        topics = [
-            parse_ros_graph_line(line) for line in out.splitlines() if line.strip()
-        ]
+        topics = [parse_ros_graph_line(line) for line in out.splitlines() if line.strip()]
         topics = [t for t in topics if t]
 
         code, out, err = _run_ros2_cli(["action", "list"])
         if code != 0:
             return topics, [], err or f"ros2 action list exited {code}"
-        actions = [
-            parse_ros_graph_line(line) for line in out.splitlines() if line.strip()
-        ]
+        actions = [parse_ros_graph_line(line) for line in out.splitlines() if line.strip()]
         actions = [a for a in actions if a]
         return topics, actions, None
     except FileNotFoundError:
@@ -138,9 +133,7 @@ def discover_ros_graph(
 
 def _filter_eclss_topics(topics: List[str]) -> List[str]:
     return sorted(
-        normalize_ros_name(t)
-        for t in topics
-        if _ECLSS_TOPIC_PATTERN.search(normalize_ros_name(t))
+        normalize_ros_name(t) for t in topics if _ECLSS_TOPIC_PATTERN.search(normalize_ros_name(t))
     )
 
 
@@ -160,7 +153,9 @@ def _match_expected(topics: List[str], actions: List[str]) -> List[str]:
     return errors
 
 
-def send_ars_goal_cli(goal: ArsGoal, timeout_s: float = 120.0) -> Tuple[Optional[ArsActionResult], Optional[str]]:
+def send_ars_goal_cli(
+    goal: ArsGoal, timeout_s: float = 120.0
+) -> Tuple[Optional[ArsActionResult], Optional[str]]:
     """Send air_revitalisation goal via ros2 CLI (works in SSOS container without extra pip deps).
 
     ``ArsGoal.initial_co2_mass`` is kilograms; SSOS action fields are grams.
@@ -261,9 +256,7 @@ def run_ars_smoke(
         if topics or actions:
             report.topics_found = _filter_eclss_topics(topics)
             report.actions_found = sorted(
-                normalize_ros_name(a)
-                for a in actions
-                if normalize_ros_name(a) in ALL_ECLSS_ACTIONS
+                normalize_ros_name(a) for a in actions if normalize_ros_name(a) in ALL_ECLSS_ACTIONS
             )
         return report
 
@@ -292,8 +285,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="SSOS ECLSS ARS Phase 1a smoke test")
     parser.add_argument("--json-out", type=Path, help="Write JSON report to this path")
     parser.add_argument("--no-goal", action="store_true", help="Only list topics/actions")
-    parser.add_argument("--co2-mass", type=float, default=1.8,
-                        help="ARS initial_co2_mass in kilograms (converted to grams for SSOS)")
+    parser.add_argument(
+        "--co2-mass",
+        type=float,
+        default=1.8,
+        help="ARS initial_co2_mass in kilograms (converted to grams for SSOS)",
+    )
     parser.add_argument("--moisture", type=float, default=25.0)
     parser.add_argument("--contaminants", type=float, default=5.0)
     parser.add_argument("--goal-timeout", type=float, default=120.0)
@@ -320,7 +317,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     if args.json_out:
-        args.json_out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        args.json_out.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
     if not report.ok:
         print(f"\nSmoke FAILED. Start ECLSS with: {report.launch_hint}", file=sys.stderr)

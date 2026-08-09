@@ -47,7 +47,9 @@ def test_health_unknown_for_nan_telemetry():
     import math
 
     snap = EclssTelemetrySnapshot(co2_storage_kg=math.nan, o2_storage_kg=math.nan)
-    health = compute_eclss_storage_health(0, snap, {"co2_storage_high_kg": 1.5, "o2_storage_low_kg": 0.45})
+    health = compute_eclss_storage_health(
+        0, snap, {"co2_storage_high_kg": 1.5, "o2_storage_low_kg": 0.45}
+    )
     assert health["co2_status"] == HealthStatus.UNKNOWN.value
     assert health["o2_status"] == HealthStatus.UNKNOWN.value
     assert health["overall"] == HealthStatus.UNKNOWN.value
@@ -60,7 +62,9 @@ def test_telemetry_snapshot_to_dict_omits_nulls():
 
 
 def test_summary_helpers_omit_null_metrics():
-    snap = EclssTelemetrySnapshot(co2_storage_kg=12.5, o2_storage_kg=480.0, raw_topics={"/co2_storage": 12.5})
+    snap = EclssTelemetrySnapshot(
+        co2_storage_kg=12.5, o2_storage_kg=480.0, raw_topics={"/co2_storage": 12.5}
+    )
     fields = _telemetry_summary_fields(snap, peak_co2=12.5, min_o2=480.0)
     assert fields["final_co2_storage_kg"] == 12.5
     assert "final_product_water_reserve_l" not in fields

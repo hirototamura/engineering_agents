@@ -10,19 +10,19 @@ from __future__ import annotations
 
 from typing import Optional, Tuple
 
+from environment.scrubber.eps.topics import BCDU_STATUS
 from environment.scrubber.eps.types import BcduMode, BcduStatus, DischargeResult, SarjReading
 from environment.ssos.eps.ros2.adapters import (
     estimate_discharge_w,
     parse_bcdu_status,
     sarj_reading_from_topics,
 )
-from environment.ssos.ros2.cli import echo_float_topic, run_ros2_cli
 from environment.ssos.eps.ros2.topic_map import (
     MSG_TYPE_BCDU_STATUS,
     SSOS_TOPIC_SOLAR_VOLTAGE,
     SSOS_TOPIC_SUN_BETA,
 )
-from environment.scrubber.eps.topics import BCDU_STATUS
+from environment.ssos.ros2.cli import echo_float_topic, run_ros2_cli
 
 
 def _echo_topic_once(
@@ -211,7 +211,9 @@ class Ros2EpsBridge:
         return payload
 
     def _read_bcdu_status(self) -> Optional[BcduStatus]:
-        text, _ = _echo_topic_once(BCDU_STATUS, MSG_TYPE_BCDU_STATUS, timeout_s=self.topic_timeout_s)
+        text, _ = _echo_topic_once(
+            BCDU_STATUS, MSG_TYPE_BCDU_STATUS, timeout_s=self.topic_timeout_s
+        )
         if text is None:
             return None
         return parse_bcdu_status(

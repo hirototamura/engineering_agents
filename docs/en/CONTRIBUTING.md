@@ -22,8 +22,8 @@ Prefer `python3 -m tools.cli …` over `ea` when `~/.local/bin` is not on `PATH`
 
 This mirrors GitHub Actions:
 
-- [ci.yml](../../.github/workflows/ci.yml) — ruff + pytest (incl. `tests/tools/`) + layer/bilingual/verification tests
-- [docs.yml](../../.github/workflows/docs.yml) — `mkdocs build --strict`
+- `.github/workflows/ci.yml` — ruff + pytest (incl. `tests/tools/`) + layer/bilingual/verification tests
+- `.github/workflows/docs.yml` — `mkdocs build --strict`
 
 Branch protection should require both **`ci`** and **`mkdocs`** status checks.
 

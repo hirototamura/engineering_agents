@@ -52,7 +52,9 @@ class ScrubberDegradationTeam(Team):
         self.state = ScrubberTeamState()
         self.llm_mode = self.mode == "llm"
         self.llm_enabled = self.llm_mode
-        self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_enabled else None
+        self.llm_client = (
+            self._build_llm_client(config.get("llm", {})) if self.llm_enabled else None
+        )
 
         self.team_cfg: TeamConfig = load_team(config)
         self.personas = build_personas(self.team_cfg)
@@ -246,7 +248,9 @@ class ScrubberDegradationTeam(Team):
         ):
             eps_boost_w = float(self.policy.get("eps_boost_w", 120.0))
             commands.append(
-                RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=eps_boost_w, issued_by=rep)
+                RecoveryCommand(
+                    kind=CommandKind.REQUEST_EPS_BOOST, value=eps_boost_w, issued_by=rep
+                )
             )
             self.state.eps_boost_requested = True
             messages.append(
@@ -553,10 +557,13 @@ class ScrubberDegradationTeam(Team):
             payload = item.get("payload", {})
             if not isinstance(payload, dict):
                 payload = {}
-            if self._validate_proposal_change(
-                change_kind=change_kind,
-                payload=payload,
-            ) is None:
+            if (
+                self._validate_proposal_change(
+                    change_kind=change_kind,
+                    payload=payload,
+                )
+                is None
+            ):
                 notes.append(f"unparsed change: {change_kind}")
                 continue
             accepted.append({"change_kind": change_kind, "payload": payload})
@@ -642,7 +649,9 @@ class ScrubberDegradationTeam(Team):
             except (TypeError, ValueError):
                 return None, "eps boost value must be numeric"
             return (
-                RecoveryCommand(kind=CommandKind.REQUEST_EPS_BOOST, value=watts, issued_by=issued_by),
+                RecoveryCommand(
+                    kind=CommandKind.REQUEST_EPS_BOOST, value=watts, issued_by=issued_by
+                ),
                 None,
             )
         return None, f"unsupported operator command kind: {kind}"
@@ -769,9 +778,9 @@ def build_llm_post_run_situation(
         f"overall={final_health.overall.value}\n"
         "(Descriptive assessment from the facility monitoring layer — not a command.)"
     )
-    discourse_lines = "\n".join(
-        f"- {msg.from_role}: {msg.message}" for msg in discourse[-8:]
-    ) or "(none)"
+    discourse_lines = (
+        "\n".join(f"- {msg.from_role}: {msg.message}" for msg in discourse[-8:]) or "(none)"
+    )
     topology = json.dumps(baseline.get("topology", {}), ensure_ascii=False)
     return (
         "Post-run design review. Simulation complete.\n\n"

@@ -1,9 +1,9 @@
 from core.agents.base import DeliberationContext, Persona
 from core.agents.persona import PersonaPromptBuilder, load_team, message_contract
 from core.agents.types import AgentMessage, DeliberationPhase
+from environment.protocol import HealthMetrics, HealthStatus, TelemetrySnapshot
 from scenario.agents.scrubber_degradation_team import build_llm_situation
 from scenario.agents.types import AgentObservation
-from environment.protocol import HealthMetrics, HealthStatus, TelemetrySnapshot
 
 
 def test_persona_prompt_includes_memory_discourse_and_markers():

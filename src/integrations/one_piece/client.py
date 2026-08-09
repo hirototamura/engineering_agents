@@ -6,14 +6,11 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-
 DESIGN_CHANGE_EVENT_KIND = "/eclss/events/design_change"
 RECOVERY_EVENT_KIND = "/eclss/events/recovery_applied"
 OPERATIONAL_EVENT_KIND = "/eclss/events/operational_applied"
 OPERATIONAL_REJECTED_EVENT_KIND = "/eclss/events/operational_rejected"
-OPERATIONAL_EVENT_KINDS = frozenset(
-    {OPERATIONAL_EVENT_KIND, OPERATIONAL_REJECTED_EVENT_KIND}
-)
+OPERATIONAL_EVENT_KINDS = frozenset({OPERATIONAL_EVENT_KIND, OPERATIONAL_REJECTED_EVENT_KIND})
 EPS_BOOST_COMMAND_KIND = "request_eps_boost"
 
 

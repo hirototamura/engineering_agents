@@ -59,7 +59,11 @@ def test_extract_ops_flows_uses_result_details_only():
             "command": {"kind": "request_co2"},
             "result": {"success": True, "response_value": 0.02, "message": "co2 delivered"},
         },
-        {"step": 1, "kind": "/eclss/events/operational_rejected", "command": {"kind": "air_revitalisation"}},
+        {
+            "step": 1,
+            "kind": "/eclss/events/operational_rejected",
+            "command": {"kind": "air_revitalisation"},
+        },
     ]
     flows = ssos_flow.extract_ops_flows(events)
     assert len(flows) == 2
