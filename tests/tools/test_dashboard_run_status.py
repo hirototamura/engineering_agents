@@ -172,6 +172,25 @@ def test_extract_design_drivers_uses_recorded_fields_only():
     assert sparse["change_count"] == 1
 
 
+def test_build_status_timeline_lanes_prefers_post_ops_health_row():
+    health = [
+        {"step": 6, "overall": "warning", "co2_status": "warning", "o2_status": "safe", "water_status": "safe"},
+        {
+            "step": 6,
+            "overall": "safe",
+            "co2_status": "safe",
+            "o2_status": "safe",
+            "water_status": "safe",
+            "post_ops": True,
+        },
+    ]
+    lanes = {lane["key"]: lane for lane in build_status_timeline_lanes(health)}
+    overall = lanes["overall"]["segments"]
+    assert overall == [{"start_step": 6, "end_step": 7, "state": "safe"}]
+    co2 = lanes["co2_status"]["segments"]
+    assert co2 == [{"start_step": 6, "end_step": 7, "state": "safe"}]
+
+
 def test_build_status_timeline_lanes_merges_contiguous_states():
     health = [
         {"step": 1, "overall": "safe", "co2_status": "safe", "o2_status": "safe", "water_status": "safe"},

@@ -396,7 +396,7 @@ def build_status_timeline_lanes(
     health_rows: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     """Health-band state timeline lanes for Overview (Grafana-style state history)."""
-    series = _health_series_worst(health_rows)
+    series = series_by_step(health_rows)
     lanes: List[Dict[str, Any]] = []
     for band_key, label in _HEALTH_BANDS:
         points = [
