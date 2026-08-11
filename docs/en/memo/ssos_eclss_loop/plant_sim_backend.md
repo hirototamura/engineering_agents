@@ -6,7 +6,7 @@
 
 > **Purpose:** Document what `plant_sim` reproduces from SSOS, what it deliberately omits, and how to run and configure it. This is **not** a Python port of SSOS — it is a deterministic, medium-fidelity mass-balance model for agent operation verification.
 
-Japanese deep-dive (fidelity rationale, subsystem-by-subsystem): [plant_sim_backend.md (ja)](../../../ja/memo/ssos_eclss_loop/plant_sim_backend.md).
+Japanese deep-dive (fidelity rationale, subsystem-by-subsystem): use the header language switcher → **日本語** → Development notes → **Plant Sim backend 解説**.
 
 ---
 
@@ -66,7 +66,7 @@ python3 -m scenario.ssos_eclss_loop.scenario_run \
 
 Set `backend.kind: plant_sim` in `scenario.yaml`, or export `SSOS_ECLSS_BACKEND=plant_sim`.
 
-`plant_sim` implements `advance_step()` — the scenario runner advances crew metabolism and time each step before agent decisions (same hook as other step-advanceable backends).
+`plant_sim` implements `advance_step()` — the scenario runner calls it for `step > 1` before each observation/decision (same hook as other step-advanceable backends). Step 1 therefore starts at simulation time zero; a 72-step run advances 71 metabolic intervals (`(steps - 1) * step_seconds`).
 
 ---
 
@@ -134,7 +134,7 @@ Extra state is under `raw_topics.plant_sim`:
   "product_water_reserve_l": 98.2,
   "raw_topics": {
     "plant_sim": {
-      "simulation_time_s": 6000.0,
+      "simulation_time_s": 4800.0,
       "captured_co2_kg": 0.12,
       "urine_buffer_l": 0.35,
       "total_co2_vented_kg": 0.08,
