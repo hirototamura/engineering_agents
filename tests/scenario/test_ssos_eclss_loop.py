@@ -61,8 +61,7 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     assert not (run_dir / "design_proposals.json").exists()
 
     co2_series = [row["co2_storage_kg"] for row in telemetry]
-    # advance_step() runs before each observation (initial 1.5 + 0.06 growth).
-    assert co2_series[0] == pytest.approx(1.56)
+    assert co2_series[0] == pytest.approx(1.5)
     assert co2_series[-1] > co2_series[0], "CO2 should rise without agent intervention"
 
 
@@ -101,8 +100,7 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     )
 
     assert telemetry[0]["step"] == 1
-    # advance_step() runs before each observation (initial 1.5 + 0.06 growth).
-    assert telemetry[0]["co2_storage_kg"] == pytest.approx(1.56)
+    assert telemetry[0]["co2_storage_kg"] == pytest.approx(1.5)
     assert telemetry[1]["co2_storage_kg"] < telemetry[0]["co2_storage_kg"], (
         "ARS should reduce CO2 storage after step 1"
     )

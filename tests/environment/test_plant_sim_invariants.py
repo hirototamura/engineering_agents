@@ -25,7 +25,8 @@ def _run_closed_loop(steps: int, cfg: PlantSimConfig | None = None) -> PlantMode
     """Simulate an agent that drives every subsystem once per step."""
     m = PlantModel(cfg or PlantSimConfig())
     for step in range(1, steps + 1):
-        m.advance_step()
+        if step > 1:
+            m.advance_step()
         m.run_ars(m.config.ars_reference_goal_co2_kg)
         m.run_wrs(2.0)
         m.run_ogs(0.06)

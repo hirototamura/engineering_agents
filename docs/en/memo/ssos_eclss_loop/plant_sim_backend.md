@@ -66,7 +66,7 @@ python3 -m scenario.ssos_eclss_loop.scenario_run \
 
 Set `backend.kind: plant_sim` in `scenario.yaml`, or export `SSOS_ECLSS_BACKEND=plant_sim`.
 
-`plant_sim` implements `advance_step()` — the scenario runner advances crew metabolism and time each step before agent decisions (same hook as other step-advanceable backends). After N steps, elapsed time is `N * step_seconds`.
+`plant_sim` implements `advance_step()` for crew metabolism (same hook as other step-advanceable backends). The scenario runner observes the configured initial state at step 1 (simulation time 0), then advances one `step_seconds` interval before every later step — so after N steps, elapsed time is `(N - 1) * step_seconds`.
 
 ---
 
@@ -124,7 +124,7 @@ Do not describe scenario-tuned values as physical ISS limits.
 | `product_water_reserve_l` | `product_water_l` |
 | `grey_water_collected_l` | `grey_water_l` |
 
-Extra state is under `raw_topics.plant_sim`. Example at scenario step 5 with `step_seconds: 1200` (`simulation_time_s = 5 * 1200`):
+Extra state is under `raw_topics.plant_sim`. Example at scenario step 5 with `step_seconds: 1200` (`simulation_time_s = (5 - 1) * 1200`):
 
 ```json
 {
@@ -134,7 +134,7 @@ Extra state is under `raw_topics.plant_sim`. Example at scenario step 5 with `st
   "product_water_reserve_l": 98.2,
   "raw_topics": {
     "plant_sim": {
-      "simulation_time_s": 6000.0,
+      "simulation_time_s": 4800.0,
       "captured_co2_kg": 0.12,
       "urine_buffer_l": 0.35,
       "total_co2_vented_kg": 0.08,
