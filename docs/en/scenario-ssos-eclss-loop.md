@@ -11,7 +11,7 @@ Reference scenario where an **agent team** operates real ROS2 **ECLSS** (Environ
 
 | Aspect | scrubber_degradation | ssos_eclss_loop |
 | --- | --- | --- |
-| Backend | `StationSimulator` (Python mock) | `EclssBackend` (`LoopMockEclssBackend` / `Ros2EclssBridge`) |
+| Backend | `StationSimulator` (Python mock) | `EclssBackend` (`LoopMockEclssBackend` / `PlantSimEclssBackend` / `Ros2EclssBridge`) |
 | Telemetry | CO₂ ppm, scrubber efficiency, power margin | `/co2_storage`, `/o2_storage`, `/wrs/product_water_reserve` (kg / L) |
 | Runtime ops | Recovery commands (fan, EPS boost, etc.) | Operational commands (ARS Action, OGS Action, CO₂ Service, etc.) |
 | Post-run proposals | Scrubber topology (`add_edge`, etc.) | `design_domain: ssos_graph` (`action_profile`, `graph_rewire`, etc.) |
@@ -121,7 +121,7 @@ simulation:
   initial_product_water_l: 100.0
 
 backend:
-  kind: mock  # mock | ros2 — also overridable via SSOS_ECLSS_BACKEND env var
+  kind: mock  # mock | plant_sim | ros2 — also overridable via SSOS_ECLSS_BACKEND env var
 
 mock_dynamics:
   co2_growth_kg_per_step: 0.06
@@ -134,6 +134,12 @@ thresholds:
   o2_storage_low_kg: 0.45
   product_water_low_l: 50.0
 
+# Optional: timed subsystem failure injection (distinct from scrubber anomalies:)
+# subsystem_failures:
+#   - subsystem: ars   # ars | ogs | wrs
+#     start_step: 3    # inclusive (1-based)
+#     end_step: 6      # optional, exclusive (failed on steps 3,4,5)
+
 agents:
   mode: none  # none | labeled_rule_base | llm
 
@@ -144,6 +150,22 @@ output:
 ```
 
 `ssos_graph.rewires` (optional) — when merged via `--apply-proposals` from a prior `graph_rewire` proposal, client remaps are passed to `Ros2EclssBridge` on the next run.
+
+### Subsystem failure schedule (`subsystem_failures`)
+
+Inject ARS / OGS / WRS failures at chosen steps. The scenario layer calls `EclssBackend.set_subsystem_failure` each step; the same YAML works for `mock`, `plant_sim`, and `ros2`.
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `subsystem` | yes | `ars` / `ogs` / `wrs` (`ARS_failure` form also accepted) |
+| `start_step` | yes | Failure onset step (inclusive, 1-based) |
+| `end_step` | no | End step (**exclusive**). If omitted, stays failed until run end |
+| `duration_steps` | no | Alternative to `end_step` (cannot set both) |
+
+- Any subsystem listed in the schedule is owned by the schedule for the run (cleared when no entry is active).
+- Transitions emit `subsystem_failure_applied` in `events.jsonl`.
+- Telemetry flags (`ars_failure_enabled`, etc.) feed the dashboard anomaly view.
+- Separate from scrubber `anomalies:` / `inject_anomaly` (not an efficiency-decay schedule).
 
 ### agents.yaml (main fields)
 

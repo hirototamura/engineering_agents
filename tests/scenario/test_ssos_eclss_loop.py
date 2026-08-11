@@ -393,6 +393,74 @@ def test_ssos_eclss_loop_skips_empty_design_proposals_file(tmp_path: Path, monke
     assert not (run_dir / "design_proposals.json").exists()
 
 
+def test_ssos_eclss_loop_subsystem_failures_schedule_mock(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "failures_mock",
+        overrides={
+            "simulation": {"steps": 5},
+            "agents": {"mode": "none"},
+            "subsystem_failures": [
+                {"subsystem": "ars", "start_step": 3, "end_step": 5},
+            ],
+        },
+        recreate_output=True,
+    )
+    telemetry = _read_jsonl(run_dir / "telemetry.jsonl")
+    by_step = {row["step"]: row for row in telemetry if not row.get("post_ops")}
+    assert by_step[1]["ars_failure_enabled"] is False
+    assert by_step[2]["ars_failure_enabled"] is False
+    assert by_step[3]["ars_failure_enabled"] is True
+    assert by_step[4]["ars_failure_enabled"] is True
+    assert by_step[5]["ars_failure_enabled"] is False
+
+    events = _read_jsonl(run_dir / "events.jsonl")
+    failure_events = [e for e in events if e.get("kind") == "subsystem_failure_applied"]
+    assert failure_events == [
+        {
+            "step": 3,
+            "kind": "subsystem_failure_applied",
+            "subsystem": "ars",
+            "enabled": True,
+            "source": "subsystem_failures",
+        },
+        {
+            "step": 5,
+            "kind": "subsystem_failure_applied",
+            "subsystem": "ars",
+            "enabled": False,
+            "source": "subsystem_failures",
+        },
+    ]
+
+
+def test_ssos_eclss_loop_subsystem_failures_schedule_plant_sim(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "failures_plant_sim",
+        overrides={
+            "backend": {"kind": "plant_sim"},
+            "simulation": {"steps": 4},
+            "agents": {"mode": "none"},
+            "subsystem_failures": [
+                {"subsystem": "ogs", "start_step": 2, "duration_steps": 2},
+                {"subsystem": "wrs", "start_step": 3},
+            ],
+        },
+        recreate_output=True,
+    )
+    telemetry = _read_jsonl(run_dir / "telemetry.jsonl")
+    by_step = {row["step"]: row for row in telemetry if not row.get("post_ops")}
+    assert by_step[1]["ogs_failure_enabled"] is False
+    assert by_step[1]["wrs_failure_enabled"] is False
+    assert by_step[2]["ogs_failure_enabled"] is True
+    assert by_step[2]["wrs_failure_enabled"] is False
+    assert by_step[3]["ogs_failure_enabled"] is True
+    assert by_step[3]["wrs_failure_enabled"] is True
+    assert by_step[4]["ogs_failure_enabled"] is False
+    assert by_step[4]["wrs_failure_enabled"] is True
+
+
 def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Path):
     run_dir = run_scenario(
         "ssos_eclss_loop",

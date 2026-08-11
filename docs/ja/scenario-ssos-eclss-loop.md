@@ -10,7 +10,7 @@
 
 | 観点 | scrubber_degradation | ssos_eclss_loop |
 | --- | --- | --- |
-| バックエンド | `StationSimulator`（Python モック） | `EclssBackend`（`LoopMockEclssBackend` / `Ros2EclssBridge`） |
+| バックエンド | `StationSimulator`（Python モック） | `EclssBackend`（`LoopMockEclssBackend` / `PlantSimEclssBackend` / `Ros2EclssBridge`） |
 | テレメトリ | CO₂ ppm、スクラバー効率、電力マージン | `/co2_storage`、`/o2_storage`、`/wrs/product_water_reserve`（kg / L） |
 | ランタイム操作 | 回復コマンド（ファン、EPS ブースト等） | 運用コマンド（ARS Action、OGS Action、CO₂ Service 等） |
 | 事後提案 | scrubber トポロジ（`add_edge` 等） | `design_domain: ssos_graph`（`action_profile`、`graph_rewire` 等） |
@@ -120,7 +120,7 @@ simulation:
   initial_product_water_l: 100.0
 
 backend:
-  kind: mock  # mock | ros2 — SSOS_ECLSS_BACKEND 環境変数でも上書き可
+  kind: mock  # mock | plant_sim | ros2 — SSOS_ECLSS_BACKEND 環境変数でも上書き可
 
 mock_dynamics:
   co2_growth_kg_per_step: 0.06
@@ -133,6 +133,12 @@ thresholds:
   o2_storage_low_kg: 0.45
   product_water_low_l: 50.0
 
+# 任意: step 指定のサブシステム故障注入（scrubber の anomalies: とは別）
+# subsystem_failures:
+#   - subsystem: ars   # ars | ogs | wrs
+#     start_step: 3    # 含む（1-based）
+#     end_step: 6      # 任意・含まない（step 3,4,5 で故障）
+
 agents:
   mode: none  # none | labeled_rule_base | llm
 
@@ -143,6 +149,22 @@ output:
 ```
 
 `ssos_graph.rewires`（任意）— 前 run の `graph_rewire` 提案を `--apply-proposals` でマージすると、次 run の `Ros2EclssBridge` に client remap が渡る。
+
+### サブシステム故障スケジュール（`subsystem_failures`）
+
+任意の step で ARS / OGS / WRS 故障を発生させる。シナリオ層が毎 step `EclssBackend.set_subsystem_failure` を呼び、`mock` / `plant_sim` / `ros2` いずれでも同じ YAML で使える。
+
+| フィールド | 必須 | 意味 |
+| --- | --- | --- |
+| `subsystem` | yes | `ars` / `ogs` / `wrs`（`ARS_failure` 形式も可） |
+| `start_step` | yes | 故障開始 step（含む、1-based） |
+| `end_step` | no | 終了 step（**含まない**）。省略時は run 終了まで |
+| `duration_steps` | no | `end_step` の代わりに期間を指定（同時指定不可） |
+
+- スケジュールに一度でも出てきた subsystem は、その run 中はスケジュールが所有する（非アクティブ時は flag をクリアし直す）。
+- 遷移時のみ `events.jsonl` に `subsystem_failure_applied` を記録する。
+- テレメトリの `ars_failure_enabled` 等でダッシュボードの anomaly 表示に載る。
+- scrubber の `anomalies:` / `inject_anomaly` とは別系統（効率劣化スケジュールではない）。
 
 ### agents.yaml（主要項目）
 

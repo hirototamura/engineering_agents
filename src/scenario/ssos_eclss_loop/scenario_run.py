@@ -43,6 +43,11 @@ from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
 from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
 
 from scenario.ssos_eclss_loop.policy import merge_labeled_policy_from_thresholds
+from scenario.ssos_eclss_loop.subsystem_failures import (
+    apply_scheduled_subsystem_failures,
+    parse_subsystem_failure_schedule,
+    scheduled_subsystems,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +243,13 @@ class SsosEclssLoopScenario(Scenario):
         backend = build_eclss_backend(config, kind=backend_kind)
         team = self.build_team(config, agents_config=agents_config)
         log = EventLog(run_dir)
+        failure_schedule = parse_subsystem_failure_schedule(
+            config.get("subsystem_failures")
+        )
+        # Seed False so the first inactive step does not emit a clear event.
+        failure_flags_last: Dict[str, bool] = {
+            sub: False for sub in scheduled_subsystems(failure_schedule)
+        }
 
         ros2_cfg = (config.get("backend", {}) or {}).get("ros2", {}) or {}
         if backend_kind == "ros2":
@@ -258,6 +270,14 @@ class SsosEclssLoopScenario(Scenario):
         for step in range(1, steps + 1):
             if step > 1 and hasattr(backend, "advance_step"):
                 backend.advance_step()
+
+            for event in apply_scheduled_subsystem_failures(
+                backend,
+                failure_schedule,
+                step,
+                last_enabled=failure_flags_last,
+            ):
+                log.append("events", {"step": step, **event})
 
             snap = backend.poll_telemetry()
             if backend_kind == "ros2":

@@ -30,6 +30,16 @@ thresholds:
   o2_storage_low_kg: 0.45
   product_water_low_l: 50.0
 
+# Optional timed fault injection (scenario layer → EclssBackend.set_subsystem_failure).
+# Distinct from scrubber anomalies:. Omit or leave empty for no scheduled failures.
+# subsystem_failures:
+#   - subsystem: ars          # ars | ogs | wrs
+#     start_step: 3           # inclusive, 1-based
+#     end_step: 6             # optional, exclusive (active for steps 3,4,5)
+#   - subsystem: ogs
+#     start_step: 4
+#     duration_steps: 2       # alternative to end_step (active for steps 4,5)
+
 agents:
   mode: none  # none | labeled_rule_base | llm
 
