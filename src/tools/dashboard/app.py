@@ -1754,6 +1754,13 @@ def main() -> None:
     min_step, max_step = _telemetry_step_bounds(telemetry)
     if compare_run_name and compare_telemetry:
         compare_min, compare_max = _telemetry_step_bounds(compare_telemetry)
+        if compare_min != min_step:
+            st.sidebar.warning(
+                f"Step indexing differs between runs: `{selected_run_name}` starts at "
+                f"step {min_step}, `{compare_run_name}` at step {compare_min} "
+                "(0-based vs 1-based artifacts). The same slider step may map to "
+                "different simulation phases."
+            )
         min_step = max(min_step, compare_min)
         max_step = min(max_step, compare_max)
         if max_step < min_step:
