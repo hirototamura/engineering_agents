@@ -66,7 +66,7 @@ python3 -m scenario.ssos_eclss_loop.scenario_run \
 
 Set `backend.kind: plant_sim` in `scenario.yaml`, or export `SSOS_ECLSS_BACKEND=plant_sim`.
 
-`plant_sim` implements `advance_step()` for crew metabolism (same hook as other step-advanceable backends). The scenario runner observes the configured initial state at step 1 without advancing, then calls `advance_step()` before each later step — so an N-step run invokes `advance_step()` N−1 times. Counting the step-0 interval, elapsed scenario time is `N * step_seconds`; the plant ledger `simulation_time_s` records only the advanced intervals, `(N - 1) * step_seconds`.
+`plant_sim` implements `advance_step()` for crew metabolism (same hook as other step-advanceable backends). Scenario steps are 0-based (`0 .. steps-1`). Step 0 observes the configured initial state without advancing; before each later step the runner calls `advance_step()` once. At step index `N`, `advance_step` has run `N` times and `simulation_time_s = N * step_seconds`. An N-step run therefore ends at step `N-1` with clock `(N - 1) * step_seconds`.
 
 ---
 
@@ -124,7 +124,7 @@ Do not describe scenario-tuned values as physical ISS limits.
 | `product_water_reserve_l` | `product_water_l` |
 | `grey_water_collected_l` | `grey_water_l` |
 
-Extra state is under `raw_topics.plant_sim`. Example at scenario step 5 with `step_seconds: 1200` (elapsed `5 * 1200` including step 0; `advance_step` ran 4 times so `simulation_time_s = 4800`):
+Extra state is under `raw_topics.plant_sim`. Example at scenario step 5 with `step_seconds: 1200` (`simulation_time_s = 5 * 1200` after five advances):
 
 ```json
 {
@@ -134,7 +134,7 @@ Extra state is under `raw_topics.plant_sim`. Example at scenario step 5 with `st
   "product_water_reserve_l": 98.2,
   "raw_topics": {
     "plant_sim": {
-      "simulation_time_s": 4800.0,
+      "simulation_time_s": 6000.0,
       "captured_co2_kg": 0.12,
       "urine_buffer_l": 0.35,
       "total_co2_vented_kg": 0.08,

@@ -162,7 +162,7 @@ Spec: [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md).
 | Scenario | ID prefix | Default count | Representative action |
 | --- | --- | --- | --- |
 | scrubber | `engineer` | 4 | `engineer_{(step-1) % N}` |
-| ssos | `eclss_operator` | 3 | `eclss_operator_{(step-1) % N}` |
+| ssos | `eclss_operator` | 3 | `eclss_operator_{step % N}` (0-based steps) |
 
 Each step: all agents discuss (llm) or rules emit diagnostics (labeled). **Post-run design** is output by the representative at the final step to `design_proposals.json`.
 

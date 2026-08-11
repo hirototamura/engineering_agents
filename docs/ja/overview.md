@@ -164,7 +164,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | シナリオ | ID プレフィックス | デフォルト人数 | 代表 action |
 | --- | --- | --- | --- |
 | scrubber | `engineer` | 4 | `engineer_{(step-1) % N}` |
-| ssos | `eclss_operator` | 3 | `eclss_operator_{(step-1) % N}` |
+| ssos | `eclss_operator` | 3 | `eclss_operator_{step % N}`（0-based steps） |
 
 各 step で全員が議論（llm）またはルール診断（labeled）。**事後設計**は最終 step の代表が `design_proposals.json` を出力。
 

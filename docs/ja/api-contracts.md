@@ -496,7 +496,7 @@ ops 後に health を更新する場合、`telemetry.jsonl` と同様に `"post_
 
 ```json
 {
-  "step": 1,
+  "step": 0,
   "ssos_graph": {
     "rewires": [{"public": "/co2_storage", "backend": "/co2_storage"}]
   }

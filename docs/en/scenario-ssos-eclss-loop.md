@@ -96,7 +96,7 @@ Baseline runs show how storage evolves without agent intervention.
 
 **Re-arm**: If storage does not improve after ARS / OGS, the next step can retry (`co2_at_ars_dispatch` / `o2_at_ogs_dispatch` boundaries).
 
-Representative operator `eclss_operator_{(step-1) % N}` issues commands for that step. Post-run, the representative outputs `design_proposals.json` (`ssos_graph`).
+Steps are 0-based (`0 .. steps-1`). Representative operator `eclss_operator_{step % N}` issues commands for that step. Post-run, the representative outputs `design_proposals.json` (`ssos_graph`).
 
 ### llm
 
@@ -210,7 +210,7 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 | --- | --- |
 | IDs | `eclss_operator_1` … `eclss_operator_N` (default 3) |
 | deliberation | llm: one round for all. labeled: operational decision messages |
-| action rep | `eclss_operator_{(step-1) % N}` |
+| action rep | `eclss_operator_{step % N}` (0-based steps) |
 | post-run rep | Representative at final step outputs `design_proposals.json` when `changes` is non-empty |
 
 `SsosEclssLoopTeam` extends the `Team` ABC. Signatures: `run_step(backend, obs)` / `apply_outcome(backend, outcome)`.

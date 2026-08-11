@@ -95,7 +95,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 
 **re-arm**: ARS / OGS を打った後もストレージが改善しなければ、次 step で再試行可能（`co2_at_ars_dispatch` / `o2_at_ogs_dispatch` 境界）。
 
-代表オペレータ `eclss_operator_{(step-1) % N}` がその step のコマンドを発行。事後は代表が `design_proposals.json`（`ssos_graph`）を出力。
+step は 0-based（`0 .. steps-1`）。代表オペレータ `eclss_operator_{step % N}` がその step のコマンドを発行。事後は代表が `design_proposals.json`（`ssos_graph`）を出力。
 
 ### llm
 
@@ -209,7 +209,7 @@ ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlo
 | --- | --- |
 | ID | `eclss_operator_1` … `eclss_operator_N`（デフォルト 3） |
 | deliberation | llm: 全員 1 ラウンド。labeled: 運用判断メッセージ |
-| action rep | `eclss_operator_{(step-1) % N}` |
+| action rep | `eclss_operator_{step % N}`（0-based steps） |
 | post-run rep | 最終 step の代表が `design_proposals.json`（`changes` 非空のときのみ） |
 
 `SsosEclssLoopTeam` は `Team` ABC を継承。`run_step(backend, obs)` / `apply_outcome(backend, outcome)` シグネチャ。

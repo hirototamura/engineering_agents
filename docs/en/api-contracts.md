@@ -499,7 +499,7 @@ Every step, **before** agent action. Snapshot of `ssos_graph` (includes `rewires
 
 ```json
 {
-  "step": 1,
+  "step": 0,
   "ssos_graph": {
     "rewires": [{"public": "/co2_storage", "backend": "/co2_storage"}]
   }
