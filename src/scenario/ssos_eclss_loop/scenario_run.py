@@ -235,7 +235,7 @@ class SsosEclssLoopScenario(Scenario):
         min_o2: Optional[float] = None
 
         for step in range(1, steps + 1):
-            if step > 1 and hasattr(backend, "advance_step"):
+            if hasattr(backend, "advance_step"):
                 backend.advance_step()
 
             snap = backend.poll_telemetry()

@@ -44,8 +44,7 @@ def _model(**overrides) -> PlantModel:
 def _driven_loop(steps: int, *, with_services: bool = False, **overrides) -> PlantModel:
     m = PlantModel(PlantSimConfig(**overrides))
     for step in range(1, steps + 1):
-        if step > 1:
-            m.advance_step()
+        m.advance_step()
         m.run_ars(m.config.ars_reference_goal_co2_kg)
         m.run_wrs(2.0)
         m.run_ogs(0.06)
