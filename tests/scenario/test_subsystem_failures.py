@@ -9,6 +9,7 @@ from scenario.ssos_eclss_loop.subsystem_failures import (
     EVENT_KIND,
     SubsystemFailureScheduleError,
     apply_scheduled_subsystem_failures,
+    clear_scheduled_subsystem_failures,
     parse_subsystem_failure_schedule,
     resolve_failure_flags,
 )
@@ -108,3 +109,24 @@ def test_apply_reasserts_over_manual_clear():
 
     apply_scheduled_subsystem_failures(backend, schedule, 1, last_enabled=last)
     assert backend.poll_telemetry().ogs_failure_enabled is True
+
+
+def test_clear_scheduled_failures_resets_all_owned_subsystems():
+    backend = LoopMockEclssBackend(
+        {"simulation": {"initial_co2_storage_kg": 1.0}, "mock_dynamics": {}}
+    )
+    schedule = parse_subsystem_failure_schedule(
+        [
+            {"subsystem": "ars", "start_step": 0},
+            {"subsystem": "wrs", "start_step": 0},
+        ]
+    )
+    apply_scheduled_subsystem_failures(backend, schedule, 0, last_enabled={})
+    assert backend.poll_telemetry().ars_failure_enabled is True
+    assert backend.poll_telemetry().wrs_failure_enabled is True
+
+    clear_scheduled_subsystem_failures(backend, schedule)
+
+    snap = backend.poll_telemetry()
+    assert snap.ars_failure_enabled is False
+    assert snap.wrs_failure_enabled is False

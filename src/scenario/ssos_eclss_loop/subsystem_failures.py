@@ -182,6 +182,20 @@ def apply_scheduled_subsystem_failures(
     return events
 
 
+def clear_scheduled_subsystem_failures(
+    backend: EclssBackend,
+    schedule: Sequence[SubsystemFailureEntry],
+) -> None:
+    """Clear all failure flags owned by a schedule.
+
+    Backends can outlive a scenario run, notably when a ROS2 headless session
+    is managed externally.  Cleanup therefore belongs to the scenario lifecycle
+    rather than relying on a backend instance's initial in-memory flags.
+    """
+    for subsystem in sorted(scheduled_subsystems(schedule)):
+        backend.set_subsystem_failure(subsystem, False)
+
+
 def scheduled_subsystems(schedule: Iterable[SubsystemFailureEntry]) -> frozenset[str]:
     return frozenset(entry.subsystem for entry in schedule)
 
@@ -191,6 +205,7 @@ __all__ = [
     "SubsystemFailureEntry",
     "SubsystemFailureScheduleError",
     "apply_scheduled_subsystem_failures",
+    "clear_scheduled_subsystem_failures",
     "parse_subsystem_failure_schedule",
     "resolve_failure_flags",
     "scheduled_subsystems",

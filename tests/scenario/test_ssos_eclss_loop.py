@@ -463,6 +463,37 @@ def test_ssos_eclss_loop_subsystem_failures_schedule_plant_sim(tmp_path: Path):
     assert by_step[3]["wrs_failure_enabled"] is True
 
 
+def test_ssos_eclss_loop_clears_scheduled_failures_after_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    backend = LoopMockEclssBackend(
+        {"simulation": {"initial_co2_storage_kg": 1.0}, "mock_dynamics": {}}
+    )
+
+    def raise_after_injection():
+        raise RuntimeError("simulated telemetry failure")
+
+    monkeypatch.setattr(backend, "poll_telemetry", raise_after_injection)
+    monkeypatch.setattr(
+        "scenario.ssos_eclss_loop.scenario_run.build_eclss_backend",
+        lambda config, kind=None: backend,
+    )
+
+    with pytest.raises(ValueError, match="simulated telemetry failure"):
+        run_scenario(
+            "ssos_eclss_loop",
+            output_dir=tmp_path / "failure_cleanup",
+            overrides={
+                "simulation": {"steps": 1},
+                "subsystem_failures": [{"subsystem": "ars", "start_step": 0}],
+            },
+            recreate_output=True,
+        )
+
+    # The backend outlives the failed run, as a persistent ROS2 backend can.
+    assert backend._failure_flags["ars"] is False
+
+
 def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Path):
     run_dir = run_scenario(
         "ssos_eclss_loop",
