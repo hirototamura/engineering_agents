@@ -346,7 +346,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 
 ## ダッシュボードでの見方 { #ダッシュボードでの見方 }
 
-`summary.scenario == "ssos_eclss_loop"` の run は `src/tools/dashboard/ssos_views.py` に分岐。
+`summary.scenario == "ssos_eclss_loop"` の run は `src/tools/dashboard/ssos_views.py` に分岐。Overview / replay のスライダはテレメトリの min/max を使うため、ssos の 0-based steps（`0 .. steps-1`）も scrubber の 1-based もそのまま動く。
 
 1. **Overview** — CO₂ / O₂ / 水ストレージ kg のプロット、ヘルスカード、2 run 比較
 2. **Step replay** — `operational_applied` タイムライン、発言・reasoning、ストレージプロット
