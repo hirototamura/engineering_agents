@@ -66,7 +66,7 @@ python3 -m scenario.ssos_eclss_loop.scenario_run \
 
 Set `backend.kind: plant_sim` in `scenario.yaml`, or export `SSOS_ECLSS_BACKEND=plant_sim`.
 
-`plant_sim` implements `advance_step()` — the scenario runner calls it for `step > 1` before each observation/decision (same hook as other step-advanceable backends). Step 1 therefore starts at simulation time zero; a 72-step run advances 71 metabolic intervals (`(steps - 1) * step_seconds`).
+`plant_sim` implements `advance_step()` for crew metabolism (same hook as other step-advanceable backends). The scenario runner takes the first observation at simulation time 0, then advances one `step_seconds` interval before every later step — so after N steps, elapsed time is `(N - 1) * step_seconds`.
 
 ---
 
@@ -124,7 +124,7 @@ Do not describe scenario-tuned values as physical ISS limits.
 | `product_water_reserve_l` | `product_water_l` |
 | `grey_water_collected_l` | `grey_water_l` |
 
-Extra state is under `raw_topics.plant_sim`:
+Extra state is under `raw_topics.plant_sim`. Example at scenario step 5 with `step_seconds: 1200` (`simulation_time_s = (5 - 1) * 1200`):
 
 ```json
 {
