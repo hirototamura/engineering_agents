@@ -435,30 +435,30 @@ def _render_agent_scroll_feed(
     )
 
 
-def _init_replay_state(run_name: str, max_step: int) -> None:
+def _init_replay_state(run_name: str, min_step: int, max_step: int) -> None:
     if st.session_state.get("replay_run_name") != run_name:
         st.session_state.replay_run_name = run_name
-        st.session_state.replay_step = 1
+        st.session_state.replay_step = min_step
     st.session_state.replay_step = min(
-        max(int(st.session_state.get("replay_step", 1)), 1),
+        max(int(st.session_state.get("replay_step", min_step)), min_step),
         max_step,
     )
 
 
-def _replay_step_controls(max_step: int) -> int:
+def _replay_step_controls(min_step: int, max_step: int) -> int:
     if "replay_step" not in st.session_state:
-        st.session_state.replay_step = 1
+        st.session_state.replay_step = min_step
 
     control_cols = st.columns([5, 1])
     with control_cols[1]:
         if st.button("Reset", key="replay_reset_btn"):
-            st.session_state.replay_step = 1
+            st.session_state.replay_step = min_step
 
     with control_cols[0]:
         st.session_state.replay_step = st.slider(
             "Replay step",
-            min_value=1,
-            max_value=max_step,
+            min_value=min_step,
+            max_value=max(max_step, min_step),
             value=int(st.session_state.replay_step),
         )
 
@@ -476,13 +476,13 @@ def _render_ssos_center_panel(run: RunViewData, current_step: int) -> None:
 
 def _render_run_replay_view(run: RunViewData) -> None:
     """Per-run step replay: timeline, plots, and agent discourse."""
-    max_step = _max_telemetry_step(run.telemetry)
-    _init_replay_state(run.run_name, max_step)
+    min_step, max_step = _telemetry_step_bounds(run.telemetry)
+    _init_replay_state(run.run_name, min_step, max_step)
     st.session_state.replay_run_name = run.run_name
 
     st.markdown(f"**`{run.run_name}`** — step-by-step replay")
     st.caption(f"`{run.run_dir}`")
-    current_step = _replay_step_controls(max_step)
+    current_step = _replay_step_controls(min_step, max_step)
 
     left_col, center_col, right_col = st.columns([1, 2.2, 1.3], gap="medium")
 
@@ -1381,8 +1381,20 @@ def _extract_final_parameters(design_state_rows: List[Dict[str, Any]]) -> Dict[s
     return dict(design_state_rows[-1].get("parameters", {}))
 
 
+def _telemetry_step_bounds(telemetry: List[Dict[str, Any]]) -> Tuple[int, int]:
+    """Return (min_step, max_step) from telemetry.
+
+    ssos_eclss_loop uses 0-based steps; scrubber_degradation stays 1-based.
+    Bounds follow the data so both work. Empty telemetry defaults to (1, 1).
+    """
+    steps = [int(r["step"]) for r in telemetry if r.get("step") is not None]
+    if not steps:
+        return 1, 1
+    return min(steps), max(steps)
+
+
 def _max_telemetry_step(telemetry: List[Dict[str, Any]]) -> int:
-    return max((int(r["step"]) for r in telemetry), default=1)
+    return _telemetry_step_bounds(telemetry)[1]
 
 
 @dataclass
@@ -1739,18 +1751,19 @@ def main() -> None:
         compare_design_state = _read_jsonl(compare_run_dir / "design_state.jsonl")
         compare_summary = _read_json(compare_run_dir / "summary.json")
 
-    max_step = _max_telemetry_step(telemetry)
-    if max_step < 1 and telemetry:
-        max_step = max(int(r.get("step", 0)) for r in telemetry)
-    if max_step < 1:
-        max_step = 1
+    min_step, max_step = _telemetry_step_bounds(telemetry)
     if compare_run_name and compare_telemetry:
-        max_step = min(max_step, _max_telemetry_step(compare_telemetry))
+        compare_min, compare_max = _telemetry_step_bounds(compare_telemetry)
+        min_step = max(min_step, compare_min)
+        max_step = min(max_step, compare_max)
+        if max_step < min_step:
+            # No overlapping step indices (e.g. empty compare); fall back to primary.
+            min_step, max_step = _telemetry_step_bounds(telemetry)
     overview_step = st.sidebar.slider(
         "Step (overview)",
-        min_value=1,
-        max_value=max_step,
-        value=max_step,
+        min_value=min_step,
+        max_value=max(max_step, min_step),
+        value=max(max_step, min_step),
     )
 
     primary_run = RunViewData(
