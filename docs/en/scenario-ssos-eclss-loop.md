@@ -348,7 +348,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 
 ## Dashboard views
 
-Runs with `summary.scenario == "ssos_eclss_loop"` branch to `src/tools/dashboard/ssos_views.py`.
+Runs with `summary.scenario == "ssos_eclss_loop"` branch to `src/tools/dashboard/ssos_views.py`. Overview / replay sliders use telemetry min/max, so 0-based ssos steps (`0 .. steps-1`) work alongside 1-based scrubber runs.
 
 1. **Overview** — CO₂ / O₂ / water storage kg plots, health cards, 2-run compare
 2. **Step replay** — `operational_applied` timeline, utterances / reasoning, storage plots
