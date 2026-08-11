@@ -136,7 +136,7 @@ thresholds:
 # 任意: step 指定のサブシステム故障注入（scrubber の anomalies: とは別）
 # subsystem_failures:
 #   - subsystem: ars   # ars | ogs | wrs
-#     start_step: 3    # 含む（1-based）
+#     start_step: 3    # 含む（0-based）
 #     end_step: 6      # 任意・含まない（step 3,4,5 で故障）
 
 agents:
@@ -157,9 +157,9 @@ output:
 | フィールド | 必須 | 意味 |
 | --- | --- | --- |
 | `subsystem` | yes | `ars` / `ogs` / `wrs`（`ARS_failure` 形式も可） |
-| `start_step` | yes | 故障開始 step（含む、1-based） |
+| `start_step` | yes | 故障開始 step（含む、0-based） |
 | `end_step` | no | 終了 step（**含まない**）。省略時は run 終了まで |
-| `duration_steps` | no | `end_step` の代わりに期間を指定（同時指定不可） |
+| `duration_steps` | no | `end_step` の代わりに期間を指定（同時指定不可、>= 1） |
 
 - スケジュールに一度でも出てきた subsystem は、その run 中はスケジュールが所有する（非アクティブ時は flag をクリアし直す）。
 - 遷移時のみ `events.jsonl` に `subsystem_failure_applied` を記録する。

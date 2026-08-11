@@ -34,7 +34,7 @@ thresholds:
 # Distinct from scrubber anomalies:. Omit or leave empty for no scheduled failures.
 # subsystem_failures:
 #   - subsystem: ars          # ars | ogs | wrs
-#     start_step: 3           # inclusive, 1-based
+#     start_step: 3           # inclusive, 0-based
 #     end_step: 6             # optional, exclusive (active for steps 3,4,5)
 #   - subsystem: ogs
 #     start_step: 4

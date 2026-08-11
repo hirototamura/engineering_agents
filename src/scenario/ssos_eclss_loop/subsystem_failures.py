@@ -7,7 +7,7 @@ YAML (under scenario config)::
 
     subsystem_failures:
       - subsystem: ars          # ars | ogs | wrs
-        start_step: 3           # inclusive, 1-based
+        start_step: 3           # inclusive, 0-based
         end_step: 6             # optional, exclusive
         # duration_steps: 3     # optional alternative to end_step
 
@@ -80,7 +80,9 @@ def _parse_entry(item: Any, *, index: int) -> SubsystemFailureEntry:
             f"{sorted(_VALID_SUBSYSTEMS)}, got {subsystem_raw!r}"
         )
 
-    start_step = _require_positive_int(item.get("start_step"), f"[{index}].start_step")
+    start_step = _require_non_negative_int(
+        item.get("start_step"), f"[{index}].start_step"
+    )
     end_step_raw = item.get("end_step")
     duration_raw = item.get("duration_steps")
     if end_step_raw is not None and duration_raw is not None:
@@ -91,7 +93,7 @@ def _parse_entry(item: Any, *, index: int) -> SubsystemFailureEntry:
     end_step: Optional[int] = None
     duration_steps: Optional[int] = None
     if end_step_raw is not None:
-        end_step = _require_positive_int(end_step_raw, f"[{index}].end_step")
+        end_step = _require_non_negative_int(end_step_raw, f"[{index}].end_step")
         if end_step <= start_step:
             raise SubsystemFailureScheduleError(
                 f"subsystem_failures[{index}].end_step must be > start_step "
@@ -108,6 +110,18 @@ def _parse_entry(item: Any, *, index: int) -> SubsystemFailureEntry:
         end_step=end_step,
         duration_steps=duration_steps,
     )
+
+
+def _require_non_negative_int(value: Any, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise SubsystemFailureScheduleError(
+            f"subsystem_failures{label} must be a non-negative integer"
+        )
+    if value < 0:
+        raise SubsystemFailureScheduleError(
+            f"subsystem_failures{label} must be >= 0"
+        )
+    return value
 
 
 def _require_positive_int(value: Any, label: str) -> int:

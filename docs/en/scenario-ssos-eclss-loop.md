@@ -137,7 +137,7 @@ thresholds:
 # Optional: timed subsystem failure injection (distinct from scrubber anomalies:)
 # subsystem_failures:
 #   - subsystem: ars   # ars | ogs | wrs
-#     start_step: 3    # inclusive (1-based)
+#     start_step: 3    # inclusive (0-based)
 #     end_step: 6      # optional, exclusive (failed on steps 3,4,5)
 
 agents:
@@ -158,9 +158,9 @@ Inject ARS / OGS / WRS failures at chosen steps. The scenario layer calls `Eclss
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `subsystem` | yes | `ars` / `ogs` / `wrs` (`ARS_failure` form also accepted) |
-| `start_step` | yes | Failure onset step (inclusive, 1-based) |
+| `start_step` | yes | Failure onset step (inclusive, 0-based) |
 | `end_step` | no | End step (**exclusive**). If omitted, stays failed until run end |
-| `duration_steps` | no | Alternative to `end_step` (cannot set both) |
+| `duration_steps` | no | Alternative to `end_step` (cannot set both; must be >= 1) |
 
 - Any subsystem listed in the schedule is owned by the schedule for the run (cleared when no entry is active).
 - Transitions emit `subsystem_failure_applied` in `events.jsonl`.

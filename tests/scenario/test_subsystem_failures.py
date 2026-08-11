@@ -17,12 +17,13 @@ from scenario.ssos_eclss_loop.subsystem_failures import (
 def test_parse_accepts_end_step_and_duration():
     schedule = parse_subsystem_failure_schedule(
         [
-            {"subsystem": "ARS_failure", "start_step": 3, "end_step": 6},
+            {"subsystem": "ARS_failure", "start_step": 0, "end_step": 3},
             {"subsystem": "ogs", "start_step": 2, "duration_steps": 2},
         ]
     )
     assert schedule[0].subsystem == "ars"
-    assert schedule[0].end_step == 6
+    assert schedule[0].start_step == 0
+    assert schedule[0].end_step == 3
     assert schedule[1].subsystem == "ogs"
     assert schedule[1].duration_steps == 2
 
@@ -36,7 +37,12 @@ def test_parse_rejects_both_end_and_duration():
 
 def test_parse_rejects_unknown_subsystem():
     with pytest.raises(SubsystemFailureScheduleError, match="thermal"):
-        parse_subsystem_failure_schedule([{"subsystem": "thermal", "start_step": 1}])
+        parse_subsystem_failure_schedule([{"subsystem": "thermal", "start_step": 0}])
+
+
+def test_parse_rejects_negative_start_step():
+    with pytest.raises(SubsystemFailureScheduleError, match=">= 0"):
+        parse_subsystem_failure_schedule([{"subsystem": "ars", "start_step": -1}])
 
 
 def test_resolve_end_step_exclusive_and_or_across_entries():
@@ -93,12 +99,12 @@ def test_apply_reasserts_over_manual_clear():
         {"simulation": {"initial_co2_storage_kg": 1.0}, "mock_dynamics": {}}
     )
     schedule = parse_subsystem_failure_schedule(
-        [{"subsystem": "ogs", "start_step": 1, "end_step": 5}]
+        [{"subsystem": "ogs", "start_step": 0, "end_step": 5}]
     )
     last: dict[str, bool] = {}
-    apply_scheduled_subsystem_failures(backend, schedule, 1, last_enabled=last)
+    apply_scheduled_subsystem_failures(backend, schedule, 0, last_enabled=last)
     backend.set_subsystem_failure("ogs", False)
     assert backend.poll_telemetry().ogs_failure_enabled is False
 
-    apply_scheduled_subsystem_failures(backend, schedule, 2, last_enabled=last)
+    apply_scheduled_subsystem_failures(backend, schedule, 1, last_enabled=last)
     assert backend.poll_telemetry().ogs_failure_enabled is True
