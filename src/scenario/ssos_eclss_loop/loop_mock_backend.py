@@ -51,6 +51,7 @@ class LoopMockEclssBackend(MockEclssBackend):
             co2_storage_kg=self._co2,
             o2_storage_kg=self._o2,
             product_water_reserve_l=self._water,
+            grey_water_collected_l=self._grey_water_buffer_l,
             ars_failure_enabled=self._failure_flags["ars"],
             ogs_failure_enabled=self._failure_flags["ogs"],
             wrs_failure_enabled=self._failure_flags["wrs"],
@@ -151,10 +152,21 @@ class LoopMockEclssBackend(MockEclssBackend):
         )
 
     def send_water_recovery_goal(self, goal: WrsGoal) -> ActionResult:
-        raise NotImplementedError("WRS actions are Phase 2")
+        self._sync_parent_telemetry()
+        result = super().send_water_recovery_goal(goal)
+        if not result.success:
+            return result
+        self._water = float(self._telemetry.product_water_reserve_l or 0.0)
+        self._sync_parent_telemetry()
+        return result
 
     def request_product_water(self, liters: float) -> ServiceResult:
-        raise NotImplementedError("WRS product water is Phase 2")
+        self._sync_parent_telemetry()
+        result = super().request_product_water(liters)
+        if result.success:
+            self._water = float(self._telemetry.product_water_reserve_l or 0.0)
+            self._sync_parent_telemetry()
+        return result
 
     def submit_grey_water(self, liters: float) -> ServiceResult:
-        raise NotImplementedError("grey water service is Phase 2")
+        return super().submit_grey_water(liters)

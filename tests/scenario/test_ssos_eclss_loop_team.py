@@ -7,7 +7,7 @@ import pytest
 from core.agents.base import Team
 from scenario.agents.eclss_loop_types import EclssLoopObservation
 from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
-from environment.ssos.eclss.types import ArsGoal, OgsGoal, EclssTelemetrySnapshot
+from environment.ssos.eclss.types import ArsGoal, OgsGoal, EclssTelemetrySnapshot, WrsGoal
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 
 
@@ -428,4 +428,34 @@ def test_llm_design_parse_rejects_unknown_action_profile_fields():
     )
     assert changes == []
     assert notes
+
+
+def test_loop_mock_water_recovery_increases_product_water_reserve():
+    backend = LoopMockEclssBackend(
+        {
+            "simulation": {"initial_product_water_l": 50.0},
+            "mock_dynamics": {},
+        }
+    )
+    before = backend.poll_telemetry().product_water_reserve_l
+    result = backend.send_water_recovery_goal(WrsGoal(urine_volume=2.0))
+    assert result.success
+    assert backend.poll_telemetry().product_water_reserve_l > before
+    assert result.details.get("total_purified_water", 0.0) > 0.0
+
+
+def test_loop_mock_water_recovery_uses_grey_water_buffer():
+    backend = LoopMockEclssBackend(
+        {
+            "simulation": {"initial_product_water_l": 50.0},
+            "mock_dynamics": {},
+        }
+    )
+    backend.submit_grey_water(4.0)
+    assert backend.poll_telemetry().grey_water_collected_l == pytest.approx(4.0)
+    before = backend.poll_telemetry().product_water_reserve_l
+    result = backend.send_water_recovery_goal(WrsGoal(urine_volume=0.0))
+    assert result.success
+    assert backend.poll_telemetry().product_water_reserve_l > before
+    assert backend.poll_telemetry().grey_water_collected_l == pytest.approx(2.0)
 
