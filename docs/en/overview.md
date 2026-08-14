@@ -27,7 +27,7 @@ Both target research toward future space-station operations software (SSOS). The
 
 ## Dashboard at a glance { #dashboard-at-a-glance }
 
-Simulation results are recorded in JSONL and reviewed in the [Streamlit dashboard](#dashboard). `scrubber_degradation` shows CO₂ ppm, EPS, and topology Before/After; `ssos_eclss_loop` shows storage kg, operational timeline, and `ssos_graph` design proposals.
+Simulation results are recorded in JSONL and reviewed in the [Streamlit dashboard](#dashboard). `scrubber_degradation` shows CO₂ ppm, EPS, topology Before/After, and health/anomaly timelines; `ssos_eclss_loop` shows storage kg, operational timeline, plant_sim ledgers (when present), effective configs, and `ssos_graph` design proposals with drivers.
 
 ### 1. Overview — side-by-side comparison of two runs (scrubber)
 
@@ -55,7 +55,7 @@ Follow one run step by step with synchronized timeline, agent messages, reasonin
 
 ### ssos_eclss_loop — storage and operational timeline
 
-When you select an `ssos_eclss_loop` run, the dashboard shows **CO₂ / O₂ / product water storage kg** plots, health cards (safe / warning / critical), and an **operational timeline** (`air_revitalisation`, `oxygen_generation`, `request_co2`, etc. as `operational_applied`). Compare labeled vs LLM or different models across two runs. Post-run `ssos_graph` proposals (`action_profile`, `graph_rewire`) are available from Step replay.
+When you select an `ssos_eclss_loop` run, the dashboard shows **CO₂ / O₂ / product water storage kg** plots, health and anomaly state timelines, and an **operational timeline** (`air_revitalisation`, `oxygen_generation`, `request_co2`, etc. as `operational_applied`). **Effective configs** (`scenario_config.yaml`, `agents_config.yaml`) and **design drivers** (summary KPIs + per-change `why`) appear on Overview. Compare labeled vs LLM or different models across two runs. Post-run `ssos_graph` proposals (`action_profile`, `graph_rewire`) are available from Step replay with an **operator step** panel (utterances + commands at the selected step).
 
 Details: [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md#dashboard-views).
 
@@ -83,7 +83,7 @@ In [`ssos_eclss_loop`](scenario-ssos-eclss-loop.md):
 2. Issue ARS / OGS (and Sabatier `request_co2`) as operational commands when thresholds are exceeded  
 3. Leave permanent proposals (`action_profile`, `graph_rewire`, etc.) in `design_proposals.json` (`ssos_graph`) after the run  
 
-**ros2** mode connects to the live plant inside SSOS Docker. **mock** mode runs on the host for pytest and development (simple storage dynamics).
+**ros2** mode connects to the live plant inside SSOS Docker. **mock** and **plant_sim** run on the host for pytest and development — mock uses simple storage dynamics; plant_sim adds crew metabolism, WRS water-loop closure, and mass-balance ledgers ([Plant Sim backend](memo/ssos_eclss_loop/plant_sim_backend.md)).
 
 ---
 

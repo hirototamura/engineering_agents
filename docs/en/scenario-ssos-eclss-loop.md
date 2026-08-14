@@ -339,7 +339,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 
 | Field | Meaning |
 | --- | --- |
-| `backend` | `mock` or `ros2` |
+| `backend` | `mock`, `plant_sim`, or `ros2` |
 | `peak_co2_storage_kg` | Maximum CO₂ storage during run |
 | `final_co2_storage_kg` / `final_o2_storage_kg` | Storage at final step |
 | `operational_command_count` | Operational commands issued |
@@ -352,11 +352,37 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 
 ## Dashboard views
 
-Runs with `summary.scenario == "ssos_eclss_loop"` branch to `src/tools/dashboard/ssos_views.py`. Overview / replay sliders use telemetry min/max, so 0-based ssos steps (`0 .. steps-1`) work alongside 1-based scrubber runs.
+Runs with `summary.scenario == "ssos_eclss_loop"` branch to `src/tools/dashboard/ssos_views.py` (`app.py` for shared layout). Overview / replay sliders use telemetry min/max, so 0-based ssos steps (`0 .. steps-1`) work alongside 1-based scrubber runs.
 
-1. **Overview** — CO₂ / O₂ / water storage kg plots, health cards, 2-run compare
-2. **Step replay** — `operational_applied` timeline, utterances / reasoning, storage plots
-3. **Design proposals** — `ssos_graph` `action_profile` / `graph_rewire` preview
+Launch: `python3 -m streamlit run src/tools/dashboard/app.py` — select a run under `src/experiments/results/<run_id>/`.
+
+### Overview tab
+
+| Panel | Source artifacts | Purpose |
+| --- | --- | --- |
+| Storage kg plot | `telemetry.jsonl`, thresholds from `summary.json` | CO₂ / O₂ / water trends with warning / critical lines |
+| Health state timeline | `health_metrics.jsonl` | safe / warning / critical bands across the run |
+| Anomaly state timeline | `telemetry.jsonl`, `events.jsonl` | Subsystem failure flags (`ars_failure_enabled`, etc.) and scrubber `anomaly_flags` spans |
+| Operational timeline | `events.jsonl` | `operational_applied` / `operational_rejected` table |
+| plant_sim ledgers | `telemetry.jsonl` → `raw_topics.plant_sim` | Vent totals, shortfalls, urine buffer (only when `backend: plant_sim`) |
+| Run summary | `summary.json` | Backend, peak storage, operational counts |
+| Effective configs | `scenario_config.yaml`, `agents_config.yaml` | YAML actually used (CLI overrides + `--apply-proposals`) |
+| Design proposals | `design_proposals.json` | Post-run `ssos_graph` changes with **design drivers** (summary KPIs + per-change `why`) |
+
+Two-run compare pairs the same panels side by side.
+
+### Step replay tab
+
+| Panel | Source artifacts | Purpose |
+| --- | --- | --- |
+| Status strip | `telemetry.jsonl`, `health_metrics.jsonl` | Current-step storage + health snapshot |
+| Anomaly status | `telemetry.jsonl`, `health_metrics.jsonl`, `events.jsonl`, `summary.json` | Active health stress, subsystem failures, plant_sim crew shortfalls at the selected step |
+| Storage / schematic / flow | `telemetry.jsonl`, `events.jsonl` | Per-step plots and ECLSS flow detail |
+| Operator step | `messages.jsonl`, `events.jsonl` | Representative utterances, deliberation, and operational commands at the step |
+| Operational timeline | `events.jsonl` | Full-run ops table (scrollable) |
+| Design proposals | `design_proposals.json` | Same drivers + change preview as Overview |
+
+All anomaly / operator / driver text is derived from run artifacts only (`tools/dashboard/run_status.py`) — the dashboard does not re-read repo `scenario.yaml`.
 
 Scrubber screenshots: [Overview](overview.md#dashboard-at-a-glance).
 

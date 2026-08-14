@@ -29,7 +29,7 @@
 
 ## 一目でわかる（ダッシュボード） { #一目でわかるダッシュボード }
 
-シミュレーション結果は JSONL に記録され、[Streamlit ダッシュボード](#ダッシュボード) で確認できます。`scrubber_degradation` は CO₂ ppm・EPS・トポロジ Before/After、`ssos_eclss_loop` はストレージ kg・運用タイムライン・`ssos_graph` 設計提案を表示します。
+シミュレーション結果は JSONL に記録され、[Streamlit ダッシュボード](#ダッシュボード) で確認できます。`scrubber_degradation` は CO₂ ppm・EPS・トポロジ Before/After・ヘルス/異常タイムライン、`ssos_eclss_loop` はストレージ kg・運用タイムライン・plant_sim ledgers（該当時）・effective configs・design drivers 付き `ssos_graph` 設計提案を表示します。
 
 ### 1. Overview — 2 ランの並列比較（scrubber）
 
@@ -57,7 +57,7 @@
 
 ### ssos_eclss_loop — ストレージと運用タイムライン
 
-`ssos_eclss_loop` の run を選ぶと、ダッシュボードは **CO₂ / O₂ / 製品水のストレージ kg** プロット、ヘルスカード（safe / warning / critical）、**運用タイムライン**（`air_revitalisation`、`oxygen_generation`、`request_co2` 等の `operational_applied`）を表示します。2 run 比較で labeled と LLM、または異なるモデルの運用タイミングの差を追えます。事後の `ssos_graph` 設計提案（`action_profile`、`graph_rewire`）も Step replay から確認できます。
+`ssos_eclss_loop` の run を選ぶと、ダッシュボードは **CO₂ / O₂ / 製品水のストレージ kg** プロット、ヘルス・異常状態タイムライン、**運用タイムライン**（`air_revitalisation`、`oxygen_generation`、`request_co2` 等の `operational_applied`）を表示します。Overview には **Effective configs**（`scenario_config.yaml`、`agents_config.yaml`）と **design drivers**（summary KPI + 各 change の `why`）も出ます。2 run 比較で labeled と LLM、または異なるモデルの運用タイミングの差を追えます。事後の `ssos_graph` 設計提案（`action_profile`、`graph_rewire`）は Step replay の **operator step** パネル（選択 step の発言 + コマンド）とあわせて確認できます。
 
 詳細: [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md#ダッシュボードでの見方)。
 
@@ -85,7 +85,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 2. 閾値超過時に ARS / OGS（および Sabatier 用 `request_co2`）を運用コマンドとして発行する  
 3. ラン終了後、`action_profile` や `graph_rewire` 等の恒久案を `design_proposals.json`（`ssos_graph`）に残す  
 
-**ros2** モードは SSOS Docker 内の実プラントに接続します。**mock** モードはホストのみで pytest / 開発に使えます（簡易ストレージ動態）。
+**ros2** モードは SSOS Docker 内の実プラントに接続します。**mock** と **plant_sim** はホストのみで pytest / 開発に使えます — mock は簡易ストレージ動態、plant_sim は乗員代謝・WRS 水ループ閉鎖・質量 ledger を追加します（[Plant Sim backend](memo/ssos_eclss_loop/plant_sim_backend.md)）。
 
 ---
 

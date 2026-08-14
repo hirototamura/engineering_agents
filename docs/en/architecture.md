@@ -186,7 +186,7 @@ Details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_ag
 | --- | --- | --- |
 | Scenario + team | ✅ frozen | ✅ Phase 0–7 |
 | labeled / llm | ✅ | ✅ |
-| Dashboard | ✅ ppm / EPS / topology | ✅ storage / operational TL |
+| Dashboard | ✅ ppm / EPS / topology, anomaly timelines | ✅ storage / ops TL, plant_sim ledgers, effective configs |
 | provenance | ✅ EPS recovery | ✅ operational commands |
 | Post-run proposals → provenance | 📋 pending | 📋 pending |
 | CLI integration | 📋 pending | 📋 pending |
@@ -408,11 +408,12 @@ Prompt: `### Telemetry` + `### World state` (no policy)
 | --- | --- |
 | `eps_telemetry.jsonl` | SARJ + BCDU |
 | `events.jsonl` | anomaly, `recovery_applied` |
+| `scenario_config.yaml` / `agents_config.yaml` | Effective YAML dumps (when agents enabled) |
 
 | View | Content |
 | --- | --- |
-| Overview | CO₂ ppm, power, EPS, topology Before/After |
-| Step replay | Recovery timeline, reasoning |
+| Overview | CO₂ ppm, power, EPS, health/anomaly timelines, topology Before/After, effective configs |
+| Step replay | Health card, anomaly status, operator step, recovery timeline, design proposals |
 
 run ID: `scrubber_degradation_{baseline|labeled_rule_base|llm}`
 
@@ -420,7 +421,7 @@ run ID: `scrubber_degradation_{baseline|labeled_rule_base|llm}`
 
 ## ssos_eclss_loop
 
-Real ROS2 ECLSS inside SSOS Docker (or `LoopMockEclssBackend`). **Does not use `SimulatorProtocol`.**
+ROS2 ECLSS inside SSOS Docker, or host backends (`LoopMockEclssBackend`, `PlantSimEclssBackend`). **Does not use `SimulatorProtocol`.**
 
 ### Terminology
 
@@ -438,11 +439,11 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires optional)
         ▼
   scenario/ssos_eclss_loop/scenario_run.py → SsosEclssLoopScenario
         │
-        ├─ build_eclss_backend() → LoopMockEclssBackend | Ros2EclssBridge(topic_remap)
+        ├─ build_eclss_backend() → LoopMockEclssBackend | PlantSimEclssBackend | Ros2EclssBridge(topic_remap)
         ├─ build_team()            → SsosEclssLoopTeam
         │
         ▼
-  for step in 1..N:
+  for step in 0..N-1:   # step 0 = initial observe; advance_step() before steps 1..N-1
     1. backend.poll_telemetry()      → EclssTelemetrySnapshot
     2. log telemetry, health, design_state
     3. team.run_step(backend, obs)  → EclssOperationalCommand
@@ -462,6 +463,7 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires optional)
 | `environment/ssos/eclss/types.py` | Storage telemetry, goals, action/service results |
 | `environment/ssos/eclss/mock/backend.py` | `MockEclssBackend` — no-op contract stub |
 | `scenario/ssos_eclss_loop/loop_mock_backend.py` | `LoopMockEclssBackend` — storage dynamics for mock runs |
+| `environment/ssos/eclss/plant_sim/` | `PlantSimEclssBackend` — crew + ARS/OGS/WRS mass balance |
 | `environment/ssos/eclss/ros2/bridge.py` | `Ros2EclssBridge` — live SSOS ECLSS via ros2 CLI / rclpy |
 | `environment/ssos/eclss/ros2/graph_rewire.py` | `build_topic_remap()` for Phase 7 client remaps |
 | `environment/ssos/eclss/ros2/topics.py` | Action/service/topic names |
@@ -475,9 +477,10 @@ Backend selection (`build_eclss_backend` in `scenario_run.py`):
 | `backend.kind` | Implementation |
 | --- | --- |
 | `mock` (default) | `LoopMockEclssBackend` — host dev, simple CO₂/O₂ dynamics |
+| `plant_sim` | `PlantSimEclssBackend` — crew metabolism, WRS closure, mass ledgers |
 | `ros2` | `Ros2EclssBridge` — SSOS Docker; optional `ssos_graph.rewires` → `topic_remap` |
 
-Override via CLI `--backend mock|ros2`, config `backend.kind`, or env `SSOS_ECLSS_BACKEND`.
+Override via CLI `--backend mock|plant_sim|ros2`, config `backend.kind`, or env `SSOS_ECLSS_BACKEND`.
 
 ### Class structure
 
@@ -627,16 +630,17 @@ Same pattern as scrubber. Prompt includes storage kg and health state (no policy
 
 | Unique fields | Content |
 | --- | --- |
-| `summary.backend` | `mock` / `ros2` |
+| `summary.backend` | `mock` / `plant_sim` / `ros2` |
 | `summary.operational_command_count` | operational command count |
+| `scenario_config.yaml` / `agents_config.yaml` | Effective config dumps (overrides + `--apply-proposals`) |
 | `events.jsonl` | `operational_applied` |
 
 **Not in ssos from scrubber**: `eps_telemetry.jsonl`, ppm-based KPIs.
 
-| View (`ssos_views.py`) | Content |
+| View (`ssos_views.py` + `run_status.py`) | Content |
 | --- | --- |
-| Overview | storage kg, health cards, 2-run compare |
-| Step replay | operational timeline, `ssos_graph` proposals |
+| Overview | storage kg, health/anomaly timelines, plant_sim ledgers, effective configs, design drivers |
+| Step replay | anomaly status, operator step, operational timeline, `ssos_graph` proposals |
 
 run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
 
@@ -650,6 +654,7 @@ Connection details: [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](me
 | --- | --- | --- |
 | Python mock ECLSS + EPS | scrubber | ✅ `environment/scrubber/` — `StationSimulator`, `MockEpsBackend` |
 | SSOS live ECLSS | ssos | ✅ `environment/ssos/eclss/ros2/` — `Ros2EclssBridge` |
+| SSOS plant_sim ECLSS | ssos | ✅ `environment/ssos/eclss/plant_sim/` — `PlantSimEclssBackend` (host, no Docker) |
 | SSOS EPS (scrubber power) | scrubber | ✅ `environment/ssos/eps/ros2/` — `Ros2EpsBridge` (optional via `eps.backend: ros2`) |
 | SSOS EPS (eclss loop) | ssos | — not wired; `ssos/eps/ros2/` is separate from eclss loop |
 | Ollama | both | ✅ container uses `host.docker.internal` |

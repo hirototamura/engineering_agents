@@ -178,7 +178,7 @@ LLM プロンプトに `**policy` 閾値を含めない**（公平な比較実�
 | --------------------- | ------------------ | ------------------------------------------------------------------------------ |
 | シナリオ + チーム            | ✅ 凍結               | ✅ Phase 0–7                                                                    |
 | labeled / llm         | ✅                  | ✅                                                                              |
-| ダッシュボード               | ✅ ppm / EPS / トポロジ | ✅ ストレージ / 運用 TL                                                                |
+| ダッシュボード               | ✅ ppm / EPS / トポロジ、異常タイムライン | ✅ ストレージ / 運用 TL、plant_sim ledgers、effective configs |
 | provenance            | ✅ EPS 回復           | ✅ 運用コマンド                                                                       |
 | 事後提案 → provenance     | 📋 未               | 📋 未                                                                           |
 | CLI 統合                | 📋 未               | 📋 未                                                                           |
@@ -412,13 +412,14 @@ StationSimulator                          # scrubber/station_simulator.py
 | --------------------- | --------------------- |
 | `eps_telemetry.jsonl` | SARJ + BCDU           |
 | `events.jsonl`        | 異常、`recovery_applied` |
+| `scenario_config.yaml` / `agents_config.yaml` | 実効 YAML ダンプ（エージェント有効時） |
 
 
 
 | ビュー         | 内容                               |
 | ----------- | -------------------------------- |
-| Overview    | CO₂ ppm、電力、EPS、トポロジ Before/After |
-| Step replay | 回復タイムライン、reasoning               |
+| Overview    | CO₂ ppm、電力、EPS、ヘルス/異常タイムライン、トポロジ Before/After、effective configs |
+| Step replay | ヘルスカード、anomaly status、operator step、回復タイムライン、設計提案 |
 
 
 run ID: `scrubber_degradation_{baseline|labeled_rule_base|llm}`
@@ -427,7 +428,7 @@ run ID: `scrubber_degradation_{baseline|labeled_rule_base|llm}`
 
 ## ssos_eclss_loop
 
-SSOS Docker 内の実 ROS2 ECLSS（または `LoopMockEclssBackend`）。`**SimulatorProtocol` は使わない**。
+SSOS Docker 内の ROS2 ECLSS、またはホスト backend（`LoopMockEclssBackend`、`PlantSimEclssBackend`）。`**SimulatorProtocol` は使わない**。
 
 ### 用語
 
@@ -447,11 +448,11 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
         ▼
   scenario/ssos_eclss_loop/scenario_run.py → SsosEclssLoopScenario
         │
-        ├─ build_eclss_backend() → LoopMockEclssBackend | Ros2EclssBridge(topic_remap)
+        ├─ build_eclss_backend() → LoopMockEclssBackend | PlantSimEclssBackend | Ros2EclssBridge(topic_remap)
         ├─ build_team()            → SsosEclssLoopTeam
         │
         ▼
-  for step in 1..N:
+  for step in 0..N-1:   # step 0 = 初期観測; steps 1..N-1 の前に advance_step()
     1. backend.poll_telemetry()      → EclssTelemetrySnapshot
     2. log telemetry, health, design_state
     3. team.run_step(backend, obs)  → EclssOperationalCommand
@@ -471,6 +472,7 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
 | `environment/ssos/eclss/types.py` | ストレージテレメトリ、ゴール、action/service 結果 |
 | `environment/ssos/eclss/mock/backend.py` | `MockEclssBackend` — no-op 契約スタブ |
 | `scenario/ssos_eclss_loop/loop_mock_backend.py` | `LoopMockEclssBackend` — mock run 用ストレージ動態 |
+| `environment/ssos/eclss/plant_sim/` | `PlantSimEclssBackend` — 乗員 + ARS/OGS/WRS 物質収支 |
 | `environment/ssos/eclss/ros2/bridge.py` | `Ros2EclssBridge` — ros2 CLI / rclpy 経由の実 SSOS ECLSS |
 | `environment/ssos/eclss/ros2/graph_rewire.py` | Phase 7 クライアント remap 用 `build_topic_remap()` |
 | `environment/ssos/eclss/ros2/topics.py` | action/service/topic 名 |
@@ -484,9 +486,10 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
 | `backend.kind` | 実装 |
 | --- | --- |
 | `mock`（デフォルト） | `LoopMockEclssBackend` — ホスト dev、簡易 CO₂/O₂ 動態 |
+| `plant_sim` | `PlantSimEclssBackend` — 乗員代謝、WRS 閉ループ、質量 ledger |
 | `ros2` | `Ros2EclssBridge` — SSOS Docker。任意で `ssos_graph.rewires` → `topic_remap` |
 
-CLI `--backend mock|ros2`、config `backend.kind`、環境変数 `SSOS_ECLSS_BACKEND` で上書き可能。
+CLI `--backend mock|plant_sim|ros2`、config `backend.kind`、環境変数 `SSOS_ECLSS_BACKEND` で上書き可能。
 
 ### クラス構成
 
@@ -645,18 +648,19 @@ scrubber と同パターン。プロンプトにはストレージ kg とヘル�
 
 | 固有フィールド                             | 内容                    |
 | ----------------------------------- | --------------------- |
-| `summary.backend`                   | `mock` / `ros2`       |
+| `summary.backend`                   | `mock` / `plant_sim` / `ros2` |
 | `summary.operational_command_count` | 運用コマンド数               |
+| `scenario_config.yaml` / `agents_config.yaml` | 実効 config ダンプ（overrides + `--apply-proposals`） |
 | `events.jsonl`                      | `operational_applied` |
 
 
 **scrubber に無い**: `eps_telemetry.jsonl`、ppm ベース KPI。
 
 
-| ビュー（`ssos_views.py`） | 内容                       |
+| ビュー（`ssos_views.py` + `run_status.py`） | 内容                       |
 | -------------------- | ------------------------ |
-| Overview             | ストレージ kg、ヘルスカード、2 run 比較 |
-| Step replay          | 運用タイムライン、`ssos_graph` 提案 |
+| Overview             | ストレージ kg、ヘルス/異常タイムライン、plant_sim ledgers、effective configs、design drivers |
+| Step replay          | anomaly status、operator step、運用タイムライン、`ssos_graph` 提案 |
 
 
 run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
@@ -672,6 +676,7 @@ run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
 | ---------------------- | -------- | ------------------------------ |
 | Python モック ECLSS + EPS | scrubber | ✅ `environment/scrubber/` — `StationSimulator`、`MockEpsBackend` |
 | SSOS 実 ECLSS           | ssos     | ✅ `environment/ssos/eclss/ros2/` — `Ros2EclssBridge` |
+| SSOS plant_sim ECLSS  | ssos     | ✅ `environment/ssos/eclss/plant_sim/` — `PlantSimEclssBackend`（ホスト、Docker 不要） |
 | SSOS EPS（scrubber 電力）  | scrubber | ✅ `environment/ssos/eps/ros2/` — `Ros2EpsBridge`（`eps.backend: ros2` で任意） |
 | SSOS EPS（eclss loop）   | ssos     | — 未接続。`ssos/eps/ros2/` は eclss loop とは別 |
 | Ollama                 | 両方       | ✅ コンテナは `host.docker.internal` |

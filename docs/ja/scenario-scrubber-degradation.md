@@ -271,9 +271,30 @@ LLM モードでは `decision_source: "llm"`、`changes` に `add_node`（`bypas
 
 ## ダッシュボードでの見方
 
-1. **Overview** — 2 run を選び、同じ step で CO2・電力・効率を比較
-2. **Step replay** — 1 run を追い、step 17 などで「なぜ EPS ブーストしたか」を reasoning から読む
-3. **設計提案セクション** — Before / After グラフで恒久変更案を確認（赤破線 = 提案エッジ）
+起動: `python3 -m streamlit run src/tools/dashboard/app.py` — `src/experiments/results/<run_id>/` の run を選択。step は **1-based**（`1 .. N`）。
+
+### Overview タブ
+
+| パネル | 参照アーティファクト | 用途 |
+| --- | --- | --- |
+| CO₂ / 電力 / 効率プロット | `telemetry.jsonl` | スクラバー劣化の時系列と異常マーカー |
+| ヘルス状態タイムライン | `health_metrics.jsonl` | CO₂・電力帯の遷移 |
+| 異常状態タイムライン | `telemetry.jsonl`、`events.jsonl` | `anomaly_flags` の区間（例: `scrubber_degradation`） |
+| Run summary | `summary.json` | ピーク CO₂、回復 step、提案数 |
+| Effective configs | `scenario_config.yaml`、`agents_config.yaml` | run で使った YAML（エージェント有効時） |
+| トポロジ Before / After | `design_state.jsonl`、`design_proposals.json` | ベースライン vs 事後提案プレビュー（検証済みではない） |
+
+2 run 比較でメトリクスとトポロジを左右に並べる。
+
+### Step replay タブ
+
+| パネル | 参照アーティファクト | 用途 |
+| --- | --- | --- |
+| ヘルスカード | `telemetry.jsonl`、`health_metrics.jsonl`、`eps_telemetry.jsonl` | 選択 step の CO₂ ppm、電力マージン、EPS 支援 |
+| Anomaly status | `telemetry.jsonl`、`health_metrics.jsonl`、`events.jsonl` | 有効な scrubber 異常とヘルスストレス |
+| テレメトリプロット | `telemetry.jsonl` | スクラバー効率と CO₂（step カーソル付き） |
+| Operator step | `messages.jsonl`、`events.jsonl` | エージェント発言、deliberation、回復コマンド |
+| 設計提案 | `design_state.jsonl`、`design_proposals.json` | トポロジ Before / After（赤破線 = 提案エッジ） |
 
 スクリーンショット: [概要](overview.md#一目でわかるダッシュボード)。
 

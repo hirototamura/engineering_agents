@@ -337,7 +337,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 
 | フィールド | 意味 |
 | --- | --- |
-| `backend` | `mock` または `ros2` |
+| `backend` | `mock`、`plant_sim`、または `ros2` |
 | `peak_co2_storage_kg` | ラン中最大 CO₂ ストレージ |
 | `final_co2_storage_kg` / `final_o2_storage_kg` | 最終 step のストレージ |
 | `operational_command_count` | 発行した運用コマンド数 |
@@ -350,11 +350,37 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 
 ## ダッシュボードでの見方 { #ダッシュボードでの見方 }
 
-`summary.scenario == "ssos_eclss_loop"` の run は `src/tools/dashboard/ssos_views.py` に分岐。Overview / replay のスライダはテレメトリの min/max を使うため、ssos の 0-based steps（`0 .. steps-1`）も scrubber の 1-based もそのまま動く。
+`summary.scenario == "ssos_eclss_loop"` の run は `src/tools/dashboard/ssos_views.py`（共通レイアウトは `app.py`）に分岐。Overview / replay のスライダはテレメトリの min/max を使うため、ssos の 0-based steps（`0 .. steps-1`）も scrubber の 1-based もそのまま動く。
 
-1. **Overview** — CO₂ / O₂ / 水ストレージ kg のプロット、ヘルスカード、2 run 比較
-2. **Step replay** — `operational_applied` タイムライン、発言・reasoning、ストレージプロット
-3. **設計提案** — `ssos_graph` の `action_profile` / `graph_rewire` プレビュー
+起動: `python3 -m streamlit run src/tools/dashboard/app.py` — `src/experiments/results/<run_id>/` の run を選択。
+
+### Overview タブ
+
+| パネル | 参照アーティファクト | 用途 |
+| --- | --- | --- |
+| ストレージ kg プロット | `telemetry.jsonl`、閾値は `summary.json` | CO₂ / O₂ / 水の推移と warning / critical ライン |
+| ヘルス状態タイムライン | `health_metrics.jsonl` | run 全体の safe / warning / critical 帯 |
+| 異常状態タイムライン | `telemetry.jsonl`、`events.jsonl` | サブシステム故障フラグ（`ars_failure_enabled` 等）と scrubber `anomaly_flags` の区間 |
+| 運用タイムライン | `events.jsonl` | `operational_applied` / `operational_rejected` 表 |
+| plant_sim ledgers | `telemetry.jsonl` → `raw_topics.plant_sim` | vent 累計、shortfall、尿バッファ（`backend: plant_sim` のみ） |
+| Run summary | `summary.json` | backend、ピークストレージ、運用回数 |
+| Effective configs | `scenario_config.yaml`、`agents_config.yaml` | 実際に使った YAML（CLI overrides + `--apply-proposals` 後） |
+| 設計提案 | `design_proposals.json` | 事後 `ssos_graph` 変更と **design drivers**（summary KPI + 各 change の `why`） |
+
+2 run 比較では同パネルを左右に並べる。
+
+### Step replay タブ
+
+| パネル | 参照アーティファクト | 用途 |
+| --- | --- | --- |
+| ステータスストリップ | `telemetry.jsonl`、`health_metrics.jsonl` | 選択 step のストレージ + ヘルス |
+| Anomaly status | `telemetry.jsonl`、`health_metrics.jsonl`、`events.jsonl`、`summary.json` | 選択 step で有効なヘルスストレス、サブシステム故障、plant_sim の乗員 shortfall |
+| ストレージ / 模式図 / フロー | `telemetry.jsonl`、`events.jsonl` | step 別プロットと ECLSS フロー詳細 |
+| Operator step | `messages.jsonl`、`events.jsonl` | 代表の発言、deliberation、運用コマンド |
+| 運用タイムライン | `events.jsonl` | run 全体の ops 表（スクロール） |
+| 設計提案 | `design_proposals.json` | Overview と同じ drivers + 変更プレビュー |
+
+異常 / オペレータ / driver の文言は run アーティファクトのみから生成（`tools/dashboard/run_status.py`）。ダッシュボードはリポジトリの `scenario.yaml` を再読込しない。
 
 scrubber 向けスクリーンショット: [概要](overview.md#一目でわかるダッシュボード)。
 

@@ -272,9 +272,30 @@ In LLM mode, `decision_source: "llm"` and `changes` may include `add_node` (`byp
 
 ## Using the dashboard
 
-1. **Overview** — select two runs and compare CO2, power, and efficiency at the same step
-2. **Step replay** — follow one run step by step; read reasoning at step 17, etc., to see why EPS boost was requested
-3. **Design proposal section** — confirm permanent change proposals in Before / After graphs (red dashed line = proposed edge)
+Launch: `python3 -m streamlit run src/tools/dashboard/app.py` — select a run under `src/experiments/results/<run_id>/`. Steps are **1-based** (`1 .. N`).
+
+### Overview tab
+
+| Panel | Source artifacts | Purpose |
+| --- | --- | --- |
+| CO₂ / power / efficiency plot | `telemetry.jsonl` | Scrubber degradation timeline with anomaly marker |
+| Health state timeline | `health_metrics.jsonl` | CO₂ and power band transitions |
+| Anomaly state timeline | `telemetry.jsonl`, `events.jsonl` | `anomaly_flags` spans (e.g. `scrubber_degradation`) |
+| Run summary | `summary.json` | Peak CO₂, recovery steps, proposal count |
+| Effective configs | `scenario_config.yaml`, `agents_config.yaml` | YAML used for the run (when agents enabled) |
+| Topology Before / After | `design_state.jsonl`, `design_proposals.json` | Baseline vs post-run proposal preview (not verified) |
+
+Two-run compare pairs metrics and topology side by side.
+
+### Step replay tab
+
+| Panel | Source artifacts | Purpose |
+| --- | --- | --- |
+| Health card | `telemetry.jsonl`, `health_metrics.jsonl`, `eps_telemetry.jsonl` | CO₂ ppm, power margin, EPS support at the step |
+| Anomaly status | `telemetry.jsonl`, `health_metrics.jsonl`, `events.jsonl` | Active scrubber anomalies and health stress |
+| Telemetry plot | `telemetry.jsonl` | Scrubber efficiency and CO₂ with step cursor |
+| Operator step | `messages.jsonl`, `events.jsonl` | Agent utterances, deliberation, recovery commands |
+| Design proposals | `design_state.jsonl`, `design_proposals.json` | Topology Before / After (red dashed = proposed edge) |
 
 Screenshots: [Overview](overview.md#dashboard-at-a-glance).
 
