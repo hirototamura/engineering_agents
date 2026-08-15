@@ -50,9 +50,9 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     assert summary["scenario"] == "ssos_eclss_loop"
     assert summary["backend"] == "mock"
     assert summary["agents_mode"] == "none"
-    assert summary["steps"] == 8
-    assert len(telemetry) == 8
-    assert len(health) == 8
+    assert summary["steps"] == 40
+    assert len(telemetry) == 40
+    assert len(health) == 40
     assert summary["operational_command_count"] == 0
     assert summary["message_count"] == 0
     assert summary.get("ars_invoked_step") is None
@@ -61,7 +61,7 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     assert not (run_dir / "design_proposals.json").exists()
 
     co2_series = [row["co2_storage_kg"] for row in telemetry]
-    assert co2_series[0] == pytest.approx(1.5)
+    assert co2_series[0] == pytest.approx(1.3)
     assert co2_series[-1] > co2_series[0], "CO2 should rise without agent intervention"
 
 
@@ -82,15 +82,16 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     assert "thresholds" in summary
     assert summary["thresholds"]["co2_storage_high_kg"] == pytest.approx(1.5)
     assert "health_inputs" in summary
-    assert summary["team_count"] == 3
+    assert summary["team_count"] == 4
     assert summary["agent_ids"] == [
         "eclss_operator_1",
         "eclss_operator_2",
         "eclss_operator_3",
+        "eclss_operator_4",
     ]
     assert summary["message_count"] > 0
     assert summary["operational_command_count"] >= 1
-    assert summary["ars_invoked_step"] == 0
+    assert summary["ars_invoked_step"] == 4
 
     message_types = {m["message_type"] for m in messages}
     assert "alert" in message_types
@@ -103,9 +104,9 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     )
 
     assert telemetry[0]["step"] == 0
-    assert telemetry[0]["co2_storage_kg"] == pytest.approx(1.5)
-    assert telemetry[1]["co2_storage_kg"] < telemetry[0]["co2_storage_kg"], (
-        "ARS should reduce CO2 storage after step 0"
+    assert telemetry[0]["co2_storage_kg"] == pytest.approx(1.3)
+    assert telemetry[5]["co2_storage_kg"] < telemetry[4]["co2_storage_kg"], (
+        "ARS should reduce CO2 storage after step 4"
     )
     assert (run_dir / "design_proposals.json").exists()
     assert summary.get("design_proposal_count", 0) >= 1
@@ -146,8 +147,8 @@ def test_ssos_eclss_loop_labeled_reinvokes_ars_when_co2_reexceeds(tmp_path: Path
     ]
 
     assert summary["operational_command_count"] >= 2
-    assert 0 in ars_steps
-    assert any(step > 0 for step in ars_steps), "ARS should re-fire after CO2 regrows past threshold"
+    assert 4 in ars_steps
+    assert any(step > 4 for step in ars_steps), "ARS should re-fire after CO2 regrows past threshold"
 
 
 def test_ssos_eclss_loop_provenance_includes_operational_records(tmp_path: Path):
@@ -355,7 +356,7 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
     design_proposals = json.loads((run_dir / "design_proposals.json").read_text(encoding="utf-8"))
 
     assert summary["agents_mode"] == "llm"
-    assert summary["team_count"] == 3
+    assert summary["team_count"] == 4
     assert summary["operational_command_count"] >= 1
     assert summary["ars_invoked_step"] == 0
     assert any(m.get("decision_source") == "llm" for m in messages)
