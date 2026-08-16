@@ -377,9 +377,21 @@ class PersonaAgent:
                 "Post-run design review: simulation is complete. Propose structural changes as "
                 "recommendations only — cite team discourse and run outcomes."
             )
+        return PersonaAgent.action_round_hint()
+
+    @staticmethod
+    def action_round_hint(*, n_reps: int = 1, slot: int = 0) -> str:
+        if n_reps <= 1:
+            return (
+                "Action round (team representative): issue recovery commands when discourse and "
+                "Situation warrant intervention; cite named teammates from this step."
+            )
         return (
-            "Action round (team representative): issue recovery commands when discourse and "
-            "Situation warrant intervention; cite named teammates from this step."
+            f"Action round: you are action representative {slot + 1} of {n_reps} this step. "
+            "Issue operational commands when discourse and Situation warrant intervention; "
+            "cite named teammates from this step. Empty commands if you hold. "
+            "This action round is simultaneous — you do not see other representatives' "
+            "commands from this step."
         )
 
 

@@ -620,7 +620,7 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 | ------------------- | -------------------------- | ------------ | ---------------------------------- |
 | `none`              | poll のみ                    | —            | `test_ssos_eclss_loop_scenario.py` |
 | `labeled_rule_base` | 閾値 → ARS/OGS               | `ssos_graph` | `test_ssos_eclss_loop_team.py`     |
-| `llm`               | deliberation + operational | LLM changes  | 同上                                 |
+| `llm`               | N 体 deliberation の後、最大 `max_actions_per_step` 体が action | LLM changes  | 同上                                 |
 
 
 #### labeled_rule_base
@@ -638,7 +638,7 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 
 #### llm
 
-scrubber と同パターン。プロンプトにはストレージ kg とヘルス状態（policy なし）。
+N 体同時 deliberation のあと、`agents.max_actions_per_step` 体までの回転代表（既定 1）が運用コマンドを並列発行。プロンプトにはストレージ kg とヘルス状態（policy なし）。`--set agents.max_actions_per_step=8` で上書き可。
 
 ### 出力・ダッシュボード
 
@@ -647,6 +647,7 @@ scrubber と同パターン。プロンプトにはストレージ kg とヘル�
 | ----------------------------------- | --------------------- |
 | `summary.backend`                   | `mock` / `ros2`       |
 | `summary.operational_command_count` | 運用コマンド数               |
+| `summary.max_actions_per_step`      | llm: step あたりの action 代表数 |
 | `events.jsonl`                      | `operational_applied` |
 
 

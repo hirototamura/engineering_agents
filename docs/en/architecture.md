@@ -606,7 +606,7 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 | --- | --- | --- | --- |
 | `none` | poll only | — | `test_ssos_eclss_loop_scenario.py` |
 | `labeled_rule_base` | thresholds → ARS/OGS | `ssos_graph` | `test_ssos_eclss_loop_team.py` |
-| `llm` | deliberation + operational | LLM changes | same |
+| `llm` | N-way deliberation, then up to `max_actions_per_step` action reps | LLM changes | same |
 
 #### labeled_rule_base
 
@@ -621,7 +621,7 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 
 #### llm
 
-Same pattern as scrubber. Prompt includes storage kg and health state (no policy).
+N-way simultaneous deliberation, then up to `agents.max_actions_per_step` rotating representatives (default 1) issue operational commands in parallel. Prompt includes storage kg and health state (no policy). Override with `--set agents.max_actions_per_step=8`.
 
 ### Output and dashboard
 
@@ -629,6 +629,7 @@ Same pattern as scrubber. Prompt includes storage kg and health state (no policy
 | --- | --- |
 | `summary.backend` | `mock` / `ros2` |
 | `summary.operational_command_count` | operational command count |
+| `summary.max_actions_per_step` | llm: action representatives per step |
 | `events.jsonl` | `operational_applied` |
 
 **Not in ssos from scrubber**: `eps_telemetry.jsonl`, ppm-based KPIs.

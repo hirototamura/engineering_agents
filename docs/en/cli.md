@@ -172,6 +172,7 @@ Volume mounts are fixed at container **create** time. If helper scripts are miss
 ```bash
 ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8
 ea run ssos_eclss_loop --backend plant_sim --agents-mode labeled_rule_base --steps 72
+ea run ssos_eclss_loop --backend mock --agents-mode llm --set agents.max_actions_per_step=8
 ```
 
 `plant_sim` adds crew metabolism, WRS water-loop closure, and mass-balance ledgers — see [Plant Sim backend](memo/ssos_eclss_loop/plant_sim_backend.md).

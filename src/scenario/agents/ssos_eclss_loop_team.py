@@ -45,6 +45,18 @@ _OGS_GOAL_FIELDS = frozenset({"input_water_mass", "iodine_concentration"})
 _WRS_GOAL_FIELDS = frozenset({"urine_volume"})
 
 
+def _resolve_max_actions_per_step(raw: Any, *, team_count: int) -> int:
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"max_actions_per_step must be an integer >= 1, got {raw!r}"
+        ) from exc
+    if value < 1:
+        raise ValueError(f"max_actions_per_step must be >= 1, got {value}")
+    return min(value, team_count)
+
+
 @dataclass
 class EclssLoopTeamState:
     alert_sent: bool = False
@@ -86,10 +98,22 @@ class SsosEclssLoopTeam(Team):
             )
             for agent_id, persona in self.personas.items()
         }
+        self.max_actions_per_step = _resolve_max_actions_per_step(
+            config.get("max_actions_per_step", 1),
+            team_count=self.team_cfg.count,
+        )
 
     def _action_rep_id(self, step: int) -> str:
         """Round-robin representative for 0-based scenario steps (`step % N`)."""
         return self.team_cfg.agent_ids[step % self.team_cfg.count]
+
+    def _action_rep_ids(self, step: int) -> List[str]:
+        """Rotating window of action representatives (length ``max_actions_per_step``)."""
+        n = self.team_cfg.count
+        k = min(self.max_actions_per_step, n)
+        start = step % n
+        ids = self.team_cfg.agent_ids
+        return [ids[(start + offset) % n] for offset in range(k)]
 
     def run_step(self, backend: EclssBackend, obs: EclssLoopObservation) -> StepEclssOutcome:
         _ = backend
@@ -160,10 +184,23 @@ class SsosEclssLoopTeam(Team):
                     )
                 )
 
-        rep = self._action_rep_id(obs.step)
-        action_msgs, action_cmds = self._llm_action_turn(obs, situation, step_discourse, rep)
-        outcome.messages.extend(action_msgs)
-        outcome.commands.extend(action_cmds)
+        reps = self._action_rep_ids(obs.step)
+        action_turns = run_parallel(
+            [
+                self._llm_action_turn(
+                    obs,
+                    situation,
+                    step_discourse,
+                    rep,
+                    n_reps=len(reps),
+                    slot=slot,
+                )
+                for slot, rep in enumerate(reps)
+            ]
+        )
+        for action_msgs, action_cmds in action_turns:
+            outcome.messages.extend(action_msgs)
+            outcome.commands.extend(action_cmds)
         return outcome
 
     def _run_step_labeled(self, obs: EclssLoopObservation) -> StepEclssOutcome:
@@ -426,12 +463,14 @@ class SsosEclssLoopTeam(Team):
             metadata=metadata,
         )
 
-    def _llm_action_turn(
+    async def _llm_action_turn(
         self,
         obs: EclssLoopObservation,
         situation: str,
         step_discourse: List[AgentMessage],
         rep: str,
+        n_reps: int = 1,
+        slot: int = 0,
     ) -> Tuple[List[AgentMessage], List[EclssOperationalCommand]]:
         contract = eclss_operational_action_contract()
         agent = self.agents[rep]
@@ -442,10 +481,10 @@ class SsosEclssLoopTeam(Team):
             step_discourse=step_discourse,
             team_discourse=self.memory_store.discourse.recent(),
         )
-        parsed = agent.deliberate(
+        parsed = await agent.deliberate_async(
             ctx,
             contract,
-            PersonaAgent.phase_hint(DeliberationPhase.ACTION),
+            PersonaAgent.action_round_hint(n_reps=n_reps, slot=slot),
             ("commands",),
         )
         if parsed is None:

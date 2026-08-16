@@ -141,6 +141,7 @@ ea results
 ```bash
 ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8
 ea run ssos_eclss_loop --backend plant_sim --agents-mode labeled_rule_base --steps 72
+ea run ssos_eclss_loop --backend mock --agents-mode llm --set agents.max_actions_per_step=8
 ```
 
 `plant_sim` は乗員代謝・WRS 水循環・物質収支 ledger を再現 — [Plant Sim backend 解説](memo/ssos_eclss_loop/plant_sim_backend.md)。
