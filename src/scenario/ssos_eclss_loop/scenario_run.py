@@ -47,6 +47,7 @@ from scenario.ssos_eclss_loop.subsystem_failures import (
     apply_scheduled_subsystem_failures,
     clear_scheduled_subsystem_failures,
     parse_subsystem_failure_schedule,
+    resolve_inject_subsystem_failures,
     scheduled_subsystems,
 )
 
@@ -244,8 +245,11 @@ class SsosEclssLoopScenario(Scenario):
         backend = build_eclss_backend(config, kind=backend_kind)
         team = self.build_team(config, agents_config=agents_config)
         log = EventLog(run_dir)
-        failure_schedule = parse_subsystem_failure_schedule(
-            config.get("subsystem_failures")
+        inject_failures = resolve_inject_subsystem_failures(config)
+        failure_schedule = (
+            parse_subsystem_failure_schedule(config.get("subsystem_failures"))
+            if inject_failures
+            else []
         )
         # Seed False so the first inactive step does not emit a clear event.
         failure_flags_last: Dict[str, bool] = {
@@ -364,6 +368,7 @@ class SsosEclssLoopScenario(Scenario):
             "backend": backend_kind,
             "agents_mode": (agents_config or {}).get("mode", "none"),
             "steps": steps,
+            "inject_failures": inject_failures,
             **_telemetry_summary_fields(last_snap, peak_co2, min_o2),
             "final_health": last_health,
             "message_count": message_count,

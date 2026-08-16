@@ -12,7 +12,20 @@ from scenario.ssos_eclss_loop.subsystem_failures import (
     clear_scheduled_subsystem_failures,
     parse_subsystem_failure_schedule,
     resolve_failure_flags,
+    resolve_inject_subsystem_failures,
 )
+
+
+def test_resolve_inject_flag_defaults_off():
+    assert resolve_inject_subsystem_failures({}) is False
+    assert resolve_inject_subsystem_failures({"inject_failures": None}) is False
+    assert resolve_inject_subsystem_failures({"inject_failures": False}) is False
+    assert resolve_inject_subsystem_failures({"inject_failures": True}) is True
+
+
+def test_resolve_inject_flag_rejects_non_bool():
+    with pytest.raises(SubsystemFailureScheduleError, match="boolean"):
+        resolve_inject_subsystem_failures({"inject_failures": "yes"})
 
 
 def test_parse_accepts_end_step_and_duration():

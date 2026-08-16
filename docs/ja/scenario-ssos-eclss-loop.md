@@ -133,11 +133,12 @@ thresholds:
   o2_storage_low_kg: 0.45
   product_water_low_l: 50.0
 
-# 任意: step 指定のサブシステム故障注入（scrubber の anomalies: とは別）
-# subsystem_failures:
-#   - subsystem: ars   # ars | ogs | wrs
-#     start_step: 3    # 含む（0-based）
-#     end_step: 6      # 任意・含まない（step 3,4,5 で故障）
+# 既定はオフ。--inject-failures または inject_failures: true で有効化
+inject_failures: false
+subsystem_failures:
+  - subsystem: ars   # ars | ogs | wrs
+    start_step: 10   # 含む（0-based）
+    end_step: 20     # 任意・含まない
 
 agents:
   mode: none  # none | labeled_rule_base | llm
@@ -152,7 +153,7 @@ output:
 
 ### サブシステム故障スケジュール（`subsystem_failures`）
 
-任意の step で ARS / OGS / WRS 故障を発生させる。シナリオ層が毎 step `EclssBackend.set_subsystem_failure` を呼び、`mock` / `plant_sim` / `ros2` いずれでも同じ YAML で使える。
+任意の step で ARS / OGS / WRS 故障を発生させる。**既定はオフ**（`inject_failures: false`）。`ea run ssos_eclss_loop --inject-failures` または `--set inject_failures=true` で有効化する。有効時、シナリオ層が毎 step `EclssBackend.set_subsystem_failure` を呼び、`mock` / `plant_sim` / `ros2` いずれでも同じ YAML で使える。
 
 | フィールド | 必須 | 意味 |
 | --- | --- | --- |

@@ -31,7 +31,9 @@ thresholds:
   product_water_low_l: 50.0
 
 # Optional timed fault injection (scenario layer → EclssBackend.set_subsystem_failure).
-# Distinct from scrubber anomalies:. Omit or leave empty for no scheduled failures.
+# Distinct from scrubber anomalies:. Off by default; enable via CLI --inject-failures
+# or --set inject_failures=true.
+inject_failures: false
 subsystem_failures:
   - subsystem: ars           # ars | ogs | wrs
     start_step: 10           # inclusive, 0-based

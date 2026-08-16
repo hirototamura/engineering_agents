@@ -134,11 +134,12 @@ thresholds:
   o2_storage_low_kg: 0.45
   product_water_low_l: 50.0
 
-# Optional: timed subsystem failure injection (distinct from scrubber anomalies:)
-# subsystem_failures:
-#   - subsystem: ars   # ars | ogs | wrs
-#     start_step: 3    # inclusive (0-based)
-#     end_step: 6      # optional, exclusive (failed on steps 3,4,5)
+# Off by default. Enable with --inject-failures or inject_failures: true
+inject_failures: false
+subsystem_failures:
+  - subsystem: ars   # ars | ogs | wrs
+    start_step: 10   # inclusive (0-based)
+    end_step: 20     # optional, exclusive
 
 agents:
   mode: none  # none | labeled_rule_base | llm
@@ -153,7 +154,7 @@ output:
 
 ### Subsystem failure schedule (`subsystem_failures`)
 
-Inject ARS / OGS / WRS failures at chosen steps. The scenario layer calls `EclssBackend.set_subsystem_failure` each step; the same YAML works for `mock`, `plant_sim`, and `ros2`.
+Inject ARS / OGS / WRS failures at chosen steps. **Off by default** (`inject_failures: false`). Enable with `ea run ssos_eclss_loop --inject-failures` or `--set inject_failures=true`. The scenario layer then calls `EclssBackend.set_subsystem_failure` each step; the same YAML works for `mock`, `plant_sim`, and `ros2`.
 
 | Field | Required | Meaning |
 | --- | --- | --- |

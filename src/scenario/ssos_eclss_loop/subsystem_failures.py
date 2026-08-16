@@ -5,6 +5,7 @@ configured steps. Distinct from scrubber ``anomalies:`` / ``inject_anomaly``.
 
 YAML (under scenario config)::
 
+    inject_failures: false   # default off; CLI --inject-failures
     subsystem_failures:
       - subsystem: ars          # ars | ogs | wrs
         start_step: 3           # inclusive, 0-based
@@ -13,6 +14,7 @@ YAML (under scenario config)::
 
 A subsystem listed in any entry is owned by the schedule for the whole run:
 when no entry is active at the current step, the failure flag is cleared.
+The schedule is applied only when ``inject_failures`` is true.
 """
 
 from __future__ import annotations
@@ -45,6 +47,16 @@ class SubsystemFailureEntry:
         if self.duration_steps is not None:
             return step < self.start_step + self.duration_steps
         return True
+
+
+def resolve_inject_subsystem_failures(config: Mapping[str, Any]) -> bool:
+    """Return whether the ``subsystem_failures`` schedule should be applied."""
+    raw = config.get("inject_failures", False)
+    if raw is None:
+        return False
+    if not isinstance(raw, bool):
+        raise SubsystemFailureScheduleError("inject_failures must be a boolean")
+    return raw
 
 
 def parse_subsystem_failure_schedule(
@@ -208,5 +220,6 @@ __all__ = [
     "clear_scheduled_subsystem_failures",
     "parse_subsystem_failure_schedule",
     "resolve_failure_flags",
+    "resolve_inject_subsystem_failures",
     "scheduled_subsystems",
 ]

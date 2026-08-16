@@ -53,6 +53,7 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     assert summary["steps"] == 40
     assert len(telemetry) == 40
     assert len(health) == 40
+    assert summary["inject_failures"] is False
     assert summary["operational_command_count"] == 0
     assert summary["message_count"] == 0
     assert summary.get("ars_invoked_step") is None
@@ -63,6 +64,32 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     co2_series = [row["co2_storage_kg"] for row in telemetry]
     assert co2_series[0] == pytest.approx(1.3)
     assert co2_series[-1] > co2_series[0], "CO2 should rise without agent intervention"
+    assert all(row["ars_failure_enabled"] is False for row in telemetry)
+    assert all(row["ogs_failure_enabled"] is False for row in telemetry)
+
+
+def test_ssos_eclss_loop_yaml_schedule_applies_when_inject_enabled(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "inject_on",
+        overrides={
+            "simulation": {"steps": 21},
+            "agents": {"mode": "none"},
+            "inject_failures": True,
+        },
+        recreate_output=True,
+    )
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    telemetry = _read_jsonl(run_dir / "telemetry.jsonl")
+    by_step = {row["step"]: row for row in telemetry if not row.get("post_ops")}
+
+    assert summary["inject_failures"] is True
+    assert by_step[9]["ars_failure_enabled"] is False
+    assert by_step[10]["ars_failure_enabled"] is True
+    assert by_step[19]["ars_failure_enabled"] is True
+    assert by_step[20]["ars_failure_enabled"] is False
+    assert by_step[19]["ogs_failure_enabled"] is False
+    assert by_step[20]["ogs_failure_enabled"] is True
 
 
 def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
@@ -401,6 +428,7 @@ def test_ssos_eclss_loop_subsystem_failures_schedule_mock(tmp_path: Path):
         overrides={
             "simulation": {"steps": 5},
             "agents": {"mode": "none"},
+            "inject_failures": True,
             "subsystem_failures": [
                 {"subsystem": "ars", "start_step": 2, "end_step": 4},
             ],
@@ -444,6 +472,7 @@ def test_ssos_eclss_loop_subsystem_failures_schedule_plant_sim(tmp_path: Path):
             "backend": {"kind": "plant_sim"},
             "simulation": {"steps": 4},
             "agents": {"mode": "none"},
+            "inject_failures": True,
             "subsystem_failures": [
                 {"subsystem": "ogs", "start_step": 1, "duration_steps": 2},
                 {"subsystem": "wrs", "start_step": 2},
@@ -486,6 +515,7 @@ def test_ssos_eclss_loop_clears_scheduled_failures_after_exception(
             output_dir=tmp_path / "failure_cleanup",
             overrides={
                 "simulation": {"steps": 1},
+                "inject_failures": True,
                 "subsystem_failures": [{"subsystem": "ars", "start_step": 0}],
             },
             recreate_output=True,
