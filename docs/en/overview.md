@@ -368,7 +368,7 @@ ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qw
   --set agents.llm.base_url=http://10.10.0.108:8001/v1
 ```
 
-Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`.
+Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. `agents.llm.api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set.
 
 Default LLM settings are in each scenario's `agents.yaml` (scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml), ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)). `llm` mode fails if the selected backend is not reachable.
 

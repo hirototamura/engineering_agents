@@ -9,6 +9,7 @@ from core.llm.ollama import OllamaClient, resolve_ollama_base_url
 from core.llm.vllm import (
     VllmClient,
     resolve_vllm_api_key,
+    resolve_vllm_api_timeout,
     resolve_vllm_base_url,
     resolve_vllm_model,
 )
@@ -60,7 +61,6 @@ def build_llm_client(llm_cfg: Optional[Dict[str, Any]] = None) -> LLMClient:
     repeat_penalty = float(cfg.get("repeat_penalty", 1.1))
     min_p = float(cfg.get("min_p", 0.05))
     think = cfg.get("think", False)
-    api_timeout = int(cfg.get("api_timeout", 10))
     max_concurrency = int(cfg["max_concurrency"]) if cfg.get("max_concurrency") is not None else -1
 
     if provider == "vllm":
@@ -72,10 +72,11 @@ def build_llm_client(llm_cfg: Optional[Dict[str, Any]] = None) -> LLMClient:
             repeat_penalty=repeat_penalty,
             min_p=min_p,
             think=think,
-            api_timeout=api_timeout,
+            api_timeout=resolve_vllm_api_timeout(cfg),
             api_key=resolve_vllm_api_key(cfg),
             max_concurrency=max_concurrency,
         )
+    api_timeout = int(cfg.get("api_timeout", 10))
     return OllamaClient(
         base_url=resolve_ollama_base_url(cfg),
         model=str(cfg.get("model", "llama3.2")),

@@ -44,6 +44,7 @@ def test_build_client_vllm_replaces_ollama_yaml_defaults(monkeypatch):
     monkeypatch.delenv("LLM_PROVIDER", raising=False)
     monkeypatch.delenv("VLLM_BASE_URL", raising=False)
     monkeypatch.delenv("VLLM_MODEL", raising=False)
+    monkeypatch.delenv("VLLM_API_TIMEOUT", raising=False)
     client = build_llm_client(
         {
             "provider": "vllm",
@@ -57,6 +58,23 @@ def test_build_client_vllm_replaces_ollama_yaml_defaults(monkeypatch):
     assert client.model == "qwen3-8b"
     assert client.think is False
     assert client._max_concurrency == 100
+    assert client.api_timeout == 300
+
+
+def test_build_client_vllm_ignores_short_ollama_api_timeout(monkeypatch):
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.delenv("VLLM_API_TIMEOUT", raising=False)
+    client = build_llm_client({"provider": "vllm", "api_timeout": 20})
+    assert isinstance(client, VllmClient)
+    assert client.api_timeout == 300
+
+
+def test_build_client_vllm_honors_timeout_env(monkeypatch):
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.setenv("VLLM_API_TIMEOUT", "90")
+    client = build_llm_client({"provider": "vllm", "api_timeout": 20})
+    assert isinstance(client, VllmClient)
+    assert client.api_timeout == 90
 
 
 def test_build_client_honors_max_concurrency(monkeypatch):

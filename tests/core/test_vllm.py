@@ -96,3 +96,23 @@ def test_vllm_generate_returns_empty_on_error(monkeypatch):
 def test_vllm_8b_default_concurrency_covers_hundred_agents():
     client = VllmClient(model="qwen3-8b")
     assert client._max_concurrency == 100
+
+
+def test_vllm_sessions_are_thread_local():
+    import threading
+
+    client = VllmClient()
+    ids: list[int] = []
+    barrier = threading.Barrier(2)
+
+    def grab() -> None:
+        barrier.wait()
+        ids.append(id(client._session))
+
+    threads = [threading.Thread(target=grab) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(ids) == 2
+    assert ids[0] != ids[1]

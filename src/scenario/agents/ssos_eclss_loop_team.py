@@ -46,12 +46,26 @@ _WRS_GOAL_FIELDS = frozenset({"urine_volume"})
 
 
 def _resolve_max_actions_per_step(raw: Any, *, team_count: int) -> int:
-    try:
+    if isinstance(raw, bool) or raw is None:
+        raise ValueError(f"max_actions_per_step must be an integer >= 1, got {raw!r}")
+    if isinstance(raw, int):
+        value = raw
+    elif isinstance(raw, float):
+        if not raw.is_integer():
+            raise ValueError(f"max_actions_per_step must be an integer >= 1, got {raw!r}")
         value = int(raw)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(
-            f"max_actions_per_step must be an integer >= 1, got {raw!r}"
-        ) from exc
+    elif isinstance(raw, str):
+        try:
+            as_float = float(raw.strip())
+        except ValueError as exc:
+            raise ValueError(
+                f"max_actions_per_step must be an integer >= 1, got {raw!r}"
+            ) from exc
+        if not as_float.is_integer():
+            raise ValueError(f"max_actions_per_step must be an integer >= 1, got {raw!r}")
+        value = int(as_float)
+    else:
+        raise ValueError(f"max_actions_per_step must be an integer >= 1, got {raw!r}")
     if value < 1:
         raise ValueError(f"max_actions_per_step must be >= 1, got {value}")
     return min(value, team_count)

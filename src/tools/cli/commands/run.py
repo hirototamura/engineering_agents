@@ -8,7 +8,7 @@ from typing import List, Optional
 
 import typer
 
-from core.llm.factory import VALID_LLM_PROVIDERS
+from core.llm.factory import VALID_LLM_PROVIDERS, describe_llm_target
 from scenario.jobs.executor import execute_run
 from scenario.jobs.spec import RunSpec
 from scenario.runner import load_agents_config, load_scenario_config, scenario_descriptions
@@ -123,6 +123,7 @@ def run(
             override_file=override_file,
         )
         overrides = _apply_cli_defaults(scenario_name, overrides)
+        overrides = _materialize_resolved_llm(scenario_name, overrides)
         _validate_merged_overrides(overrides)
     except ValueError as exc:
         print_error(str(exc), hint="Example: --set simulation.steps=30")
@@ -260,6 +261,26 @@ def _apply_cli_defaults(scenario_name: str, overrides: dict | None) -> dict | No
     if backend_kind or os.environ.get(BACKEND_ENV_VAR):
         return merged
     return merge_overrides(merged, {"backend": {"kind": "ros2"}})
+
+
+def _materialize_resolved_llm(scenario_name: str, overrides: dict | None) -> dict | None:
+    """Bake env/CLI-resolved provider, URL, and model into the RunSpec.
+
+    Host preflight honors ``LLM_PROVIDER`` / ``VLLM_*``, but the SSOS container
+    job only sees ``overrides``. Without this, yaml ``provider: ollama`` wins
+    inside the container after vLLM already passed on the host.
+    """
+    scenario_config = load_scenario_config(scenario_name, overrides)
+    mode = (scenario_config.get("agents") or {}).get("mode", "none")
+    if mode != "llm":
+        return overrides
+    agents_config = load_agents_config(scenario_name, scenario_config) or {}
+    llm_cfg = agents_config.get("llm") or {}
+    provider, base_url, model = describe_llm_target(llm_cfg)
+    return merge_overrides(
+        overrides or {},
+        {"agents": {"llm": {"provider": provider, "base_url": base_url, "model": model}}},
+    )
 
 
 def _validate_merged_overrides(overrides: dict | None) -> None:

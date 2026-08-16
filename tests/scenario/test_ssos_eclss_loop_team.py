@@ -449,6 +449,13 @@ def test_action_rep_ids_rotates_window():
     assert team._action_rep_id(0) == "op_1"
 
 
+def test_max_actions_per_step_accepts_integral_float():
+    cfg = _team_config()
+    cfg["max_actions_per_step"] = 2.0
+    team = SsosEclssLoopTeam(cfg)
+    assert team.max_actions_per_step == 2
+
+
 def test_max_actions_per_step_clamped_to_team_count():
     cfg = _team_config()
     cfg["max_actions_per_step"] = 99
@@ -457,7 +464,7 @@ def test_max_actions_per_step_clamped_to_team_count():
     assert team._action_rep_ids(0) == ["op_1", "op_2"]
 
 
-@pytest.mark.parametrize("bad", [0, -1, "nope", None])
+@pytest.mark.parametrize("bad", [0, -1, "nope", None, 2.9, True, "2.9"])
 def test_max_actions_per_step_rejects_invalid(bad):
     cfg = _team_config()
     cfg["max_actions_per_step"] = bad

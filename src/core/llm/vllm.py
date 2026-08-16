@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import Any, Dict, Optional
 
 import requests
@@ -26,6 +27,7 @@ DEFAULT_MODEL = "qwen3-8b"
 DEFAULT_API_KEY = "dummy"
 VLLM_BASE_URL_ENV = "VLLM_BASE_URL"
 VLLM_API_KEY_ENV = "VLLM_API_KEY"
+VLLM_API_TIMEOUT_ENV = "VLLM_API_TIMEOUT"
 API_TIMEOUT = 300
 CONNECTION_CHECK_TIMEOUT = 5
 
@@ -93,6 +95,24 @@ def resolve_vllm_api_key(llm_cfg: Optional[Dict[str, Any]] = None) -> str:
     return cfg_key or DEFAULT_API_KEY
 
 
+def resolve_vllm_api_timeout(llm_cfg: Optional[Dict[str, Any]] = None) -> Optional[int]:
+    """vLLM HTTP timeout in seconds.
+
+    YAML ``api_timeout`` is Ollama-oriented (often 10–20s) and is ignored so
+    parallel lab rounds keep the 300s client default. Override with
+    ``VLLM_API_TIMEOUT``.
+    """
+    _ = llm_cfg
+    env_raw = os.environ.get(VLLM_API_TIMEOUT_ENV, "").strip()
+    if not env_raw:
+        return None
+    return int(env_raw)
+
+
+def vllm_auth_headers(llm_cfg: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+    return {"Authorization": f"Bearer {resolve_vllm_api_key(llm_cfg)}"}
+
+
 class VllmClient(LLMClient):
     def __init__(
         self,
@@ -119,7 +139,18 @@ class VllmClient(LLMClient):
         self.api_timeout = api_timeout or API_TIMEOUT
         self.api_key = api_key or DEFAULT_API_KEY
         self.api_url = f"{self.base_url}/chat/completions"
-        self._session = _build_http_session(max(8, int(resolved) if resolved else 8))
+        self._pool_size = max(8, int(resolved) if resolved else 8)
+        self._local = threading.local()
+
+    @property
+    def _session(self) -> requests.Session:
+        # requests.Session is not thread-safe; parallel generate_async workers
+        # each get their own session / connection pool.
+        session = getattr(self._local, "session", None)
+        if session is None:
+            session = _build_http_session(self._pool_size)
+            self._local.session = session
+        return session
 
     def generate(self, prompt: str) -> str:
         try:

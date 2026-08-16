@@ -186,6 +186,8 @@ ea run ssos_eclss_loop --backend mock --agents-mode llm --set agents.max_actions
 | `EA_MOUNT_RESULTS` | `/ea/results` | Mounted results path inside container |
 | `EA_HEADLESS_POLL_TIMEOUT_S` | `120` | Wait for ros2 graph after headless restart |
 
+`LLM_PROVIDER`, `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, and `VLLM_API_TIMEOUT` are forwarded into the container so ros2 llm jobs match host preflight.
+
 ### Exit code 3 (environment)
 
 If you see `SSOS environment not ready`:

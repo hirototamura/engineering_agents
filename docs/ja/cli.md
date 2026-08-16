@@ -155,6 +155,8 @@ ea run ssos_eclss_loop --backend mock --agents-mode llm --set agents.max_actions
 | `EA_MOUNT_RESULTS` | `/ea/results` | コンテナ内の results マウントパス |
 | `EA_HEADLESS_POLL_TIMEOUT_S` | `120` | headless 起動後の ros2 グラフ待ち（秒） |
 
+`LLM_PROVIDER`、`VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT` はコンテナへ転送され、ros2 の llm ジョブがホスト preflight と同じバックエンドを使う。
+
 ### exit code 3（環境エラー）
 
 `SSOS environment not ready` が出たとき:
