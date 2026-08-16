@@ -109,7 +109,7 @@ Each step: all N agents deliberate → representative issues `operational_comman
 | File | Purpose |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.mode`, run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Team (`eclss_operator_*`), Persona, `policy` (labeled only), Ollama |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Team (`eclss_operator_*`), Persona, `policy` (labeled only), Ollama / vLLM |
 
 ### scenario.yaml (main fields)
 

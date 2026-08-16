@@ -84,7 +84,7 @@ flowchart TB
     REB["Ros2EclssBridge<br/>(ros2)"]
   end
 
-  core["core/<br/>PersonaAgent, Team ABC, memory, Ollama"]
+  core["core/<br/>PersonaAgent, Team ABC, memory, Ollama/vLLM"]
   OP["integrations/one_piece/<br/>provenance export"]
 
   tools --> scenario
@@ -165,7 +165,7 @@ src/integrations/   （scenario から呼び出し）
 | ------------------- | --------------------------------- |
 | `none`              | バックエンドのみ（エージェントなし）                |
 | `labeled_rule_base` | `policy` / 閾値駆動                   |
-| `llm`               | Ollama deliberation + 代表 action   |
+| `llm`               | Ollama または研究室 vLLM の deliberation + 代表 action   |
 | `base`              | 未実装（[BL-001](memo/backlog.md)） |
 
 
@@ -675,6 +675,7 @@ run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
 | SSOS EPS（scrubber 電力）  | scrubber | ✅ `environment/ssos/eps/ros2/` — `Ros2EpsBridge`（`eps.backend: ros2` で任意） |
 | SSOS EPS（eclss loop）   | ssos     | — 未接続。`ssos/eps/ros2/` は eclss loop とは別 |
 | Ollama                 | 両方       | ✅ コンテナは `host.docker.internal` |
+| 研究室 vLLM              | 両方       | ✅ `http://10.10.0.108:8000/v1`（`qwen3-8b`）。LAN または VPN |
 | One Piece Web UI       | —        | スコープ外                          |
 
 

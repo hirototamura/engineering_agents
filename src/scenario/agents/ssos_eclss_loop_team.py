@@ -19,7 +19,8 @@ from core.agents.persona import (
     message_contract,
 )
 from core.agents.types import AgentMessage, DeliberationPhase
-from core.llm.ollama import OllamaClient, resolve_ollama_base_url
+from core.llm.base import LLMClient
+from core.llm.factory import build_llm_client
 from environment.ssos.eclss.backend import EclssBackend
 from environment.ssos.eclss.types import ArsGoal, OgsGoal, WrsGoal
 from scenario.agents.eclss_loop_types import (
@@ -749,18 +750,8 @@ class SsosEclssLoopTeam(Team):
         return {"decision_source": "rule"}
 
     @staticmethod
-    def _build_llm_client(llm_cfg: Dict[str, Any]) -> OllamaClient:
-        return OllamaClient(
-            base_url=resolve_ollama_base_url(llm_cfg),
-            model=str(llm_cfg.get("model", "llama3.2")),
-            temperature=float(llm_cfg.get("temperature", 0.45)),
-            max_tokens=int(llm_cfg.get("max_tokens", 512)),
-            repeat_penalty=float(llm_cfg.get("repeat_penalty", 1.1)),
-            repeat_last_n=int(llm_cfg.get("repeat_last_n", 128)),
-            min_p=float(llm_cfg.get("min_p", 0.05)),
-            think=llm_cfg.get("think", False),
-            api_timeout=int(llm_cfg.get("api_timeout", 10)),
-        )
+    def _build_llm_client(llm_cfg: Dict[str, Any]) -> LLMClient:
+        return build_llm_client(llm_cfg)
 
 
 _ECLSS_OPERATIONAL_LEVERS = """\

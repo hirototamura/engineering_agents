@@ -85,7 +85,7 @@ flowchart TB
     REB["Ros2EclssBridge<br/>(ros2)"]
   end
 
-  core["core/<br/>PersonaAgent, Team ABC, memory, Ollama"]
+  core["core/<br/>PersonaAgent, Team ABC, memory, Ollama/vLLM"]
   OP["integrations/one_piece/<br/>provenance export"]
 
   tools --> scenario
@@ -175,7 +175,7 @@ Details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_ag
 | --- | --- |
 | `none` | Backend only (no agents) |
 | `labeled_rule_base` | `policy` / threshold driven |
-| `llm` | Ollama deliberation + representative action |
+| `llm` | Ollama or lab vLLM deliberation + representative action |
 | `base` | Not implemented ([BL-001](memo/backlog.md)) |
 
 **Do not include `policy` thresholds in LLM prompts** (fair comparison experiments).
@@ -653,6 +653,7 @@ Connection details: [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](me
 | SSOS EPS (scrubber power) | scrubber | ✅ `environment/ssos/eps/ros2/` — `Ros2EpsBridge` (optional via `eps.backend: ros2`) |
 | SSOS EPS (eclss loop) | ssos | — not wired; `ssos/eps/ros2/` is separate from eclss loop |
 | Ollama | both | ✅ container uses `host.docker.internal` |
+| Lab vLLM | both | ✅ `http://10.10.0.108:8000/v1` (`qwen3-8b`); LAN or VPN |
 | One Piece Web UI | — | out of scope |
 
 ---

@@ -108,7 +108,7 @@ step は 0-based（`0 .. steps-1`）。代表オペレータ `eclss_operator_{st
 | ファイル | 用途 |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | step 数、初期ストレージ、backend 種別、閾値、`agents.mode`、run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | チーム（`eclss_operator_*`）、Persona、`policy`（labeled のみ）、Ollama |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | チーム（`eclss_operator_*`）、Persona、`policy`（labeled のみ）、Ollama / vLLM |
 
 ### scenario.yaml（主要項目）
 
