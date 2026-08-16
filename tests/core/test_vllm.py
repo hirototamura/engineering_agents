@@ -64,8 +64,8 @@ def test_vllm_generate_posts_chat_completions(monkeypatch):
         captured["timeout"] = timeout
         return FakeResponse()
 
-    monkeypatch.setattr("core.llm.vllm.requests.post", fake_post)
     client = VllmClient(think=False, api_timeout=12)
+    monkeypatch.setattr(client._session, "post", fake_post)
     assert client.generate("ping") == "hello"
     assert captured["url"] == "http://10.10.0.108:8000/v1/chat/completions"
     assert captured["json"]["model"] == "qwen3-8b"
@@ -78,16 +78,21 @@ def test_vllm_check_connection_hits_models(monkeypatch):
     class FakeResponse:
         status_code = 200
 
-    monkeypatch.setattr(
-        "core.llm.vllm.requests.get",
-        lambda *args, **kwargs: FakeResponse(),
-    )
-    assert VllmClient().check_connection() is True
+    client = VllmClient()
+    monkeypatch.setattr(client._session, "get", lambda *args, **kwargs: FakeResponse())
+    assert client.check_connection() is True
 
 
 def test_vllm_generate_returns_empty_on_error(monkeypatch):
+    client = VllmClient()
     monkeypatch.setattr(
-        "core.llm.vllm.requests.post",
+        client._session,
+        "post",
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("down")),
     )
-    assert VllmClient().generate("ping") == ""
+    assert client.generate("ping") == ""
+
+
+def test_vllm_8b_default_concurrency_covers_hundred_agents():
+    client = VllmClient(model="qwen3-8b")
+    assert client._max_concurrency == 100

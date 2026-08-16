@@ -61,6 +61,7 @@ def build_llm_client(llm_cfg: Optional[Dict[str, Any]] = None) -> LLMClient:
     min_p = float(cfg.get("min_p", 0.05))
     think = cfg.get("think", False)
     api_timeout = int(cfg.get("api_timeout", 10))
+    max_concurrency = int(cfg["max_concurrency"]) if cfg.get("max_concurrency") is not None else -1
 
     if provider == "vllm":
         return VllmClient(
@@ -73,6 +74,7 @@ def build_llm_client(llm_cfg: Optional[Dict[str, Any]] = None) -> LLMClient:
             think=think,
             api_timeout=api_timeout,
             api_key=resolve_vllm_api_key(cfg),
+            max_concurrency=max_concurrency,
         )
     return OllamaClient(
         base_url=resolve_ollama_base_url(cfg),
@@ -84,4 +86,5 @@ def build_llm_client(llm_cfg: Optional[Dict[str, Any]] = None) -> LLMClient:
         min_p=min_p,
         think=think,
         api_timeout=api_timeout,
+        max_concurrency=max_concurrency,
     )

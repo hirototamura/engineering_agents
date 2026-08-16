@@ -56,6 +56,15 @@ def test_build_client_vllm_replaces_ollama_yaml_defaults(monkeypatch):
     assert client.base_url == "http://10.10.0.108:8000/v1"
     assert client.model == "qwen3-8b"
     assert client.think is False
+    assert client._max_concurrency == 100
+
+
+def test_build_client_honors_max_concurrency(monkeypatch):
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.delenv("VLLM_BASE_URL", raising=False)
+    client = build_llm_client({"provider": "vllm", "max_concurrency": 48})
+    assert isinstance(client, VllmClient)
+    assert client._max_concurrency == 48
 
 
 def test_describe_llm_target_vllm(monkeypatch):

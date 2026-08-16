@@ -133,7 +133,7 @@ src/integrations/   （scenario から呼び出し）
 | ------------ | ---------------------------------------- |
 | `team.count` | オペレータ数（scrubber デフォルト 4、ssos デフォルト 3）    |
 | `team.archetypes` | 任意。思考レンズ名のリスト（scrubber デフォルト 4 種）。`agent_id` へ round-robin 割当。省略または `[]` で従来の同種チーム |
-| deliberation | llm: 全員 1 ラウンド（archetype ありならレンズ + 共有 persona）。labeled: ルールが定型メッセージ      |
+| deliberation | llm: 全員 1 ラウンドを同時（並列）実行。labeled: ルールが定型メッセージ      |
 | action rep   | step ごとに `(step-1) % N` で代表がコマンド発行       |
 | post-run rep | 最終 step の代表が `design_proposals.json` を出力 |
 | 設計分離         | **ランタイム中は恒久グラフを変えない**。事後提案のみ             |

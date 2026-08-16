@@ -131,7 +131,7 @@ Extends `Team` ABC. **Homogeneous N agents + representative action**, not rigid 
 | --- | --- |
 | `team.count` | Operator count (scrubber default 4, ssos default 3) |
 | `team.archetypes` | Optional list of thinking lenses (scrubber default: all four). Round-robin onto `agent_id`s. Omit or `[]` for legacy homogeneous team |
-| deliberation | llm: one round for all (archetype lens + shared persona when set). labeled: rule-driven fixed messages |
+| deliberation | llm: one simultaneous (parallel) round for all. labeled: rule-driven fixed messages |
 | action rep | Representative issues commands each step via `(step-1) % N` |
 | post-run rep | Representative at final step outputs `design_proposals.json` |
 | Design separation | **No permanent graph changes at runtime**. Post-run proposals only |

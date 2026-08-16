@@ -15,6 +15,7 @@ import os
 from typing import Any, Dict, Optional
 
 import requests
+from requests.adapters import HTTPAdapter
 
 from core.llm.base import LLMClient
 
@@ -28,13 +29,14 @@ VLLM_API_KEY_ENV = "VLLM_API_KEY"
 API_TIMEOUT = 300
 CONNECTION_CHECK_TIMEOUT = 5
 
+# Lab server: 8B is 6-way replicated (theoretical ~384); 32B is capped at 32.
 _MODEL_CONCURRENCY_DEFAULTS = [
-    (["70b", "72b"], 2),
-    (["32b", "34b"], 4),
-    (["14b", "13b"], 4),
-    (["7b", "8b"], 6),
+    (["70b", "72b"], 16),
+    (["32b", "34b"], 32),
+    (["14b", "13b"], 64),
+    (["7b", "8b"], 100),
 ]
-_CONCURRENCY_FALLBACK = 8
+_CONCURRENCY_FALLBACK = 64
 
 
 def _default_concurrency(model: str) -> int:
@@ -117,6 +119,7 @@ class VllmClient(LLMClient):
         self.api_timeout = api_timeout or API_TIMEOUT
         self.api_key = api_key or DEFAULT_API_KEY
         self.api_url = f"{self.base_url}/chat/completions"
+        self._session = _build_http_session(max(8, int(resolved) if resolved else 8))
 
     def generate(self, prompt: str) -> str:
         try:
@@ -130,7 +133,7 @@ class VllmClient(LLMClient):
             }
             if self.think is not None:
                 payload["chat_template_kwargs"] = {"enable_thinking": bool(self.think)}
-            response = requests.post(
+            response = self._session.post(
                 self.api_url,
                 json=payload,
                 headers={"Authorization": f"Bearer {self.api_key}"},
@@ -146,7 +149,7 @@ class VllmClient(LLMClient):
 
     def check_connection(self) -> bool:
         try:
-            response = requests.get(
+            response = self._session.get(
                 f"{self.base_url}/models",
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 timeout=CONNECTION_CHECK_TIMEOUT,
@@ -154,3 +157,11 @@ class VllmClient(LLMClient):
             return response.status_code == 200
         except Exception:
             return False
+
+
+def _build_http_session(pool_size: int) -> requests.Session:
+    session = requests.Session()
+    adapter = HTTPAdapter(pool_connections=pool_size, pool_maxsize=pool_size)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session

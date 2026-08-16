@@ -18,6 +18,7 @@ from core.agents.persona import (
     load_team,
     message_contract,
     operator_action_contract,
+    run_parallel,
 )
 from core.agents.types import (
     AgentMessage,
@@ -90,19 +91,27 @@ class ScrubberDegradationTeam(Team):
         outcome = StepAgentOutcome()
         step_discourse: List[AgentMessage] = []
         situation = build_llm_situation(obs)
-
-        for agent_id in self.team_cfg.agent_ids:
-            msg = self._llm_deliberation_turn(
-                obs=obs,
-                agent_id=agent_id,
-                to_role="team",
-                message_type="comment",
-                phase=DeliberationPhase.DELIBERATION,
-                situation=situation,
-                step_discourse=step_discourse,
-                contract=message_contract(),
-                required=("message",),
-            )
+        # Simultaneous round: all agents see prior-step team discourse only, so
+        # vLLM can batch the N in-flight requests instead of walking the roster.
+        team_discourse = self.memory_store.discourse.recent()
+        turns = run_parallel(
+            [
+                self._llm_deliberation_turn(
+                    obs=obs,
+                    agent_id=agent_id,
+                    to_role="team",
+                    message_type="comment",
+                    phase=DeliberationPhase.DELIBERATION,
+                    situation=situation,
+                    step_discourse=[],
+                    team_discourse=team_discourse,
+                    contract=message_contract(),
+                    required=("message",),
+                )
+                for agent_id in self.team_cfg.agent_ids
+            ]
+        )
+        for agent_id, msg in zip(self.team_cfg.agent_ids, turns):
             if msg is not None:
                 outcome.messages.append(msg)
                 step_discourse.append(msg)
@@ -298,7 +307,7 @@ class ScrubberDegradationTeam(Team):
             return self._llm_post_run_design_proposal(summary, baseline, rep)
         return self._rule_post_run_design_proposal(summary, baseline, rep)
 
-    def _llm_deliberation_turn(
+    async def _llm_deliberation_turn(
         self,
         *,
         obs: AgentObservation,
@@ -308,6 +317,7 @@ class ScrubberDegradationTeam(Team):
         phase: str,
         situation: str,
         step_discourse: List[AgentMessage],
+        team_discourse: List[AgentMessage],
         contract: str,
         required: tuple[str, ...],
     ) -> Optional[AgentMessage]:
@@ -317,9 +327,9 @@ class ScrubberDegradationTeam(Team):
             phase=phase,
             situation=situation,
             step_discourse=step_discourse,
-            team_discourse=self.memory_store.discourse.recent(),
+            team_discourse=team_discourse,
         )
-        parsed = agent.deliberate(
+        parsed = await agent.deliberate_async(
             ctx,
             contract,
             PersonaAgent.phase_hint(phase),
