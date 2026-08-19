@@ -148,7 +148,9 @@ def _fit_prompt_to_context(prompt: str, max_tokens: int) -> str:
     if budget_chars <= len(marker):
         return prompt[:budget_chars]
     head = min(12_000, budget_chars // 4)
-    tail = max(0, budget_chars - head - len(marker))
+    tail = budget_chars - head - len(marker)
+    if tail <= 0:
+        return prompt[:budget_chars]
     logger.warning(
         "VllmClient truncating prompt from %s to %s chars (max_model_len=%s)",
         len(prompt),

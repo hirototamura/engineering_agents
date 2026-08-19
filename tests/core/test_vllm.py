@@ -148,6 +148,16 @@ def test_fit_prompt_allows_budget_below_old_char_floor(monkeypatch):
     )
 
 
+def test_fit_prompt_does_not_restore_full_string_when_tail_is_zero(monkeypatch):
+    monkeypatch.setenv("VLLM_MAX_MODEL_LEN", "400")
+    prompt = "HEAD" + ("x" * 20_000) + "TAIL"
+    fitted = _fit_prompt_to_context(prompt, max_tokens=128)
+    budget_chars = (400 - 128 - _CHAT_TEMPLATE_OVERHEAD_TOKENS) * _CHARS_PER_TOKEN
+    assert len(fitted) <= budget_chars
+    assert fitted != prompt
+    assert not fitted.endswith("TAIL")
+
+
 def test_clamp_completion_tokens_leaves_prompt_room(monkeypatch):
     monkeypatch.setenv("VLLM_MAX_MODEL_LEN", "1024")
     clamped = _clamp_completion_tokens(768)
