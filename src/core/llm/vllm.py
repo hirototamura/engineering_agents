@@ -126,15 +126,27 @@ def resolve_vllm_max_model_len() -> int:
     return DEFAULT_MAX_MODEL_LEN
 
 
+def _clamp_completion_tokens(max_tokens: int) -> int:
+    """Leave at least one prompt token whenever the window is larger than overhead."""
+    requested = max(1, int(max_tokens))
+    room = resolve_vllm_max_model_len() - _CHAT_TEMPLATE_OVERHEAD_TOKENS
+    if room <= 1:
+        return max(1, room)
+    return min(requested, room - 1)
+
+
 def _fit_prompt_to_context(prompt: str, max_tokens: int) -> str:
     """Keep instructions (head) and recent context (tail) under the server window."""
-    budget_tokens = (
-        resolve_vllm_max_model_len() - int(max_tokens) - _CHAT_TEMPLATE_OVERHEAD_TOKENS
+    budget_tokens = max(
+        0,
+        resolve_vllm_max_model_len() - int(max_tokens) - _CHAT_TEMPLATE_OVERHEAD_TOKENS,
     )
-    budget_chars = max(1024, budget_tokens * _CHARS_PER_TOKEN)
+    budget_chars = budget_tokens * _CHARS_PER_TOKEN
     if len(prompt) <= budget_chars:
         return prompt
     marker = "\n\n[... truncated to fit context ...]\n\n"
+    if budget_chars <= len(marker):
+        return prompt[:budget_chars]
     head = min(12_000, budget_chars // 4)
     tail = max(0, budget_chars - head - len(marker))
     logger.warning(
@@ -186,13 +198,21 @@ class VllmClient(LLMClient):
         return session
 
     def generate(self, prompt: str) -> str:
-        prompt = _fit_prompt_to_context(prompt, self.max_tokens)
+        max_tokens = _clamp_completion_tokens(self.max_tokens)
+        if max_tokens != self.max_tokens:
+            logger.warning(
+                "VllmClient clamping max_tokens from %s to %s (max_model_len=%s)",
+                self.max_tokens,
+                max_tokens,
+                resolve_vllm_max_model_len(),
+            )
+        prompt = _fit_prompt_to_context(prompt, max_tokens)
         try:
             payload: Dict[str, Any] = {
                 "model": self.model,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": self.temperature,
-                "max_tokens": self.max_tokens,
+                "max_tokens": max_tokens,
                 "repetition_penalty": self.repeat_penalty,
             }
             # vLLM MTP / speculative decoding rejects min_p and logit_bias.
