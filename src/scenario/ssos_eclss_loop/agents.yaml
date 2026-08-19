@@ -4,12 +4,13 @@ mode: labeled_rule_base
 
 # Per-agent private entries (not steps). llm commit writes ~2–3 strings per
 # step (optional JSON "memory", message+reasoning summary, plus own commands).
-# 100 steps × that ≈ 200–300; trim keeps the newest.
+# 30 keeps the newest ~10–15 steps of private recall.
 memory_limit: 30
 # Team discourse is a sliding window of AgentMessage objects. One llm step
 # emits ~count deliberation messages + max_actions_per_step action/skip
-# messages (~110). 220 keeps roughly the previous two steps so operators
-# can cite teammates (same-step deliberation is still simultaneous).
+# messages (~12 with count 10 and 2 action reps). 22 keeps roughly the
+# previous two steps so operators can cite teammates (same-step deliberation
+# is still simultaneous).
 discourse_window: 22
 
 team:
@@ -53,7 +54,7 @@ llm:
   provider: ollama
   # Host Ollama: localhost. In SSOS Docker use host.docker.internal (ea-loop sets OLLAMA_BASE_URL).
   # Lab vLLM: --llm-provider vllm (or LLM_PROVIDER=vllm). Defaults to http://10.10.0.108:8000/v1 / qwen3-8b.
-  # 100 simultaneous deliberation calls per step; cap in-flight requests.
+  # In-flight cap (above team.count=10; leftover headroom for larger batches).
   max_concurrency: 100
   base_url: http://localhost:11434
   model: qwen3.5:9b
