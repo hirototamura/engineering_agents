@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from core.llm.vllm import (
     DEFAULT_BASE_URL,
+    DEFAULT_MAX_MODEL_LEN,
     VllmClient,
+    _fit_prompt_to_context,
     looks_like_ollama_url,
     normalize_vllm_base_url,
     resolve_vllm_base_url,
@@ -71,6 +73,7 @@ def test_vllm_generate_posts_chat_completions(monkeypatch):
     assert captured["json"]["model"] == "qwen3-8b"
     assert captured["json"]["messages"] == [{"role": "user", "content": "ping"}]
     assert captured["json"]["chat_template_kwargs"] == {"enable_thinking": False}
+    assert "min_p" not in captured["json"]
     assert captured["headers"]["Authorization"] == "Bearer dummy"
 
 
@@ -116,3 +119,18 @@ def test_vllm_sessions_are_thread_local():
         thread.join()
     assert len(ids) == 2
     assert ids[0] != ids[1]
+
+
+def test_fit_prompt_keeps_short_prompts():
+    assert _fit_prompt_to_context("ping", max_tokens=768) == "ping"
+
+
+def test_fit_prompt_keeps_head_and_tail(monkeypatch):
+    monkeypatch.setenv("VLLM_MAX_MODEL_LEN", "2048")
+    prompt = "HEAD" + ("x" * 20_000) + "TAIL"
+    fitted = _fit_prompt_to_context(prompt, max_tokens=128)
+    assert fitted.startswith("HEAD")
+    assert fitted.endswith("TAIL")
+    assert "truncated to fit context" in fitted
+    assert len(fitted) < len(prompt)
+    assert DEFAULT_MAX_MODEL_LEN == 32768

@@ -28,8 +28,14 @@ DEFAULT_API_KEY = "dummy"
 VLLM_BASE_URL_ENV = "VLLM_BASE_URL"
 VLLM_API_KEY_ENV = "VLLM_API_KEY"
 VLLM_API_TIMEOUT_ENV = "VLLM_API_TIMEOUT"
+VLLM_MAX_MODEL_LEN_ENV = "VLLM_MAX_MODEL_LEN"
 API_TIMEOUT = 300
 CONNECTION_CHECK_TIMEOUT = 5
+# Must match vllm-server/scripts/serve_small.sh --max-model-len.
+DEFAULT_MAX_MODEL_LEN = 32768
+_CHAT_TEMPLATE_OVERHEAD_TOKENS = 256
+# Conservative chars/token so we stay under the server cap without a tokenizer.
+_CHARS_PER_TOKEN = 3
 
 # Lab server: 8B is 6-way replicated (theoretical ~384); 32B is capped at 32.
 _MODEL_CONCURRENCY_DEFAULTS = [
@@ -113,6 +119,33 @@ def vllm_auth_headers(llm_cfg: Optional[Dict[str, Any]] = None) -> Dict[str, str
     return {"Authorization": f"Bearer {resolve_vllm_api_key(llm_cfg)}"}
 
 
+def resolve_vllm_max_model_len() -> int:
+    env_raw = os.environ.get(VLLM_MAX_MODEL_LEN_ENV, "").strip()
+    if env_raw:
+        return int(env_raw)
+    return DEFAULT_MAX_MODEL_LEN
+
+
+def _fit_prompt_to_context(prompt: str, max_tokens: int) -> str:
+    """Keep instructions (head) and recent context (tail) under the server window."""
+    budget_tokens = (
+        resolve_vllm_max_model_len() - int(max_tokens) - _CHAT_TEMPLATE_OVERHEAD_TOKENS
+    )
+    budget_chars = max(1024, budget_tokens * _CHARS_PER_TOKEN)
+    if len(prompt) <= budget_chars:
+        return prompt
+    marker = "\n\n[... truncated to fit context ...]\n\n"
+    head = min(12_000, budget_chars // 4)
+    tail = max(0, budget_chars - head - len(marker))
+    logger.warning(
+        "VllmClient truncating prompt from %s to %s chars (max_model_len=%s)",
+        len(prompt),
+        head + len(marker) + tail,
+        resolve_vllm_max_model_len(),
+    )
+    return prompt[:head] + marker + prompt[-tail:]
+
+
 class VllmClient(LLMClient):
     def __init__(
         self,
@@ -153,6 +186,7 @@ class VllmClient(LLMClient):
         return session
 
     def generate(self, prompt: str) -> str:
+        prompt = _fit_prompt_to_context(prompt, self.max_tokens)
         try:
             payload: Dict[str, Any] = {
                 "model": self.model,
@@ -160,8 +194,8 @@ class VllmClient(LLMClient):
                 "temperature": self.temperature,
                 "max_tokens": self.max_tokens,
                 "repetition_penalty": self.repeat_penalty,
-                "min_p": self.min_p,
             }
+            # vLLM MTP / speculative decoding rejects min_p and logit_bias.
             if self.think is not None:
                 payload["chat_template_kwargs"] = {"enable_thinking": bool(self.think)}
             response = self._session.post(
@@ -175,7 +209,17 @@ class VllmClient(LLMClient):
             content = message.get("content") or ""
             return str(content).strip()
         except Exception as e:
-            logger.error("VllmClient.generate error: %s", e)
+            detail = ""
+            resp = getattr(e, "response", None)
+            if resp is not None:
+                try:
+                    detail = (resp.text or "")[:500]
+                except Exception:
+                    detail = ""
+            if detail:
+                logger.error("VllmClient.generate error: %s | %s", e, detail)
+            else:
+                logger.error("VllmClient.generate error: %s", e)
             return ""
 
     def check_connection(self) -> bool:
