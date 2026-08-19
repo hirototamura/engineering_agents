@@ -44,6 +44,16 @@ def test_poll_telemetry_maps_cabin_co2_and_is_independent():
     assert t2.co2_storage_kg > t1.co2_storage_kg
 
 
+def test_poll_telemetry_exports_crew_alive():
+    b = _backend(crew_size=3, survival_enabled=True)
+    topic = b.poll_telemetry().raw_topics["plant_sim"]
+    assert topic["crew_initial"] == 3
+    assert topic["crew_alive"] == 3
+    b.apply_capacity_drop()
+    again = b.poll_telemetry()
+    assert "crew_alive" in again.raw_topics["plant_sim"]
+
+
 def test_poll_telemetry_exports_last_metabolism_once():
     b = _backend()
     before = b.poll_telemetry()

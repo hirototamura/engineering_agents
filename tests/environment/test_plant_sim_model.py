@@ -49,6 +49,66 @@ def test_invalid_config_rejected(overrides):
         PlantSimConfig(**overrides)
 
 
+def test_from_scenario_config_requires_crew_size():
+    with pytest.raises(PlantConfigError, match="plant_sim.crew.size"):
+        PlantSimConfig.from_scenario_config({"simulation": {"initial_o2_storage_kg": 1.0}})
+
+
+def test_capacity_drop_o2_floor_and_no_revival():
+    m = _model(
+        crew_size=4,
+        survival_enabled=True,
+        initial_o2_kg=0.03,
+        initial_product_water_l=100.0,
+        initial_cabin_co2_kg=0.1,
+        cabin_co2_critical_kg=2.2,
+    )
+    per = m.per_person_o2_demand_kg()
+    expected = int(0.03 // per)
+    result = m.apply_capacity_drop()
+    assert m.state.crew_alive == expected
+    assert result["lost_this_step"] == 4 - expected
+    assert "o2" in result["limiting"]
+    m.state.available_o2_kg = 10.0
+    m.apply_capacity_drop()
+    assert m.state.crew_alive == expected
+
+
+def test_capacity_drop_co2_critical_clears_all():
+    m = _model(
+        crew_size=4,
+        survival_enabled=True,
+        initial_o2_kg=10.0,
+        initial_product_water_l=100.0,
+        initial_cabin_co2_kg=2.2,
+        cabin_co2_critical_kg=2.2,
+    )
+    result = m.apply_capacity_drop()
+    assert m.state.crew_alive == 0
+    assert result["lost_this_step"] == 4
+    assert "co2" in result["limiting"]
+
+
+def test_metabolism_scales_with_crew_alive_when_survival_enabled():
+    full = _model(crew_size=4, survival_enabled=True, initial_o2_kg=10.0)
+    half = _model(crew_size=4, survival_enabled=True, initial_o2_kg=10.0)
+    half.state.crew_alive = 2
+    full.advance_step()
+    half.advance_step()
+    assert half.state.total_co2_generated_kg == pytest.approx(
+        0.5 * full.state.total_co2_generated_kg, **APPROX
+    )
+
+
+def test_zero_crew_has_zero_metabolism():
+    m = _model(crew_size=4, survival_enabled=True)
+    m.state.crew_alive = 0
+    before = m.state.copy()
+    metab = m.advance_step()
+    assert metab["co2_generated_kg"] == pytest.approx(0.0, abs=1e-12)
+    assert m.state.cabin_co2_kg == pytest.approx(before.cabin_co2_kg, **APPROX)
+
+
 def test_from_scenario_config_merges_and_defaults():
     cfg = PlantSimConfig.from_scenario_config(
         {

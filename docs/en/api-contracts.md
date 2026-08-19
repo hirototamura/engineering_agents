@@ -389,7 +389,9 @@ Implementation: `environment/ssos/eclss/backend.py`, `eclss/ros2/bridge.py`, `ec
 | `o2_storage_kg` | `/o2_storage` |
 | `product_water_reserve_l` | `/wrs/product_water_reserve` |
 
-With `plant_sim`, extra ledger fields appear under `raw_topics.plant_sim` (`captured_co2_kg`, vent totals, shortfalls, urine buffer). `co2_storage_kg` maps to **cabin** CO₂, not the captured tank.
+With `plant_sim`, extra ledger fields appear under `raw_topics.plant_sim` (`captured_co2_kg`, vent totals, shortfalls, urine buffer, `crew_alive` / `crew_lost_total` / `survival`). `co2_storage_kg` maps to **cabin** CO₂, not the captured tank.
+
+Occupant survival (when `plant_sim.survival.enabled` is true) records `/eclss/events/crew_lost` and summary fields `crew_initial`, `crew_remaining`, `crew_lost`, `crew_lost_by_cause`. Operators shrink with `crew_alive`.
 
 When operational commands run in a step, a second row may be appended with `"post_ops": true` (L5). Readers (dashboard) prefer `post_ops` / the last row for that step so UI matches `summary.json`.
 

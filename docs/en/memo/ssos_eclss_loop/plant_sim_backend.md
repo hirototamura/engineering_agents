@@ -88,8 +88,10 @@ plant_sim:
     step_seconds: 1200             # observation interval (20 min)
     ars_operation_seconds: 4800    # per ARS action quantum
   crew:
-    size: 4
+    size: 4                 # canonical occupant count; must match team.count
     co2_kg_day_person: 1.04        # BVAD-derived
+  survival:
+    enabled: true
   ars:
     capacity_kg_day: 4.50
     capture_efficiency: 0.83
@@ -196,6 +198,24 @@ The plant is **not** a closed system (vents, brine, unrecoverable crew water). T
 - Numerical match with SSOS or ISS exposure limits.
 - Device startup transients, breakthrough, thermal, or electrical behavior.
 - Potable-water quality or ROS communication faults.
+
+---
+
+## Occupant survival
+
+`plant_sim.crew.size` in `scenario.yaml` is the canonical occupant count. When agents run, `team.count` must match. After each step's operations, inventories decide how many people the next metabolism interval can support (`floor` of O2 and water, and cabin CO2 vs `thresholds.co2_storage_critical_kg`). Remaining occupants and operators shrink together. Occupants never return.
+
+Disable with `plant_sim.survival.enabled: false` (unit tests and the ops cheatsheet do this).
+
+## Ops cheatsheet (offline)
+
+Not the dashboard. Sweep N with survival off and one ARS/OGS/WRS action per step:
+
+```bash
+python3 -m tools.plant_sim_ops_cheatsheet --n-max 8 --steps 36
+```
+
+Writes [figures/ops_cheatsheet.png](figures/ops_cheatsheet.png) and a CSV of per-step metabolism, operation I/O, and inventory net change.
 
 ---
 

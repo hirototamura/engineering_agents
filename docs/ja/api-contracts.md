@@ -386,7 +386,9 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 | `o2_storage_kg` | `/o2_storage` |
 | `product_water_reserve_l` | `/wrs/product_water_reserve` |
 
-`plant_sim` では `raw_topics.plant_sim` に ledger フィールド（`captured_co2_kg`、vent 累積、shortfall、尿バッファ等）が入る。`co2_storage_kg` は **cabin** CO₂ であり、captured タンクではない。
+`plant_sim` では `raw_topics.plant_sim` に ledger フィールド（`captured_co2_kg`、vent 累積、shortfall、尿バッファ、`crew_alive` / `crew_lost_total` / `survival` 等）が入る。`co2_storage_kg` は **cabin** CO₂ であり、captured タンクではない。
+
+`plant_sim.survival.enabled` が true のとき、支えきれない乗員は操作後に削減され、`/eclss/events/crew_lost` と `summary.json` の `crew_remaining` / `crew_lost` に記録される。運用エージェントも同じ人数に同期する。
 
 運用コマンドがあった step では、`"post_ops": true` 付きの 2 行目が追記されうる（L5）。ダッシュボード等の読取側は `post_ops`／同 step の最終行を優先し、`summary.json` と揃える。
 

@@ -555,6 +555,11 @@ def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Pa
     ]
     assert len(metabolism_rows) == 2  # steps 1 and 2 (advance before poll)
 
+    assert "crew_remaining" in summary
+    assert summary["crew_initial"] == 4
+    topic = telemetry[-1]["raw_topics"]["plant_sim"]
+    assert topic["crew_alive"] == summary["crew_remaining"]
+
     proposals_path = run_dir / "design_proposals.json"
     if proposals_path.exists():
         proposals = json.loads(proposals_path.read_text(encoding="utf-8"))
@@ -562,4 +567,43 @@ def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Pa
             assert change.get("why")
             assert change.get("what")
             assert change.get("how")
+
+
+def test_plant_sim_rejects_mismatched_team_count(tmp_path: Path):
+    with pytest.raises(ValueError, match="must match team.count"):
+        run_scenario(
+            "ssos_eclss_loop",
+            output_dir=tmp_path / "mismatch",
+            overrides={
+                "backend": {"kind": "plant_sim"},
+                "agents": {"mode": "labeled_rule_base"},
+                "plant_sim": {"crew": {"size": 5}},
+                "simulation": {"steps": 2},
+            },
+            recreate_output=True,
+        )
+
+
+def test_plant_sim_survival_drops_crew_when_o2_starved(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "starve",
+        overrides={
+            "backend": {"kind": "plant_sim"},
+            "agents": {"mode": "none"},
+            "simulation": {
+                "steps": 6,
+                "initial_o2_storage_kg": 0.02,
+                "initial_product_water_l": 80.0,
+                "initial_co2_storage_kg": 0.5,
+            },
+            "plant_sim": {"survival": {"enabled": True}},
+        },
+        recreate_output=True,
+    )
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["crew_remaining"] < summary["crew_initial"]
+    assert summary["crew_lost"] == summary["crew_initial"] - summary["crew_remaining"]
+    events = _read_jsonl(run_dir / "events.jsonl")
+    assert any(row.get("kind") == "/eclss/events/crew_lost" for row in events)
 

@@ -164,6 +164,74 @@ def build_eclss_backend(config: Dict[str, Any], kind: Optional[str] = None) -> E
     )
 
 
+def bind_plant_sim_crew_and_team(
+    config: Dict[str, Any],
+    agents_config: Optional[Dict[str, Any]],
+    backend_kind: str,
+) -> None:
+    """Require YAML occupant count for plant_sim; keep operators in lock-step."""
+    if backend_kind != "plant_sim":
+        return
+    crew = ((config.get("plant_sim") or {}).get("crew") or {})
+    if "size" not in crew:
+        raise ValueError(
+            "plant_sim.crew.size is required in scenario YAML when backend.kind is plant_sim"
+        )
+    crew_size = int(crew["size"])
+    if agents_config is None:
+        return
+    team = agents_config.setdefault("team", {})
+    if "count" not in team:
+        team["count"] = crew_size
+        return
+    team_count = int(team["count"])
+    if team_count != crew_size:
+        raise ValueError(
+            f"plant_sim.crew.size ({crew_size}) must match team.count ({team_count}); "
+            "occupants and operators are the same people"
+        )
+
+
+def _plant_sim_topic(snap: Optional[EclssTelemetrySnapshot]) -> Optional[Dict[str, Any]]:
+    if snap is None or not snap.raw_topics:
+        return None
+    topic = snap.raw_topics.get("plant_sim")
+    return topic if isinstance(topic, dict) else None
+
+
+def _apply_survival_after_ops(
+    *,
+    backend: EclssBackend,
+    team: Optional[SsosEclssLoopTeam],
+    step: int,
+    log: EventLog,
+) -> Optional[EclssTelemetrySnapshot]:
+    apply = getattr(backend, "apply_capacity_drop", None)
+    if not callable(apply):
+        return None
+    result = apply()
+    lost = int(result.get("lost_this_step") or 0)
+    snap = backend.poll_telemetry()
+    topic = _plant_sim_topic(snap) or {}
+    lost_ids: list[str] = []
+    if team is not None:
+        lost_ids = team.set_crew_alive(int(topic.get("crew_alive", 0)))
+    log.append("telemetry", {"step": step, "post_ops": True, **snap.to_dict()})
+    if lost > 0:
+        log.append(
+            "events",
+            {
+                "step": step,
+                "kind": "/eclss/events/crew_lost",
+                "lost": lost,
+                "remaining": topic.get("crew_alive"),
+                "limiting": list(result.get("limiting") or []),
+                "agent_ids": lost_ids,
+            },
+        )
+    return snap
+
+
 class SsosEclssLoopScenario(Scenario):
     @property
     def name(self) -> str:
@@ -216,10 +284,11 @@ class SsosEclssLoopScenario(Scenario):
         agents_config = load_agents_config(self.name, config)
         if agents_config:
             agents_config = merge_labeled_policy_from_thresholds(agents_config, thresholds)
+        backend_kind = resolve_backend_kind(config, overrides)
+        bind_plant_sim_crew_and_team(config, agents_config, backend_kind)
         sim_cfg = config.get("simulation", {})
         steps = int(sim_cfg.get("steps", 8))
         output_cfg = config.get("output", {})
-        backend_kind = resolve_backend_kind(config, overrides)
         # Persist the resolved kind (CLI / SSOS_ECLSS_BACKEND may differ from YAML).
         backend_section = config.get("backend")
         if not isinstance(backend_section, dict):
@@ -360,6 +429,12 @@ class SsosEclssLoopScenario(Scenario):
                         log.append("telemetry", {"step": step, "post_ops": True, **snap.to_dict()})
                         log.append("health_metrics", {**health, "post_ops": True})
 
+                survival_snap = _apply_survival_after_ops(
+                    backend=backend, team=team, step=step, log=log
+                )
+                if survival_snap is not None:
+                    last_snap = survival_snap
+
         finally:
             clear_scheduled_subsystem_failures(backend, failure_schedule)
 
@@ -377,6 +452,19 @@ class SsosEclssLoopScenario(Scenario):
             "health_inputs": health_inputs_note(),
             **config_paths,
         }
+        plant_topic = _plant_sim_topic(last_snap)
+        if plant_topic is not None and "crew_alive" in plant_topic:
+            summary["crew_initial"] = plant_topic.get("crew_initial")
+            summary["crew_remaining"] = plant_topic.get("crew_alive")
+            summary["crew_lost"] = plant_topic.get("crew_lost_total")
+            model = getattr(backend, "model", None)
+            state = getattr(model, "state", None)
+            if state is not None:
+                summary["crew_lost_by_cause"] = {
+                    "o2": int(getattr(state, "crew_lost_o2", 0)),
+                    "water": int(getattr(state, "crew_lost_water", 0)),
+                    "co2": int(getattr(state, "crew_lost_co2", 0)),
+                }
         summary.update(
             _omit_nulls(
                 {
@@ -393,6 +481,7 @@ class SsosEclssLoopScenario(Scenario):
         if isinstance(team, SsosEclssLoopTeam) and team.mode in {"labeled_rule_base", "llm"}:
             summary["team_count"] = team.team_cfg.count
             summary["agent_ids"] = list(team.team_cfg.agent_ids)
+            summary["agent_ids_remaining"] = list(team.active_ids)
             if team.mode == "llm":
                 summary["max_actions_per_step"] = team.max_actions_per_step
             proposals = team.propose_post_run_design(summary)

@@ -221,6 +221,8 @@ simulation stepと装置actionの処理時間を分けた理由は、エージ�
 
 一方、熱負荷や個人差は現在のagent observation・actionに接続されていないため、初期モデルでは対象外とした。
 
+`scenario.yaml` の `plant_sim.crew.size` が乗員数の正本である。`plant_sim.survival.enabled: true` のとき、各ステップの操作後に O2・水・cabin CO2 が支えられる人数まで乗員を減らし、運用エージェントも同じ人数に同期する。オフライン参照図は `python3 -m tools.plant_sim_ops_cheatsheet`。
+
 ---
 
 ## 4.2 ARS

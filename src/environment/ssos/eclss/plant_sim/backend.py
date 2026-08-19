@@ -47,6 +47,7 @@ class PlantSimEclssBackend:
         self.last_ogs_goal: Optional[OgsGoal] = None
         self.last_wrs_goal: Optional[WrsGoal] = None
         self._last_metabolism: Optional[Dict[str, float]] = None
+        self._last_survival: Dict[str, Any] = {"lost_this_step": 0, "limiting": []}
 
     @classmethod
     def from_scenario_config(cls, config: Mapping[str, Any]) -> "PlantSimEclssBackend":
@@ -58,9 +59,12 @@ class PlantSimEclssBackend:
     def advance_step(self) -> None:
         self._last_metabolism = self.model.advance_step()
 
-    # ------------------------------------------------------------------ #
-    # telemetry
-    # ------------------------------------------------------------------ #
+    def apply_capacity_drop(self) -> Dict[str, Any]:
+        """Apply occupant survival after operations; returns lost/limiting info."""
+        result = self.model.apply_capacity_drop()
+        self._last_survival = dict(result)
+        return dict(result)
+
     def poll_telemetry(self) -> EclssTelemetrySnapshot:
         s = self.model.state
         plant_sim_topic: Dict[str, Any] = {
@@ -73,6 +77,14 @@ class PlantSimEclssBackend:
             "total_wrs_brine_loss_l": s.total_wrs_brine_loss_l,
             "total_o2_shortfall_kg": s.total_o2_shortfall_kg,
             "total_water_shortfall_l": s.total_water_shortfall_l,
+            "crew_initial": self.config.crew_size,
+            "crew_alive": s.crew_alive,
+            "crew_lost_total": s.crew_lost_total,
+            "survival": {
+                "enabled": bool(self.config.survival_enabled),
+                "lost_this_step": int(self._last_survival.get("lost_this_step") or 0),
+                "limiting": list(self._last_survival.get("limiting") or []),
+            },
         }
         if self._last_metabolism is not None:
             plant_sim_topic["last_metabolism"] = dict(self._last_metabolism)

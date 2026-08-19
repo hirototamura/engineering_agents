@@ -28,6 +28,21 @@ def _team_config():
     }
 
 
+def test_set_crew_alive_drops_tail_and_noop_when_empty():
+    team = SsosEclssLoopTeam(_team_config())
+    lost = team.set_crew_alive(1)
+    assert lost == ["op_2"]
+    assert team.active_ids == ["op_1"]
+    lost_again = team.set_crew_alive(0)
+    assert lost_again == ["op_1"]
+    backend = LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}})
+    snap = backend.poll_telemetry()
+    obs = EclssLoopObservation(step=3, telemetry=snap, health={"overall": "critical"})
+    outcome = team.run_step(backend, obs)
+    assert outcome.commands == []
+    assert outcome.messages == []
+
+
 def test_team_applies_ars_to_backend():
     team = SsosEclssLoopTeam(_team_config())
     backend = LoopMockEclssBackend(

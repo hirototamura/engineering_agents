@@ -30,6 +30,38 @@ thresholds:
   o2_storage_low_kg: 0.45
   product_water_low_l: 50.0
 
+# Canonical plant_sim parameters (source of truth for occupant count and rates).
+# Python PlantSimConfig() defaults remain for unit tests / library construction.
+plant_sim:
+  time:
+    step_seconds: 1200
+    ars_operation_seconds: 4800
+    ogs_operation_seconds: 1200
+    wrs_operation_seconds: 1200
+  crew:
+    size: 4                 # canonical N; must match agents.yaml team.count when agents run
+    activity_factor: 1.0
+    co2_kg_day_person: 1.04
+    o2_kg_day_person: 0.84
+    potable_water_kg_day_person: 2.28
+    urine_kg_day_person: 1.50
+    condensate_kg_day_person: 0.75
+    unrecoverable_water_kg_day_person: 0.03
+  ars:
+    capacity_kg_day: 4.50
+    capture_efficiency: 0.83
+    reference_goal_co2_kg: 1.80
+  ogs:
+    max_o2_kg_day: 9.25
+  sabatier:
+    conversion_efficiency: 1.00
+  wrs:
+    urine_recovery: 0.98
+    grey_recovery: 0.90
+    max_feed_l_per_operation: 10.0
+  survival:
+    enabled: true           # capacity-drop occupant attrition (plant_sim only)
+
 # Optional timed fault injection (scenario layer → EclssBackend.set_subsystem_failure).
 # Distinct from scrubber anomalies:. Off by default; enable via CLI --inject-failures
 # or --set inject_failures=true.
