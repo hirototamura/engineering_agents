@@ -1,86 +1,86 @@
-name: ssos_eclss_loop
+name: ssos_eclss_loop  # CLI scenario id (`run ssos_eclss_loop`)
 description: >
   SSOS ECLSS closed loop. Agents operate ARS/OGS via EclssBackend (Crew Simulation
   replacement). Mock backend for local dev; Ros2EclssBridge for SSOS Docker.
   Mass storage values are kilograms (ROS bridge converts SSOS grams ↔ kg).
 
 simulation:
-  steps: 40
-  initial_co2_storage_kg: 1.3
-  initial_o2_storage_kg: 0.48
-  initial_product_water_l: 51.0
+  steps: 40  # default observation steps (CLI --steps overrides)
+  initial_co2_storage_kg: 1.3  # starting CO2 tank/cabin (kg); plant_sim uses cabin
+  initial_o2_storage_kg: 0.48  # starting O2 tank (kg)
+  initial_product_water_l: 51.0  # starting potable water (L)
 
 backend:
-  kind: mock  # mock | plant_sim | ros2 — CLI default is ros2 (requires Docker); override via SSOS_ECLSS_BACKEND
+  kind: mock  # mock | plant_sim | ros2 — CLI default is ros2 (needs Docker); or SSOS_ECLSS_BACKEND
   ros2:
-    action_timeout_s: 120.0
-    topic_timeout_s: 15.0
-    startup_wait_s: 45.0
+    action_timeout_s: 120.0  # wait for a ROS2 action result
+    topic_timeout_s: 15.0  # wait for a telemetry topic sample
+    startup_wait_s: 45.0  # wait after launch for SSOS nodes
 
-mock_dynamics:
-  co2_growth_kg_per_step: 0.06
-  ars_co2_reduction_kg: 0.35
+mock_dynamics:  # LoopMock only; plant_sim / ros2 ignore this block
+  co2_growth_kg_per_step: 0.06  # CO2 added each step when ARS does not run
+  ars_co2_reduction_kg: 0.35  # CO2 removed by one ARS action at the reference goal
   # Scales ARS reduction with ArsGoal.initial_co2_mass / this reference (D1).
-  ars_reference_co2_mass_kg: 1.8
-  sabatier_co2_kg_per_water_kg: 2.0
+  ars_reference_co2_mass_kg: 1.8  # ARS scale = goal.initial_co2_mass / this mass
+  sabatier_co2_kg_per_water_kg: 2.0  # LoopMock Sabatier CO2 debit per kg OGS water
 
-thresholds:
-  co2_storage_high_kg: 1.5
-  co2_storage_critical_kg: 2.2
-  o2_storage_low_kg: 0.45
-  product_water_low_l: 50.0
+thresholds:  # storage bands for health + labeled_rule_base triggers
+  co2_storage_high_kg: 1.5  # HIGH: start ARS
+  co2_storage_critical_kg: 2.2  # CRITICAL; plant_sim survival zeros crew if cabin ≥ this
+  o2_storage_low_kg: 0.45  # LOW: start OGS
+  product_water_low_l: 50.0  # LOW: start WRS
 
 # Canonical plant_sim parameters (source of truth for occupant count and rates).
 # Python PlantSimConfig() defaults remain for unit tests / library construction.
 plant_sim:
   time:
-    step_seconds: 1200
-    ars_operation_seconds: 4800
-    ogs_operation_seconds: 1200
-    wrs_operation_seconds: 1200
+    step_seconds: 1200  # metabolism / observation interval (20 min)
+    ars_operation_seconds: 4800  # ARS action quantum (nameplate = capacity × this / 86400)
+    ogs_operation_seconds: 1200  # OGS action quantum
+    wrs_operation_seconds: 1200  # reserved; WRS feed cap is max_feed_l_per_operation
   crew:
-    size: 4                 # canonical N; must match agents.yaml team.count when agents run
-    activity_factor: 1.0
-    co2_kg_day_person: 1.04
-    o2_kg_day_person: 0.84
-    potable_water_kg_day_person: 2.28
-    urine_kg_day_person: 1.50
-    condensate_kg_day_person: 0.75
-    unrecoverable_water_kg_day_person: 0.03
+    size: 4  # occupant N; must match agents.yaml team.count when agents run
+    activity_factor: 1.0  # scales all crew rates (1=nominal, 4=exercise, 0.7=sleep)
+    co2_kg_day_person: 1.04  # BVAD CO2 generated per person per day
+    o2_kg_day_person: 0.84  # BVAD O2 demanded per person per day
+    potable_water_kg_day_person: 2.28  # BVAD potable water demanded per person per day
+    urine_kg_day_person: 1.50  # urine into the WRS buffer
+    condensate_kg_day_person: 0.75  # condensate / grey into the WRS buffer
+    unrecoverable_water_kg_day_person: 0.03  # water that leaves the recovery loop
   ars:
-    capacity_kg_day: 4.50
-    capture_efficiency: 0.83
-    reference_goal_co2_kg: 1.80
+    capacity_kg_day: 4.50  # CO2 removal throughput
+    capture_efficiency: 0.83  # fraction of removed CO2 captured (rest is vented)
+    reference_goal_co2_kg: 1.80  # ARS scale = agents ars_goal.initial_co2_mass / this
   ogs:
-    max_o2_kg_day: 9.25
+    max_o2_kg_day: 9.25  # O2 generation cap
   sabatier:
-    conversion_efficiency: 1.00
+    conversion_efficiency: 1.00  # H2 + captured CO2 → CH4 + H2O
   wrs:
-    urine_recovery: 0.98
-    grey_recovery: 0.90
-    max_feed_l_per_operation: 10.0
+    urine_recovery: 0.98  # potable recovered from urine feed
+    grey_recovery: 0.90  # potable recovered from grey / condensate feed
+    max_feed_l_per_operation: 10.0  # urine + grey batch cap per WRS action
   survival:
-    enabled: true           # capacity-drop occupant attrition (plant_sim only)
+    enabled: true  # drop occupants/operators the tanks cannot support (plant_sim only)
 
 # Optional timed fault injection (scenario layer → EclssBackend.set_subsystem_failure).
-# Distinct from scrubber anomalies:. Off by default; enable via CLI --inject-failures
+# Distinct from scrubber anomalies. Off by default; enable via CLI --inject-failures
 # or --set inject_failures=true.
-inject_failures: false
+inject_failures: false  # if true, apply the schedule below
 subsystem_failures:
-  - subsystem: ars           # ars | ogs | wrs
-    start_step: 10           # inclusive, 0-based
-    end_step: 20             # optional, exclusive
+  - subsystem: ars  # ars | ogs | wrs
+    start_step: 10  # inclusive, 0-based
+    end_step: 20  # exclusive
   - subsystem: ogs
-    start_step: 20
-    duration_steps: 10       # alternative to end_step
+    start_step: 20  # inclusive, 0-based
+    duration_steps: 10  # alternative to end_step
 
 agents:
-  mode: none  # none | labeled_rule_base | llm
+  mode: none  # none | labeled_rule_base | llm (CLI --agents-mode overrides)
   # After llm deliberation, this many agents may issue operational commands (default 1).
   # Rotates from eclss_operator_{step % N}. Clamped to team.count. labeled_rule_base ignores this.
-  max_actions_per_step: 1
+  max_actions_per_step: 1  # llm only: operators allowed to command per step
 
 output:
-  run_id: ssos_eclss_loop_baseline
-  run_id_labeled_rule_base: ssos_eclss_loop_labeled_rule_base
-  run_id_llm: ssos_eclss_loop_llm
+  run_id: ssos_eclss_loop_baseline  # results dir when agents.mode is none
+  run_id_labeled_rule_base: ssos_eclss_loop_labeled_rule_base  # results dir for labeled_rule_base
+  run_id_llm: ssos_eclss_loop_llm  # results dir for llm
