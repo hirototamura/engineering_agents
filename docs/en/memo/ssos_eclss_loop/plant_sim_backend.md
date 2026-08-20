@@ -215,7 +215,13 @@ Not the dashboard. Sweep N with survival off and one ARS/OGS/WRS action per step
 python3 -m tools.plant_sim_ops_cheatsheet --n-max 8 --steps 36
 ```
 
-Writes a 3×3 figure ([figures/ops_cheatsheet.png](figures/ops_cheatsheet.png)): rows are cabin CO2 / O2 / water, columns are crew metabolism / one subsystem action / tank inventory. Every panel uses the same sign (**+ = that tank increased**). Color is the campaign (`no ECLSS`, ARS only, OGS only, WRS only). CSV keeps unsigned flow totals for reproduction.
+Writes a 3×3 figure ([figures/ops_cheatsheet.png](figures/ops_cheatsheet.png)): rows are cabin CO2 / O2 / water. Columns:
+
+- **Crew metabolism** — unconstrained demand (∝ N). Not tank-limited consumption; otherwise O2 flattens once the 0.48 kg tank is empty.
+- **One subsystem action** — nameplate of one ARS/OGS/WRS call with inventory ignored, so the lines are flat vs N.
+- **Tank inventory** — simulated tank after both, where O2 starvation and crew-limited WRS feed live.
+
+Every panel uses the same sign (**+ = that tank increased**). Color is the campaign (`no ECLSS`, ARS only, OGS only, WRS only). CSV keeps unsigned flow totals plus demand/nameplate for reproduction.
 
 ![ops cheatsheet](figures/ops_cheatsheet.png)
 
