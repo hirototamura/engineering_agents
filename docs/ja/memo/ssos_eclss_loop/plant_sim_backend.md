@@ -221,7 +221,7 @@ simulation stepと装置actionの処理時間を分けた理由は、エージ�
 
 一方、熱負荷や個人差は現在のagent observation・actionに接続されていないため、初期モデルでは対象外とした。
 
-`scenario.yaml` の `plant_sim.crew.size` が乗員数の正本である。`plant_sim.survival.enabled: true` のとき、各ステップの操作後に O2・水・cabin CO2 が支えられる人数まで乗員を減らし、運用エージェントも同じ人数に同期する。オフライン参照図は `python3 -m tools.plant_sim_ops_cheatsheet`（3×3: 行が CO2/O2/水。左列はタンク制約なしの代謝需要 ∝ N、中列は装置1回の定格で N に依存しない、右列が在庫込みのシミュタンク。符号はすべて「タンクが増えたらプラス」）。値の出所は `figures/ops_cheatsheet_sources.md`（YAML パス → `PlantSimConfig` / `PlantModel` → 描画値）。
+`scenario.yaml` の `plant_sim.crew.size` が乗員数の正本である。`plant_sim.survival.enabled: true` のとき、各ステップの操作後に O2・水・cabin CO2 が支えられる人数まで乗員を減らし、運用エージェントも同じ人数に同期する。オフライン参照図は `python3 -m tools.plant_sim_ops_cheatsheet`（3×3: 行が CO2/O2/水。左列はタンク制約なしの代謝需要 ∝ N、中列は装置1回の定格で N に依存しない、右列が在庫込みのシミュタンク。符号はすべて「タンクが増えたらプラス」）。値の出所は `figures/ops_cheatsheet_sources.md`（YAML パス → `PlantSimConfig` / `PlantModel` → 描画値）。初期タンクと `plant_sim` の感度はダッシュボードとは別アプリ `python3 -m tools.plant_sim_sensitivity_app`（port 8502）。
 
 ![ops cheatsheet](../../en/memo/ssos_eclss_loop/figures/ops_cheatsheet.png)
 

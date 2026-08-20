@@ -644,24 +644,42 @@ def plot_source_table(report: Mapping[str, Any], png_path: Path) -> None:
     plt.close(fig)
 
 
-def plot_cheatsheet(rows: Sequence[CheatsheetRow], png_path: Path) -> None:
-    png_path.parent.mkdir(parents=True, exist_ok=True)
+def make_cheatsheet_figure(
+    rows: Sequence[CheatsheetRow],
+    *,
+    baseline_rows: Sequence[CheatsheetRow] | None = None,
+    yaml_n: int | None = None,
+    title: str = "plant_sim cheatsheet — survival off, 1 action per step",
+) -> plt.Figure:
+    """Build the 3×3 tank-sign grid. Caller owns show/save/close."""
     per_step = [row.per_step() for row in rows]
+    baseline = [row.per_step() for row in baseline_rows] if baseline_rows else []
     fig, axes = plt.subplots(3, 3, figsize=(13.5, 9.2), sharex=True, sharey="row")
 
     for col, (col_title, kind, col_subtitle) in enumerate(_COLUMNS):
         axes[0, col].set_title(f"{col_title}\n{col_subtitle}", fontsize=10, pad=8)
         for row_i, (ylabel, resource) in enumerate(_RESOURCES):
             ax = axes[row_i, col]
+            if baseline:
+                for mode in MODES:
+                    series = [item for item in baseline if item.mode == mode]
+                    if not series:
+                        continue
+                    ax.plot(
+                        [item.n for item in series],
+                        [tank_effect(item, resource, kind) for item in series],
+                        color=MODE_COLORS[mode],
+                        linewidth=1.2,
+                        linestyle="--",
+                        alpha=0.55,
+                    )
             for mode in MODES:
                 series = [item for item in per_step if item.mode == mode]
                 if not series:
                     continue
-                n_vals = [item.n for item in series]
-                y_vals = [tank_effect(item, resource, kind) for item in series]
                 ax.plot(
-                    n_vals,
-                    y_vals,
+                    [item.n for item in series],
+                    [tank_effect(item, resource, kind) for item in series],
                     color=MODE_COLORS[mode],
                     linewidth=1.9,
                     marker="o",
@@ -669,6 +687,8 @@ def plot_cheatsheet(rows: Sequence[CheatsheetRow], png_path: Path) -> None:
                     label=MODE_LABELS[mode],
                 )
             ax.axhline(0.0, color="#888888", linewidth=0.8)
+            if yaml_n is not None:
+                ax.axvline(float(yaml_n), color="#bbbbbb", linewidth=0.9, linestyle=":")
             ax.grid(True, alpha=0.3)
             if col == 0:
                 ax.set_ylabel(ylabel)
@@ -679,22 +699,28 @@ def plot_cheatsheet(rows: Sequence[CheatsheetRow], png_path: Path) -> None:
         Line2D([0], [0], color=MODE_COLORS[mode], lw=2, marker="o", markersize=4, label=MODE_LABELS[mode])
         for mode in MODES
     ]
-    fig.legend(handles=handles, loc="upper center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 0.98))
-    fig.suptitle(
-        "plant_sim cheatsheet — survival off, 1 action per step",
-        y=1.02,
-        fontsize=13,
-    )
+    if baseline:
+        handles.append(
+            Line2D([0], [0], color="#666666", lw=1.2, linestyle="--", label="YAML baseline")
+        )
+    fig.legend(handles=handles, loc="upper center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.98))
+    fig.suptitle(title, y=1.02, fontsize=13)
     fig.text(
         0.5,
         -0.01,
-        "Left = demand ∝ N from PlantModel.advance_step (YAML crew rates × dt/86400). "
+        "Left = demand ∝ N from PlantModel.advance_step. "
         "Middle = PlantModel.run_ars/ogs/wrs nameplate (inventory ignored). "
-        "Right = simulated tank from simulation.initial_* YAML. See ops_cheatsheet_sources.md.",
+        "Right = simulated tank from simulation.initial_*. Dashed = YAML baseline.",
         ha="center",
         fontsize=9,
     )
     fig.tight_layout(rect=(0.0, 0.02, 1.0, 0.94))
+    return fig
+
+
+def plot_cheatsheet(rows: Sequence[CheatsheetRow], png_path: Path) -> None:
+    png_path.parent.mkdir(parents=True, exist_ok=True)
+    fig = make_cheatsheet_figure(rows)
     fig.savefig(png_path, dpi=130, bbox_inches="tight")
     plt.close(fig)
 

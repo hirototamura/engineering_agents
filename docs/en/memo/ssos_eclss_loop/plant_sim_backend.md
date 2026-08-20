@@ -227,6 +227,16 @@ Every panel uses the same sign (**+ = that tank increased**). Color is the campa
 
 ![ops cheatsheet](figures/ops_cheatsheet.png)
 
+### Interactive sensitivity (not the run dashboard)
+
+To drag `simulation.initial_*` and `plant_sim` knobs and watch the same 3×3 update:
+
+```bash
+python3 -m tools.plant_sim_sensitivity_app
+```
+
+Opens a dedicated Streamlit app on port 8502 (`python3 -m streamlit run src/tools/plant_sim_sensitivity_app.py --server.port 8502`). It does **not** read `src/experiments/results/` and does not replace `src/tools/dashboard/app.py`. Survival stays off. Crew water sinks are rescaled so urine + condensate + unrecoverable = potable (`PlantSimConfig` mass balance). Dashed lines are the YAML baseline; the dotted vertical line is `plant_sim.crew.size`.
+
 ---
 
 ## Related
