@@ -215,7 +215,9 @@ Not the dashboard. Sweep N with survival off and one ARS/OGS/WRS action per step
 python3 -m tools.plant_sim_ops_cheatsheet --n-max 8 --steps 36
 ```
 
-Writes [figures/ops_cheatsheet.png](figures/ops_cheatsheet.png) and a CSV of per-step metabolism, operation I/O, and inventory net change.
+Writes a 3×3 figure ([figures/ops_cheatsheet.png](figures/ops_cheatsheet.png)): rows are cabin CO2 / O2 / water, columns are crew metabolism / one subsystem action / tank inventory. Every panel uses the same sign (**+ = that tank increased**). Color is the campaign (`no ECLSS`, ARS only, OGS only, WRS only). CSV keeps unsigned flow totals for reproduction.
+
+![ops cheatsheet](figures/ops_cheatsheet.png)
 
 ---
 

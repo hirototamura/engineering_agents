@@ -173,65 +173,101 @@ def write_csv(path: Path, rows: Sequence[CheatsheetRow]) -> None:
             writer.writerow(asdict(row.per_step()))
 
 
+MODE_COLORS = {"none": "#4c72b0", "ars": "#c44e52", "ogs": "#55a868", "wrs": "#8172b3"}
+MODE_LABELS = {
+    "none": "no ECLSS",
+    "ars": "ARS only",
+    "ogs": "OGS only",
+    "wrs": "WRS only",
+}
+
+# Rows share a tank-delta sign: + means that inventory went up.
+_RESOURCES = (
+    ("Cabin CO2 (kg / step)", "co2"),
+    ("Available O2 (kg / step)", "o2"),
+    ("Product water (L / step)", "water"),
+)
+_COLUMNS = (
+    ("Crew metabolism", "metabolism", "What N people do to the tank"),
+    ("One subsystem action", "ops", "What 1 ARS/OGS/WRS call does"),
+    ("Tank inventory", "net", "What is left after both"),
+)
+
+
+def tank_effect(row: CheatsheetRow, resource: str, kind: str) -> float:
+    """Signed per-step effect on the named tank (+ = inventory up)."""
+    if resource == "co2":
+        if kind == "metabolism":
+            return row.co2_metabolism_kg
+        if kind == "ops":
+            return -row.co2_ops_kg
+        return row.co2_net_kg
+    if resource == "o2":
+        if kind == "metabolism":
+            return -row.o2_metabolism_kg
+        if kind == "ops":
+            return row.o2_ops_kg
+        return row.o2_net_kg
+    if resource == "water":
+        if kind == "metabolism":
+            return -row.water_metabolism_l
+        if kind == "ops":
+            return -row.water_ops_l
+        return row.water_net_l
+    raise ValueError(f"unknown resource {resource!r} or kind {kind!r}")
+
+
 def plot_cheatsheet(rows: Sequence[CheatsheetRow], png_path: Path) -> None:
     png_path.parent.mkdir(parents=True, exist_ok=True)
     per_step = [row.per_step() for row in rows]
-    colors = {"none": "#4c72b0", "ars": "#c44e52", "ogs": "#55a868", "wrs": "#8172b3"}
-    styles = {"metabolism": "--", "ops": ":", "net": "-"}
-    fig, axes = plt.subplots(3, 1, figsize=(10, 9), sharex=True)
+    fig, axes = plt.subplots(3, 3, figsize=(13.5, 9.2), sharex=True, sharey="row")
 
-    panels = (
-        (
-            axes[0],
-            "Cabin CO2 (kg / step)",
-            "co2_metabolism_kg",
-            "co2_ops_kg",
-            "co2_net_kg",
-            True,
-        ),
-        (
-            axes[1],
-            "Available O2 (kg / step)",
-            "o2_metabolism_kg",
-            "o2_ops_kg",
-            "o2_net_kg",
-            False,
-        ),
-        (
-            axes[2],
-            "Product water (L / step)",
-            "water_metabolism_l",
-            "water_ops_l",
-            "water_net_l",
-            False,
-        ),
-    )
-    for ax, title, metab_key, ops_key, net_key, invert_ops in panels:
-        for mode in MODES:
-            series = [row for row in per_step if row.mode == mode]
-            n_vals = [row.n for row in series]
-            metab = [getattr(row, metab_key) for row in series]
-            ops = [(-getattr(row, ops_key) if invert_ops else getattr(row, ops_key)) for row in series]
-            net = [getattr(row, net_key) for row in series]
-            color = colors[mode]
-            ax.plot(n_vals, metab, styles["metabolism"], color=color, linewidth=1.6)
-            ax.plot(n_vals, ops, styles["ops"], color=color, linewidth=1.6)
-            ax.plot(n_vals, net, styles["net"], color=color, linewidth=1.8)
-        ax.set_ylabel(title)
-        ax.grid(True, alpha=0.3)
-        ax.axhline(0.0, color="#999999", linewidth=0.8)
+    for col, (col_title, kind, col_subtitle) in enumerate(_COLUMNS):
+        axes[0, col].set_title(f"{col_title}\n{col_subtitle}", fontsize=10, pad=8)
+        for row_i, (ylabel, resource) in enumerate(_RESOURCES):
+            ax = axes[row_i, col]
+            for mode in MODES:
+                series = [item for item in per_step if item.mode == mode]
+                if not series:
+                    continue
+                n_vals = [item.n for item in series]
+                y_vals = [tank_effect(item, resource, kind) for item in series]
+                ax.plot(
+                    n_vals,
+                    y_vals,
+                    color=MODE_COLORS[mode],
+                    linewidth=1.9,
+                    marker="o",
+                    markersize=3.5,
+                    label=MODE_LABELS[mode],
+                )
+            ax.axhline(0.0, color="#888888", linewidth=0.8)
+            ax.grid(True, alpha=0.3)
+            if col == 0:
+                ax.set_ylabel(ylabel)
+            if row_i == len(_RESOURCES) - 1:
+                ax.set_xlabel("Occupants N")
 
-    axes[-1].set_xlabel("Occupants / operators (N)")
-    color_handles = [Line2D([0], [0], color=colors[m], lw=2, label=m) for m in MODES]
-    style_handles = [
-        Line2D([0], [0], color="#333333", linestyle=styles["metabolism"], label="metabolism"),
-        Line2D([0], [0], color="#333333", linestyle=styles["ops"], label="operation I/O"),
-        Line2D([0], [0], color="#333333", linestyle=styles["net"], label="inventory net"),
+    handles = [
+        Line2D([0], [0], color=MODE_COLORS[mode], lw=2, marker="o", markersize=4, label=MODE_LABELS[mode])
+        for mode in MODES
     ]
-    axes[0].legend(handles=color_handles + style_handles, ncol=4, loc="upper left", fontsize=8)
-    fig.suptitle("plant_sim ops cheatsheet (survival off, 1 operation / step)")
-    fig.tight_layout()
-    fig.savefig(png_path, dpi=120)
+    fig.legend(handles=handles, loc="upper center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 0.98))
+    fig.suptitle(
+        "plant_sim cheatsheet — survival off, 1 action per step",
+        y=1.02,
+        fontsize=13,
+    )
+    fig.text(
+        0.5,
+        -0.01,
+        "Every panel uses the same sign: above zero = that tank increased. "
+        "Read a row left → right: people, then the machine, then the tank.",
+        ha="center",
+        fontsize=9,
+    )
+    fig.tight_layout(rect=(0.0, 0.02, 1.0, 0.94))
+    fig.savefig(png_path, dpi=130, bbox_inches="tight")
     plt.close(fig)
 
 

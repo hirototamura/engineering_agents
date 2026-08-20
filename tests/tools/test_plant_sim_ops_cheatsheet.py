@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from tools.plant_sim_ops_cheatsheet import CheatsheetRow, plot_cheatsheet, sweep
+from tools.plant_sim_ops_cheatsheet import CheatsheetRow, plot_cheatsheet, sweep, tank_effect
 
 
 def test_cheatsheet_none_metabolism_scales_with_n():
@@ -33,6 +33,24 @@ def test_cheatsheet_ogs_adds_o2_and_uses_water():
     assert ogs_row.o2_ops_kg > 0.0
     assert ogs_row.o2_net_kg > none_row.o2_net_kg
     assert ogs_row.water_ops_l > 0.0
+
+
+def test_tank_effect_uses_inventory_sign():
+    rows = sweep(n_max=1, steps=8)
+    none_row = next(row for row in rows if row.mode == "none").per_step()
+    ars_row = next(row for row in rows if row.mode == "ars").per_step()
+    ogs_row = next(row for row in rows if row.mode == "ogs").per_step()
+    wrs_row = next(row for row in rows if row.mode == "wrs").per_step()
+
+    assert tank_effect(none_row, "co2", "metabolism") > 0.0
+    assert tank_effect(none_row, "o2", "metabolism") < 0.0
+    assert tank_effect(none_row, "water", "metabolism") < 0.0
+    assert tank_effect(none_row, "co2", "ops") == pytest.approx(0.0, abs=1e-12)
+
+    assert tank_effect(ars_row, "co2", "ops") < 0.0
+    assert tank_effect(ogs_row, "o2", "ops") > 0.0
+    assert tank_effect(ogs_row, "water", "ops") < 0.0
+    assert tank_effect(wrs_row, "water", "ops") > 0.0
 
 
 def test_cheatsheet_plot_writes_png(tmp_path):
