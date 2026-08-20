@@ -2,11 +2,11 @@
 
 mode: labeled_rule_base  # none | labeled_rule_base | llm (CLI --agents-mode overrides)
 
-memory_limit: 1000  # max memories kept per operator
-discourse_window: 12  # recent utterances visible to each operator
+memory_limit: 1000  # [-] max memories kept per operator
+discourse_window: 12  # [-] recent utterances visible to each operator
 
 team:
-  count: 4  # operator N; must match scenario.yaml plant_sim.crew.size for plant_sim
+  count: 4  # [person] operator N; must match scenario.yaml plant_sim.crew.size for plant_sim
   id_prefix: eclss_operator  # ids are eclss_operator_0 .. N-1
   persona: |  # shared prompt for llm mode (labeled_rule_base ignores this)
     SSOS ECLSS operator engineer. Read storage telemetry (/co2_storage, /o2_storage);
@@ -20,18 +20,18 @@ team:
 # Mass fields are kilograms; water volumes are liters.
 policy:
   request_co2_before_ogs: false  # if true, explicit /ars/request_co2 before OGS (can double-debit on LoopMock)
-  request_co2_amount: 0.025  # kg CO2 requested when the flag above is true
-  wrs_feed_trigger_l: 0.5  # start WRS when urine+grey buffer ≥ this (L)
+  request_co2_amount: 0.025  # [kg] CO2 requested when the flag above is true
+  wrs_feed_trigger_l: 0.5  # [L] start WRS when urine+grey buffer ≥ this
   ars_goal:  # air_revitalisation payload
-    initial_co2_mass: 1.8  # kg; plant_sim ARS scale = this / plant_sim.ars.reference_goal_co2_kg
-    initial_moisture_content: 25.0  # percent (0–100); plant_sim ignores, ROS2 forwards
-    initial_contaminants: 5.0  # percent (0–100); plant_sim ignores, ROS2 forwards
+    initial_co2_mass: 1.8  # [kg] plant_sim ARS scale = this / plant_sim.ars.reference_goal_co2_kg
+    initial_moisture_content: 25.0  # [%] 0–100; plant_sim ignores, ROS2 forwards
+    initial_contaminants: 5.0  # [%] 0–100; plant_sim ignores, ROS2 forwards
   ogs_goal:  # oxygen_generation payload
     # 0.15 kg water covers >1 step of 4-crew O2 demand (one-shot OGS latch).
-    input_water_mass: 0.15  # kg water into electrolysis per OGS action
-    iodine_concentration: 2.0  # mg/L; plant_sim ignores, ROS2 forwards
+    input_water_mass: 0.15  # [kg] water into electrolysis per OGS action
+    iodine_concentration: 2.0  # [mg/L] plant_sim ignores, ROS2 forwards
   wrs_goal:  # water_recovery_systems payload
-    urine_volume: 2.0  # L urine requested per WRS action (capped by buffer and max_feed)
+    urine_volume: 2.0  # [L] urine requested per WRS action (capped by buffer and max_feed)
 
 llm:
   # ollama (local daemon) or vllm (lab GPU server: https://github.com/hirototamura/vllm_server)
@@ -41,10 +41,10 @@ llm:
   # max_concurrency: 100  # in-flight cap; omit for provider/model defaults
   base_url: http://localhost:11434  # OpenAI-compatible or Ollama endpoint
   model: qwen3.5:9b  # model id on that endpoint
-  temperature: 0.45  # sampling temperature
-  max_tokens: 512  # max completion tokens
-  repeat_penalty: 1.1  # penalize token repeats
-  repeat_last_n: 128  # window (tokens) for the repeat penalty
-  min_p: 0.05  # min-p sampler floor
+  temperature: 0.45  # [-] sampling temperature
+  max_tokens: 512  # [-] max completion tokens
+  repeat_penalty: 1.1  # [-] penalize token repeats
+  repeat_last_n: 128  # [-] window (tokens) for the repeat penalty
+  min_p: 0.05  # [-] min-p sampler floor
   think: false  # if true, request model chain-of-thought (provider-dependent)
-  api_timeout: 20  # HTTP timeout (s); Ollama only — vLLM ignores this
+  api_timeout: 20  # [s] HTTP timeout; Ollama only — vLLM ignores this
