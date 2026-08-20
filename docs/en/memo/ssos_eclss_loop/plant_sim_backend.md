@@ -221,6 +221,8 @@ Writes a 3×3 figure ([figures/ops_cheatsheet.png](figures/ops_cheatsheet.png)):
 - **One subsystem action** — nameplate of one ARS/OGS/WRS call with inventory ignored, so the lines are flat vs N.
 - **Tank inventory** — simulated tank after both, where O2 starvation and crew-limited WRS feed live.
 
+Every plotted number is derived from YAML + `PlantModel`. The ledger is [figures/ops_cheatsheet_sources.md](figures/ops_cheatsheet_sources.md) (JSON sidecar too): YAML path, loaded `PlantSimConfig` field, formula, and the unconstrained `PlantModel` probe. `mock_dynamics` is a different backend and is not used here.
+
 Every panel uses the same sign (**+ = that tank increased**). Color is the campaign (`no ECLSS`, ARS only, OGS only, WRS only). CSV keeps unsigned flow totals plus demand/nameplate for reproduction.
 
 ![ops cheatsheet](figures/ops_cheatsheet.png)
