@@ -129,10 +129,10 @@ Extends `Team` ABC. **Homogeneous N agents + representative action**, not rigid 
 
 | Concept | Description |
 | --- | --- |
-| `team.count` | Operator count (scrubber default 4, ssos default 3) |
+| `team.count` | Operator count (scrubber default 4, ssos default **10**) |
 | `team.archetypes` | Optional list of thinking lenses (scrubber default: all four). Round-robin onto `agent_id`s. Omit or `[]` for legacy homogeneous team |
 | deliberation | llm: one simultaneous (parallel) round for all. labeled: rule-driven fixed messages |
-| action rep | Representative issues commands each step via `(step-1) % N` |
+| action rep | scrubber: `(step-1) % N`. ssos labeled: `step % N` (one policy rep). ssos llm: rotating window of `max_actions_per_step` from `step % N` (default 2) |
 | post-run rep | Representative at final step outputs `design_proposals.json` |
 | Design separation | **No permanent graph changes at runtime**. Post-run proposals only |
 
@@ -189,7 +189,7 @@ Details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_ag
 | Dashboard | ✅ ppm / EPS / topology | ✅ storage / operational TL |
 | provenance | ✅ EPS recovery | ✅ operational commands |
 | Post-run proposals → provenance | 📋 pending | 📋 pending |
-| CLI integration | 📋 pending | 📋 pending |
+| CLI integration | ✅ `python3 -m tools.cli` / `ea` | ✅ same (`--backend`, `--inject-failures`, `--apply-proposals`) |
 | launch remap (Phase 8) | — | 📋 [BL-003](memo/backlog.md#bl-003) |
 
 ---

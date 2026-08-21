@@ -131,10 +131,10 @@ src/integrations/   （scenario から呼び出し）
 
 | 概念           | 説明                                       |
 | ------------ | ---------------------------------------- |
-| `team.count` | オペレータ数（scrubber デフォルト 4、ssos デフォルト 3）    |
+| `team.count` | オペレータ数（scrubber デフォルト 4、ssos デフォルト **10**）    |
 | `team.archetypes` | 任意。思考レンズ名のリスト（scrubber デフォルト 4 種）。`agent_id` へ round-robin 割当。省略または `[]` で従来の同種チーム |
 | deliberation | llm: 全員 1 ラウンドを同時（並列）実行。labeled: ルールが定型メッセージ      |
-| action rep   | step ごとに `(step-1) % N` で代表がコマンド発行       |
+| action rep   | scrubber: `(step-1) % N`。ssos labeled: `step % N`（policy 代表 1 体）。ssos llm: `step % N` から `max_actions_per_step` 体の回転窓（既定 2） |
 | post-run rep | 最終 step の代表が `design_proposals.json` を出力 |
 | 設計分離         | **ランタイム中は恒久グラフを変えない**。事後提案のみ             |
 
@@ -181,7 +181,7 @@ LLM プロンプトに `**policy` 閾値を含めない**（公平な比較実�
 | ダッシュボード               | ✅ ppm / EPS / トポロジ | ✅ ストレージ / 運用 TL                                                                |
 | provenance            | ✅ EPS 回復           | ✅ 運用コマンド                                                                       |
 | 事後提案 → provenance     | 📋 未               | 📋 未                                                                           |
-| CLI 統合                | 📋 未               | 📋 未                                                                           |
+| CLI 統合                | ✅ `python3 -m tools.cli` / `ea` | ✅ 同上（`--backend`、`--inject-failures`、`--apply-proposals`） |
 | launch remap（Phase 8） | —                  | 📋 [BL-003](memo/backlog.md#bl-003) |
 
 

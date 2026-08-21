@@ -267,6 +267,28 @@ Managed containers use `SSOS_CONTAINER_REPO=/ea` and `ROS_DOMAIN_ID=23` by defau
 
 ---
 
+## Lab vLLM — context overflow or 400 on `min_p`
+
+### Symptoms
+
+- `VllmClient truncating prompt from … to … chars`
+- HTTP 400 mentioning `min_p` / `logit_bias` / MTP / speculative decoding
+- Empty LLM replies with a logged response body
+
+### Cause
+
+The lab server window is 32768 tokens (`vllm-server/scripts/serve_small.sh --max-model-len`). A 10-operator ssos team with `discourse_window: 22` can exceed that. Speculative decoding rejects `min_p`.
+
+### Fix
+
+1. Leave `VllmClient` defaults: it clamps `max_tokens` and truncates prompts (head + tail). Set `VLLM_MAX_MODEL_LEN` only if the served window is not 32768.
+2. Do not expect YAML `min_p` to reach vLLM — it is Ollama-only on the wire.
+3. For shorter prompts: lower `team.count`, `discourse_window`, or `memory_limit` in `ssos_eclss_loop/agents.yaml`.
+
+See [Overview — Lab vLLM](../overview.md#lab-vllm-gpu-server).
+
+---
+
 ## Still Stuck?
 
 1. Check the `errors` array in the smoke report JSON (`--json-out`)

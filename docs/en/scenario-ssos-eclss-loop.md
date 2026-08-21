@@ -100,7 +100,9 @@ Steps are 0-based (`0 .. steps-1`). Representative operator `eclss_operator_{ste
 
 ### llm
 
-Each step: all N agents deliberate in parallel → up to `agents.max_actions_per_step` rotating representatives issue `operational_command` (JSON `commands`) in parallel → one post-run `changes` proposal. Default is 1 (same as before). `policy` thresholds are not included in prompts (same as scrubber). A single representative may still return several command kinds (ARS + OGS); the parameter is the number of action-issuing agents, not a cap on command objects.
+Each step: all N agents deliberate in parallel → up to `agents.max_actions_per_step` rotating representatives issue `operational_command` (JSON `commands`) in parallel → one post-run `changes` proposal. Default is **2**. `policy` thresholds are not included in prompts (same as scrubber). A single representative may still return several command kinds (ARS + OGS); the parameter is the number of action-issuing agents, not a cap on command objects.
+
+With the default team of 10, one llm step emits ~10 deliberation messages plus ~2 action/skip messages. `agents.yaml` `discourse_window: 22` keeps roughly the previous two steps of team chat (same-step deliberation is still simultaneous). `memory_limit: 30` is per-agent private recall (~10–15 steps), not a step counter.
 
 ---
 
@@ -115,10 +117,10 @@ Each step: all N agents deliberate in parallel → up to `agents.max_actions_per
 
 ```yaml
 simulation:
-  steps: 8
-  initial_co2_storage_kg: 1.5
+  steps: 50  # decision cycles (observe → deliberate → act)
+  initial_co2_storage_kg: 1.3
   initial_o2_storage_kg: 0.48
-  initial_product_water_l: 100.0
+  initial_product_water_l: 51.0
 
 backend:
   kind: mock  # mock | plant_sim | ros2 — also overridable via SSOS_ECLSS_BACKEND env var
@@ -126,13 +128,14 @@ backend:
 mock_dynamics:
   co2_growth_kg_per_step: 0.06
   ars_co2_reduction_kg: 0.35
-  ogs_o2_gain_kg: 0.1
+  ars_reference_co2_mass_kg: 1.8
+  sabatier_co2_kg_per_water_kg: 2.0
 
 thresholds:
   co2_storage_high_kg: 1.5
   co2_storage_critical_kg: 2.2
   o2_storage_low_kg: 0.45
-  product_water_low_l: 50.0
+  product_water_low_l: 50.0  # 51 L tank vs 50 L low band; two OGS reps draw 0.15 L each
 
 # Off by default. Enable with --inject-failures or inject_failures: true
 inject_failures: false
@@ -140,10 +143,16 @@ subsystem_failures:
   - subsystem: ars   # ars | ogs | wrs
     start_step: 10   # inclusive (0-based)
     end_step: 20     # optional, exclusive
+  - subsystem: ogs
+    start_step: 20
+    end_step: 30
+  - subsystem: wrs
+    start_step: 30
+    end_step: 40
 
 agents:
   mode: none  # none | labeled_rule_base | llm
-  max_actions_per_step: 1  # llm only; after deliberation, this many agents may issue commands
+  max_actions_per_step: 2  # llm only; after deliberation, this many agents may issue commands
 
 output:
   run_id: ssos_eclss_loop_baseline
@@ -151,7 +160,7 @@ output:
   run_id_llm: ssos_eclss_loop_llm
 ```
 
-CLI: `--set agents.max_actions_per_step=8` (clamped to `team.count`). `labeled_rule_base` ignores this field.
+CLI: `--set agents.max_actions_per_step=8` (clamped to `team.count`). `labeled_rule_base` ignores this field. LoopMock O₂ gain is stoichiometric (`o2_generated_kg`); there is no `ogs_o2_gain_kg` knob in this YAML.
 
 `ssos_graph.rewires` (optional) — when merged via `--apply-proposals` from a prior `graph_rewire` proposal, client remaps are passed to `Ros2EclssBridge` on the next run.
 
@@ -174,8 +183,11 @@ Inject ARS / OGS / WRS failures at chosen steps. **Off by default** (`inject_fai
 ### agents.yaml (main fields)
 
 ```yaml
+memory_limit: 30       # per-agent private strings (~10–15 llm steps)
+discourse_window: 22   # team AgentMessage window (~previous two llm steps)
+
 team:
-  count: 3
+  count: 10
   id_prefix: eclss_operator
 
 policy:   # labeled_rule_base only. Thresholds merged from scenario.yaml at runtime
@@ -184,11 +196,14 @@ policy:   # labeled_rule_base only. Thresholds merged from scenario.yaml at runt
   ars_goal:
     initial_co2_mass: 1.8
   ogs_goal:
-    input_water_mass: 0.015
+    input_water_mass: 0.15  # kg water per OGS action (SHAKEOUT: covers >1 step of 4-crew O2)
 
 llm:
+  provider: ollama
   base_url: http://localhost:11434   # Docker: host.docker.internal (set by ea-loop)
-  model: gemma4:e4b
+  model: qwen3.5:9b
+  max_tokens: 768
+  # Omit max_concurrency: Ollama keeps model caps (~8 for 9b). vLLM 8B defaults to 100 in-flight.
 ```
 
 ---
@@ -234,9 +249,9 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 
 | Concept | ssos_eclss_loop |
 | --- | --- |
-| IDs | `eclss_operator_1` … `eclss_operator_N` (default 3) |
+| IDs | `eclss_operator_1` … `eclss_operator_N` (default **10**) |
 | deliberation | llm: one round for all. labeled: operational decision messages |
-| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_operator_{step % N}` (default 1). labeled: one policy rep |
+| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_operator_{step % N}` (default **2**). labeled: one policy rep |
 | post-run rep | Representative at final step outputs `design_proposals.json` when `changes` is non-empty |
 
 `SsosEclssLoopTeam` extends the `Team` ABC. Signatures: `run_step(backend, obs)` / `apply_outcome(backend, outcome)`.

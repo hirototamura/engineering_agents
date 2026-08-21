@@ -162,7 +162,7 @@ Spec: [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md).
 | Scenario | ID prefix | Default count | Representative action |
 | --- | --- | --- | --- |
 | scrubber | `engineer` | 4 | `engineer_{(step-1) % N}` |
-| ssos | `eclss_operator` | 3 | `eclss_operator_{step % N}` (0-based steps) |
+| ssos | `eclss_operator` | **10** | labeled: `eclss_operator_{step % N}`; llm: rotating window of `max_actions_per_step` (default 2) |
 
 Each step: all agents discuss (llm) or rules emit diagnostics (labeled). **Post-run design** is output by the representative at the final step to `design_proposals.json`.
 
@@ -368,7 +368,14 @@ ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qw
   --set agents.llm.base_url=http://10.10.0.108:8001/v1
 ```
 
-Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. `agents.llm.api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set.
+Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `VLLM_MAX_MODEL_LEN`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. `agents.llm.api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set.
+
+`VllmClient` (`src/core/llm/vllm.py`) fits requests to the lab server window (`--max-model-len` 32768, overridable with `VLLM_MAX_MODEL_LEN`):
+
+- Clamps `max_tokens` so completion + 256 chat-template tokens still fit.
+- Truncates oversized prompts (instruction **head** + recent **tail**, `~3` chars/token) and logs a warning. JSON envelopes can lose middle telemetry if the team is large.
+- Does **not** send `min_p` or `logit_bias` (vLLM MTP / speculative decoding rejects them). YAML `min_p` still applies to Ollama.
+- On HTTP errors, the first 500 characters of the response body are logged.
 
 Default LLM settings are in each scenario's `agents.yaml` (scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml), ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)). `llm` mode fails if the selected backend is not reachable.
 

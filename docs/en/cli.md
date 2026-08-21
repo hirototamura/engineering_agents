@@ -186,7 +186,7 @@ ea run ssos_eclss_loop --backend mock --agents-mode llm --set agents.max_actions
 | `EA_MOUNT_RESULTS` | `/ea/results` | Mounted results path inside container |
 | `EA_HEADLESS_POLL_TIMEOUT_S` | `120` | Wait for ros2 graph after headless restart |
 
-`LLM_PROVIDER`, `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, and `VLLM_API_TIMEOUT` are forwarded into the container so ros2 llm jobs match host preflight.
+`LLM_PROVIDER`, `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, and `VLLM_API_TIMEOUT` are forwarded into the container so ros2 llm jobs match host preflight. `VLLM_MAX_MODEL_LEN` is read by `VllmClient` on the process that issues HTTP calls (default 32768 to match lab `--max-model-len`). It is **not** in the `scripts/ssos_host_run.sh` `-e` list yet — for ros2 llm jobs that need a non-default window, add it there or run mock/plant_sim on the host.
 
 ### Exit code 3 (environment)
 

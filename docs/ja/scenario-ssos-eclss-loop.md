@@ -99,7 +99,9 @@ step は 0-based（`0 .. steps-1`）。代表オペレータ `eclss_operator_{st
 
 ### llm
 
-各 step: 全 N 体 deliberation を並列 → `agents.max_actions_per_step` 体までの回転代表が `operational_command`（JSON `commands`）を並列発行 → 事後 1 回で `changes` 提案。既定は 1（従来どおり）。`policy` 閾値はプロンプトに含めない（scrubber と同様）。1 体の代表が ARS + OGS など複数 kind を返すのは従来どおり。このパラメータは **コマンドを出すエージェント数** であり、1 体の `commands` リストの上限ではない。
+各 step: 全 N 体 deliberation を並列 → `agents.max_actions_per_step` 体までの回転代表が `operational_command`（JSON `commands`）を並列発行 → 事後 1 回で `changes` 提案。既定は **2**。`policy` 閾値はプロンプトに含めない（scrubber と同様）。1 体の代表が ARS + OGS など複数 kind を返すのは従来どおり。このパラメータは **コマンドを出すエージェント数** であり、1 体の `commands` リストの上限ではない。
+
+既定の 10 体チームでは、1 llm step あたり deliberation 約 10 通 + action/skip 約 2 通。`agents.yaml` の `discourse_window: 22` はおおよそ直前 2 step のチーム会話を残す（同一 step の deliberation は同時実行）。`memory_limit: 30` はエージェントごとの私的想起（約 10–15 step 分）であり、step カウンタではない。
 
 ---
 
@@ -114,10 +116,10 @@ step は 0-based（`0 .. steps-1`）。代表オペレータ `eclss_operator_{st
 
 ```yaml
 simulation:
-  steps: 8
-  initial_co2_storage_kg: 1.5
+  steps: 50  # 意思決定サイクル（observe → deliberate → act）
+  initial_co2_storage_kg: 1.3
   initial_o2_storage_kg: 0.48
-  initial_product_water_l: 100.0
+  initial_product_water_l: 51.0
 
 backend:
   kind: mock  # mock | plant_sim | ros2 — SSOS_ECLSS_BACKEND 環境変数でも上書き可
@@ -125,13 +127,14 @@ backend:
 mock_dynamics:
   co2_growth_kg_per_step: 0.06
   ars_co2_reduction_kg: 0.35
-  ogs_o2_gain_kg: 0.1
+  ars_reference_co2_mass_kg: 1.8
+  sabatier_co2_kg_per_water_kg: 2.0
 
 thresholds:
   co2_storage_high_kg: 1.5
   co2_storage_critical_kg: 2.2
   o2_storage_low_kg: 0.45
-  product_water_low_l: 50.0
+  product_water_low_l: 50.0  # 51 L タンク対 50 L 下限。OGS 代表 2 体は各 0.15 L を引く
 
 # 既定はオフ。--inject-failures または inject_failures: true で有効化
 inject_failures: false
@@ -139,10 +142,16 @@ subsystem_failures:
   - subsystem: ars   # ars | ogs | wrs
     start_step: 10   # 含む（0-based）
     end_step: 20     # 任意・含まない
+  - subsystem: ogs
+    start_step: 20
+    end_step: 30
+  - subsystem: wrs
+    start_step: 30
+    end_step: 40
 
 agents:
   mode: none  # none | labeled_rule_base | llm
-  max_actions_per_step: 1  # llm のみ。deliberation 後、この人数まで運用コマンドを発行
+  max_actions_per_step: 2  # llm のみ。deliberation 後、この人数まで運用コマンドを発行
 
 output:
   run_id: ssos_eclss_loop_baseline
@@ -150,7 +159,7 @@ output:
   run_id_llm: ssos_eclss_loop_llm
 ```
 
-CLI: `--set agents.max_actions_per_step=8`（`team.count` でクランプ）。`labeled_rule_base` では無視される。
+CLI: `--set agents.max_actions_per_step=8`（`team.count` でクランプ）。`labeled_rule_base` では無視される。LoopMock の O₂ 増加は化学量論（`o2_generated_kg`）。この YAML に `ogs_o2_gain_kg` は無い。
 
 `ssos_graph.rewires`（任意）— 前 run の `graph_rewire` 提案を `--apply-proposals` でマージすると、次 run の `Ros2EclssBridge` に client remap が渡る。
 
@@ -173,8 +182,11 @@ CLI: `--set agents.max_actions_per_step=8`（`team.count` でクランプ）。`
 ### agents.yaml（主要項目）
 
 ```yaml
+memory_limit: 30       # エージェント私的文字列（llm 約 10–15 step 分）
+discourse_window: 22   # チーム AgentMessage 窓（直前約 2 llm step）
+
 team:
-  count: 3
+  count: 10
   id_prefix: eclss_operator
 
 policy:   # labeled_rule_base のみ。閾値は scenario.yaml から実行時マージ
@@ -183,11 +195,14 @@ policy:   # labeled_rule_base のみ。閾値は scenario.yaml から実行時�
   ars_goal:
     initial_co2_mass: 1.8
   ogs_goal:
-    input_water_mass: 0.015
+    input_water_mass: 0.15  # OGS 1 回あたりの水 kg（SHAKEOUT: 4 名クルーの 1 step 超を賄う）
 
 llm:
+  provider: ollama
   base_url: http://localhost:11434   # Docker: host.docker.internal（ea-loop が設定）
-  model: gemma4:e4b
+  model: qwen3.5:9b
+  max_tokens: 768
+  # max_concurrency は省略: Ollama はモデル上限（9b は約 8）。vLLM 8B は in-flight 既定 100
 ```
 
 ---
@@ -233,9 +248,9 @@ ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlo
 
 | 概念 | ssos_eclss_loop |
 | --- | --- |
-| ID | `eclss_operator_1` … `eclss_operator_N`（デフォルト 3） |
+| ID | `eclss_operator_1` … `eclss_operator_N`（デフォルト **10**） |
 | deliberation | llm: 全員 1 ラウンド。labeled: 運用判断メッセージ |
-| action reps | llm: `eclss_operator_{step % N}` から `max_actions_per_step` 体の回転窓（既定 1）。labeled: policy 代表 1 体 |
+| action reps | llm: `eclss_operator_{step % N}` から `max_actions_per_step` 体の回転窓（既定 **2**）。labeled: policy 代表 1 体 |
 | post-run rep | 最終 step の代表が `design_proposals.json`（`changes` 非空のときのみ） |
 
 `SsosEclssLoopTeam` は `Team` ABC を継承。`run_step(backend, obs)` / `apply_outcome(backend, outcome)` シグネチャ。

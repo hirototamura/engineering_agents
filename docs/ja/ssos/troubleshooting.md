@@ -266,6 +266,28 @@ ls artifacts/ssos-regression/*/
 
 ---
 
+## 研究室 vLLM — コンテキスト超過 / `min_p` の 400
+
+### 症状
+
+- `VllmClient truncating prompt from … to … chars`
+- `min_p` / `logit_bias` / MTP / speculative decoding に言及する HTTP 400
+- LLM 応答が空で、レスポンス本文がログに残る
+
+### 原因
+
+研究室サーバの窓は 32768 トークン（`vllm-server/scripts/serve_small.sh --max-model-len`）。ssos の 10 体チーム + `discourse_window: 22` で超えうる。speculative decoding は `min_p` を拒否する。
+
+### 対処
+
+1. `VllmClient` の既定に任せる（`max_tokens` クランプと head+tail 切り詰め）。サーバ窓が 32768 でないときだけ `VLLM_MAX_MODEL_LEN` を設定する。
+2. YAML の `min_p` が vLLM に届くとは思わない（ワイヤ上は Ollama のみ）。
+3. プロンプトを短くするなら `ssos_eclss_loop/agents.yaml` の `team.count`、`discourse_window`、`memory_limit` を下げる。
+
+関連: [概要 — 研究室 vLLM](../overview.md)。
+
+---
+
 ## それでも解決しない場合
 
 1. smoke レポート JSON（`--json-out`）の `errors` 配列を確認

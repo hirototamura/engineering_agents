@@ -155,7 +155,7 @@ ea run ssos_eclss_loop --backend mock --agents-mode llm --set agents.max_actions
 | `EA_MOUNT_RESULTS` | `/ea/results` | コンテナ内の results マウントパス |
 | `EA_HEADLESS_POLL_TIMEOUT_S` | `120` | headless 起動後の ros2 グラフ待ち（秒） |
 
-`LLM_PROVIDER`、`VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT` はコンテナへ転送され、ros2 の llm ジョブがホスト preflight と同じバックエンドを使う。
+`LLM_PROVIDER`、`VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT` はコンテナへ転送され、ros2 の llm ジョブがホスト preflight と同じバックエンドを使う。`VLLM_MAX_MODEL_LEN` は HTTP を出すプロセス上の `VllmClient` が読む（既定 32768。研究室 `--max-model-len` と揃える）。`scripts/ssos_host_run.sh` の `-e` リストには **まだ含まれない** — ros2 llm で既定以外の窓が必要ならここに足すか、mock / plant_sim をホストで回す。
 
 ### exit code 3（環境エラー）
 

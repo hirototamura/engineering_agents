@@ -164,7 +164,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | シナリオ | ID プレフィックス | デフォルト人数 | 代表 action |
 | --- | --- | --- | --- |
 | scrubber | `engineer` | 4 | `engineer_{(step-1) % N}` |
-| ssos | `eclss_operator` | 3 | `eclss_operator_{step % N}`（0-based steps） |
+| ssos | `eclss_operator` | **10** | labeled: `eclss_operator_{step % N}`。llm: `max_actions_per_step` の回転窓（既定 2） |
 
 各 step で全員が議論（llm）またはルール診断（labeled）。**事後設計**は最終 step の代表が `design_proposals.json` を出力。
 
@@ -363,7 +363,14 @@ ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qw
   --set agents.llm.base_url=http://10.10.0.108:8001/v1
 ```
 
-環境変数: `VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT`、`LLM_PROVIDER`。SSH トンネル例: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`。`agents.llm.api_timeout` は Ollama 用。vLLM は既定 300s（`VLLM_API_TIMEOUT` で上書き）。
+環境変数: `VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT`、`VLLM_MAX_MODEL_LEN`、`LLM_PROVIDER`。SSH トンネル例: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`。`agents.llm.api_timeout` は Ollama 用。vLLM は既定 300s（`VLLM_API_TIMEOUT` で上書き）。
+
+`VllmClient`（`src/core/llm/vllm.py`）は研究室サーバの窓（`--max-model-len` 32768、`VLLM_MAX_MODEL_LEN` で上書き）に合わせてリクエストを収める:
+
+- `max_tokens` をクランプし、completion + chat テンプレート 256 トークンが窓に収まるようにする。
+- 過大なプロンプトは指示の **先頭** と直近の **末尾** を残して切り詰め（約 3 文字/トークン）、警告を出す。チームが大きいと JSON 封筒の中間テレメトリが落ちることがある。
+- **`min_p` と `logit_bias` は送らない**（vLLM MTP / speculative decoding が拒否する）。YAML の `min_p` は Ollama にだけ効く。
+- HTTP エラー時はレスポンス本文の先頭 500 文字をログする。
 
 デフォルトの LLM 設定は各シナリオの `agents.yaml`（scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml)、ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)）。選択したバックエンドに届かないと `llm` モードは失敗します。
 
