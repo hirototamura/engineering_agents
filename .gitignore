@@ -35,6 +35,8 @@ htmlcov/
 # Environment / secrets
 .env
 .env.*
+*.secrets.*
+preflight_private.json
 
 # Logs
 *.log
