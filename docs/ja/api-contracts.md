@@ -386,9 +386,11 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 | `o2_storage_kg` | `/o2_storage` |
 | `product_water_reserve_l` | `/wrs/product_water_reserve` |
 
-`plant_sim` では `raw_topics.plant_sim` に ledger フィールド（`captured_co2_kg`、vent 累積、shortfall、尿バッファ等）が入る。`co2_storage_kg` は **cabin** CO₂ であり、captured タンクではない。
+`plant_sim` では `raw_topics.plant_sim` に ledger フィールド（`captured_co2_kg`、vent 累積、shortfall、尿バッファ、`crew_alive` / `crew_lost_total` / `survival` 等）が入る。`co2_storage_kg` は **cabin** CO₂ であり、captured タンクではない。
 
-運用コマンドがあった step では、`"post_ops": true` 付きの 2 行目が追記されうる（L5）。ダッシュボード等の読取側は `post_ops`／同 step の最終行を優先し、`summary.json` と揃える。
+`plant_sim.survival.enabled` が true のとき、操作後に帯滞在のあと物理下限を適用する。設計の詳細は [乗員サバイバル](memo/ssos_eclss_loop/occupant_survival.md)。`/eclss/events/crew_lost` と `summary.json` の `crew_remaining` / `crew_lost` / `crew_lost_by_cause` に記録され、運用エージェントも同じ人数に同期する。
+
+`"post_ops": true` 付きの 2 行目が追記されうる（1 step あたり最大 2 行）。`plant_sim` かつ survival 有効ではこの行が生存適用後のスナップショット（対応する `health_metrics` 行も含む。運用コマンドがなくても出す）。`mock` / `ros2`、または survival オフの `plant_sim` では運用コマンド後の L5 更新のみである。ダッシュボード等の読取側は `post_ops`／同 step の最終行を優先し、`summary.json` と揃える。
 
 ### EclssOperationalCommand — ランタイム
 
@@ -419,12 +421,12 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 {"step": 3, "co2_status": "warning", "o2_status": "safe", "water_status": "safe", "overall": "warning"}
 ```
 
-ops 後に health を更新する場合、`telemetry.jsonl` と同様に `"post_ops": true` の重複行がありうる。
+`telemetry.jsonl` と同様に `"post_ops": true` の重複行がありうる（運用後の更新、および `plant_sim` では生存適用後のスナップショット）。
 
 | 指標 | safe | warning | critical |
 | --- | --- | --- | --- |
-| CO₂ ストレージ (kg) | < 1.5（high） | 1.5 〜 2.2 未満 | ≥ 2.2 |
-| O₂ ストレージ (kg) | > 0.45（low） | 0.3375 〜 0.45 | ≤ 0.3375 |
+| CO₂ ストレージ (kg) | < 2.0（high） | 2.0 〜 8.0 未満 | ≥ 8.0 |
+| O₂ ストレージ (kg) | > 6.0（low） | 1.0 〜 6.0 | ≤ 1.0 |
 | 製品水 (L) | > 50（low） | 25 〜 50 | ≤ 25 |
 
 `thresholds.co2_storage_high_kg` 等は**運用トリガー**。ヘルス区分とは別概念。

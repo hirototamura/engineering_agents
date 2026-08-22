@@ -389,9 +389,11 @@ Implementation: `environment/ssos/eclss/backend.py`, `eclss/ros2/bridge.py`, `ec
 | `o2_storage_kg` | `/o2_storage` |
 | `product_water_reserve_l` | `/wrs/product_water_reserve` |
 
-With `plant_sim`, extra ledger fields appear under `raw_topics.plant_sim` (`captured_co2_kg`, vent totals, shortfalls, urine buffer). `co2_storage_kg` maps to **cabin** CO₂, not the captured tank.
+With `plant_sim`, extra ledger fields appear under `raw_topics.plant_sim` (`captured_co2_kg`, vent totals, shortfalls, urine buffer, `crew_alive` / `crew_lost_total` / `survival`). `co2_storage_kg` maps to **cabin** CO₂, not the captured tank.
 
-When operational commands run in a step, a second row may be appended with `"post_ops": true` (L5). Readers (dashboard) prefer `post_ops` / the last row for that step so UI matches `summary.json`.
+Occupant survival (when `plant_sim.survival.enabled` is true) records `/eclss/events/crew_lost` and summary fields `crew_initial`, `crew_remaining`, `crew_lost`, `crew_lost_by_cause`. Design: [occupant survival](memo/ssos_eclss_loop/occupant_survival.md). Band dwell runs first; the physics floor is a hard cap afterward (skipped on the final step). Operators shrink with `crew_alive`.
+
+A second JSONL row may be appended with `"post_ops": true` (at most two rows per step). On `plant_sim` with survival enabled this row is the post-survival snapshot (and the matching `health_metrics` row), including steps with no operational commands. On `mock` / `ros2`, or `plant_sim` with survival off, it is the L5 refresh after operational commands only. Readers (dashboard) prefer `post_ops` / the last row for that step so UI matches `summary.json`.
 
 ### EclssOperationalCommand — runtime
 
@@ -422,12 +424,12 @@ Thresholds from `scenario.yaml` `thresholds`.
 {"step": 3, "co2_status": "warning", "o2_status": "safe", "water_status": "safe", "overall": "warning"}
 ```
 
-Same optional `"post_ops": true` duplicate-row rule as `telemetry.jsonl` when ops refresh health in-step.
+Same optional `"post_ops": true` duplicate-row rule as `telemetry.jsonl` (ops refresh, and on `plant_sim` the post-survival snapshot).
 
 | Metric | safe | warning | critical |
 | --- | --- | --- | --- |
-| CO₂ storage (kg) | < 1.5 (high) | 1.5 to < 2.2 | ≥ 2.2 |
-| O₂ storage (kg) | > 0.45 (low) | 0.3375 to 0.45 | ≤ 0.3375 |
+| CO₂ storage (kg) | < 2.0 (high) | 2.0 to < 8.0 | ≥ 8.0 |
+| O₂ storage (kg) | > 6.0 (low) | 1.0 to 6.0 | ≤ 1.0 |
 | Product water (L) | > 50 (low) | 25 to 50 | ≤ 25 |
 
 `thresholds.co2_storage_high_kg`, etc. are **operational triggers**, separate from health bands.
