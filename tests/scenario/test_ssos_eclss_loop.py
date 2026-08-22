@@ -705,3 +705,43 @@ def test_plant_sim_o2_warning_dwell_before_physics_floor(tmp_path: Path):
     assert "o2_warning" in (survival.get("limiting") or [])
     assert any(row.get("post_ops") is True for row in by_step_health[lost_step])
 
+
+def test_plant_sim_skips_physics_floor_on_final_step(tmp_path: Path):
+    """Look-ahead O2 floor applies only when another advance_step remains."""
+    starved = {
+        "backend": {"kind": "plant_sim"},
+        "agents": {"mode": "none"},
+        "simulation": {
+            "initial_o2_storage_kg": 0.02,
+            "initial_product_water_l": 80.0,
+            "initial_co2_storage_kg": 0.5,
+        },
+        # Keep 0.02 kg O2 out of WARNING/CRITICAL so only the physics floor can cut crew.
+        "thresholds": {"o2_storage_low_kg": 0.01, "o2_storage_critical_kg": 0.005},
+        "plant_sim": {"crew": {"size": 4}, "survival": {"enabled": True}},
+    }
+    one = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "final_only",
+        overrides={**starved, "simulation": {**starved["simulation"], "steps": 1}},
+        recreate_output=True,
+    )
+    one_summary = json.loads((one / "summary.json").read_text(encoding="utf-8"))
+    assert one_summary["crew_initial"] == 4
+    assert one_summary["crew_remaining"] == 4
+    assert one_summary["crew_lost"] == 0
+
+    two = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "has_next",
+        overrides={**starved, "simulation": {**starved["simulation"], "steps": 2}},
+        recreate_output=True,
+    )
+    two_summary = json.loads((two / "summary.json").read_text(encoding="utf-8"))
+    assert two_summary["crew_remaining"] < 4
+    events = _read_jsonl(two / "events.jsonl")
+    lost_events = [row for row in events if row.get("kind") == "/eclss/events/crew_lost"]
+    assert lost_events
+    assert "o2_physics" in lost_events[0].get("limiting", [])
+    assert lost_events[0]["step"] == 0
+

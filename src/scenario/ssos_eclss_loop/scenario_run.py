@@ -237,6 +237,7 @@ def _apply_survival_after_ops(
     thresholds: Dict[str, Any],
     policy: SurvivalDwellPolicy,
     streaks: SurvivalStreaks,
+    physics_floor: bool,
 ) -> tuple[Optional[EclssTelemetrySnapshot], SurvivalStreaks]:
     apply = getattr(backend, "apply_capacity_drop", None)
     set_alive = getattr(backend, "set_crew_alive", None)
@@ -256,9 +257,14 @@ def _apply_survival_after_ops(
         if callable(set_alive):
             set_alive(new_alive, limiting=limiting)
         alive = new_alive
-    result = apply()
-    physics_lost = int(result.get("lost_this_step") or 0)
-    physics_limiting = map_physics_limiting(list(result.get("limiting") or []))
+    # Look-ahead floor is for the next metabolism interval; skip when none remains.
+    if physics_floor:
+        result = apply()
+        physics_lost = int(result.get("lost_this_step") or 0)
+        physics_limiting = map_physics_limiting(list(result.get("limiting") or []))
+    else:
+        physics_lost = 0
+        physics_limiting = []
     remaining_physics = physics_lost
     for cause in ("co2_physics", "o2_physics", "water_physics"):
         if remaining_physics <= 0:
@@ -476,6 +482,7 @@ class SsosEclssLoopScenario(Scenario):
                     thresholds=thresholds,
                     policy=dwell_policy,
                     streaks=dwell_streaks,
+                    physics_floor=step + 1 < steps,
                 )
                 if survival_snap is not None:
                     last_snap = survival_snap
