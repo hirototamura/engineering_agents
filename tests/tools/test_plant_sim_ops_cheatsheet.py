@@ -8,6 +8,7 @@ import pytest
 
 from environment.ssos.eclss.plant_sim.config import PlantSimConfig
 from environment.ssos.eclss.plant_sim.model import PlantModel
+from environment.ssos.eclss.units import water_kg_to_l
 from tools.plant_sim_ops_cheatsheet import (
     CheatsheetRow,
     _policy_action_goals,
@@ -234,7 +235,7 @@ def test_demand_and_nameplate_match_plant_model_probes():
         replace(plant, initial_product_water_l=1.0e6, survival_enabled=False)
     ).run_ogs(ogs_water)
     assert ogs_o2 == pytest.approx(unconstrained["o2_generated_kg"])
-    assert ogs_h2o == pytest.approx(unconstrained["processed_water_kg"])
+    assert ogs_h2o == pytest.approx(water_kg_to_l(unconstrained["processed_water_kg"]))
     assert wrs_nameplate_l(wrs_urine, plant) == pytest.approx(
         min(wrs_urine, plant.wrs_max_feed_l_per_operation) * plant.wrs_urine_recovery
     )
@@ -254,6 +255,10 @@ def test_source_report_quotes_yaml_and_matches_plot():
     assert n1["o2_demand_kg"] == pytest.approx(n1["yaml_formula_o2"])
     ars = report["one_subsystem_action"]["ars"]
     assert ars["plant_model_run_ars_unconstrained_kg"] == pytest.approx(ars["yaml_formula_kg"])
+    ogs = report["one_subsystem_action"]["ogs"]
+    assert ogs["plant_model_run_ogs_unconstrained_water_l"] == pytest.approx(
+        ogs["yaml_formula_water_l"]
+    )
     plotted = next(row for row in rows if row.n == 1 and row.mode == "none")
     assert plotted.o2_demand_kg == pytest.approx(n1["o2_demand_kg"])
     assert report["tank_inventory"]["initial_from_yaml"]["available_o2_kg"] == pytest.approx(

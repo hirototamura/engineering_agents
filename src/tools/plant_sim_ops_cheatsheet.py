@@ -35,6 +35,7 @@ from matplotlib.lines import Line2D
 from environment.ssos.eclss.plant_sim.config import PlantSimConfig
 from environment.ssos.eclss.plant_sim.model import PlantModel
 from environment.ssos.eclss.plant_sim.stoichiometry import WATER_PER_O2
+from environment.ssos.eclss.units import water_kg_to_l
 from scenario.runner import agents_config_path, scenario_config_path
 
 MODES = ("none", "ars", "ogs", "wrs")
@@ -162,7 +163,7 @@ def ogs_nameplate(input_water_mass_kg: float, plant: PlantSimConfig) -> tuple[fl
     """One OGS action with water tank treated as unlimited: (o2_kg, water_l)."""
     model = PlantModel(replace(plant, initial_product_water_l=1.0e6, survival_enabled=False))
     result = model.run_ogs(float(input_water_mass_kg))
-    return float(result["o2_generated_kg"]), float(result["processed_water_kg"])
+    return float(result["o2_generated_kg"]), water_kg_to_l(float(result["processed_water_kg"]))
 
 
 def wrs_nameplate_l(requested_urine_l: float, plant: PlantSimConfig) -> float:
@@ -219,15 +220,15 @@ def run_campaign(
             metabolism_steps += 1
             co2_metab += float(metab["co2_generated_kg"])
             o2_metab += float(metab["o2_consumed_kg"])
-            water_metab += float(metab["water_consumed_kg"])
+            water_metab += water_kg_to_l(float(metab["water_consumed_kg"]))
         if mode == "ars":
             result = model.run_ars(ars_goal)
             co2_ops += float(result.get("co2_removed_kg") or 0.0)
         elif mode == "ogs":
             result = model.run_ogs(ogs_water)
             o2_ops += float(result.get("o2_generated_kg") or 0.0)
-            water_ops += float(result.get("processed_water_kg") or 0.0) - float(
-                result.get("water_regenerated_kg") or 0.0
+            water_ops += water_kg_to_l(float(result.get("processed_water_kg") or 0.0)) - water_kg_to_l(
+                float(result.get("water_regenerated_kg") or 0.0)
             )
         elif mode == "wrs":
             result = model.run_wrs(wrs_urine)
@@ -495,8 +496,9 @@ def build_source_report(
                 "formula": "min(input_water_mass, ogs_max_o2_kg_day × ogs_operation_seconds / 86400 × WATER_PER_O2)",
                 "yaml_formula_o2_kg": ogs_formula_o2,
                 "yaml_formula_water_kg": ogs_formula_water,
+                "yaml_formula_water_l": water_kg_to_l(ogs_formula_water),
                 "plant_model_run_ogs_unconstrained_o2_kg": ogs_o2,
-                "plant_model_run_ogs_unconstrained_water_kg": ogs_h2o,
+                "plant_model_run_ogs_unconstrained_water_l": ogs_h2o,
             },
             "wrs": {
                 "yaml_urine_volume": wrs_urine,
@@ -602,7 +604,7 @@ def format_source_report_md(report: Mapping[str, Any]) -> str:
             "| --- | --- | ---: | ---: |",
             f"| ARS CO2 removed | `{ars['formula']}` | {_fmt(ars['yaml_formula_kg'])} | {_fmt(ars['plant_model_run_ars_unconstrained_kg'])} |",
             f"| OGS O2 produced | `{ogs['formula']}` | {_fmt(ogs['yaml_formula_o2_kg'])} | {_fmt(ogs['plant_model_run_ogs_unconstrained_o2_kg'])} |",
-            f"| OGS water used | same min() as water mass | {_fmt(ogs['yaml_formula_water_kg'])} | {_fmt(ogs['plant_model_run_ogs_unconstrained_water_kg'])} |",
+            f"| OGS water used | same min() as water mass, then `water_kg_to_l` | {_fmt(ogs['yaml_formula_water_l'])} | {_fmt(ogs['plant_model_run_ogs_unconstrained_water_l'])} |",
             f"| WRS water recovered | `{wrs['formula']}` | {_fmt(wrs['yaml_formula_l'])} | {_fmt(wrs['plant_model_run_wrs_requested_urine_l'])} |",
             "",
             f"WATER_PER_O2 (stoichiometry, not YAML) = `{d['WATER_PER_O2']}`.",
