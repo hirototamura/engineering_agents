@@ -201,6 +201,14 @@ def test_resolve_thinking_token_budget_honors_explicit_cap():
     assert _resolve_thinking_token_budget(8192, explicit=512) == 512
 
 
+def test_resolve_thinking_token_budget_never_exceeds_max_tokens():
+    for max_tokens in (50, 100, 200, 256, 300, 512, 2048, 8192):
+        default = _resolve_thinking_token_budget(max_tokens)
+        explicit = _resolve_thinking_token_budget(max_tokens, explicit=50)
+        assert 1 <= default <= max_tokens - 1
+        assert 1 <= explicit <= max_tokens - 1
+
+
 def test_extract_vllm_message_text_prefers_content():
     assert _extract_vllm_message_text(
         {"content": "  answer  ", "reasoning_content": "chain of thought"}
