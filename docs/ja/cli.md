@@ -46,7 +46,7 @@ python3 -m tools.cli run scrubber_degradation --agents-mode none
 
 ```bash
 ea run scrubber_degradation --agents-mode labeled_rule_base --steps 30
-ea run ssos_eclss_loop --backend mock --agents-mode none --steps 4
+ea run ssos_eclss_loop --backend mock --actor-mode none --steps 4
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
 ea run scrubber_degradation --set simulation.steps=10
 ea run --dry-run --write-spec /tmp/job.json
@@ -54,6 +54,8 @@ ea job run /tmp/job.json
 ```
 
 英語版の詳細（フラグ一覧・exit code）: [en/cli.md](../en/cli.md)
+
+`ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。
 
 ## 結果の確認
 

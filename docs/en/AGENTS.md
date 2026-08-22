@@ -260,7 +260,8 @@ This is **not** the same as the `first_principles` **thinking-style archetype** 
 | [one-piece-integration.md](one-piece-integration.md) | One Piece integration (provenance only for now; requirement pull is future) |
 | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | Reference scenario specification |
 | [docs/scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) | SSOS live ECLSS scenario (Phase 0–7) |
-| [Occupant survival](memo/ssos_eclss_loop/occupant_survival.md) | plant_sim crew/operator attrition (band dwell) |
+| [Occupant survival](memo/ssos_eclss_loop/occupant_survival.md) | plant_sim crew/actor attrition (band dwell) |
+| [Post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md) | ssos actor / designer split (as shipped) |
 
 ---
 

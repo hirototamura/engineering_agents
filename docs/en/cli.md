@@ -46,7 +46,7 @@ python3 -m tools.cli run scrubber_degradation --agents-mode none
 
 ```bash
 ea run scrubber_degradation --agents-mode labeled_rule_base --steps 30
-ea run ssos_eclss_loop --backend mock --agents-mode none --steps 4
+ea run ssos_eclss_loop --backend mock --actor-mode none --steps 4
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
 ea run scrubber_degradation --set simulation.steps=10 --set agents.mode=none
 ea run scrubber_degradation --override-file my_patch.yaml
@@ -78,6 +78,8 @@ ea job run /tmp/job.json
 | `--write-spec` | Write the resolved `RunSpec` JSON |
 | `--json` | Machine-readable result on stdout |
 | `--quiet` | Print only the output path |
+
+On `ssos_eclss_loop`, in-sim actors and post-run designers are separate. See [post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md). `--agents-mode` is a deprecated alias for `--actor-mode`.
 
 ## Exit codes
 
@@ -175,7 +177,7 @@ Volume mounts are fixed at container **create** time. If helper scripts are miss
 ```bash
 ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8
 ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --steps 72
-ea run ssos_eclss_loop --backend mock --agents-mode llm --set agents.max_actions_per_step=8
+ea run ssos_eclss_loop --backend mock --actor-mode llm --set agents.actor.max_actions_per_step=8
 ```
 
 `plant_sim` adds crew metabolism, WRS water-loop closure, and mass-balance ledgers — see [Plant Sim backend](memo/ssos_eclss_loop/plant_sim_backend.md).

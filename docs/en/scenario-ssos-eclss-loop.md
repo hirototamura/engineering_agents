@@ -72,7 +72,7 @@ Type constants: `src/environment/ssos/eclss/ros2/topics.py`. Bridge: `src/enviro
 
 ## Narrative (timeline)
 
-### No agents (`agents.mode: none`)
+### No agents (`agents.actor.mode: none`)
 
 | Phase | Content |
 | --- | --- |
@@ -100,7 +100,9 @@ Steps are 0-based (`0 .. steps-1`). Actor `eclss_actor_{step % N}` issues operat
 
 ### llm
 
-Each step: all N actors deliberate in parallel → up to `agents.actor.max_actions_per_step` rotating representatives issue `operational_command`. After the run, designers deliberate and **one representative** emits `changes`. That representative may emit **any number** of proposals (empty list allowed; file written only when non-empty). `policy` thresholds are not included in prompts.
+### llm
+
+Each step: all N actors deliberate in parallel → up to `agents.actor.max_actions_per_step` rotating representatives issue `operational_command`. After the run, designers deliberate and **one representative** emits `changes`. That representative may emit **any number** of proposals (empty list allowed; file written only when non-empty). `policy` thresholds are not included in prompts. The parameter is the **number of actors who may command**, not a cap on one actor’s `commands` list.
 
 ---
 
@@ -109,7 +111,7 @@ Each step: all N actors deliberate in parallel → up to `agents.actor.max_actio
 | File | Purpose |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.actor.mode` / `agents.design.mode`, run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Actor team (`eclss_actor_*`), designer team (`eclss_designer_*`), actor `policy` (labeled only), per-side vLLM |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Actor team (`eclss_actor_*`), designer team (`eclss_designer_*`), actor `policy` (labeled only), both vLLM `qwen3-8b` for now |
 
 ### scenario.yaml (main fields)
 
@@ -143,8 +145,10 @@ subsystem_failures:
     end_step: 20     # optional, exclusive
 
 agents:
-  mode: none  # none | labeled_rule_base | llm
-  max_actions_per_step: 1  # llm only; after deliberation, this many agents may issue commands
+  actor:
+    mode: none  # none | labeled_rule_base | llm (CLI --actor-mode)
+    max_actions_per_step: 2  # llm actors only
+  design: {}  # omit design.mode to inherit actor.mode
 
 output:
   run_id: ssos_eclss_loop_baseline
@@ -152,7 +156,7 @@ output:
   run_id_llm: ssos_eclss_loop_llm
 ```
 
-CLI: `--set agents.max_actions_per_step=8` (clamped to `team.count`). `labeled_rule_base` ignores this field.
+CLI: `--set agents.actor.max_actions_per_step=8` (clamped to `actor.team.count`). `labeled_rule_base` ignores this field.
 
 `ssos_graph.rewires` (optional) — when merged via `--apply-proposals` from a prior `graph_rewire` proposal, client remaps are passed to `Ros2EclssBridge` on the next run.
 
@@ -175,21 +179,29 @@ Inject ARS / OGS / WRS failures at chosen steps. **Off by default** (`inject_fai
 ### agents.yaml (main fields)
 
 ```yaml
-team:
-  count: 3
-  id_prefix: eclss_actor
+actor:
+  team:
+    count: 50
+    id_prefix: eclss_actor
+  policy:   # labeled_rule_base only. Thresholds merged from scenario.yaml at runtime
+    request_co2_before_ogs: false
+    request_co2_amount: 0.025
+    ars_goal:
+      initial_co2_mass: 1.8
+    ogs_goal:
+      input_water_mass: 0.15
+  llm:
+    provider: vllm
+    model: qwen3-8b  # current default; may change
 
-policy:   # labeled_rule_base only. Thresholds merged from scenario.yaml at runtime
-  request_co2_before_ogs: false
-  request_co2_amount: 0.025
-  ars_goal:
-    initial_co2_mass: 1.8
-  ogs_goal:
-    input_water_mass: 0.015
-
-llm:
-  base_url: http://localhost:11434   # Docker: host.docker.internal (set by ea-loop)
-  model: gemma4:e4b
+design:
+  team:
+    count: 4
+    id_prefix: eclss_designer
+  llm:
+    provider: vllm
+    model: qwen3-8b
+    max_tokens: 2048
 ```
 
 ---
@@ -237,7 +249,7 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 | --- | --- |
 | IDs | actors `eclss_actor_1` … `N` (default 50); designers `eclss_designer_1` … `4` |
 | deliberation | llm: one round for all. labeled: operational decision messages |
-| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_actor_{step % N}` (default 1). labeled: one policy rep |
+| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_actor_{step % N}` (default **2**). labeled: one policy rep |
 | post-run rep | One designer representative emits `changes` (no count cap; file written when non-empty) |
 
 `SsosEclssLoopTeam` extends the `Team` ABC. Signatures: `run_step(backend, obs)` / `apply_outcome(backend, outcome)`.
@@ -395,8 +407,9 @@ Scrubber screenshots: [Overview](overview.md#dashboard-at-a-glance).
 
 | Test | Content |
 | --- | --- |
+| `test_ssos_eclss_loop.py` | Scenario e2e, occupancy bind, post-run design |
+| `test_ssos_agent_config.py` | Nested `agents.actor` / `agents.design` and mode inheritance |
 | `test_ssos_eclss_loop_team.py` | `SsosEclssLoopTeam`, labeled / llm, Team inheritance |
-| `test_ssos_eclss_loop_scenario.py` | mock scenario end-to-end |
 | `test_graph_rewire.py` | client remap unit |
 | `test_graph_rewire_integration.py` | `Ros2EclssBridge` integration (skipped without ROS) |
 
@@ -413,6 +426,7 @@ Container E2E records: `memo/ssos_eclss_loop/e2e_records/` (repo only).
 
 - [architecture.md](architecture.md) — layers and ssos execution flow
 - [api-contracts.md](api-contracts.md) — `EclssBackend`, JSONL, operational commands
+- [memo/ssos_eclss_loop/post_run_design_agent.md](memo/ssos_eclss_loop/post_run_design_agent.md) — actor / designer split (as shipped)
 - [one-piece-integration.md](one-piece-integration.md) — operational provenance
 - [development-plan.md](development-plan.md) — Phase 0–7 complete, next tasks
 - [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) — connection plan details and verification steps
