@@ -116,8 +116,8 @@ step は 0-based（`0 .. steps-1`）。代表オペレータ `eclss_operator_{st
 simulation:
   steps: 8
   initial_co2_storage_kg: 1.5
-  initial_o2_storage_kg: 0.48
-  initial_product_water_l: 100.0
+  initial_o2_storage_kg: 8.0
+  initial_product_water_l: 80.0
 
 backend:
   kind: mock  # mock | plant_sim | ros2 — SSOS_ECLSS_BACKEND 環境変数でも上書き可

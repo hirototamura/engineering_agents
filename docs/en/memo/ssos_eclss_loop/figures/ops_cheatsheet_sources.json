@@ -86,8 +86,8 @@
     "ars_reference_goal_co2_kg": 1.8,
     "co2_kg_day_person": 1.04,
     "initial_cabin_co2_kg": 1.3,
-    "initial_o2_kg": 0.48,
-    "initial_product_water_l": 51.0,
+    "initial_o2_kg": 8.0,
+    "initial_product_water_l": 80.0,
     "o2_kg_day_person": 0.84,
     "ogs_max_o2_kg_day": 9.25,
     "ogs_operation_seconds": 1200,
@@ -124,9 +124,9 @@
   },
   "tank_inventory": {
     "initial_from_yaml": {
-      "available_o2_kg": 0.48,
+      "available_o2_kg": 8.0,
       "cabin_co2_kg": 1.3,
-      "product_water_l": 51.0
+      "product_water_l": 80.0
     },
     "note": "Column 3 is PlantModel (final \u2212 initial) / metabolism_steps with survival off and one action per step. Column 4 is ending tank = initial + (final \u2212 initial). O2 consumption saturates when available_o2_kg hits 0.",
     "samples": [
@@ -136,7 +136,7 @@
         "n": 1,
         "o2_consumed_kg_per_step": 0.011666666666666662,
         "o2_demand_kg": 0.011666666666666667,
-        "o2_net_kg_per_step": -0.01166666666666666,
+        "o2_net_kg_per_step": -0.011666666666666714,
         "water_net_l_per_step": -0.03166666666666629
       },
       {
@@ -145,7 +145,7 @@
         "n": 1,
         "o2_consumed_kg_per_step": 0.011666666666666662,
         "o2_demand_kg": 0.011666666666666667,
-        "o2_net_kg_per_step": -0.01166666666666666,
+        "o2_net_kg_per_step": -0.011666666666666714,
         "water_net_l_per_step": -0.03166666666666629
       },
       {
@@ -154,8 +154,8 @@
         "n": 1,
         "o2_consumed_kg_per_step": 0.011666666666666662,
         "o2_demand_kg": 0.011666666666666667,
-        "o2_net_kg_per_step": 0.12047619047619053,
-        "water_net_l_per_step": -0.18046287714411002
+        "o2_net_kg_per_step": 0.12047619047618961,
+        "water_net_l_per_step": -0.18046287714410272
       },
       {
         "co2_net_kg_per_step": 0.014444444444444482,
@@ -163,25 +163,25 @@
         "n": 1,
         "o2_consumed_kg_per_step": 0.011666666666666662,
         "o2_demand_kg": 0.011666666666666667,
-        "o2_net_kg_per_step": -0.01166666666666666,
+        "o2_net_kg_per_step": -0.011666666666666714,
         "water_net_l_per_step": -0.0018749999999982947
       },
       {
         "co2_net_kg_per_step": 0.05777777777777785,
         "mode": "none",
         "n": 4,
-        "o2_consumed_kg_per_step": 0.013714285714285715,
+        "o2_consumed_kg_per_step": 0.04666666666666665,
         "o2_demand_kg": 0.04666666666666667,
-        "o2_net_kg_per_step": -0.013714285714285714,
+        "o2_net_kg_per_step": -0.046666666666666856,
         "water_net_l_per_step": -0.12666666666666515
       },
       {
         "co2_net_kg_per_step": -0.037142857142857144,
         "mode": "ars",
         "n": 4,
-        "o2_consumed_kg_per_step": 0.013714285714285715,
+        "o2_consumed_kg_per_step": 0.04666666666666665,
         "o2_demand_kg": 0.04666666666666667,
-        "o2_net_kg_per_step": -0.013714285714285714,
+        "o2_net_kg_per_step": -0.046666666666666856,
         "water_net_l_per_step": -0.12666666666666515
       },
       {
@@ -190,34 +190,34 @@
         "n": 4,
         "o2_consumed_kg_per_step": 0.04666666666666665,
         "o2_demand_kg": 0.04666666666666667,
-        "o2_net_kg_per_step": 0.0854761904761904,
-        "water_net_l_per_step": -0.2754628771441089
+        "o2_net_kg_per_step": 0.08547619047618947,
+        "water_net_l_per_step": -0.27546287714410156
       },
       {
         "co2_net_kg_per_step": 0.05777777777777785,
         "mode": "wrs",
         "n": 4,
-        "o2_consumed_kg_per_step": 0.013714285714285715,
+        "o2_consumed_kg_per_step": 0.04666666666666665,
         "o2_demand_kg": 0.04666666666666667,
-        "o2_net_kg_per_step": -0.013714285714285714,
-        "water_net_l_per_step": -0.007500000000000284
+        "o2_net_kg_per_step": -0.046666666666666856,
+        "water_net_l_per_step": -0.007499999999993179
       },
       {
         "co2_net_kg_per_step": 0.1155555555555556,
         "mode": "none",
         "n": 8,
-        "o2_consumed_kg_per_step": 0.013714285714285714,
+        "o2_consumed_kg_per_step": 0.0933333333333333,
         "o2_demand_kg": 0.09333333333333334,
-        "o2_net_kg_per_step": -0.013714285714285714,
+        "o2_net_kg_per_step": -0.09333333333333371,
         "water_net_l_per_step": -0.2533333333333303
       },
       {
         "co2_net_kg_per_step": -0.037142857142857144,
         "mode": "ars",
         "n": 8,
-        "o2_consumed_kg_per_step": 0.013714285714285714,
+        "o2_consumed_kg_per_step": 0.0933333333333333,
         "o2_demand_kg": 0.09333333333333334,
-        "o2_net_kg_per_step": -0.013714285714285714,
+        "o2_net_kg_per_step": -0.09333333333333371,
         "water_net_l_per_step": -0.2533333333333303
       },
       {
@@ -226,17 +226,17 @@
         "n": 8,
         "o2_consumed_kg_per_step": 0.0933333333333333,
         "o2_demand_kg": 0.09333333333333334,
-        "o2_net_kg_per_step": 0.038809523809523884,
-        "water_net_l_per_step": -0.40212954381077404
+        "o2_net_kg_per_step": 0.03880952380952262,
+        "water_net_l_per_step": -0.4021295438107667
       },
       {
         "co2_net_kg_per_step": 0.1155555555555556,
         "mode": "wrs",
         "n": 8,
-        "o2_consumed_kg_per_step": 0.013714285714285714,
+        "o2_consumed_kg_per_step": 0.0933333333333333,
         "o2_demand_kg": 0.09333333333333334,
-        "o2_net_kg_per_step": -0.013714285714285714,
-        "water_net_l_per_step": -0.014999999999993463
+        "o2_net_kg_per_step": -0.09333333333333371,
+        "water_net_l_per_step": -0.015000000000000568
       }
     ]
   },
@@ -257,7 +257,7 @@
     "policy.ogs_goal.input_water_mass": 0.15,
     "policy.wrs_goal.urine_volume": 2.0,
     "simulation.initial_co2_storage_kg": 1.3,
-    "simulation.initial_o2_storage_kg": 0.48,
-    "simulation.initial_product_water_l": 51.0
+    "simulation.initial_o2_storage_kg": 8.0,
+    "simulation.initial_product_water_l": 80.0
   }
 }

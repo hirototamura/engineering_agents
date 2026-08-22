@@ -23,8 +23,8 @@
 | `plant_sim.wrs.urine_recovery` | 0.98 | `wrs_urine_recovery` | 0.98 |
 | `plant_sim.wrs.max_feed_l_per_operation` | 10.0 | `wrs_max_feed_l_per_operation` | 10.0 |
 | `simulation.initial_co2_storage_kg` | 1.3 | `initial_cabin_co2_kg` | 1.3 |
-| `simulation.initial_o2_storage_kg` | 0.48 | `initial_o2_kg` | 0.48 |
-| `simulation.initial_product_water_l` | 51.0 | `initial_product_water_l` | 51.0 |
+| `simulation.initial_o2_storage_kg` | 8.0 | `initial_o2_kg` | 8.0 |
+| `simulation.initial_product_water_l` | 80.0 | `initial_product_water_l` | 80.0 |
 | `src/scenario/ssos_eclss_loop/agents.yaml` `policy.ars_goal.initial_co2_mass` | 1.8 | ARS goal | 1.8 |
 | `src/scenario/ssos_eclss_loop/agents.yaml` `policy.ogs_goal.input_water_mass` | 0.15 | OGS request | 0.15 |
 | `src/scenario/ssos_eclss_loop/agents.yaml` `policy.wrs_goal.urine_volume` | 2.0 | WRS request | 2.0 |
@@ -66,8 +66,8 @@ Column 3 is PlantModel (final − initial) / metabolism_steps with survival off 
 | YAML path | initial tank |
 | --- | ---: |
 | `simulation.initial_co2_storage_kg` | 1.3 kg cabin CO2 |
-| `simulation.initial_o2_storage_kg` | 0.48 kg O2 |
-| `simulation.initial_product_water_l` | 51.0 L water |
+| `simulation.initial_o2_storage_kg` | 8.0 kg O2 |
+| `simulation.initial_product_water_l` | 80.0 L water |
 
 | N | mode | ΔCO2 / step | ΔO2 / step | Δwater / step | O2 consumed (tank-limited) | O2 demand |
 | ---: | --- | ---: | ---: | ---: | ---: | ---: |
@@ -75,11 +75,11 @@ Column 3 is PlantModel (final − initial) / metabolism_steps with survival off 
 | 1 | ars | -0.0371429 | -0.0116667 | -0.0316667 | 0.0116667 | 0.0116667 |
 | 1 | ogs | 0.0144444 | 0.120476 | -0.180463 | 0.0116667 | 0.0116667 |
 | 1 | wrs | 0.0144444 | -0.0116667 | -0.001875 | 0.0116667 | 0.0116667 |
-| 4 | none | 0.0577778 | -0.0137143 | -0.126667 | 0.0137143 | 0.0466667 |
-| 4 | ars | -0.0371429 | -0.0137143 | -0.126667 | 0.0137143 | 0.0466667 |
+| 4 | none | 0.0577778 | -0.0466667 | -0.126667 | 0.0466667 | 0.0466667 |
+| 4 | ars | -0.0371429 | -0.0466667 | -0.126667 | 0.0466667 | 0.0466667 |
 | 4 | ogs | 0.0577778 | 0.0854762 | -0.275463 | 0.0466667 | 0.0466667 |
-| 4 | wrs | 0.0577778 | -0.0137143 | -0.0075 | 0.0137143 | 0.0466667 |
-| 8 | none | 0.115556 | -0.0137143 | -0.253333 | 0.0137143 | 0.0933333 |
-| 8 | ars | -0.0371429 | -0.0137143 | -0.253333 | 0.0137143 | 0.0933333 |
+| 4 | wrs | 0.0577778 | -0.0466667 | -0.0075 | 0.0466667 | 0.0466667 |
+| 8 | none | 0.115556 | -0.0933333 | -0.253333 | 0.0933333 | 0.0933333 |
+| 8 | ars | -0.0371429 | -0.0933333 | -0.253333 | 0.0933333 | 0.0933333 |
 | 8 | ogs | 0.115556 | 0.0388095 | -0.40213 | 0.0933333 | 0.0933333 |
-| 8 | wrs | 0.115556 | -0.0137143 | -0.015 | 0.0137143 | 0.0933333 |
+| 8 | wrs | 0.115556 | -0.0933333 | -0.015 | 0.0933333 | 0.0933333 |

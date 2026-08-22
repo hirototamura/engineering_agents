@@ -57,15 +57,23 @@ class PlantSimEclssBackend:
     # step capability (StepAdvanceableBackend)
     # ------------------------------------------------------------------ #
     def advance_step(self) -> None:
+        self._last_survival = {"lost_this_step": 0, "limiting": []}
         self._last_metabolism = self.model.advance_step()
 
     def apply_capacity_drop(self) -> Dict[str, Any]:
-        """Physics floor after band-dwell; returns lost/limiting info."""
+        """Physics floor after band-dwell; returns physics-only lost/limiting.
+
+        Telemetry ``survival`` merges this with any dwell losses already
+        recorded by ``set_crew_alive`` in the same step.
+        """
         result = self.model.apply_capacity_drop()
-        self._last_survival = dict(result)
+        self._merge_last_survival(
+            int(result.get("lost_this_step") or 0),
+            list(result.get("limiting") or []),
+        )
         return dict(result)
 
-    def set_crew_alive(self, n: int) -> int:
+    def set_crew_alive(self, n: int, limiting: Optional[list] = None) -> int:
         """Hard-set live occupants; never increases. Returns additional lost."""
         s = self.model.state
         current = int(s.crew_alive)
@@ -73,7 +81,19 @@ class PlantSimEclssBackend:
         lost = current - n
         s.crew_alive = n
         s.crew_lost_total += lost
+        self._merge_last_survival(lost, list(limiting or []))
         return lost
+
+    def _merge_last_survival(self, lost: int, limiting: list) -> None:
+        if lost <= 0 and not limiting:
+            return
+        prev_lost = int(self._last_survival.get("lost_this_step") or 0)
+        prev_lim = list(self._last_survival.get("limiting") or [])
+        extra = [item for item in limiting if item not in prev_lim]
+        self._last_survival = {
+            "lost_this_step": prev_lost + max(0, int(lost)),
+            "limiting": prev_lim + extra,
+        }
 
     def poll_telemetry(self) -> EclssTelemetrySnapshot:
         s = self.model.state

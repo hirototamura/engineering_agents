@@ -89,6 +89,26 @@ def test_capacity_drop_co2_critical_does_not_cut_crew():
     assert "co2" not in result["limiting"]
 
 
+def test_capacity_drop_attributes_lost_to_o2_when_both_bind():
+    m = _model(
+        crew_size=4,
+        survival_enabled=True,
+        initial_o2_kg=10.0,
+        initial_product_water_l=100.0,
+    )
+    o2_pp = m.per_person_o2_demand_kg()
+    water_pp = m.per_person_water_demand_l()
+    m.state.available_o2_kg = 2 * o2_pp
+    m.state.product_water_l = 1 * water_pp
+    result = m.apply_capacity_drop()
+    assert m.state.crew_alive == 1
+    assert result["lost_this_step"] == 3
+    assert result["limiting"] == ["o2", "water"]
+    assert m.state.crew_lost_o2 == 3
+    assert m.state.crew_lost_water == 0
+    assert m.state.crew_lost_total == 3
+
+
 def test_metabolism_scales_with_crew_alive_when_survival_enabled():
     full = _model(crew_size=4, survival_enabled=True, initial_o2_kg=10.0)
     half = _model(crew_size=4, survival_enabled=True, initial_o2_kg=10.0)

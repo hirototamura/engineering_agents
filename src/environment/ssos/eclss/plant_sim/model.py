@@ -182,9 +182,12 @@ class PlantModel:
         if lost > 0:
             if o2_cap < current:
                 limiting.append("o2")
-                s.crew_lost_o2 += lost
             if water_cap < current:
                 limiting.append("water")
+            # One headcount, one cause: O2 wins when both inventories bind.
+            if o2_cap < current:
+                s.crew_lost_o2 += lost
+            elif water_cap < current:
                 s.crew_lost_water += lost
         s.crew_alive = supported
         s.crew_lost_total += lost

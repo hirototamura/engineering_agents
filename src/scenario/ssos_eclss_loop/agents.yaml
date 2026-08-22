@@ -27,7 +27,7 @@ policy:
     initial_moisture_content: 25.0  # [%] 0–100; plant_sim ignores, ROS2 forwards
     initial_contaminants: 5.0  # [%] 0–100; plant_sim ignores, ROS2 forwards
   ogs_goal:  # oxygen_generation payload
-    # 0.15 kg water covers >1 step of 4-crew O2 demand (one-shot OGS latch).
+    # Nameplate-sized request (~ogs_max_o2_kg_day × ogs_operation_seconds), not per-crew demand.
     input_water_mass: 0.15  # [kg] water into electrolysis per OGS action
     iodine_concentration: 2.0  # [mg/L] plant_sim ignores, ROS2 forwards
   wrs_goal:  # water_recovery_systems payload

@@ -79,9 +79,9 @@ backend:
   kind: plant_sim
 
 simulation:
-  initial_co2_storage_kg: 1.5      # → initial_cabin_co2_kg
-  initial_o2_storage_kg: 0.48
-  initial_product_water_l: 100.0
+  initial_co2_storage_kg: 1.3      # → initial_cabin_co2_kg
+  initial_o2_storage_kg: 8.0
+  initial_product_water_l: 80.0
 
 plant_sim:
   time:
@@ -218,9 +218,9 @@ The plant is **not** a closed system (vents, brine, unrecoverable crew water). T
 After each step's operations the scenario applies **band dwell**, then the **physics floor**:
 
 1. **Band dwell** (`scenario/ssos_eclss_loop/survival.py`) — same health bands as operations (`thresholds`). Staying in WARNING is a cost: O2/water lose 1 person after 2 consecutive steps; O2 CRITICAL loses 2 in one step, water CRITICAL loses 1. CO2 WARNING (HIGH, below CRITICAL) loses `n // 4` after 2 consecutive steps, **once per stay**. CO2 CRITICAL loses `n // 2` after 2 consecutive steps, once per stay (no wipe). A lone occupant (`n // 4` and `n // 2` are 0) is not lost to CO2 bands alone. CRITICAL does not increment the WARNING streak. Leave the band and re-enter to count again. Stacked requests are sliced in a fixed priority (CO2 critical, CO2 warning, O2 crit, water crit, O2 warning, water warning). Event `limiting` lists every requester; `crew_lost_by_cause` is that slice, not a duplicated total.
-2. **Physics floor** (`PlantModel.apply_capacity_drop`) — hard cap: keep only people the next metabolism interval can pay in O2 and water. Cabin CO2 does not cut crew here. Event labels use `o2_physics` / `water_physics` / `co2_physics` so they are not confused with dwell causes.
+2. **Physics floor** (`PlantModel.apply_capacity_drop`) — hard cap: keep only people the next metabolism interval can pay in O2 and water. Cabin CO2 does not cut crew here. Event labels use `o2_physics` / `water_physics` / `co2_physics` so they are not confused with dwell causes. When both O2 and water bind, `limiting` lists both but the lost headcount is attributed to O2 (`crew_lost_o2`).
 
-The scenario never writes `model.state` directly; it calls `backend.set_crew_alive` then `backend.apply_capacity_drop`. Operators shrink with `crew_alive`.
+The scenario never writes `model.state` directly; it calls `backend.set_crew_alive` then `backend.apply_capacity_drop`. Operators shrink with `crew_alive`. Telemetry `raw_topics.plant_sim.survival` accumulates dwell then physics for that step (`lost_this_step` / `limiting`). Those values land on the single `post_ops` telemetry + health row when survival is enabled (at most two rows per step). Survival off does not emit that extra row unless operational commands ran.
 
 Disable with `plant_sim.survival.enabled: false` (unit tests and the ops cheatsheet do this). O2/water CRITICAL thresholds live in YAML (`o2_storage_critical_kg`, `product_water_critical_l`); if omitted they fall back to `o2_storage_low_kg * 0.75` and `product_water_low_l * 0.5`.
 
@@ -234,7 +234,7 @@ python3 -m tools.plant_sim_ops_cheatsheet --n-max 8 --steps 36
 
 Writes a 3×4 figure ([figures/ops_cheatsheet.png](figures/ops_cheatsheet.png)): rows are cabin CO2 / O2 / water. Columns:
 
-- **Crew metabolism** — unconstrained demand (∝ N). Not tank-limited consumption; otherwise O2 flattens once the 0.48 kg tank is empty.
+- **Crew metabolism** — unconstrained demand (∝ N). Not tank-limited consumption; otherwise O2 flattens once the initial tank is empty.
 - **One subsystem action** — nameplate of one ARS/OGS/WRS call with inventory ignored, so the lines are flat vs N.
 - **Tank inventory** — simulated Δ tank / step after both, where O2 starvation and crew-limited WRS feed live.
 - **Tank + initial** — ending tank = `simulation.initial_*` + campaign Δ (own y-scale; dotted line is the initial fill).

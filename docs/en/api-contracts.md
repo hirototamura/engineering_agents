@@ -391,9 +391,9 @@ Implementation: `environment/ssos/eclss/backend.py`, `eclss/ros2/bridge.py`, `ec
 
 With `plant_sim`, extra ledger fields appear under `raw_topics.plant_sim` (`captured_co2_kg`, vent totals, shortfalls, urine buffer, `crew_alive` / `crew_lost_total` / `survival`). `co2_storage_kg` maps to **cabin** CO₂, not the captured tank.
 
-Occupant survival (when `plant_sim.survival.enabled` is true) records `/eclss/events/crew_lost` and summary fields `crew_initial`, `crew_remaining`, `crew_lost`, `crew_lost_by_cause`. Band dwell runs first (O2/water WARNING dwell / CRITICAL table; CO2 WARNING `n // 4` after 2 steps once per stay; CO2 CRITICAL `n // 2` after 2 steps once per stay). The physics floor (`o2_physics` / `water_physics`; no CO2 wipe) is a hard cap afterward. Operators shrink with `crew_alive`.
+Occupant survival (when `plant_sim.survival.enabled` is true) records `/eclss/events/crew_lost` and summary fields `crew_initial`, `crew_remaining`, `crew_lost`, `crew_lost_by_cause`. Band dwell runs first (O2/water WARNING dwell / CRITICAL table; CO2 WARNING `n // 4` after 2 steps once per stay; CO2 CRITICAL `n // 2` after 2 steps once per stay). The physics floor (`o2_physics` / `water_physics`; no CO2 wipe) is a hard cap afterward; when both O2 and water bind, the lost headcount is attributed to O2. Operators shrink with `crew_alive`. Telemetry `raw_topics.plant_sim.survival.lost_this_step` includes dwell and physics for that step.
 
-When operational commands run in a step, a second row may be appended with `"post_ops": true` (L5). Readers (dashboard) prefer `post_ops` / the last row for that step so UI matches `summary.json`.
+A second JSONL row may be appended with `"post_ops": true` (at most two rows per step). On `plant_sim` with survival enabled this row is the post-survival snapshot (and the matching `health_metrics` row), including steps with no operational commands. On `mock` / `ros2`, or `plant_sim` with survival off, it is the L5 refresh after operational commands only. Readers (dashboard) prefer `post_ops` / the last row for that step so UI matches `summary.json`.
 
 ### EclssOperationalCommand — runtime
 
@@ -424,7 +424,7 @@ Thresholds from `scenario.yaml` `thresholds`.
 {"step": 3, "co2_status": "warning", "o2_status": "safe", "water_status": "safe", "overall": "warning"}
 ```
 
-Same optional `"post_ops": true` duplicate-row rule as `telemetry.jsonl` when ops refresh health in-step.
+Same optional `"post_ops": true` duplicate-row rule as `telemetry.jsonl` (ops refresh, and on `plant_sim` the post-survival snapshot).
 
 | Metric | safe | warning | critical |
 | --- | --- | --- | --- |

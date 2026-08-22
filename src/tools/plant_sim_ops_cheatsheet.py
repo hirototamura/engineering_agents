@@ -4,7 +4,7 @@ This is not the Streamlit dashboard. It sweeps occupant count N with survival
 disabled so N stays an independent variable.
 
 Left column is **unconstrained demand** (∝ N), not tank-limited consumption —
-otherwise O2 metabolism flattens once the 0.48 kg tank is empty.
+otherwise O2 metabolism flattens once the initial tank is empty.
 Middle column is **nameplate of one action** (inventory ignored), so ARS/OGS/WRS
 are flat vs N. Column 3 is the simulated tank Δ / step. Column 4 is the ending
 tank (initial + campaign Δ).

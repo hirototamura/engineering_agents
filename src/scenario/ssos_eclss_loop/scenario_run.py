@@ -204,6 +204,30 @@ def _plant_sim_topic(snap: Optional[EclssTelemetrySnapshot]) -> Optional[Dict[st
     return topic if isinstance(topic, dict) else None
 
 
+def _accumulate_storage_peaks(
+    snap: EclssTelemetrySnapshot,
+    peak_co2: Optional[float],
+    min_o2: Optional[float],
+) -> tuple[Optional[float], Optional[float]]:
+    if snap.co2_storage_kg is not None:
+        peak_co2 = (
+            snap.co2_storage_kg if peak_co2 is None else max(peak_co2, snap.co2_storage_kg)
+        )
+    if snap.o2_storage_kg is not None:
+        min_o2 = snap.o2_storage_kg if min_o2 is None else min(min_o2, snap.o2_storage_kg)
+    return peak_co2, min_o2
+
+
+def _append_post_ops(
+    log: EventLog,
+    step: int,
+    snap: EclssTelemetrySnapshot,
+    health: Dict[str, Any],
+) -> None:
+    log.append("telemetry", {"step": step, "post_ops": True, **snap.to_dict()})
+    log.append("health_metrics", {**health, "post_ops": True})
+
+
 def _apply_survival_after_ops(
     *,
     backend: EclssBackend,
@@ -216,7 +240,7 @@ def _apply_survival_after_ops(
 ) -> tuple[Optional[EclssTelemetrySnapshot], SurvivalStreaks]:
     apply = getattr(backend, "apply_capacity_drop", None)
     set_alive = getattr(backend, "set_crew_alive", None)
-    if not callable(apply):
+    if not callable(apply) or not policy.enabled:
         return None, streaks
     snap = backend.poll_telemetry()
     topic = _plant_sim_topic(snap) or {}
@@ -230,7 +254,7 @@ def _apply_survival_after_ops(
             alive, health, streaks
         )
         if callable(set_alive):
-            set_alive(new_alive)
+            set_alive(new_alive, limiting=limiting)
         alive = new_alive
     result = apply()
     physics_lost = int(result.get("lost_this_step") or 0)
@@ -250,7 +274,6 @@ def _apply_survival_after_ops(
     lost_ids: list[str] = []
     if team is not None:
         lost_ids = team.set_crew_alive(int(topic.get("crew_alive", 0)))
-    log.append("telemetry", {"step": step, "post_ops": True, **snap.to_dict()})
     if lost > 0:
         log.append(
             "events",
@@ -381,6 +404,7 @@ class SsosEclssLoopScenario(Scenario):
         try:
             # 0-based steps: step 0 observes configured initial state; advance before 1..steps-1.
             for step in range(steps):
+                commands_this_step = False
                 if step > 0 and hasattr(backend, "advance_step"):
                     backend.advance_step()
 
@@ -396,18 +420,7 @@ class SsosEclssLoopScenario(Scenario):
                 if backend_kind == "ros2":
                     _assert_ros2_storage_telemetry(step, snap)
                 last_snap = snap
-                if snap.co2_storage_kg is not None:
-                    peak_co2 = (
-                        snap.co2_storage_kg
-                        if peak_co2 is None
-                        else max(peak_co2, snap.co2_storage_kg)
-                    )
-                if snap.o2_storage_kg is not None:
-                    min_o2 = (
-                        snap.o2_storage_kg
-                        if min_o2 is None
-                        else min(min_o2, snap.o2_storage_kg)
-                    )
+                peak_co2, min_o2 = _accumulate_storage_peaks(snap, peak_co2, min_o2)
 
                 health = compute_eclss_storage_health(step, snap, thresholds)
                 last_health = health
@@ -443,28 +456,17 @@ class SsosEclssLoopScenario(Scenario):
                         elif cmd_kind == "request_co2" and co2_requested_step is None:
                             co2_requested_step = step
 
-                    # L5: refresh final telemetry/health after ops so summary reflects last actions.
+                    # L5: refresh after ops; the post_ops JSONL row is written once below
+                    # (after survival on plant_sim, so ops + attrition share one row).
                     if outcome.commands:
+                        commands_this_step = True
                         snap = backend.poll_telemetry()
                         if backend_kind == "ros2":
                             _assert_ros2_storage_telemetry(step, snap)
                         last_snap = snap
-                        if snap.co2_storage_kg is not None:
-                            peak_co2 = (
-                                snap.co2_storage_kg
-                                if peak_co2 is None
-                                else max(peak_co2, snap.co2_storage_kg)
-                            )
-                        if snap.o2_storage_kg is not None:
-                            min_o2 = (
-                                snap.o2_storage_kg
-                                if min_o2 is None
-                                else min(min_o2, snap.o2_storage_kg)
-                            )
+                        peak_co2, min_o2 = _accumulate_storage_peaks(snap, peak_co2, min_o2)
                         health = compute_eclss_storage_health(step, snap, thresholds)
                         last_health = health
-                        log.append("telemetry", {"step": step, "post_ops": True, **snap.to_dict()})
-                        log.append("health_metrics", {**health, "post_ops": True})
 
                 survival_snap, dwell_streaks = _apply_survival_after_ops(
                     backend=backend,
@@ -477,6 +479,14 @@ class SsosEclssLoopScenario(Scenario):
                 )
                 if survival_snap is not None:
                     last_snap = survival_snap
+                    peak_co2, min_o2 = _accumulate_storage_peaks(
+                        survival_snap, peak_co2, min_o2
+                    )
+                    health = compute_eclss_storage_health(step, survival_snap, thresholds)
+                    last_health = health
+                    _append_post_ops(log, step, survival_snap, health)
+                elif commands_this_step and last_snap is not None and last_health is not None:
+                    _append_post_ops(log, step, last_snap, last_health)
 
         finally:
             clear_scheduled_subsystem_failures(backend, failure_schedule)

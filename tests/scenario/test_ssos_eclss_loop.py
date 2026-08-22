@@ -568,6 +568,19 @@ def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Pa
     ]
     assert len(metabolism_rows) == 2  # steps 1 and 2 (advance before poll)
 
+    by_step = {}
+    for row in telemetry:
+        by_step.setdefault(row["step"], []).append(row)
+    assert all(len(rows) <= 2 for rows in by_step.values())
+    health = _read_jsonl(run_dir / "health_metrics.jsonl")
+    health_by_step = {}
+    for row in health:
+        health_by_step.setdefault(row["step"], []).append(row)
+    for step, rows in by_step.items():
+        tel_post = sum(1 for row in rows if row.get("post_ops") is True)
+        health_post = sum(1 for row in health_by_step[step] if row.get("post_ops") is True)
+        assert tel_post == health_post <= 1
+
     assert "crew_remaining" in summary
     assert summary["crew_initial"] == 50
     topic = telemetry[-1]["raw_topics"]["plant_sim"]
@@ -595,6 +608,26 @@ def test_plant_sim_rejects_mismatched_team_count(tmp_path: Path):
             },
             recreate_output=True,
         )
+
+
+def test_plant_sim_survival_off_skips_duplicate_post_ops(tmp_path: Path):
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "survival_off",
+        overrides={
+            "backend": {"kind": "plant_sim"},
+            "agents": {"mode": "none"},
+            "simulation": {"steps": 3},
+            "plant_sim": {"survival": {"enabled": False}},
+        },
+        recreate_output=True,
+    )
+    telemetry = _read_jsonl(run_dir / "telemetry.jsonl")
+    health = _read_jsonl(run_dir / "health_metrics.jsonl")
+    assert len(telemetry) == 3
+    assert len(health) == 3
+    assert all(row.get("post_ops") is not True for row in telemetry)
+    assert all(row.get("post_ops") is not True for row in health)
 
 
 def test_plant_sim_survival_drops_crew_when_o2_starved(tmp_path: Path):
@@ -650,4 +683,20 @@ def test_plant_sim_o2_warning_dwell_before_physics_floor(tmp_path: Path):
     assert lost_events
     assert "o2_warning" in lost_events[0].get("limiting", [])
     assert "o2_physics" not in lost_events[0].get("limiting", [])
+    telemetry = _read_jsonl(run_dir / "telemetry.jsonl")
+    health = _read_jsonl(run_dir / "health_metrics.jsonl")
+    by_step_tel = {}
+    for row in telemetry:
+        by_step_tel.setdefault(row["step"], []).append(row)
+    by_step_health = {}
+    for row in health:
+        by_step_health.setdefault(row["step"], []).append(row)
+    assert all(len(rows) <= 2 for rows in by_step_tel.values())
+    assert all(len(rows) <= 2 for rows in by_step_health.values())
+    lost_step = lost_events[0]["step"]
+    post = next(row for row in by_step_tel[lost_step] if row.get("post_ops") is True)
+    survival = (post.get("raw_topics") or {}).get("plant_sim", {}).get("survival") or {}
+    assert survival.get("lost_this_step") == 1
+    assert "o2_warning" in (survival.get("limiting") or [])
+    assert any(row.get("post_ops") is True for row in by_step_health[lost_step])
 

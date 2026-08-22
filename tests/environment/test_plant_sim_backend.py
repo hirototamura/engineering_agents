@@ -63,6 +63,31 @@ def test_set_crew_alive_never_revives():
     assert b.model.state.crew_alive == 2
 
 
+def test_poll_telemetry_includes_dwell_losses_until_next_step():
+    b = _backend(
+        crew_size=4,
+        survival_enabled=True,
+        initial_o2_kg=10.0,
+        initial_product_water_l=100.0,
+    )
+    lost = b.set_crew_alive(3, limiting=["o2_warning"])
+    assert lost == 1
+    survival = b.poll_telemetry().raw_topics["plant_sim"]["survival"]
+    assert survival["lost_this_step"] == 1
+    assert survival["limiting"] == ["o2_warning"]
+
+    physics = b.apply_capacity_drop()
+    assert physics["lost_this_step"] == 0
+    merged = b.poll_telemetry().raw_topics["plant_sim"]["survival"]
+    assert merged["lost_this_step"] == 1
+    assert merged["limiting"] == ["o2_warning"]
+
+    b.advance_step()
+    cleared = b.poll_telemetry().raw_topics["plant_sim"]["survival"]
+    assert cleared["lost_this_step"] == 0
+    assert cleared["limiting"] == []
+
+
 def test_poll_telemetry_exports_last_metabolism_once():
     b = _backend()
     before = b.poll_telemetry()
