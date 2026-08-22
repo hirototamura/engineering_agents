@@ -96,11 +96,11 @@ Baseline runs show how storage evolves without agent intervention.
 
 **Re-arm**: If storage does not improve after ARS / OGS, the next step can retry (`co2_at_ars_dispatch` / `o2_at_ogs_dispatch` boundaries).
 
-Steps are 0-based (`0 .. steps-1`). Representative operator `eclss_operator_{step % N}` issues commands for that step (one policy representative; `max_actions_per_step` does not apply). Post-run, the representative outputs `design_proposals.json` (`ssos_graph`).
+Steps are 0-based (`0 .. steps-1`). Actor `eclss_actor_{step % N}` issues operational commands (one policy representative; `max_actions_per_step` does not apply). After the run, a separate designer team (`eclss_designer_*`) writes `design_proposals.json` (`ssos_graph`).
 
 ### llm
 
-Each step: all N agents deliberate in parallel → up to `agents.max_actions_per_step` rotating representatives issue `operational_command` (JSON `commands`) in parallel → one post-run `changes` proposal. Default is 1 (same as before). `policy` thresholds are not included in prompts (same as scrubber). A single representative may still return several command kinds (ARS + OGS); the parameter is the number of action-issuing agents, not a cap on command objects.
+Each step: all N actors deliberate in parallel → up to `agents.actor.max_actions_per_step` rotating representatives issue `operational_command`. After the run, designers deliberate and **one representative** emits `changes`. That representative may emit **any number** of proposals (empty list allowed; file written only when non-empty). `policy` thresholds are not included in prompts.
 
 ---
 
@@ -108,8 +108,8 @@ Each step: all N agents deliberate in parallel → up to `agents.max_actions_per
 
 | File | Purpose |
 | --- | --- |
-| [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.mode`, run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Team (`eclss_operator_*`), Persona, `policy` (labeled only), Ollama / vLLM |
+| [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.actor.mode` / `agents.design.mode`, run ID |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Actor team (`eclss_actor_*`), designer team (`eclss_designer_*`), actor `policy` (labeled only), per-side vLLM |
 
 ### scenario.yaml (main fields)
 
@@ -176,7 +176,7 @@ Inject ARS / OGS / WRS failures at chosen steps. **Off by default** (`inject_fai
 ```yaml
 team:
   count: 3
-  id_prefix: eclss_operator
+  id_prefix: eclss_actor
 
 policy:   # labeled_rule_base only. Thresholds merged from scenario.yaml at runtime
   request_co2_before_ogs: false
@@ -234,10 +234,10 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 
 | Concept | ssos_eclss_loop |
 | --- | --- |
-| IDs | `eclss_operator_1` … `eclss_operator_N` (default 3) |
+| IDs | actors `eclss_actor_1` … `N` (default 50); designers `eclss_designer_1` … `4` |
 | deliberation | llm: one round for all. labeled: operational decision messages |
-| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_operator_{step % N}` (default 1). labeled: one policy rep |
-| post-run rep | Representative at final step outputs `design_proposals.json` when `changes` is non-empty |
+| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_actor_{step % N}` (default 1). labeled: one policy rep |
+| post-run rep | One designer representative emits `changes` (no count cap; file written when non-empty) |
 
 `SsosEclssLoopTeam` extends the `Team` ABC. Signatures: `run_step(backend, obs)` / `apply_outcome(backend, outcome)`.
 
@@ -257,8 +257,8 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 ### mock (host, no ROS2)
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode labeled_rule_base
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labeled_rule_base
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm
 ```
 
 ### plant_sim (host, mass-balance plant)
@@ -266,8 +266,8 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 Deterministic crew + ARS/OGS/Sabatier/WRS model with explainable ledgers. No Docker.
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend plant_sim --agents-mode labeled_rule_base --steps 72
-python3 -m tools.cli run ssos_eclss_loop --backend plant_sim --agents-mode labeled_rule_base --steps 72
+python -m scenario.ssos_eclss_loop.scenario_run --backend plant_sim --actor-mode labeled_rule_base --steps 72
+python3 -m tools.cli run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --steps 72
 ```
 
 Details: [Plant Sim backend](memo/ssos_eclss_loop/plant_sim_backend.md).
@@ -280,18 +280,18 @@ Details: [Plant Sim backend](memo/ssos_eclss_loop/plant_sim_backend.md).
 # Inside container: bash /root/ssos-eclss-headless.sh
 
 # Terminal 2: host repo root
-./scripts/run_ssos_eclss_loop.sh --agents-mode labeled_rule_base
-./scripts/run_ssos_eclss_loop.sh --agents-mode llm
+./scripts/run_ssos_eclss_loop.sh --actor-mode labeled_rule_base
+./scripts/run_ssos_eclss_loop.sh --actor-mode llm
 ```
 
-Inside container directly: `ea-loop --agents-mode labeled_rule_base` (default `OLLAMA_BASE_URL=host.docker.internal`).
+Inside container directly: `ea-loop --actor-mode labeled_rule_base` (default `OLLAMA_BASE_URL=host.docker.internal`).
 
 ### Apply prior run design proposals to next run
 
 `--apply-proposals` merges into the **in-memory** config **before simulation starts**; on-disk `scenario.yaml` / `agents.yaml` are not rewritten. The effective configs are written to `scenario_config.yaml` / `agents_config.yaml` in the run directory.
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm \
+python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \
   --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 
@@ -335,10 +335,12 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --agents-mode llm
 
 ### design_proposals.json (ssos_graph)
 
+`changes` is the list from one representative; there is no count cap.
+
 ```json
 {
   "design_domain": "ssos_graph",
-  "proposed_by": "eclss_operator_2",
+  "proposed_by": "eclss_designer_1",
   "decision_source": "rule",
   "message": "Raise ARS initial_co2_mass for faster vent cycles.",
   "changes": [

@@ -48,7 +48,7 @@ Both tracks write one file after the run. The simulator / SSOS graph is **not ch
 | `proposed_by` | Action representative ID at final step |
 | `decision_source` | `rule` or `llm` |
 | `message` / `reasoning` | Proposal explanation |
-| `changes` | List of permanent changes (`change_kind` + `payload` each) |
+| `changes` | List of permanent changes (`change_kind` + `payload` each). One representative may emit any count |
 | `parse_notes` | LLM parse warnings (optional) |
 
 Corresponds to `design_proposals_path` and `design_proposal_count` in `summary.json`.

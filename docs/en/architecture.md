@@ -439,7 +439,7 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires optional)
   scenario/ssos_eclss_loop/scenario_run.py → SsosEclssLoopScenario
         │
         ├─ build_eclss_backend() → LoopMockEclssBackend | Ros2EclssBridge(topic_remap)
-        ├─ build_team()            → SsosEclssLoopTeam
+        ├─ build_team()            → SsosEclssLoopTeam (actors)
         │
         ▼
   for step in 1..N:
@@ -450,8 +450,8 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires optional)
     5. log messages, operational events
         │
         ▼
-  propose_post_run_design() → design_proposals.json (ssos_graph)
-  export_run_provenance()   → operational records
+  PostRunDesignAgent.propose() → design_proposals.json (ssos_graph)
+  export_run_provenance()      → operational records
 ```
 
 ### Environment layout
@@ -468,7 +468,8 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires optional)
 | `environment/ssos/ros2/cli.py` | Shared `run_ros2_cli`, parallel topic echo, parsing helpers |
 | `environment/ssos/eps/ros2/` | `Ros2EpsBridge` — **EPS only**; used by scrubber, not this loop |
 | `scenario/ssos_eclss_loop/scenario_run.py` | `SsosEclssLoopScenario`, `build_eclss_backend()` |
-| `scenario/agents/ssos_eclss_loop_team.py` | `SsosEclssLoopTeam` |
+| `scenario/agents/ssos_eclss_loop_team.py` | `SsosEclssLoopTeam` (actors) |
+| `scenario/agents/ssos_post_run_design.py` | `PostRunDesignAgent` (post-run designers) |
 
 Backend selection (`build_eclss_backend` in `scenario_run.py`):
 
@@ -622,6 +623,8 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 #### llm
 
 N-way simultaneous deliberation, then up to `agents.max_actions_per_step` rotating representatives (default 1) issue operational commands in parallel. Prompt includes storage kg and health state (no policy). Override with `--set agents.max_actions_per_step=8`.
+
+After the run, one designer representative emits `changes` with no count cap.
 
 ### Output and dashboard
 

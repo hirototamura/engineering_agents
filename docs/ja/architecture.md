@@ -448,7 +448,7 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
   scenario/ssos_eclss_loop/scenario_run.py → SsosEclssLoopScenario
         │
         ├─ build_eclss_backend() → LoopMockEclssBackend | Ros2EclssBridge(topic_remap)
-        ├─ build_team()            → SsosEclssLoopTeam
+        ├─ build_team()            → SsosEclssLoopTeam（actor）
         │
         ▼
   for step in 1..N:
@@ -459,7 +459,7 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
     5. log messages, operational events
         │
         ▼
-  propose_post_run_design() → design_proposals.json（ssos_graph）
+  PostRunDesignAgent.propose() → design_proposals.json（ssos_graph）
   export_run_provenance()   → operational レコード
 ```
 
@@ -477,7 +477,8 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
 | `environment/ssos/ros2/cli.py` | 共有 `run_ros2_cli`、並列 topic echo、パースヘルパ |
 | `environment/ssos/eps/ros2/` | `Ros2EpsBridge` — **EPS のみ**。scrubber が使用、eclss loop 未接続 |
 | `scenario/ssos_eclss_loop/scenario_run.py` | `SsosEclssLoopScenario`、`build_eclss_backend()` |
-| `scenario/agents/ssos_eclss_loop_team.py` | `SsosEclssLoopTeam` |
+| `scenario/agents/ssos_eclss_loop_team.py` | `SsosEclssLoopTeam`（actor） |
+| `scenario/agents/ssos_post_run_design.py` | `PostRunDesignAgent`（事後 designer） |
 
 バックエンド選択（`scenario_run.py` の `build_eclss_backend`）:
 
@@ -639,6 +640,8 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 #### llm
 
 N 体同時 deliberation のあと、`agents.max_actions_per_step` 体までの回転代表（既定 1）が運用コマンドを並列発行。プロンプトにはストレージ kg とヘルス状態（policy なし）。`--set agents.max_actions_per_step=8` で上書き可。
+
+事後は designer 代表 1 体が `changes` を出す。件数に上限はない。
 
 ### 出力・ダッシュボード
 

@@ -58,9 +58,11 @@ ea job run /tmp/job.json
 
 | Flag | Description |
 | --- | --- |
-| `--agents-mode` | `none`, `labeled_rule_base`, or `llm` |
-| `--llm-provider` | `ollama` (local) or `vllm` (lab GPU server). Only used with `--agents-mode llm` |
-| `--llm-model` | Override `agents.llm.model` (Ollama tag or vLLM served-model id) |
+| `--agents-mode` | `none`, `labeled_rule_base`, or `llm` (scrubber). On `ssos_eclss_loop`, deprecated alias for `--actor-mode` |
+| `--actor-mode` | `ssos_eclss_loop` in-sim actors: `none`, `labeled_rule_base`, or `llm` |
+| `--design-mode` | `ssos_eclss_loop` post-run designers: `none`, `labeled_rule_base`, or `llm` (omit to inherit actor mode) |
+| `--llm-provider` | `ollama` (local) or `vllm` (lab GPU server). Applied to whichever side is `llm` |
+| `--llm-model` | Override LLM model; on ssos writes both `agents.actor.llm.model` and `agents.design.llm.model` |
 | `--steps` | Override `simulation.steps` |
 | `--run-id` | Override output run id when using the default results root |
 | `--output-dir` | Write directly to a directory path |
@@ -124,7 +126,7 @@ docker exec ssos test -f /root/ssos-eclss-headless.sh && echo "headless helper O
 docker exec ssos test -d /ea/src/scenario/ssos_eclss_loop && echo "src mount OK"
 
 # 4. Simulation
-ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
 
 # 5. Results
 ea results
@@ -147,7 +149,7 @@ No venv or container setup needed if the container already exists.
 ```bash
 cd /path/to/engineering_agents
 source .venv/bin/activate
-ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
 ea results
 ```
 
@@ -157,7 +159,7 @@ ea results
 docker start ssos
 cd /path/to/engineering_agents
 source .venv/bin/activate
-ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
 ea results
 ```
 
@@ -170,8 +172,8 @@ Volume mounts are fixed at container **create** time. If helper scripts are miss
 ### Mock / plant_sim backends (no Docker)
 
 ```bash
-ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8
-ea run ssos_eclss_loop --backend plant_sim --agents-mode labeled_rule_base --steps 72
+ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --steps 72
 ea run ssos_eclss_loop --backend mock --agents-mode llm --set agents.max_actions_per_step=8
 ```
 

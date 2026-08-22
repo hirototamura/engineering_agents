@@ -93,7 +93,7 @@ docker exec ssos test -f /root/ssos-eclss-headless.sh && echo "headless helper O
 docker exec ssos test -d /ea/src/scenario/ssos_eclss_loop && echo "src mount OK"
 
 # 4. シミュレーション
-ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
 
 # 5. 結果確認
 ea results
@@ -105,7 +105,7 @@ ea results
 | `src` → `/ea/src` | コード |
 | `experiments/results` → `/ea/results` | 成果物（ホストに直接書き込み） |
 
-LLM エージェントを使う場合はホストの Ollama、または研究室 LAN/VPN 上の vLLM（`--llm-provider vllm`）を指定して `--agents-mode llm` に変更。headless 用の第 2 ターミナルは不要です。
+LLM を使う場合は `--actor-mode llm` および/または `--design-mode llm` と `--llm-provider vllm`。headless 用の第 2 ターミナルは不要です。
 
 ### 2 回目以降：シミュレーションのみ（コマンド一式）
 
@@ -116,7 +116,7 @@ LLM エージェントを使う場合はホストの Ollama、または研究室
 ```bash
 cd /path/to/engineering_agents
 source .venv/bin/activate
-ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
 ea results
 ```
 
@@ -126,7 +126,7 @@ ea results
 docker start ssos
 cd /path/to/engineering_agents
 source .venv/bin/activate
-ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
+ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
 ea results
 ```
 
@@ -139,9 +139,9 @@ ea results
 ### Mock / plant_sim（Docker 不要）
 
 ```bash
-ea run ssos_eclss_loop --backend mock --agents-mode labeled_rule_base --steps 8
-ea run ssos_eclss_loop --backend plant_sim --agents-mode labeled_rule_base --steps 72
-ea run ssos_eclss_loop --backend mock --agents-mode llm --set agents.max_actions_per_step=8
+ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --steps 72
+ea run ssos_eclss_loop --backend mock --actor-mode llm --set agents.actor.max_actions_per_step=8
 ```
 
 `plant_sim` は乗員代謝・WRS 水循環・物質収支 ledger を再現 — [Plant Sim backend 解説](memo/ssos_eclss_loop/plant_sim_backend.md)。

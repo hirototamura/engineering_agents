@@ -47,7 +47,7 @@
 | `proposed_by` | 最終 step の action 代表 ID |
 | `decision_source` | `rule` または `llm` |
 | `message` / `reasoning` | 提案の説明 |
-| `changes` | 恒久変更のリスト（各要素に `change_kind` + `payload`） |
+| `changes` | 恒久変更のリスト（各要素に `change_kind` + `payload`）。代表 1 体が任意件数を出してよい |
 | `parse_notes` | LLM パース時の警告（任意） |
 
 `summary.json` の `design_proposals_path`、`design_proposal_count` と対応。
