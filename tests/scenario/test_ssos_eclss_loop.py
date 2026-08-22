@@ -443,6 +443,12 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
         and m.get("deliberation_phase") in {"deliberation", "post_run_proposal"}
         for m in messages
     )
+    last_step = summary["steps"] - 1
+    assert all(
+        m.get("step") == last_step
+        for m in messages
+        if str(m.get("from_role", "")).startswith("eclss_designer_")
+    )
     assert "deliberation_messages" not in design_proposals
 
 
@@ -485,6 +491,12 @@ def test_ssos_eclss_loop_labeled_actor_llm_design(tmp_path: Path, monkeypatch):
     assert proposals.get("proposed_by", "").startswith("eclss_designer_")
     messages = _read_jsonl(run_dir / "messages.jsonl")
     assert any(str(m.get("from_role", "")).startswith("eclss_designer_") for m in messages)
+    last_step = summary["steps"] - 1
+    assert all(
+        m.get("step") == last_step
+        for m in messages
+        if str(m.get("from_role", "")).startswith("eclss_designer_")
+    )
 
 
 def test_ssos_llm_design_parse_fail_falls_back_to_rule_changes(tmp_path: Path, monkeypatch):

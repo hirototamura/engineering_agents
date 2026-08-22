@@ -205,6 +205,8 @@ def _apply_graph_rewire(config: Dict[str, Any], payload: Dict[str, Any]) -> None
     rewires = graph.setdefault("rewires", [])
     if not isinstance(rewires, list):
         raise ValueError("ssos_graph.rewires must be a list")
+    if not payload:
+        raise ValueError("graph_rewire.payload must be a non-empty object")
     rewires.append(copy.deepcopy(payload))
 
 

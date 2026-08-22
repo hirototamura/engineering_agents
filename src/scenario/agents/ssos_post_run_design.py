@@ -45,6 +45,16 @@ class DesignReviewBundle:
     actor_snapshot: Optional[ActorTeamSnapshot] = None
 
 
+def post_run_message_step(summary: Dict[str, Any]) -> int:
+    """Last 0-based simulation step (``0 .. steps-1``).
+
+    Designer messages must land on a telemetry step so dashboard replay
+    (bounded by telemetry min/max) can show them.
+    """
+    steps = int(summary.get("steps", 0) or 0)
+    return max(steps - 1, 0)
+
+
 class PostRunDesignAgent:
     """Homogeneous designer team invoked only after the simulation loop."""
 
@@ -88,7 +98,7 @@ class PostRunDesignAgent:
         )
         proposals["deliberation_messages"] = [
             AgentMessage(
-                step=int(bundle.summary.get("steps", 0)),
+                step=post_run_message_step(bundle.summary),
                 from_role=proposed_by,
                 to_role="team",
                 message=str(proposals.get("message") or ""),
@@ -107,8 +117,8 @@ class PostRunDesignAgent:
         # designer[0] as the rule speaker. LLM rotates on the *designer* roster
         # using the final step index — not TeamConfig.action_rep_index, which
         # addresses in-sim actors.
-        steps = int(summary.get("steps", 0))
-        index = (steps - 1 if steps > 0 else 0) % self.team_cfg.count
+        steps = post_run_message_step(summary)
+        index = steps % self.team_cfg.count
         return self.team_cfg.agent_ids[index]
 
     def _llm_propose(
@@ -118,7 +128,7 @@ class PostRunDesignAgent:
     ) -> Dict[str, Any]:
         situation = build_llm_post_run_situation(bundle)
         contract = message_contract()
-        step = int(bundle.summary.get("steps", 0))
+        step = post_run_message_step(bundle.summary)
         actor_discourse = list((bundle.actor_snapshot.discourse if bundle.actor_snapshot else [])[-8:])
         turns = run_parallel(
             [

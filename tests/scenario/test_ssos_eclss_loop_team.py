@@ -561,6 +561,25 @@ def test_llm_design_parse_accepts_canonical_actor_policy_target():
     assert changes[0]["payload"]["target"] == "agents.actor.policy.co2_storage_high_kg"
 
 
+def test_llm_design_parse_rejects_empty_graph_rewire():
+    from scenario.agents.ssos_post_run_design import parse_llm_design_proposals
+
+    changes, notes = parse_llm_design_proposals(
+        [{"change_kind": "graph_rewire", "payload": {}}]
+    )
+    assert changes == []
+    assert notes
+
+
+def test_post_run_message_step_is_last_zero_based_index():
+    from scenario.agents.ssos_post_run_design import post_run_message_step
+
+    assert post_run_message_step({"steps": 8}) == 7
+    assert post_run_message_step({"steps": 1}) == 0
+    assert post_run_message_step({"steps": 0}) == 0
+    assert post_run_message_step({}) == 0
+
+
 def test_action_rep_ids_default_is_single_rep():
     team = SsosEclssLoopTeam(_team_config())
     assert team.max_actions_per_step == 1

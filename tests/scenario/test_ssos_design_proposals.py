@@ -70,6 +70,15 @@ def test_apply_graph_rewire():
     assert merged["ssos_graph"]["rewires"][0]["public"] == "/grey_water"
 
 
+def test_apply_graph_rewire_rejects_empty_payload():
+    proposals = {
+        "design_domain": DESIGN_DOMAIN,
+        "changes": [{"change_kind": "graph_rewire", "payload": {}}],
+    }
+    with pytest.raises(ValueError, match="non-empty"):
+        apply_design_proposals({"agents": {"policy": {}}}, proposals)
+
+
 def test_build_design_proposals_from_policy():
     policy = {
         "co2_storage_high_kg": 1.5,
