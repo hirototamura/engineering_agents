@@ -50,9 +50,9 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     assert summary["scenario"] == "ssos_eclss_loop"
     assert summary["backend"] == "mock"
     assert summary["agents_mode"] == "none"
-    assert summary["steps"] == 40
-    assert len(telemetry) == 40
-    assert len(health) == 40
+    assert summary["steps"] == 50
+    assert len(telemetry) == 50
+    assert len(health) == 50
     assert summary["inject_failures"] is False
     assert summary["operational_command_count"] == 0
     assert summary["message_count"] == 0
@@ -386,7 +386,12 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
         "ssos_eclss_loop",
         output_dir=tmp_path / "llm",
         overrides={
-            "agents": {"mode": "llm", "team": {"count": 4}},
+            "simulation": {"steps": 8},
+            "agents": {
+                "mode": "llm",
+                "max_actions_per_step": 1,
+                "team": {"count": 4},
+            },
             "plant_sim": {"crew": {"size": 4}},
         },
         recreate_output=True,

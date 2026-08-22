@@ -2,8 +2,16 @@
 
 mode: labeled_rule_base  # none | labeled_rule_base | llm (CLI --agents-mode overrides)
 
-memory_limit: 1000  # [-] max memories kept per operator
-discourse_window: 12  # [-] recent utterances visible to each operator
+# Per-agent private entries (not steps). llm commit writes ~2–3 strings per
+# step (optional JSON "memory", message+reasoning summary, plus own commands).
+# 30 keeps the newest ~10–15 steps of private recall (vLLM prompt budget).
+memory_limit: 30  # [-] max memories kept per operator
+# Team discourse is a sliding window of AgentMessage objects. One llm step
+# emits ~count deliberation messages + max_actions_per_step action/skip
+# messages (~52 with count 50 and 2 action reps). 22 is a vLLM prompt budget
+# (less than one full 50-person step) so operators can still cite recent
+# teammates (same-step deliberation is still simultaneous).
+discourse_window: 22  # [-] recent utterances visible to each operator
 
 team:
   count: 50  # [person] operator N; must match scenario.yaml plant_sim.crew.size for plant_sim
@@ -38,11 +46,13 @@ llm:
   provider: ollama  # ollama | vllm
   # Host Ollama: localhost. In SSOS Docker use host.docker.internal (ea-loop sets OLLAMA_BASE_URL).
   # Lab vLLM: --llm-provider vllm (or LLM_PROVIDER=vllm). Defaults to http://10.10.0.108:8000/v1 / qwen3-8b.
+  # Omit max_concurrency so Ollama keeps model caps (~8 for 9b). vLLM 8B still
+  # defaults to 100 in-flight when the provider is switched.
   # max_concurrency: 100  # in-flight cap; omit for provider/model defaults
   base_url: http://localhost:11434  # OpenAI-compatible or Ollama endpoint
   model: qwen3.5:9b  # model id on that endpoint
   temperature: 0.45  # [-] sampling temperature
-  max_tokens: 512  # [-] max completion tokens
+  max_tokens: 768  # [-] max completion tokens (vLLM prompt fit)
   repeat_penalty: 1.1  # [-] penalize token repeats
   repeat_last_n: 128  # [-] window (tokens) for the repeat penalty
   min_p: 0.05  # [-] min-p sampler floor
