@@ -88,6 +88,24 @@ def test_poll_telemetry_includes_dwell_losses_until_next_step():
     assert cleared["limiting"] == []
 
 
+def test_apply_capacity_drop_telemetry_uses_physics_limiting_labels():
+    b = _backend(
+        crew_size=4,
+        survival_enabled=True,
+        initial_o2_kg=0.02,
+        initial_product_water_l=100.0,
+        initial_cabin_co2_kg=0.1,
+    )
+    b.set_crew_alive(3, limiting=["o2_warning"])
+    physics = b.apply_capacity_drop()
+    assert "o2_physics" in physics["limiting"]
+    assert "o2" not in physics["limiting"]
+    survival = b.poll_telemetry().raw_topics["plant_sim"]["survival"]
+    assert "o2_warning" in survival["limiting"]
+    assert "o2_physics" in survival["limiting"]
+    assert "o2" not in survival["limiting"]
+
+
 def test_poll_telemetry_exports_last_metabolism_once():
     b = _backend()
     before = b.poll_telemetry()

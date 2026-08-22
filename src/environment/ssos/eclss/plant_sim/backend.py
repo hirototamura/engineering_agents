@@ -30,10 +30,24 @@ from environment.ssos.eclss.types import (
 )
 
 _SUBSYSTEMS = ("ars", "ogs", "wrs")
+_PHYSICS_LIMITING_LABELS = {
+    "o2": "o2_physics",
+    "water": "water_physics",
+    "co2": "co2_physics",
+}
 
 
 def _finite(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _map_physics_limiting(limiting: list) -> list[str]:
+    mapped: list[str] = []
+    for item in limiting:
+        label = _PHYSICS_LIMITING_LABELS.get(str(item), str(item))
+        if label not in mapped:
+            mapped.append(label)
+    return mapped
 
 
 class PlantSimEclssBackend:
@@ -66,12 +80,13 @@ class PlantSimEclssBackend:
         Telemetry ``survival`` merges this with any dwell losses already
         recorded by ``set_crew_alive`` in the same step.
         """
-        result = self.model.apply_capacity_drop()
+        result = dict(self.model.apply_capacity_drop())
+        result["limiting"] = _map_physics_limiting(list(result.get("limiting") or []))
         self._merge_last_survival(
             int(result.get("lost_this_step") or 0),
             list(result.get("limiting") or []),
         )
-        return dict(result)
+        return result
 
     def set_crew_alive(self, n: int, limiting: Optional[list] = None) -> int:
         """Hard-set live occupants; never increases. Returns additional lost."""
