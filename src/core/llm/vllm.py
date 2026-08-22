@@ -38,7 +38,8 @@ _CHAT_TEMPLATE_OVERHEAD_TOKENS = 256
 _CHARS_PER_TOKEN = 3
 # When thinking is enabled, reserve part of max_tokens for the final answer so
 # Qwen3-style models do not exhaust the completion budget inside reasoning.
-_DEFAULT_THINKING_ANSWER_RESERVE = 1024
+# Minimum answer reserve; scales up on large self-hosted completion budgets.
+_DEFAULT_THINKING_ANSWER_RESERVE = 2048
 _MIN_THINKING_TOKEN_BUDGET = 256
 
 # Lab server: 8B is 6-way replicated (theoretical ~384); 32B is capped at 32.
@@ -134,11 +135,13 @@ def _resolve_thinking_token_budget(
     max_tokens: int,
     *,
     explicit: Optional[int] = None,
-    answer_reserve: int = _DEFAULT_THINKING_ANSWER_RESERVE,
+    answer_reserve: Optional[int] = None,
 ) -> int:
     """Cap reasoning tokens so structured answers still fit in max_tokens."""
     if explicit is not None:
         return max(_MIN_THINKING_TOKEN_BUDGET, min(int(explicit), int(max_tokens) - 1))
+    if answer_reserve is None:
+        answer_reserve = max(_DEFAULT_THINKING_ANSWER_RESERVE, int(max_tokens) // 4)
     reserve = min(int(answer_reserve), max(1, int(max_tokens) // 2))
     return max(_MIN_THINKING_TOKEN_BUDGET, int(max_tokens) - reserve)
 

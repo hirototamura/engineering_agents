@@ -193,7 +193,8 @@ def test_vllm_generate_clamps_output_when_window_is_tight(monkeypatch):
 
 def test_resolve_thinking_token_budget_reserves_answer_room():
     assert _resolve_thinking_token_budget(2048) == 1024
-    assert _resolve_thinking_token_budget(8192) == 7168
+    assert _resolve_thinking_token_budget(8192) == 6144
+    assert _resolve_thinking_token_budget(16384) == 12288
 
 
 def test_resolve_thinking_token_budget_honors_explicit_cap():

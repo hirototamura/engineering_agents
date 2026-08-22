@@ -64,6 +64,6 @@ design:
     base_url: http://10.10.0.108:8001/v1  # independent of actor; 32B is :8001/v1
     model: qwen3.8-27b-uncensored
     temperature: 0.45
-    max_tokens: 8192  # thinking + room for multiple JSON changes (27b think mode)
+    max_tokens: 16384  # self-hosted lab vLLM; generous thinking + multi-change JSON
     think: true
     api_timeout: 20
