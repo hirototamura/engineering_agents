@@ -6,7 +6,8 @@ disabled so N stays an independent variable.
 Left column is **unconstrained demand** (∝ N), not tank-limited consumption —
 otherwise O2 metabolism flattens once the 0.48 kg tank is empty.
 Middle column is **nameplate of one action** (inventory ignored), so ARS/OGS/WRS
-are flat vs N. The right column is the simulated tank, where those limits live.
+are flat vs N. Column 3 is the simulated tank Δ / step. Column 4 is the ending
+tank (initial + campaign Δ).
 
 Usage::
 
@@ -14,7 +15,7 @@ Usage::
 
 Also writes `ops_cheatsheet_sources.md` / `.json` / `.png`: YAML paths, the loaded
 `PlantSimConfig` (dynamics), the YAML formula, and the `PlantModel` probe that
-the 3×3 actually plots.
+the 3×4 actually plots.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Sequence
@@ -71,6 +73,12 @@ class CheatsheetRow:
     ogs_nameplate_o2_kg: float
     ogs_nameplate_water_l: float
     wrs_nameplate_l: float
+    initial_co2_kg: float
+    initial_o2_kg: float
+    initial_water_l: float
+    final_co2_kg: float
+    final_o2_kg: float
+    final_water_l: float
 
     def per_step(self) -> "CheatsheetRow":
         m = max(1, self.metabolism_steps)
@@ -96,6 +104,12 @@ class CheatsheetRow:
             ogs_nameplate_o2_kg=self.ogs_nameplate_o2_kg,
             ogs_nameplate_water_l=self.ogs_nameplate_water_l,
             wrs_nameplate_l=self.wrs_nameplate_l,
+            initial_co2_kg=self.initial_co2_kg,
+            initial_o2_kg=self.initial_o2_kg,
+            initial_water_l=self.initial_water_l,
+            final_co2_kg=self.final_co2_kg,
+            final_o2_kg=self.final_o2_kg,
+            final_water_l=self.final_water_l,
         )
 
 
@@ -242,6 +256,12 @@ def run_campaign(
         ogs_nameplate_o2_kg=ogs_o2_np,
         ogs_nameplate_water_l=ogs_water_np,
         wrs_nameplate_l=wrs_nameplate_l(wrs_urine, cfg),
+        initial_co2_kg=initial_co2,
+        initial_o2_kg=initial_o2,
+        initial_water_l=initial_water,
+        final_co2_kg=model.state.cabin_co2_kg,
+        final_o2_kg=model.state.available_o2_kg,
+        final_water_l=model.state.product_water_l,
     )
 
 
@@ -282,37 +302,47 @@ MODE_LABELS = {
     "wrs": "WRS only",
 }
 
-# Rows share a tank-delta sign: + means that inventory went up.
+# Rows 0–2 share a tank-delta sign: + means that inventory went up (per step).
+# Column 3 is the ending tank (initial + campaign Δ), not a per-step rate.
 _RESOURCES = (
-    ("Cabin CO2 (kg / step)", "co2"),
-    ("Available O2 (kg / step)", "o2"),
-    ("Product water (L / step)", "water"),
+    ("Cabin CO2", "co2", "kg / step", "kg"),
+    ("Available O2", "o2", "kg / step", "kg"),
+    ("Product water", "water", "L / step", "L"),
 )
+_RATE_KINDS = ("metabolism", "ops", "net")
 _COLUMNS = (
     ("Crew metabolism", "metabolism", "Unconstrained demand ∝ N"),
     ("One subsystem action", "ops", "Nameplate of 1 call (no inventory)"),
-    ("Tank inventory", "net", "Simulated tank after both"),
+    ("Tank inventory", "net", "Simulated Δ tank / step"),
+    ("Tank + initial", "level", "Ending tank = initial + Δ"),
 )
+N_RATE_COLS = 3
 
 
 def tank_effect(row: CheatsheetRow, resource: str, kind: str) -> float:
-    """Signed per-step effect on the named tank (+ = inventory up).
+    """Signed effect on the named tank.
 
-    Metabolism uses unconstrained demand (not tank-limited consumption).
-    Ops uses nameplate of one action (inventory ignored). Net stays simulated.
+    metabolism / ops / net are per-step (+ = inventory up).
+    level is the ending tank: initial + campaign Δ (not divided by steps).
     """
     if resource == "co2":
         if kind == "metabolism":
             return row.co2_demand_kg
         if kind == "ops":
             return -row.ars_nameplate_kg if row.mode == "ars" else 0.0
-        return row.co2_net_kg
+        if kind == "net":
+            return row.co2_net_kg
+        if kind == "level":
+            return row.final_co2_kg
     if resource == "o2":
         if kind == "metabolism":
             return -row.o2_demand_kg
         if kind == "ops":
             return row.ogs_nameplate_o2_kg if row.mode == "ogs" else 0.0
-        return row.o2_net_kg
+        if kind == "net":
+            return row.o2_net_kg
+        if kind == "level":
+            return row.final_o2_kg
     if resource == "water":
         if kind == "metabolism":
             return -row.water_demand_l
@@ -322,8 +352,21 @@ def tank_effect(row: CheatsheetRow, resource: str, kind: str) -> float:
             if row.mode == "wrs":
                 return row.wrs_nameplate_l
             return 0.0
-        return row.water_net_l
+        if kind == "net":
+            return row.water_net_l
+        if kind == "level":
+            return row.final_water_l
     raise ValueError(f"unknown resource {resource!r} or kind {kind!r}")
+
+
+def initial_tank(row: CheatsheetRow, resource: str) -> float:
+    if resource == "co2":
+        return row.initial_co2_kg
+    if resource == "o2":
+        return row.initial_o2_kg
+    if resource == "water":
+        return row.initial_water_l
+    raise ValueError(f"unknown resource {resource!r}")
 
 
 def _fmt(value: float, digits: int = 6) -> str:
@@ -469,9 +512,10 @@ def build_source_report(
                 "product_water_l": plant.initial_product_water_l,
             },
             "note": (
-                "Right column is PlantModel (final − initial) / metabolism_steps "
-                "with survival off and one action per step. O2 consumption saturates "
-                "when available_o2_kg hits 0."
+                "Column 3 is PlantModel (final − initial) / metabolism_steps "
+                "with survival off and one action per step. Column 4 is ending tank "
+                "= initial + (final − initial). O2 consumption saturates when "
+                "available_o2_kg hits 0."
             ),
             "samples": tank_rows,
         },
@@ -563,7 +607,7 @@ def format_source_report_md(report: Mapping[str, Any]) -> str:
             "",
             f"WATER_PER_O2 (stoichiometry, not YAML) = `{d['WATER_PER_O2']}`.",
             "",
-            "## 4. Tank inventory (right column)",
+            "## 4. Tank inventory (column 3) and tank + initial (column 4)",
             "",
             tank["note"],
             "",
@@ -634,14 +678,40 @@ def plot_source_table(report: Mapping[str, Any], png_path: Path) -> None:
     fig.text(
         0.5,
         0.04,
-        "Left column of the 3×3 is N × per-person demand. Middle column is the nameplate row. "
-        "Right column uses these initial tanks and saturates when empty.",
+        "Columns 1–3 of the 3×4 are N × demand / nameplate / Δ tank. "
+        "Column 4 is ending tank = these initial fills + campaign Δ.",
         ha="center",
         fontsize=9,
     )
     fig.tight_layout(rect=(0.0, 0.08, 1.0, 1.0))
     fig.savefig(png_path, dpi=130, bbox_inches="tight")
     plt.close(fig)
+
+
+def _row_ylim(values: Sequence[float]) -> tuple[float, float]:
+    """Pad a shared y-range; always include 0 so tank-up / tank-down stay comparable."""
+    finite = [float(v) for v in values if math.isfinite(float(v))]
+    if not finite:
+        return (-0.1, 0.1)
+    lo = min(min(finite), 0.0)
+    hi = max(max(finite), 0.0)
+    if lo == hi:
+        pad = 0.1
+        return (lo - pad, hi + pad)
+    pad = 0.08 * (hi - lo)
+    return (lo - pad, hi + pad)
+
+
+def _row_series_values(
+    per_step: Sequence[CheatsheetRow],
+    baseline: Sequence[CheatsheetRow],
+    resource: str,
+) -> List[float]:
+    values: List[float] = [0.0]
+    for item in list(per_step) + list(baseline):
+        for kind in _RATE_KINDS:
+            values.append(tank_effect(item, resource, kind))
+    return values
 
 
 def make_cheatsheet_figure(
@@ -651,14 +721,22 @@ def make_cheatsheet_figure(
     yaml_n: int | None = None,
     title: str = "plant_sim cheatsheet — survival off, 1 action per step",
 ) -> plt.Figure:
-    """Build the 3×3 tank-sign grid. Caller owns show/save/close."""
+    """Build the 3×4 grid. Caller owns show/save/close.
+
+    Columns 0–2 (metabolism / action / tank Δ) share one y-scale per row.
+    Column 3 is ending tank = initial + campaign Δ and uses its own scale.
+    """
     per_step = [row.per_step() for row in rows]
     baseline = [row.per_step() for row in baseline_rows] if baseline_rows else []
-    fig, axes = plt.subplots(3, 3, figsize=(13.5, 9.2), sharex=True, sharey="row")
+    n_cols = len(_COLUMNS)
+    fig, axes = plt.subplots(3, n_cols, figsize=(18.6, 9.2), sharex=True)
+    for row_i in range(3):
+        axes[row_i, 1].sharey(axes[row_i, 0])
+        axes[row_i, 2].sharey(axes[row_i, 0])
 
     for col, (col_title, kind, col_subtitle) in enumerate(_COLUMNS):
         axes[0, col].set_title(f"{col_title}\n{col_subtitle}", fontsize=10, pad=8)
-        for row_i, (ylabel, resource) in enumerate(_RESOURCES):
+        for row_i, (name, resource, rate_unit, level_unit) in enumerate(_RESOURCES):
             ax = axes[row_i, col]
             if baseline:
                 for mode in MODES:
@@ -686,14 +764,39 @@ def make_cheatsheet_figure(
                     markersize=3.5,
                     label=MODE_LABELS[mode],
                 )
-            ax.axhline(0.0, color="#888888", linewidth=0.8)
+            if kind == "level":
+                if per_step:
+                    ax.axhline(
+                        initial_tank(per_step[0], resource),
+                        color="#444444",
+                        linewidth=0.9,
+                        linestyle=":",
+                    )
+            else:
+                ax.axhline(0.0, color="#888888", linewidth=0.8)
             if yaml_n is not None:
                 ax.axvline(float(yaml_n), color="#bbbbbb", linewidth=0.9, linestyle=":")
             ax.grid(True, alpha=0.3)
+            ax.tick_params(axis="y", labelleft=True)
             if col == 0:
-                ax.set_ylabel(ylabel)
+                ax.set_ylabel(f"{name}\n({rate_unit})")
+            if col == n_cols - 1:
+                ax.set_ylabel(f"{name}\n({level_unit})")
             if row_i == len(_RESOURCES) - 1:
                 ax.set_xlabel("Occupants N")
+
+    for row_i, (_name, resource, _rate_unit, _level_unit) in enumerate(_RESOURCES):
+        lo, hi = _row_ylim(_row_series_values(per_step, baseline, resource))
+        for col in range(N_RATE_COLS):
+            axes[row_i, col].set_ylim(lo, hi)
+            axes[row_i, col].tick_params(axis="y", labelleft=True)
+        level_vals = [0.0]
+        for item in list(per_step) + list(baseline):
+            level_vals.append(tank_effect(item, resource, "level"))
+            level_vals.append(initial_tank(item, resource))
+        lo_l, hi_l = _row_ylim(level_vals)
+        axes[row_i, N_RATE_COLS].set_ylim(lo_l, hi_l)
+        axes[row_i, N_RATE_COLS].tick_params(axis="y", labelleft=True)
 
     handles = [
         Line2D([0], [0], color=MODE_COLORS[mode], lw=2, marker="o", markersize=4, label=MODE_LABELS[mode])
@@ -703,18 +806,23 @@ def make_cheatsheet_figure(
         handles.append(
             Line2D([0], [0], color="#666666", lw=1.2, linestyle="--", label="YAML baseline")
         )
-    fig.legend(handles=handles, loc="upper center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.98))
+    handles.append(
+        Line2D([0], [0], color="#444444", lw=0.9, linestyle=":", label="YAML initial (col 4)")
+    )
+    fig.legend(handles=handles, loc="upper center", ncol=6, frameon=False, bbox_to_anchor=(0.5, 0.98))
     fig.suptitle(title, y=1.02, fontsize=13)
     fig.text(
         0.5,
         -0.01,
-        "Left = demand ∝ N from PlantModel.advance_step. "
-        "Middle = PlantModel.run_ars/ogs/wrs nameplate (inventory ignored). "
-        "Right = simulated tank from simulation.initial_*. Dashed = YAML baseline.",
+        "Columns 1–3 share a per-step y-scale. Column 4 is ending tank = initial + campaign Δ "
+        "(own scale; dotted line = initial fill). Dashed = YAML baseline.",
         ha="center",
         fontsize=9,
     )
     fig.tight_layout(rect=(0.0, 0.02, 1.0, 0.94))
+    for row_i in range(3):
+        for col in range(n_cols):
+            axes[row_i, col].tick_params(axis="y", labelleft=True)
     return fig
 
 

@@ -128,7 +128,7 @@
       "cabin_co2_kg": 1.3,
       "product_water_l": 51.0
     },
-    "note": "Right column is PlantModel (final \u2212 initial) / metabolism_steps with survival off and one action per step. O2 consumption saturates when available_o2_kg hits 0.",
+    "note": "Column 3 is PlantModel (final \u2212 initial) / metabolism_steps with survival off and one action per step. Column 4 is ending tank = initial + (final \u2212 initial). O2 consumption saturates when available_o2_kg hits 0.",
     "samples": [
       {
         "co2_net_kg_per_step": 0.014444444444444482,

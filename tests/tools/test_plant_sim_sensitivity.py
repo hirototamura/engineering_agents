@@ -90,11 +90,11 @@ def test_larger_initial_o2_reduces_tank_starvation():
     assert rich_row.o2_metabolism_kg == pytest.approx(rich_row.o2_demand_kg, rel=1e-5)
 
 
-def test_sensitivity_figure_is_3x3():
+def test_sensitivity_figure_is_3x4():
     rows, _ = run_sensitivity({}, n_max=2, steps=4)
     fig = sensitivity_figure(rows, baseline_rows=rows, yaml_n=4)
     assert fig.axes
-    assert len(fig.get_axes()) >= 9
+    assert len(fig.get_axes()) >= 12
     import matplotlib.pyplot as plt
 
     plt.close(fig)

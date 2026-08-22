@@ -15,6 +15,7 @@ from tools.plant_sim_ops_cheatsheet import (
     build_source_report,
     format_source_report_md,
     load_dynamics,
+    make_cheatsheet_figure,
     metabolism_demand_per_step,
     ogs_nameplate,
     plot_cheatsheet,
@@ -44,6 +45,12 @@ _ROW_DEFAULTS = dict(
     ogs_nameplate_o2_kg=0.12,
     ogs_nameplate_water_l=0.14,
     wrs_nameplate_l=1.96,
+    initial_co2_kg=1.3,
+    initial_o2_kg=0.48,
+    initial_water_l=51.0,
+    final_co2_kg=1.4,
+    final_o2_kg=0.43,
+    final_water_l=50.8,
 )
 
 
@@ -132,6 +139,19 @@ def test_tank_effect_uses_inventory_sign():
     assert tank_effect(ogs_row, "o2", "ops") > 0.0
     assert tank_effect(ogs_row, "water", "ops") < 0.0
     assert tank_effect(wrs_row, "water", "ops") > 0.0
+    assert tank_effect(none_row, "o2", "level") == pytest.approx(none_row.final_o2_kg)
+    assert tank_effect(none_row, "water", "level") == pytest.approx(none_row.final_water_l)
+
+
+def test_ending_tank_equals_initial_plus_campaign_delta():
+    rows = sweep(n_max=2, steps=8)
+    row = next(item for item in rows if item.n == 2 and item.mode == "none")
+    assert row.final_co2_kg == pytest.approx(row.initial_co2_kg + row.co2_net_kg)
+    assert row.final_o2_kg == pytest.approx(row.initial_o2_kg + row.o2_net_kg)
+    assert row.final_water_l == pytest.approx(row.initial_water_l + row.water_net_l)
+    stepped = row.per_step()
+    assert tank_effect(stepped, "co2", "level") == pytest.approx(row.final_co2_kg)
+    assert tank_effect(stepped, "o2", "level") == pytest.approx(row.initial_o2_kg + row.o2_net_kg)
 
 
 def test_cheatsheet_plot_writes_png(tmp_path):
@@ -140,6 +160,29 @@ def test_cheatsheet_plot_writes_png(tmp_path):
     plot_cheatsheet(rows, png)
     assert png.exists()
     assert png.stat().st_size > 0
+
+
+def test_cheatsheet_row_shares_ylim_and_shows_y_ticks():
+    from collections import defaultdict
+
+    import matplotlib.pyplot as plt
+
+    rows = sweep(n_max=3, steps=5)
+    fig = make_cheatsheet_figure(rows)
+    fig.canvas.draw()
+    by_row: dict[float, list] = defaultdict(list)
+    for ax in fig.axes:
+        by_row[round(ax.get_position().y0, 3)].append(ax)
+    assert len(by_row) == 3
+    for group in by_row.values():
+        group_sorted = sorted(group, key=lambda ax: ax.get_position().x0)
+        assert len(group_sorted) == 4
+        rate_ylims = [tuple(ax.get_ylim()) for ax in group_sorted[:3]]
+        assert rate_ylims[0] == rate_ylims[1] == rate_ylims[2]
+        for ax in group_sorted:
+            labels = [t.get_text() for t in ax.get_yticklabels() if t.get_text()]
+            assert labels
+    plt.close(fig)
 
 
 def test_yaml_matches_plant_sim_dynamics():

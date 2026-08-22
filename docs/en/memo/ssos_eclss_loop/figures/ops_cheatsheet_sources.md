@@ -59,9 +59,9 @@ Probes call `PlantModel.run_ars` / `run_ogs` / `run_wrs` with inventory large en
 
 WATER_PER_O2 (stoichiometry, not YAML) = `1.1260253765860366`.
 
-## 4. Tank inventory (right column)
+## 4. Tank inventory (column 3) and tank + initial (column 4)
 
-Right column is PlantModel (final − initial) / metabolism_steps with survival off and one action per step. O2 consumption saturates when available_o2_kg hits 0.
+Column 3 is PlantModel (final − initial) / metabolism_steps with survival off and one action per step. Column 4 is ending tank = initial + (final − initial). O2 consumption saturates when available_o2_kg hits 0.
 
 | YAML path | initial tank |
 | --- | ---: |

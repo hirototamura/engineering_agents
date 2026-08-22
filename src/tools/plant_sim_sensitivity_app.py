@@ -127,9 +127,10 @@ def render() -> None:
     st.pyplot(fig, clear_figure=True, use_container_width=True)
     plt.close(fig)
     st.markdown(
-        "- **Crew metabolism** (left): unconstrained demand ∝ N × activity × rates × dt/86400.\n"
-        "- **One subsystem action** (middle): ARS/OGS/WRS nameplate, inventory ignored.\n"
-        "- **Tank inventory** (right): simulated tanks from `simulation.initial_*`.\n"
+        "- **Crew metabolism**: unconstrained demand ∝ N × activity × rates × dt/86400.\n"
+        "- **One subsystem action**: ARS/OGS/WRS nameplate, inventory ignored.\n"
+        "- **Tank inventory**: simulated Δ tank / step from `simulation.initial_*`.\n"
+        "- **Tank + initial**: ending tank = initial + campaign Δ (own y-scale; dotted = initial fill).\n"
         "- Dotted vertical line: `plant_sim.crew.size` (scenario operating point; x-axis still sweeps N)."
     )
 
