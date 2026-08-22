@@ -96,7 +96,11 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     run_dir = run_scenario(
         "ssos_eclss_loop",
         output_dir=tmp_path / "labeled",
-        overrides={"agents": {"mode": "labeled_rule_base"}},
+        overrides={
+            "agents": {"mode": "labeled_rule_base", "team": {"count": 4}},
+            "plant_sim": {"crew": {"size": 4}},
+            "simulation": {"initial_o2_storage_kg": 8.0},
+        },
         recreate_output=True,
     )
 
@@ -107,7 +111,8 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
 
     assert summary["agents_mode"] == "labeled_rule_base"
     assert "thresholds" in summary
-    assert summary["thresholds"]["co2_storage_high_kg"] == pytest.approx(1.5)
+    assert summary["thresholds"]["co2_storage_high_kg"] == pytest.approx(2.0)
+    assert summary["thresholds"]["co2_storage_critical_kg"] == pytest.approx(8.0)
     assert "health_inputs" in summary
     assert summary["team_count"] == 4
     assert summary["agent_ids"] == [
@@ -118,7 +123,7 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     ]
     assert summary["message_count"] > 0
     assert summary["operational_command_count"] >= 1
-    assert summary["ars_invoked_step"] == 4
+    assert summary["ars_invoked_step"] == 12
 
     message_types = {m["message_type"] for m in messages}
     assert "alert" in message_types
@@ -132,8 +137,8 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
 
     assert telemetry[0]["step"] == 0
     assert telemetry[0]["co2_storage_kg"] == pytest.approx(1.3)
-    assert telemetry[5]["co2_storage_kg"] < telemetry[4]["co2_storage_kg"], (
-        "ARS should reduce CO2 storage after step 4"
+    assert telemetry[13]["co2_storage_kg"] < telemetry[12]["co2_storage_kg"], (
+        "ARS should reduce CO2 storage after step 12"
     )
     assert (run_dir / "design_proposals.json").exists()
     assert summary.get("design_proposal_count", 0) >= 1
@@ -160,7 +165,10 @@ def test_ssos_eclss_loop_labeled_reinvokes_ars_when_co2_reexceeds(tmp_path: Path
     run_dir = run_scenario(
         "ssos_eclss_loop",
         output_dir=tmp_path / "labeled_rearm",
-        overrides={"agents": {"mode": "labeled_rule_base"}},
+        overrides={
+            "agents": {"mode": "labeled_rule_base"},
+            "simulation": {"initial_o2_storage_kg": 8.0},
+        },
         recreate_output=True,
     )
 
@@ -174,15 +182,18 @@ def test_ssos_eclss_loop_labeled_reinvokes_ars_when_co2_reexceeds(tmp_path: Path
     ]
 
     assert summary["operational_command_count"] >= 2
-    assert 4 in ars_steps
-    assert any(step > 4 for step in ars_steps), "ARS should re-fire after CO2 regrows past threshold"
+    assert 12 in ars_steps
+    assert any(step > 12 for step in ars_steps), "ARS should re-fire after CO2 regrows past threshold"
 
 
 def test_ssos_eclss_loop_provenance_includes_operational_records(tmp_path: Path):
     run_dir = run_scenario(
         "ssos_eclss_loop",
         output_dir=tmp_path / "labeled_prov",
-        overrides={"agents": {"mode": "labeled_rule_base"}},
+        overrides={
+            "agents": {"mode": "labeled_rule_base"},
+            "simulation": {"initial_o2_storage_kg": 8.0},
+        },
         recreate_output=True,
     )
 
@@ -374,7 +385,10 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
     run_dir = run_scenario(
         "ssos_eclss_loop",
         output_dir=tmp_path / "llm",
-        overrides={"agents": {"mode": "llm"}},
+        overrides={
+            "agents": {"mode": "llm", "team": {"count": 4}},
+            "plant_sim": {"crew": {"size": 4}},
+        },
         recreate_output=True,
     )
 
@@ -542,9 +556,8 @@ def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Pa
 
     assert summary["backend"] == "plant_sim"
     assert "thresholds" in summary
-    assert summary["thresholds"]["o2_storage_critical_kg"] == pytest.approx(
-        summary["thresholds"]["o2_storage_low_kg"] * 0.75
-    )
+    assert summary["thresholds"]["o2_storage_low_kg"] == pytest.approx(6.0)
+    assert summary["thresholds"]["o2_storage_critical_kg"] == pytest.approx(1.0)
 
     metabolism_rows = [
         row
@@ -556,7 +569,7 @@ def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Pa
     assert len(metabolism_rows) == 2  # steps 1 and 2 (advance before poll)
 
     assert "crew_remaining" in summary
-    assert summary["crew_initial"] == 4
+    assert summary["crew_initial"] == 50
     topic = telemetry[-1]["raw_topics"]["plant_sim"]
     assert topic["crew_alive"] == summary["crew_remaining"]
 
@@ -606,4 +619,35 @@ def test_plant_sim_survival_drops_crew_when_o2_starved(tmp_path: Path):
     assert summary["crew_lost"] == summary["crew_initial"] - summary["crew_remaining"]
     events = _read_jsonl(run_dir / "events.jsonl")
     assert any(row.get("kind") == "/eclss/events/crew_lost" for row in events)
+
+
+def test_plant_sim_o2_warning_dwell_before_physics_floor(tmp_path: Path):
+    """WARNING dwell drops one person while tanks still cover the next interval."""
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "dwell",
+        overrides={
+            "backend": {"kind": "plant_sim"},
+            "agents": {"mode": "none"},
+            "simulation": {
+                "steps": 3,
+                "initial_o2_storage_kg": 5.0,
+                "initial_product_water_l": 80.0,
+                "initial_co2_storage_kg": 0.5,
+            },
+            "plant_sim": {
+                "crew": {"size": 4},
+                "survival": {"enabled": True},
+            },
+        },
+        recreate_output=True,
+    )
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["crew_initial"] == 4
+    assert summary["crew_remaining"] == 3
+    events = _read_jsonl(run_dir / "events.jsonl")
+    lost_events = [row for row in events if row.get("kind") == "/eclss/events/crew_lost"]
+    assert lost_events
+    assert "o2_warning" in lost_events[0].get("limiting", [])
+    assert "o2_physics" not in lost_events[0].get("limiting", [])
 

@@ -388,7 +388,7 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 
 `plant_sim` では `raw_topics.plant_sim` に ledger フィールド（`captured_co2_kg`、vent 累積、shortfall、尿バッファ、`crew_alive` / `crew_lost_total` / `survival` 等）が入る。`co2_storage_kg` は **cabin** CO₂ であり、captured タンクではない。
 
-`plant_sim.survival.enabled` が true のとき、支えきれない乗員は操作後に削減され、`/eclss/events/crew_lost` と `summary.json` の `crew_remaining` / `crew_lost` に記録される。運用エージェントも同じ人数に同期する。
+`plant_sim.survival.enabled` が true のとき、操作後に帯滞在（O2/水の WARNING 滞在コスト / CRITICAL 表。CO2 WARNING は 2 ステップ後に一度だけ `n // 4`、CO2 CRITICAL は 2 ステップ後に一度だけ `n // 2`）で減員し、そのあと物理下限（次ステップの O2・水が払える人数。cabin CO2 では物理減員しない）をハードキャップとして適用する。イベントの `limiting` は帯原因（`o2_warning` 等）と物理原因（`o2_physics` 等）を区別する。`/eclss/events/crew_lost` と `summary.json` の `crew_remaining` / `crew_lost` / `crew_lost_by_cause` に記録され、運用エージェントも同じ人数に同期する。
 
 運用コマンドがあった step では、`"post_ops": true` 付きの 2 行目が追記されうる（L5）。ダッシュボード等の読取側は `post_ops`／同 step の最終行を優先し、`summary.json` と揃える。
 
@@ -425,8 +425,8 @@ ops 後に health を更新する場合、`telemetry.jsonl` と同様に `"post_
 
 | 指標 | safe | warning | critical |
 | --- | --- | --- | --- |
-| CO₂ ストレージ (kg) | < 1.5（high） | 1.5 〜 2.2 未満 | ≥ 2.2 |
-| O₂ ストレージ (kg) | > 0.45（low） | 0.3375 〜 0.45 | ≤ 0.3375 |
+| CO₂ ストレージ (kg) | < 2.0（high） | 2.0 〜 8.0 未満 | ≥ 8.0 |
+| O₂ ストレージ (kg) | > 6.0（low） | 1.0 〜 6.0 | ≤ 1.0 |
 | 製品水 (L) | > 50（low） | 25 〜 50 | ≤ 25 |
 
 `thresholds.co2_storage_high_kg` 等は**運用トリガー**。ヘルス区分とは別概念。

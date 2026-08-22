@@ -6,7 +6,7 @@ memory_limit: 1000  # [-] max memories kept per operator
 discourse_window: 12  # [-] recent utterances visible to each operator
 
 team:
-  count: 4  # [person] operator N; must match scenario.yaml plant_sim.crew.size for plant_sim
+  count: 50  # [person] operator N; must match scenario.yaml plant_sim.crew.size for plant_sim
   id_prefix: eclss_operator  # ids are eclss_operator_0 .. N-1
   persona: |  # shared prompt for llm mode (labeled_rule_base ignores this)
     SSOS ECLSS operator engineer. Read storage telemetry (/co2_storage, /o2_storage);

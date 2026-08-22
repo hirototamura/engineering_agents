@@ -25,10 +25,12 @@ mock_dynamics:  # LoopMock only; plant_sim / ros2 ignore this block
   sabatier_co2_kg_per_water_kg: 2.0  # [-] LoopMock Sabatier CO2 debit per kg OGS water
 
 thresholds:  # storage bands for health + labeled_rule_base triggers
-  co2_storage_high_kg: 1.5  # [kg] HIGH: start ARS
-  co2_storage_critical_kg: 2.2  # [kg] CRITICAL; plant_sim survival zeros crew if cabin ≥ this
-  o2_storage_low_kg: 0.45  # [kg] LOW: start OGS
+  co2_storage_high_kg: 2.0  # [kg] HIGH: start ARS
+  co2_storage_critical_kg: 8.0  # [kg] CRITICAL; plant_sim dwell: 2 steps then n // 2 once
+  o2_storage_low_kg: 6.0  # [kg] LOW: start OGS; plant_sim dwell: 2 steps then −1
+  o2_storage_critical_kg: 1.0  # [kg] CRITICAL; plant_sim dwell: 1 step then −2 (omit fallback: low * 0.75)
   product_water_low_l: 50.0  # [L] LOW: start WRS
+  product_water_critical_l: 25.0  # [L] CRITICAL (unspecified fallback: product_water_low_l * 0.5)
 
 # Canonical plant_sim parameters (source of truth for occupant count and rates).
 # Python PlantSimConfig() defaults remain for unit tests / library construction.
@@ -39,7 +41,7 @@ plant_sim:
     ogs_operation_seconds: 1200  # [s] OGS action quantum
     wrs_operation_seconds: 1200  # [s] reserved; WRS feed cap is max_feed_l_per_operation
   crew:
-    size: 4  # [person] occupant N; must match agents.yaml team.count when agents run
+    size: 50  # [person] occupant N; must match agents.yaml team.count when agents run
     activity_factor: 1.0  # [-] scales all crew rates (1=nominal, 4=exercise, 0.7=sleep)
     co2_kg_day_person: 1.04  # [kg/day/person] BVAD CO2 generated
     o2_kg_day_person: 0.84  # [kg/day/person] BVAD O2 demanded
@@ -60,7 +62,22 @@ plant_sim:
     grey_recovery: 0.90  # [-] potable recovered from grey / condensate feed
     max_feed_l_per_operation: 10.0  # [L] urine + grey batch cap per WRS action
   survival:
-    enabled: true  # drop occupants/operators the tanks cannot support (plant_sim only)
+    enabled: true  # plant_sim only; cheatsheet/sensitivity leave this false
+    o2:
+      warning_steps: 2  # [steps] consecutive WARNING before loss
+      warning_loss: 1  # [person]
+      critical_steps: 1  # [steps]
+      critical_loss: 2  # [person]
+    water:
+      warning_steps: 2  # [steps]
+      warning_loss: 1  # [person]
+      critical_steps: 1  # [steps]
+      critical_loss: 1  # [person]
+    co2:
+      warning_steps: 2  # [steps] consecutive HIGH (below CRITICAL) before loss
+      warning_divisor: 4  # once per stay: lost = n // 4
+      critical_steps: 2  # [steps]
+      critical_divisor: 2  # once per stay: lost = n // 2 (no wipe)
 
 # Optional timed fault injection (scenario layer → EclssBackend.set_subsystem_failure).
 # Distinct from scrubber anomalies. Off by default; enable via CLI --inject-failures
