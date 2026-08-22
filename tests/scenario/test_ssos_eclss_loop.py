@@ -438,6 +438,12 @@ def test_ssos_eclss_loop_llm_agents_invoke_ars(tmp_path: Path, monkeypatch):
     assert design_proposals.get("design_domain") == "ssos_graph"
     assert len(design_proposals.get("changes", [])) == 3
     assert any(c.get("change_kind") == "action_profile" for c in design_proposals.get("changes", []))
+    assert any(
+        str(m.get("from_role", "")).startswith("eclss_designer_")
+        and m.get("deliberation_phase") in {"deliberation", "post_run_proposal"}
+        for m in messages
+    )
+    assert "deliberation_messages" not in design_proposals
 
 
 def test_ssos_eclss_loop_llm_actor_design_none_skips_proposals(tmp_path: Path, monkeypatch):
@@ -477,6 +483,35 @@ def test_ssos_eclss_loop_labeled_actor_llm_design(tmp_path: Path, monkeypatch):
     assert proposals.get("decision_source") == "llm"
     assert len(proposals.get("changes", [])) == 3
     assert proposals.get("proposed_by", "").startswith("eclss_designer_")
+    messages = _read_jsonl(run_dir / "messages.jsonl")
+    assert any(str(m.get("from_role", "")).startswith("eclss_designer_") for m in messages)
+
+
+def test_ssos_llm_design_parse_fail_falls_back_to_rule_changes(tmp_path: Path, monkeypatch):
+    from scenario.agents.ssos_post_run_design import PostRunDesignAgent
+
+    class _UnparseableLlm:
+        def generate(self, prompt: str) -> str:
+            return "<<<not json>>>"
+
+    monkeypatch.setattr(
+        PostRunDesignAgent, "_build_llm_client", staticmethod(lambda _: _UnparseableLlm())
+    )
+    run_dir = run_scenario(
+        "ssos_eclss_loop",
+        output_dir=tmp_path / "parse_fail",
+        overrides={
+            **_ssos_agents("none", design_mode="llm"),
+            "simulation": {"steps": 2},
+        },
+        recreate_output=True,
+    )
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    proposals = json.loads((run_dir / "design_proposals.json").read_text(encoding="utf-8"))
+    assert summary["design_decision_source"] == "llm_parse_fail"
+    assert proposals["decision_source"] == "llm_parse_fail"
+    assert proposals["changes"]
+    assert "deliberation_messages" not in proposals
 
 
 def test_ssos_eclss_loop_skips_empty_design_proposals_file(tmp_path: Path, monkeypatch):

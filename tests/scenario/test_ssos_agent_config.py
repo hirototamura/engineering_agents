@@ -1,11 +1,16 @@
 """Tests for nested ssos actor / design agent config."""
 
+import pytest
+
+from scenario.runner import load_agents_config, load_scenario_config
 from scenario.ssos_eclss_loop.agent_config import (
     flatten_actor_config,
     flatten_design_config,
+    iter_ssos_llm_targets,
     normalize_ssos_agents_section,
     resolve_ssos_modes,
     ssos_agents_enabled,
+    ssos_run_id_mode_key,
 )
 from scenario.ssos_eclss_loop.policy import merge_labeled_policy_from_thresholds
 
@@ -60,3 +65,52 @@ def test_merge_labeled_policy_nested_actor():
     )
     assert merged["actor"]["policy"]["co2_storage_high_kg"] == 1.55
     assert merged["actor"]["policy"]["request_co2_amount"] == 0.025
+
+
+def test_flat_max_actions_override_wins_over_nested_actor():
+    normalized = normalize_ssos_agents_section(
+        {"max_actions_per_step": 8, "actor": {"max_actions_per_step": 2}}
+    )
+    assert normalized["actor"]["max_actions_per_step"] == 8
+
+
+def test_flat_cli_set_reaches_loaded_actor_config():
+    config = load_scenario_config(
+        "ssos_eclss_loop", {"agents": {"max_actions_per_step": 8, "actor": {"mode": "llm"}}}
+    )
+    agents = load_agents_config("ssos_eclss_loop", config)
+    assert agents is not None
+    assert agents["actor"]["max_actions_per_step"] == 8
+
+
+def test_resolve_ssos_modes_rejects_typo():
+    with pytest.raises(ValueError, match="Unsupported actor mode"):
+        resolve_ssos_modes({"actor": {"mode": "wizard"}})
+
+
+def test_ssos_run_id_mode_key_mixed_and_matching():
+    assert ssos_run_id_mode_key({"actor": {"mode": "llm"}, "design": {"mode": "llm"}}) == "llm"
+    assert (
+        ssos_run_id_mode_key(
+            {"actor": {"mode": "none"}, "design": {"mode": "llm"}}
+        )
+        == "none_llm"
+    )
+
+
+def test_iter_ssos_llm_targets_includes_every_enabled_side():
+    both = iter_ssos_llm_targets(
+        {
+            "actor": {"mode": "llm", "llm": {"provider": "ollama"}},
+            "design": {"mode": "llm", "llm": {"provider": "vllm"}},
+        }
+    )
+    assert [side for side, _cfg in both] == ["actor", "design"]
+    design_only = iter_ssos_llm_targets(
+        {
+            "actor": {"mode": "labeled_rule_base"},
+            "design": {"mode": "llm", "llm": {"base_url": "http://design"}},
+        }
+    )
+    assert [side for side, cfg in design_only] == ["design"]
+    assert design_only[0][1]["base_url"] == "http://design"

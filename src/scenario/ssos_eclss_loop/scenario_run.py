@@ -578,6 +578,12 @@ class SsosEclssLoopScenario(Scenario):
             change_count = len(proposals.get("changes") or [])
             summary["design_proposal_count"] = change_count
             summary["design_proposed_by"] = proposals.get("proposed_by")
+            summary["design_decision_source"] = proposals.get("decision_source")
+            for msg in proposals.pop("deliberation_messages", []) or []:
+                if isinstance(msg, dict):
+                    log.append("messages", msg)
+                    message_count += 1
+            summary["message_count"] = message_count
             if change_count > 0:
                 proposals_path = run_dir / "design_proposals.json"
                 write_design_proposals(proposals_path, proposals)

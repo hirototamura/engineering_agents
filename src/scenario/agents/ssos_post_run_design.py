@@ -20,10 +20,10 @@ from core.agents.types import AgentMessage, DeliberationPhase
 from core.llm.base import LLMClient
 from core.llm.factory import build_llm_client
 from scenario.ssos_eclss_loop.design_proposals import (
-    ACTION_PROFILE_FIELDS_BY_SUBSYSTEM,
     DESIGN_DOMAIN,
     SSOS_CHANGE_KINDS,
     build_design_proposals_from_run,
+    validate_ssos_proposal_change,
 )
 
 
@@ -79,15 +79,34 @@ class PostRunDesignAgent:
         if self.llm_mode:
             return self._llm_propose(bundle, baseline_graph)
         proposed_by = self.team_cfg.agent_ids[0] if self.team_cfg.agent_ids else "eclss_designer_1"
-        return build_design_proposals_from_run(
+        proposals = build_design_proposals_from_run(
             proposed_by=proposed_by,
             decision_source="rule",
             policy=bundle.policy,
             summary=bundle.summary,
             baseline_graph=baseline_graph or None,
         )
+        proposals["deliberation_messages"] = [
+            AgentMessage(
+                step=int(bundle.summary.get("steps", 0)),
+                from_role=proposed_by,
+                to_role="team",
+                message=str(proposals.get("message") or ""),
+                message_type="comment",
+                reasoning=str(proposals.get("reasoning") or ""),
+                metadata={
+                    "decision_source": "rule",
+                    "deliberation_phase": DeliberationPhase.POST_RUN,
+                },
+            ).to_dict()
+        ]
+        return proposals
 
     def _rep_id(self, summary: Dict[str, Any]) -> str:
+        # Designers are a separate team from actors. Labeled always uses
+        # designer[0] as the rule speaker. LLM rotates on the *designer* roster
+        # using the final step index — not TeamConfig.action_rep_index, which
+        # addresses in-sim actors.
         steps = int(summary.get("steps", 0))
         index = (steps - 1 if steps > 0 else 0) % self.team_cfg.count
         return self.team_cfg.agent_ids[index]
@@ -149,16 +168,32 @@ class PostRunDesignAgent:
             ("message", "reasoning", "changes"),
         )
         if parsed is None:
-            return {
-                "design_domain": DESIGN_DOMAIN,
-                "proposed_by": rep,
-                "decision_source": "llm_parse_fail",
-                "message": "",
-                "reasoning": "LLM response could not be parsed.",
-                "changes": [],
-                "baseline_graph": baseline_graph,
-                "parse_notes": [],
-            }
+            fallback = build_design_proposals_from_run(
+                proposed_by=rep,
+                decision_source="llm_parse_fail",
+                policy=bundle.policy,
+                summary=bundle.summary,
+                message="LLM response could not be parsed; fell back to rule proposals.",
+                baseline_graph=baseline_graph or None,
+            )
+            fallback["reasoning"] = "LLM response could not be parsed."
+            fallback["deliberation_messages"] = [
+                msg.to_dict() for msg in step_discourse
+            ] + [
+                AgentMessage(
+                    step=step,
+                    from_role=rep,
+                    to_role="team",
+                    message=str(fallback.get("message") or ""),
+                    message_type="comment",
+                    reasoning="LLM response could not be parsed; using rule fallback.",
+                    metadata={
+                        "decision_source": "llm_parse_fail",
+                        "deliberation_phase": DeliberationPhase.POST_RUN,
+                    },
+                ).to_dict()
+            ]
+            return fallback
 
         changes, parse_notes = parse_llm_design_proposals(parsed.data.get("changes", []))
         return {
@@ -173,6 +208,21 @@ class PostRunDesignAgent:
             "parse_error": parsed.error,
             "parse_notes": parse_notes,
             "raw_response_excerpt": parsed.raw_excerpt,
+            "deliberation_messages": [msg.to_dict() for msg in step_discourse]
+            + [
+                AgentMessage(
+                    step=step,
+                    from_role=rep,
+                    to_role="team",
+                    message=str(parsed.data.get("message", "")),
+                    message_type="comment",
+                    reasoning=str(parsed.data.get("reasoning", "")),
+                    metadata={
+                        "decision_source": "llm",
+                        "deliberation_phase": DeliberationPhase.POST_RUN,
+                    },
+                ).to_dict()
+            ],
         }
 
     async def _deliberation_turn(
@@ -226,35 +276,6 @@ def parse_llm_design_proposals(raw_changes: Any) -> Tuple[List[Dict[str, Any]], 
             continue
         accepted.append({"change_kind": change_kind, "payload": payload})
     return accepted, notes
-
-
-def validate_ssos_proposal_change(
-    change_kind: str,
-    payload: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
-    if change_kind == "action_profile":
-        subsystem = str(payload.get("subsystem", "")).lower()
-        fields = payload.get("fields")
-        if subsystem not in ACTION_PROFILE_FIELDS_BY_SUBSYSTEM:
-            return None
-        if not isinstance(fields, dict) or not fields:
-            return None
-        allowed = ACTION_PROFILE_FIELDS_BY_SUBSYSTEM[subsystem]
-        if any(key not in allowed for key in fields):
-            return None
-        return payload
-    if change_kind == "service_config":
-        service = str(payload.get("service", "")).lower()
-        if service not in {"request_co2", "request_o2"}:
-            return None
-        return payload
-    if change_kind == "set_parameter":
-        if not str(payload.get("target", "")).strip():
-            return None
-        return payload
-    if change_kind == "graph_rewire":
-        return payload if payload else None
-    return None
 
 
 def build_llm_post_run_situation(bundle: DesignReviewBundle) -> str:

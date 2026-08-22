@@ -74,6 +74,9 @@ def load_agents_config(name: str, scenario_config: Dict[str, Any]) -> Optional[D
         actor_mode, design_mode = resolve_ssos_modes(merged)
         merged.setdefault("actor", {})["mode"] = actor_mode
         merged.setdefault("design", {})["mode"] = design_mode
+        # Legacy alias: apply_design_proposals still accepts agents.policy.*
+        # and dual-writes agents.actor.policy.*. Keep lifting so older
+        # design_proposals.json files remain effective without this merge.
         applied_policy = agents_section.get("policy")
         if applied_policy:
             actor = merged.setdefault("actor", {})

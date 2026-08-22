@@ -387,3 +387,66 @@ def test_run_llm_provider_from_env_writes_spec(tmp_path: Path, monkeypatch):
     assert payload["overrides"]["agents"]["llm"]["provider"] == "vllm"
     assert payload["overrides"]["agents"]["llm"]["model"] == "qwen3-8b"
     assert "10.10.0.108:8000" in payload["overrides"]["agents"]["llm"]["base_url"]
+
+
+def test_run_ssos_plan_shows_actor_and_design_modes():
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "labeled_rule_base",
+            "--design-mode",
+            "llm",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "actor=labeled_rule_base" in result.stdout
+    assert "design=llm" in result.stdout
+
+
+def test_run_ssos_llm_provider_only_patches_llm_side(tmp_path: Path):
+    spec_path = tmp_path / "spec.json"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "labeled_rule_base",
+            "--design-mode",
+            "llm",
+            "--llm-provider",
+            "ollama",
+            "--dry-run",
+            "--write-spec",
+            str(spec_path),
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(spec_path.read_text(encoding="utf-8"))
+    actor_llm = ((payload["overrides"].get("agents") or {}).get("actor") or {}).get("llm") or {}
+    design_llm = ((payload["overrides"].get("agents") or {}).get("design") or {}).get("llm") or {}
+    assert actor_llm.get("provider") != "ollama"
+    assert design_llm.get("provider") == "ollama"
+
+
+def test_preflight_targets_cover_both_ssos_llm_sides():
+    from tools.cli.commands.run import _preflight_llm_targets
+
+    both = _preflight_llm_targets(
+        "ssos_eclss_loop",
+        {"agents": {"actor": {"mode": "llm"}, "design": {"mode": "llm"}}},
+    )
+    assert [side for side, _cfg in both] == ["actor", "design"]
+    design_only = _preflight_llm_targets(
+        "ssos_eclss_loop",
+        {"agents": {"actor": {"mode": "labeled_rule_base"}, "design": {"mode": "llm"}}},
+    )
+    assert [side for side, _cfg in design_only] == ["design"]

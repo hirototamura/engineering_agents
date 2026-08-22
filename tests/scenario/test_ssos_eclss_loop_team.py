@@ -514,6 +514,53 @@ def test_llm_design_parse_rejects_unknown_action_profile_fields():
     assert notes
 
 
+def test_llm_design_parse_rejects_unknown_set_parameter_and_negative_profile():
+    from scenario.agents.ssos_post_run_design import parse_llm_design_proposals
+
+    unknown, unknown_notes = parse_llm_design_proposals(
+        [
+            {
+                "change_kind": "set_parameter",
+                "payload": {"target": "simulation.steps", "value": 9},
+            }
+        ]
+    )
+    assert unknown == []
+    assert unknown_notes
+
+    negative, negative_notes = parse_llm_design_proposals(
+        [
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ars",
+                    "fields": {"initial_co2_mass": -1.0},
+                },
+            }
+        ]
+    )
+    assert negative == []
+    assert negative_notes
+
+
+def test_llm_design_parse_accepts_canonical_actor_policy_target():
+    from scenario.agents.ssos_post_run_design import parse_llm_design_proposals
+
+    changes, notes = parse_llm_design_proposals(
+        [
+            {
+                "change_kind": "set_parameter",
+                "payload": {
+                    "target": "agents.actor.policy.co2_storage_high_kg",
+                    "value": 1.4,
+                },
+            }
+        ]
+    )
+    assert not notes
+    assert changes[0]["payload"]["target"] == "agents.actor.policy.co2_storage_high_kg"
+
+
 def test_action_rep_ids_default_is_single_rep():
     team = SsosEclssLoopTeam(_team_config())
     assert team.max_actions_per_step == 1

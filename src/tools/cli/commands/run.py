@@ -71,12 +71,18 @@ def run(
     llm_provider: Optional[str] = typer.Option(
         None,
         "--llm-provider",
-        help="LLM backend for llm mode: ollama (local) or vllm (lab GPU server).",
+        help=(
+            "LLM backend for sides whose mode is llm: ollama (local) or vllm "
+            "(lab GPU server). On ssos_eclss_loop, non-llm sides are left unchanged."
+        ),
     ),
     llm_model: Optional[str] = typer.Option(
         None,
         "--llm-model",
-        help="Override agents.llm.model (Ollama tag or vLLM served-model id).",
+        help=(
+            "Override llm.model on sides whose mode is llm "
+            "(Ollama tag or vLLM served-model id)."
+        ),
     ),
     inject_failures: Optional[bool] = typer.Option(
         None,
@@ -136,6 +142,9 @@ def run(
             override_file=override_file,
         )
         overrides = _apply_cli_defaults(scenario_name, overrides)
+        overrides = _apply_llm_cli_to_llm_sides(
+            scenario_name, overrides, llm_provider=llm_provider, llm_model=llm_model
+        )
         overrides = _materialize_resolved_llm(scenario_name, overrides)
         _validate_merged_overrides(overrides)
     except ValueError as exc:
@@ -221,8 +230,10 @@ def _resolved_display_mode(scenario_name: str, overrides: dict | None) -> str:
         from scenario.ssos_eclss_loop.agent_config import resolve_ssos_modes
 
         agents_config = load_agents_config(scenario_name, config) or {}
-        actor_mode, _ = resolve_ssos_modes(agents_config)
-        return actor_mode
+        actor_mode, design_mode = resolve_ssos_modes(agents_config)
+        if actor_mode == design_mode:
+            return actor_mode
+        return f"actor={actor_mode} design={design_mode}"
     return str((config.get("agents") or {}).get("mode", "none"))
 
 
@@ -291,22 +302,10 @@ def _build_overrides(
                 f"Unsupported LLM provider: {llm_provider!r}. Choose one of: {allowed}"
             )
         llm_patch = {"provider": provider}
-        if ssos:
-            parts.append({"agents": {"actor": {"llm": llm_patch}, "design": {"llm": dict(llm_patch)}}})
-        else:
+        if not ssos:
             parts.append({"agents": {"llm": llm_patch}})
-    if llm_model is not None:
-        if ssos:
-            parts.append(
-                {
-                    "agents": {
-                        "actor": {"llm": {"model": llm_model}},
-                        "design": {"llm": {"model": llm_model}},
-                    }
-                }
-            )
-        else:
-            parts.append({"agents": {"llm": {"model": llm_model}}})
+    if llm_model is not None and not ssos:
+        parts.append({"agents": {"llm": {"model": llm_model}}})
     if set_values:
         parts.append(parse_set_values(set_values))
     if override_file is not None:
@@ -323,6 +322,35 @@ def _apply_cli_defaults(scenario_name: str, overrides: dict | None) -> dict | No
     if backend_kind or os.environ.get(BACKEND_ENV_VAR):
         return merged
     return merge_overrides(merged, {"backend": {"kind": "ros2"}})
+
+
+def _apply_llm_cli_to_llm_sides(
+    scenario_name: str,
+    overrides: dict | None,
+    *,
+    llm_provider: Optional[str],
+    llm_model: Optional[str],
+) -> dict | None:
+    """Stamp ``--llm-provider`` / ``--llm-model`` only onto sides whose mode is llm."""
+    if scenario_name != "ssos_eclss_loop" or (llm_provider is None and llm_model is None):
+        return overrides
+    scenario_config = load_scenario_config(scenario_name, overrides)
+    agents_config = load_agents_config(scenario_name, scenario_config) or {}
+    from scenario.ssos_eclss_loop.agent_config import iter_ssos_llm_targets
+
+    llm_patch: dict = {}
+    if llm_provider is not None:
+        llm_patch["provider"] = llm_provider.strip().lower()
+    if llm_model is not None:
+        llm_patch["model"] = llm_model
+    if not llm_patch:
+        return overrides
+    patch: dict = {"agents": {}}
+    for side, _cfg in iter_ssos_llm_targets(agents_config):
+        patch["agents"][side] = {"llm": dict(llm_patch)}
+    if not patch["agents"]:
+        return overrides
+    return merge_overrides(overrides or {}, patch)
 
 
 def _materialize_resolved_llm(scenario_name: str, overrides: dict | None) -> dict | None:
@@ -399,42 +427,49 @@ def _validate_merged_overrides(overrides: dict | None) -> None:
             )
 
 
+def _preflight_llm_targets(scenario_name: str, overrides: dict | None) -> list[tuple[str, dict]]:
+    """Return (label, llm_cfg) pairs for every enabled LLM endpoint."""
+    scenario_config = load_scenario_config(scenario_name, overrides)
+    agents_config = load_agents_config(scenario_name, scenario_config) or {}
+    if scenario_name != "ssos_eclss_loop":
+        return [("agents", agents_config.get("llm", {}) or {})]
+    from scenario.ssos_eclss_loop.agent_config import iter_ssos_llm_targets
+
+    return iter_ssos_llm_targets(agents_config)
+
+
 def _preflight_llm(scenario_name: str, overrides: dict | None) -> int:
     from core.llm.factory import build_llm_client, describe_llm_target
 
-    scenario_config = load_scenario_config(scenario_name, overrides)
-    agents_config = load_agents_config(scenario_name, scenario_config) or {}
-    if scenario_name == "ssos_eclss_loop":
-        from scenario.ssos_eclss_loop.agent_config import resolve_ssos_modes
-
-        actor_mode, design_mode = resolve_ssos_modes(agents_config)
-        llm_cfg = {}
-        if actor_mode == "llm":
-            llm_cfg = (agents_config.get("actor") or {}).get("llm") or {}
-        elif design_mode == "llm":
-            llm_cfg = (agents_config.get("design") or {}).get("llm") or {}
-    else:
-        llm_cfg = agents_config.get("llm", {}) or {}
-    try:
-        provider, base_url, model = describe_llm_target(llm_cfg)
-        client = build_llm_client(llm_cfg)
-    except ValueError as exc:
-        print_error(str(exc), hint="Use --llm-provider ollama or vllm")
-        return exit_codes.USER_ERROR
-    if client.check_connection():
-        return exit_codes.SUCCESS
-    if provider == "vllm":
-        print_error(
-            "vLLM is not reachable for llm mode.",
-            hint=(
-                "Connect to the lab LAN or VPN and retry, or run: ea doctor\n"
-                f"Expected: {base_url}  model: {model}\n"
-                "Override with VLLM_BASE_URL or --set agents.actor.llm.base_url= / agents.design.llm.base_url= (ssos) or agents.llm.base_url= (scrubber)"
-            ),
-        )
-    else:
-        print_error(
-            "Ollama is not reachable for llm mode.",
-            hint=f"Start Ollama and retry, or run: ea doctor\nExpected: {base_url}",
-        )
-    return exit_codes.ENVIRONMENT_ERROR
+    seen: set[tuple[str, str, str]] = set()
+    for side, llm_cfg in _preflight_llm_targets(scenario_name, overrides):
+        try:
+            provider, base_url, model = describe_llm_target(llm_cfg)
+            client = build_llm_client(llm_cfg)
+        except ValueError as exc:
+            print_error(str(exc), hint="Use --llm-provider ollama or vllm")
+            return exit_codes.USER_ERROR
+        key = (provider, base_url, model)
+        if key in seen:
+            continue
+        seen.add(key)
+        if client.check_connection():
+            continue
+        side_label = f"{side} " if side != "agents" else ""
+        if provider == "vllm":
+            print_error(
+                f"vLLM is not reachable for {side_label}llm mode.",
+                hint=(
+                    "Connect to the lab LAN or VPN and retry, or run: ea doctor\n"
+                    f"Expected: {base_url}  model: {model}\n"
+                    "Override with VLLM_BASE_URL or --set agents.actor.llm.base_url= / "
+                    "agents.design.llm.base_url= (ssos) or agents.llm.base_url= (scrubber)"
+                ),
+            )
+        else:
+            print_error(
+                f"Ollama is not reachable for {side_label}llm mode.",
+                hint=f"Start Ollama and retry, or run: ea doctor\nExpected: {base_url}",
+            )
+        return exit_codes.ENVIRONMENT_ERROR
+    return exit_codes.SUCCESS

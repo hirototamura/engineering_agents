@@ -105,6 +105,7 @@ agents:
     # design.mode omitted: inherit actor.mode. Set none to disable post-run design.
 
 output:
-  run_id: ssos_eclss_loop_baseline  # results dir when agents.mode is none
-  run_id_labeled_rule_base: ssos_eclss_loop_labeled_rule_base  # results dir for labeled_rule_base
-  run_id_llm: ssos_eclss_loop_llm  # results dir for llm
+  run_id: ssos_eclss_loop_baseline  # none/none (or unspecified)
+  run_id_labeled_rule_base: ssos_eclss_loop_labeled_rule_base  # both sides labeled
+  run_id_llm: ssos_eclss_loop_llm  # both sides llm
+  # Mixed actor/design modes use {scenario}_{actor_mode}_{design_mode}.

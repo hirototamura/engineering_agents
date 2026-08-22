@@ -50,6 +50,8 @@ actor:
     api_timeout: 20  # [s] HTTP timeout; Ollama only — vLLM ignores this
 
 design:
+  # design.mode omitted: inherit actor.mode. Endpoints stay independent;
+  # CLI preflight probes every side whose resolved mode is llm.
   team:
     count: 4
     id_prefix: eclss_designer
