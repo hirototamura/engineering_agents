@@ -4,7 +4,7 @@ This is the design that shipped: occupants and operators shrink together when ta
 
 Survival runs only on the **`plant_sim` backend**. `mock` / `ros2` do not apply dwell or the physics floor. The ops cheatsheet / sensitivity app keep `plant_sim.survival.enabled: false`.
 
-Canonical count: `plant_sim.crew.size` in [`scenario.yaml`](../../../../src/scenario/ssos_eclss_loop/scenario.yaml). When agents run, `agents.yaml` `team.count` must match. Occupants never return.
+Canonical count: `plant_sim.crew.size` in `src/scenario/ssos_eclss_loop/scenario.yaml`. When agents run, `agents.yaml` `team.count` must match. Occupants never return.
 
 ## Why the first floor was not enough
 
@@ -104,11 +104,11 @@ python3 -m tools.cli run ssos_eclss_loop \
 
 | Path | Role |
 | --- | --- |
-| [`survival.py`](../../../../src/scenario/ssos_eclss_loop/survival.py) | Dwell tables, streaks, stacking |
-| [`scenario_run.py`](../../../../src/scenario/ssos_eclss_loop/scenario_run.py) `_apply_survival_after_ops` | Compose dwell then floor |
-| [`model.py`](../../../../src/environment/ssos/eclss/plant_sim/model.py) `apply_capacity_drop` | O2/water floor |
-| [`backend.py`](../../../../src/environment/ssos/eclss/plant_sim/backend.py) `set_crew_alive` | Scenario → plant |
-| [`health.py`](../../../../src/scenario/ssos_eclss_loop/health.py) | WARNING/CRITICAL from thresholds |
-| [`test_ssos_eclss_loop_survival.py`](../../../../tests/scenario/test_ssos_eclss_loop_survival.py) | Dwell unit tables |
+| `src/scenario/ssos_eclss_loop/survival.py` | Dwell tables, streaks, stacking |
+| `src/scenario/ssos_eclss_loop/scenario_run.py` `_apply_survival_after_ops` | Compose dwell then floor |
+| `src/environment/ssos/eclss/plant_sim/model.py` `apply_capacity_drop` | O2/water floor |
+| `src/environment/ssos/eclss/plant_sim/backend.py` `set_crew_alive` | Scenario → plant |
+| `src/scenario/ssos_eclss_loop/health.py` | WARNING/CRITICAL from thresholds |
+| `tests/scenario/test_ssos_eclss_loop_survival.py` | Dwell unit tables |
 
 Plant mass-balance (not survival) is in [plant_sim_backend.md](plant_sim_backend.md).

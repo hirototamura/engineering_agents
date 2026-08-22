@@ -1,10 +1,10 @@
 # 乗員サバイバル（`plant_sim`）
 
-実装済みの設計である。タンクが支えられないとき、乗員と運用エージェントは同じ人数に減る。Cursor の 3 プラン（物理下限 → 帯滞在 → CO2 分数減）を [`src/scenario/ssos_eclss_loop/`](../../../../src/scenario/ssos_eclss_loop/) と [`src/environment/ssos/eclss/plant_sim/`](../../../../src/environment/ssos/eclss/plant_sim/) にまとめた結果である。
+実装済みの設計である。タンクが支えられないとき、乗員と運用エージェントは同じ人数に減る。Cursor の 3 プラン（物理下限 → 帯滞在 → CO2 分数減）を `src/scenario/ssos_eclss_loop/` と `src/environment/ssos/eclss/plant_sim/` にまとめた結果である。
 
 サバイバルは **`plant_sim` バックエンドだけ**。`mock` / `ros2` では帯滞在も物理下限も適用しない。チートシート / 感度アプリは `plant_sim.survival.enabled: false` のまま。
 
-人数の正本は [`scenario.yaml`](../../../../src/scenario/ssos_eclss_loop/scenario.yaml) の `plant_sim.crew.size`。エージェントありのときは `agents.yaml` の `team.count` と一致させる。減った乗員は戻らない。
+人数の正本は `src/scenario/ssos_eclss_loop/scenario.yaml` の `plant_sim.crew.size`。エージェントありのときは `agents.yaml` の `team.count` と一致させる。減った乗員は戻らない。
 
 ## 最初の floor だけでは足りなかった理由
 
@@ -104,11 +104,11 @@ python3 -m tools.cli run ssos_eclss_loop \
 
 | パス | 役割 |
 | --- | --- |
-| [`survival.py`](../../../../src/scenario/ssos_eclss_loop/survival.py) | 滞在表、連続カウンタ、重ね打ち |
-| [`scenario_run.py`](../../../../src/scenario/ssos_eclss_loop/scenario_run.py) `_apply_survival_after_ops` | dwell のあと floor |
-| [`model.py`](../../../../src/environment/ssos/eclss/plant_sim/model.py) `apply_capacity_drop` | O2/水 floor |
-| [`backend.py`](../../../../src/environment/ssos/eclss/plant_sim/backend.py) `set_crew_alive` | シナリオ → プラント |
-| [`health.py`](../../../../src/scenario/ssos_eclss_loop/health.py) | 閾値から WARNING/CRITICAL |
-| [`test_ssos_eclss_loop_survival.py`](../../../../tests/scenario/test_ssos_eclss_loop_survival.py) | dwell の表テスト |
+| `src/scenario/ssos_eclss_loop/survival.py` | 滞在表、連続カウンタ、重ね打ち |
+| `src/scenario/ssos_eclss_loop/scenario_run.py` `_apply_survival_after_ops` | dwell のあと floor |
+| `src/environment/ssos/eclss/plant_sim/model.py` `apply_capacity_drop` | O2/水 floor |
+| `src/environment/ssos/eclss/plant_sim/backend.py` `set_crew_alive` | シナリオ → プラント |
+| `src/scenario/ssos_eclss_loop/health.py` | 閾値から WARNING/CRITICAL |
+| `tests/scenario/test_ssos_eclss_loop_survival.py` | dwell の表テスト |
 
 プラントの質量収支（サバイバル以外）は [plant_sim_backend.md](plant_sim_backend.md)。
