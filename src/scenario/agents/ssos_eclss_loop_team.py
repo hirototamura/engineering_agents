@@ -137,7 +137,9 @@ class SsosEclssLoopTeam(Team):
 
     def _action_rep_id(self, step: int) -> str:
         """Round-robin representative for 0-based scenario steps (`step % N`)."""
-        ids = self._active_ids or self.team_cfg.agent_ids
+        ids = self._active_ids
+        if not ids:
+            raise ValueError("no surviving operators")
         return ids[step % len(ids)]
 
     def _action_rep_ids(self, step: int) -> List[str]:
@@ -170,6 +172,15 @@ class SsosEclssLoopTeam(Team):
 
     def propose_post_run_design(self, summary: Dict[str, Any]) -> Dict[str, Any]:
         baseline_graph = dict(self.config.get("ssos_graph") or {})
+        if not self._active_ids:
+            return {
+                "design_domain": DESIGN_DOMAIN,
+                "proposed_by": "",
+                "decision_source": "llm" if self.llm_mode else "rule",
+                "message": "",
+                "changes": [],
+                "baseline_graph": baseline_graph,
+            }
         steps = int(summary.get("steps", 0))
         rep = self._action_rep_id(steps - 1 if steps > 0 else 0)
         if self.llm_mode:
