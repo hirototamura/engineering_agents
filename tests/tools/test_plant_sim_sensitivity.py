@@ -7,6 +7,7 @@ import pytest
 from environment.ssos.eclss.plant_sim.config import PlantSimConfig
 from tools.plant_sim_ops_cheatsheet import load_ssos_yaml, tank_effect
 from tools.plant_sim_sensitivity import (
+    SLIDER_SPECS,
     apply_sensitivity_overrides,
     close_crew_water,
     run_sensitivity,
@@ -25,6 +26,13 @@ def test_yaml_defaults_match_scenario_file():
         float(scenario["plant_sim"]["crew"]["o2_kg_day_person"])
     )
     assert int(defaults["plant_sim.crew.size"]) == int(scenario["plant_sim"]["crew"]["size"])
+
+
+def test_slider_specs_contain_yaml_defaults():
+    defaults = yaml_defaults()
+    for spec in SLIDER_SPECS:
+        value = defaults[spec.key]
+        assert spec.minimum <= value <= spec.maximum, spec.key
 
 
 def test_overrides_do_not_mutate_source_yaml_dict():

@@ -64,14 +64,14 @@ class SliderSpec:
 
 
 SLIDER_SPECS: Tuple[SliderSpec, ...] = (
-    SliderSpec("simulation.initial_co2_storage_kg", "initial_co2_storage_kg", "kg", "float", 0.0, 6.0, 0.05, "Initial storage"),
-    SliderSpec("simulation.initial_o2_storage_kg", "initial_o2_storage_kg", "kg", "float", 0.0, 6.0, 0.02, "Initial storage"),
+    SliderSpec("simulation.initial_co2_storage_kg", "initial_co2_storage_kg", "kg", "float", 0.0, 10.0, 0.05, "Initial storage"),
+    SliderSpec("simulation.initial_o2_storage_kg", "initial_o2_storage_kg", "kg", "float", 0.0, 20.0, 0.02, "Initial storage"),
     SliderSpec("simulation.initial_product_water_l", "initial_product_water_l", "L", "float", 0.0, 200.0, 1.0, "Initial storage"),
     SliderSpec("plant_sim.time.step_seconds", "step_seconds", "s", "int", 300, 3600, 60, "Time"),
     SliderSpec("plant_sim.time.ars_operation_seconds", "ars_operation_seconds", "s", "int", 600, 7200, 60, "Time"),
     SliderSpec("plant_sim.time.ogs_operation_seconds", "ogs_operation_seconds", "s", "int", 300, 3600, 60, "Time"),
     SliderSpec("plant_sim.time.wrs_operation_seconds", "wrs_operation_seconds", "s", "int", 300, 3600, 60, "Time"),
-    SliderSpec("plant_sim.crew.size", "crew.size", "person", "int", 1, 8, 1, "Crew"),
+    SliderSpec("plant_sim.crew.size", "crew.size", "person", "int", 1, 64, 1, "Crew"),
     SliderSpec("plant_sim.crew.activity_factor", "activity_factor", "-", "float", 0.0, 4.0, 0.1, "Crew"),
     SliderSpec("plant_sim.crew.co2_kg_day_person", "co2_kg_day_person", "kg/day/person", "float", 0.0, 3.0, 0.02, "Crew"),
     SliderSpec("plant_sim.crew.o2_kg_day_person", "o2_kg_day_person", "kg/day/person", "float", 0.0, 3.0, 0.02, "Crew"),

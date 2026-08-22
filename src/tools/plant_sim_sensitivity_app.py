@@ -108,7 +108,7 @@ def render() -> None:
             for spec in SLIDER_SPECS:
                 st.session_state[spec.key] = defaults[spec.key]
             st.rerun()
-        n_max = st.slider("N max (x-axis)", min_value=2, max_value=8, value=8, step=1)
+        n_max = st.slider("N max (x-axis)", min_value=2, max_value=64, value=8, step=1)
         steps = st.slider("Campaign steps", min_value=4, max_value=36, value=20, step=1)
         overlay = st.checkbox("Overlay YAML baseline", value=True)
         overrides: Dict[str, Any] = {}
