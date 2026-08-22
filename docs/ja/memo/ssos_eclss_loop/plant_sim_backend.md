@@ -221,7 +221,7 @@ simulation stepと装置actionの処理時間を分けた理由は、エージ�
 
 一方、熱負荷や個人差は現在のagent observation・actionに接続されていないため、初期モデルでは対象外とした。
 
-`scenario.yaml` の `plant_sim.crew.size` が乗員数の正本である。`plant_sim.survival.enabled: true` のとき、各ステップの操作後に O2・水・cabin CO2 が支えられる人数まで乗員を減らし、運用エージェントも同じ人数に同期する。オフライン参照図は `python3 -m tools.plant_sim_ops_cheatsheet`（3×3: 行が CO2/O2/水。左列はタンク制約なしの代謝需要 ∝ N、中列は装置1回の定格で N に依存しない、右列が在庫込みのシミュタンク。符号はすべて「タンクが増えたらプラス」）。値の出所は `figures/ops_cheatsheet_sources.md`（YAML パス → `PlantSimConfig` / `PlantModel` → 描画値）。初期タンクと `plant_sim` の感度はダッシュボードとは別アプリ `python3 -m tools.plant_sim_sensitivity_app`（port 8502）。
+`scenario.yaml` の `plant_sim.crew.size` が乗員数の正本である。`plant_sim.survival.enabled: true` のとき、各ステップの操作後に **帯滞在**（運用ヘルス帯と同じ WARNING/CRITICAL。O2/水は WARNING 2 連続で −1、O2 CRITICAL は 1 ステップ −2、水 CRITICAL は −1。CO2 WARNING は 2 連続後に一度だけ `n // 4`、CO2 CRITICAL は 2 連続後に一度だけ `n // 2`。1 人では CO2 帯だけでは減らない。帯を出て再入場するまで再発火しない）を適用し、そのあと **物理下限**（次ステップの O2・水を払えない人数。cabin CO2 では物理減員しない）をハードキャップとして残す。イベントでは `o2_warning` と `o2_physics` のように区別する。運用エージェントも同じ人数に同期する。オフライン参照図は `python3 -m tools.plant_sim_ops_cheatsheet`（3×4: 行が CO2/O2/水。左3列は代謝 / 装置1回 / タンクΔで縦軸を共有。4列目は初期タンク+キャンペーンΔの終了量。符号は左3列が「タンクが増えたらプラス」）。値の出所は `figures/ops_cheatsheet_sources.md`（YAML パス → `PlantSimConfig` / `PlantModel` → 描画値）。初期タンクと `plant_sim` の感度はダッシュボードとは別アプリ `python3 -m tools.plant_sim_sensitivity_app`（port 8502）。
 
 ![ops cheatsheet](../../en/memo/ssos_eclss_loop/figures/ops_cheatsheet.png)
 
@@ -446,7 +446,7 @@ WRSの回収「量」は回収率で表現できる。一方、水質は別の�
 
 現行`EclssTelemetrySnapshot`はkg単位のstorageを上位契約としており、エージェントもkg thresholdで判断している。ここへppmを導入するには、容積だけでなく温度、圧力、気体組成等の仮定が必要になる。
 
-現在の1.5 kg / 2.2 kg等は、物理的なISS曝露限界ではなく、**teaching-scaleのシナリオband**である。物理ppmが必要になった段階で、cabin atmosphere modelを別レイヤとして追加する。
+現在の2.0 kg / 8.0 kg等は、物理的なISS曝露限界ではなく、**teaching-scaleのシナリオband**である。物理ppmが必要になった段階で、cabin atmosphere modelを別レイヤとして追加する。
 
 ---
 

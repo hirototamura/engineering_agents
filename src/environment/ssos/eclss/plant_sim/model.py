@@ -153,9 +153,9 @@ class PlantModel:
         return per_interval(c.co2_kg_day_person, c.step_seconds) * c.activity_factor
 
     def apply_capacity_drop(self) -> Dict[str, object]:
-        """Reduce ``crew_alive`` to what post-ops inventories can support.
+        """Physics floor: keep only people the next interval's O2/water can pay.
 
-        Called after operations so recovery actions can still save occupants.
+        Called after band-dwell. Cabin CO2 does not wipe crew here (scenario dwell).
         No-op when survival is disabled. Occupants never return.
         """
         c = self.config
@@ -175,7 +175,7 @@ class PlantModel:
             water_cap = int(math.floor(s.product_water_l / water_pp + 0.0))
         else:
             water_cap = current
-        co2_cap = 0 if s.cabin_co2_kg >= c.cabin_co2_critical_kg else current
+        co2_cap = current  # CO2 losses are scenario dwell only
         supported = min(current, max(0, o2_cap), max(0, water_cap), max(0, co2_cap))
         lost = current - supported
         limiting: List[str] = []
@@ -186,9 +186,6 @@ class PlantModel:
             if water_cap < current:
                 limiting.append("water")
                 s.crew_lost_water += lost
-            if co2_cap < current:
-                limiting.append("co2")
-                s.crew_lost_co2 += lost
         s.crew_alive = supported
         s.crew_lost_total += lost
         self._last_survival = {"lost_this_step": lost, "limiting": limiting}

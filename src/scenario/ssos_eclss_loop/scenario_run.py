@@ -33,6 +33,11 @@ from scenario.ssos_eclss_loop.health import (
     compute_eclss_storage_health,
     health_inputs_note,
 )
+from scenario.ssos_eclss_loop.survival import (
+    SurvivalDwellPolicy,
+    SurvivalStreaks,
+    map_physics_limiting,
+)
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 from scenario.ssos_eclss_loop.design_proposals import (
     apply_design_proposals,
@@ -205,12 +210,41 @@ def _apply_survival_after_ops(
     team: Optional[SsosEclssLoopTeam],
     step: int,
     log: EventLog,
-) -> Optional[EclssTelemetrySnapshot]:
+    thresholds: Dict[str, Any],
+    policy: SurvivalDwellPolicy,
+    streaks: SurvivalStreaks,
+) -> tuple[Optional[EclssTelemetrySnapshot], SurvivalStreaks]:
     apply = getattr(backend, "apply_capacity_drop", None)
+    set_alive = getattr(backend, "set_crew_alive", None)
     if not callable(apply):
-        return None
+        return None, streaks
+    snap = backend.poll_telemetry()
+    topic = _plant_sim_topic(snap) or {}
+    alive = int(topic.get("crew_alive", 0))
+    limiting: list[str] = []
+    by_cause: Dict[str, int] = {}
+    dwell_lost = 0
+    if policy.enabled:
+        health = compute_eclss_storage_health(step, snap, thresholds)
+        new_alive, dwell_lost, limiting, streaks, by_cause = policy.apply_dwell(
+            alive, health, streaks
+        )
+        if callable(set_alive):
+            set_alive(new_alive)
+        alive = new_alive
     result = apply()
-    lost = int(result.get("lost_this_step") or 0)
+    physics_lost = int(result.get("lost_this_step") or 0)
+    physics_limiting = map_physics_limiting(list(result.get("limiting") or []))
+    remaining_physics = physics_lost
+    for cause in ("co2_physics", "o2_physics", "water_physics"):
+        if remaining_physics <= 0:
+            break
+        if cause not in physics_limiting:
+            continue
+        by_cause[cause] = remaining_physics
+        remaining_physics = 0
+    limiting = limiting + [item for item in physics_limiting if item not in limiting]
+    lost = dwell_lost + physics_lost
     snap = backend.poll_telemetry()
     topic = _plant_sim_topic(snap) or {}
     lost_ids: list[str] = []
@@ -225,11 +259,12 @@ def _apply_survival_after_ops(
                 "kind": "/eclss/events/crew_lost",
                 "lost": lost,
                 "remaining": topic.get("crew_alive"),
-                "limiting": list(result.get("limiting") or []),
+                "limiting": limiting,
+                "crew_lost_by_cause": dict(by_cause),
                 "agent_ids": lost_ids,
             },
         )
-    return snap
+    return snap, streaks
 
 
 class SsosEclssLoopScenario(Scenario):
@@ -340,6 +375,8 @@ class SsosEclssLoopScenario(Scenario):
         last_health: Optional[Dict[str, Any]] = None
         peak_co2: Optional[float] = None
         min_o2: Optional[float] = None
+        dwell_policy = SurvivalDwellPolicy.from_config(config.get("plant_sim") or {})
+        dwell_streaks = SurvivalStreaks()
 
         try:
             # 0-based steps: step 0 observes configured initial state; advance before 1..steps-1.
@@ -429,8 +466,14 @@ class SsosEclssLoopScenario(Scenario):
                         log.append("telemetry", {"step": step, "post_ops": True, **snap.to_dict()})
                         log.append("health_metrics", {**health, "post_ops": True})
 
-                survival_snap = _apply_survival_after_ops(
-                    backend=backend, team=team, step=step, log=log
+                survival_snap, dwell_streaks = _apply_survival_after_ops(
+                    backend=backend,
+                    team=team,
+                    step=step,
+                    log=log,
+                    thresholds=thresholds,
+                    policy=dwell_policy,
+                    streaks=dwell_streaks,
                 )
                 if survival_snap is not None:
                     last_snap = survival_snap
@@ -461,9 +504,10 @@ class SsosEclssLoopScenario(Scenario):
             state = getattr(model, "state", None)
             if state is not None:
                 summary["crew_lost_by_cause"] = {
-                    "o2": int(getattr(state, "crew_lost_o2", 0)),
-                    "water": int(getattr(state, "crew_lost_water", 0)),
-                    "co2": int(getattr(state, "crew_lost_co2", 0)),
+                    **dict(dwell_policy.lost_by_cause),
+                    "o2_physics": int(getattr(state, "crew_lost_o2", 0)),
+                    "water_physics": int(getattr(state, "crew_lost_water", 0)),
+                    "co2_physics": int(getattr(state, "crew_lost_co2", 0)),
                 }
         summary.update(
             _omit_nulls(

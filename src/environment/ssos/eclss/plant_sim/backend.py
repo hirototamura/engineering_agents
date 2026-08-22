@@ -60,10 +60,20 @@ class PlantSimEclssBackend:
         self._last_metabolism = self.model.advance_step()
 
     def apply_capacity_drop(self) -> Dict[str, Any]:
-        """Apply occupant survival after operations; returns lost/limiting info."""
+        """Physics floor after band-dwell; returns lost/limiting info."""
         result = self.model.apply_capacity_drop()
         self._last_survival = dict(result)
         return dict(result)
+
+    def set_crew_alive(self, n: int) -> int:
+        """Hard-set live occupants; never increases. Returns additional lost."""
+        s = self.model.state
+        current = int(s.crew_alive)
+        n = max(0, min(int(n), current))
+        lost = current - n
+        s.crew_alive = n
+        s.crew_lost_total += lost
+        return lost
 
     def poll_telemetry(self) -> EclssTelemetrySnapshot:
         s = self.model.state

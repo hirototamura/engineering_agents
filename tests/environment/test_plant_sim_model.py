@@ -74,7 +74,7 @@ def test_capacity_drop_o2_floor_and_no_revival():
     assert m.state.crew_alive == expected
 
 
-def test_capacity_drop_co2_critical_clears_all():
+def test_capacity_drop_co2_critical_does_not_cut_crew():
     m = _model(
         crew_size=4,
         survival_enabled=True,
@@ -84,9 +84,9 @@ def test_capacity_drop_co2_critical_clears_all():
         cabin_co2_critical_kg=2.2,
     )
     result = m.apply_capacity_drop()
-    assert m.state.crew_alive == 0
-    assert result["lost_this_step"] == 4
-    assert "co2" in result["limiting"]
+    assert m.state.crew_alive == 4
+    assert result["lost_this_step"] == 0
+    assert "co2" not in result["limiting"]
 
 
 def test_metabolism_scales_with_crew_alive_when_survival_enabled():

@@ -54,6 +54,15 @@ def test_poll_telemetry_exports_crew_alive():
     assert "crew_alive" in again.raw_topics["plant_sim"]
 
 
+def test_set_crew_alive_never_revives():
+    b = _backend(crew_size=4, survival_enabled=True)
+    lost = b.set_crew_alive(2)
+    assert lost == 2
+    assert b.model.state.crew_alive == 2
+    assert b.set_crew_alive(4) == 0
+    assert b.model.state.crew_alive == 2
+
+
 def test_poll_telemetry_exports_last_metabolism_once():
     b = _backend()
     before = b.poll_telemetry()

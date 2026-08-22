@@ -92,6 +92,16 @@ plant_sim:
     co2_kg_day_person: 1.04        # BVAD-derived
   survival:
     enabled: true
+    o2:
+      warning_steps: 2             # consecutive WARNING steps
+      warning_loss: 1
+      critical_steps: 1
+      critical_loss: 2
+    co2:
+      warning_steps: 2             # then n // 4 once per stay
+      warning_divisor: 4
+      critical_steps: 2            # then n // 2 once per stay
+      critical_divisor: 2
   ars:
     capacity_kg_day: 4.50
     capture_efficiency: 0.83
@@ -109,7 +119,7 @@ plant_sim:
 | Class | Meaning | Examples |
 | --- | --- | --- |
 | **Source-derived** | SSOS-validated macro rates or exact stoichiometry | crew BVAD rates, ARS capacity, electrolysis ratios |
-| **Scenario-tuned** | Chosen so the teaching scenario runs plausibly — **not** ISS limits | initial inventories, kg thresholds, `ogs_goal.input_water_mass: 0.15` in `agents.yaml` |
+| **Scenario-tuned** | Chosen so the teaching scenario runs plausibly — **not** ISS limits | initial inventories, kg thresholds (`co2_storage_high_kg` 2.0 / `co2_storage_critical_kg` 8.0), `ogs_goal.input_water_mass: 0.15` in `agents.yaml` |
 
 Do not describe scenario-tuned values as physical ISS limits.
 
@@ -203,9 +213,16 @@ The plant is **not** a closed system (vents, brine, unrecoverable crew water). T
 
 ## Occupant survival
 
-`plant_sim.crew.size` in `scenario.yaml` is the canonical occupant count. When agents run, `team.count` must match. After each step's operations, inventories decide how many people the next metabolism interval can support (`floor` of O2 and water, and cabin CO2 vs `thresholds.co2_storage_critical_kg`). Remaining occupants and operators shrink together. Occupants never return.
+`plant_sim.crew.size` in `scenario.yaml` is the canonical occupant count. When agents run, `team.count` must match. Occupants never return.
 
-Disable with `plant_sim.survival.enabled: false` (unit tests and the ops cheatsheet do this).
+After each step's operations the scenario applies **band dwell**, then the **physics floor**:
+
+1. **Band dwell** (`scenario/ssos_eclss_loop/survival.py`) — same health bands as operations (`thresholds`). Staying in WARNING is a cost: O2/water lose 1 person after 2 consecutive steps; O2 CRITICAL loses 2 in one step, water CRITICAL loses 1. CO2 WARNING (HIGH, below CRITICAL) loses `n // 4` after 2 consecutive steps, **once per stay**. CO2 CRITICAL loses `n // 2` after 2 consecutive steps, once per stay (no wipe). A lone occupant (`n // 4` and `n // 2` are 0) is not lost to CO2 bands alone. CRITICAL does not increment the WARNING streak. Leave the band and re-enter to count again. Stacked requests are sliced in a fixed priority (CO2 critical, CO2 warning, O2 crit, water crit, O2 warning, water warning). Event `limiting` lists every requester; `crew_lost_by_cause` is that slice, not a duplicated total.
+2. **Physics floor** (`PlantModel.apply_capacity_drop`) — hard cap: keep only people the next metabolism interval can pay in O2 and water. Cabin CO2 does not cut crew here. Event labels use `o2_physics` / `water_physics` / `co2_physics` so they are not confused with dwell causes.
+
+The scenario never writes `model.state` directly; it calls `backend.set_crew_alive` then `backend.apply_capacity_drop`. Operators shrink with `crew_alive`.
+
+Disable with `plant_sim.survival.enabled: false` (unit tests and the ops cheatsheet do this). O2/water CRITICAL thresholds live in YAML (`o2_storage_critical_kg`, `product_water_critical_l`); if omitted they fall back to `o2_storage_low_kg * 0.75` and `product_water_low_l * 0.5`.
 
 ## Ops cheatsheet (offline)
 
@@ -215,21 +232,22 @@ Not the dashboard. Sweep N with survival off and one ARS/OGS/WRS action per step
 python3 -m tools.plant_sim_ops_cheatsheet --n-max 8 --steps 36
 ```
 
-Writes a 3×3 figure ([figures/ops_cheatsheet.png](figures/ops_cheatsheet.png)): rows are cabin CO2 / O2 / water. Columns:
+Writes a 3×4 figure ([figures/ops_cheatsheet.png](figures/ops_cheatsheet.png)): rows are cabin CO2 / O2 / water. Columns:
 
 - **Crew metabolism** — unconstrained demand (∝ N). Not tank-limited consumption; otherwise O2 flattens once the 0.48 kg tank is empty.
 - **One subsystem action** — nameplate of one ARS/OGS/WRS call with inventory ignored, so the lines are flat vs N.
-- **Tank inventory** — simulated tank after both, where O2 starvation and crew-limited WRS feed live.
+- **Tank inventory** — simulated Δ tank / step after both, where O2 starvation and crew-limited WRS feed live.
+- **Tank + initial** — ending tank = `simulation.initial_*` + campaign Δ (own y-scale; dotted line is the initial fill).
 
 Every plotted number is derived from YAML + `PlantModel`. The ledger is [figures/ops_cheatsheet_sources.md](figures/ops_cheatsheet_sources.md) (JSON sidecar too): YAML path, loaded `PlantSimConfig` field, formula, and the unconstrained `PlantModel` probe. `mock_dynamics` is a different backend and is not used here.
 
-Every panel uses the same sign (**+ = that tank increased**). Color is the campaign (`no ECLSS`, ARS only, OGS only, WRS only). CSV keeps unsigned flow totals plus demand/nameplate for reproduction.
+Every rate panel uses the same sign (**+ = that tank increased**). Color is the campaign (`no ECLSS`, ARS only, OGS only, WRS only). CSV keeps unsigned flow totals plus demand/nameplate for reproduction. **Columns 1–3 share one y-scale** per row; column 4 is absolute kg / L.
 
 ![ops cheatsheet](figures/ops_cheatsheet.png)
 
 ### Interactive sensitivity (not the run dashboard)
 
-To drag `simulation.initial_*` and `plant_sim` knobs and watch the same 3×3 update:
+To drag `simulation.initial_*` and `plant_sim` knobs and watch the same 3×4 update:
 
 ```bash
 python3 -m tools.plant_sim_sensitivity_app

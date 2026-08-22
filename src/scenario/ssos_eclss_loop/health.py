@@ -22,13 +22,19 @@ def build_effective_thresholds(thresholds: Dict[str, Any]) -> Dict[str, Any]:
     co2_critical = float(thresholds.get("co2_storage_critical_kg", 2.2))
     o2_low = float(thresholds.get("o2_storage_low_kg", 0.45))
     water_low = float(thresholds.get("product_water_low_l", 50.0))
+    o2_critical = thresholds.get("o2_storage_critical_kg")
+    water_critical = thresholds.get("product_water_critical_l")
     return {
         "co2_storage_high_kg": co2_high,
         "co2_storage_critical_kg": co2_critical,
         "o2_storage_low_kg": o2_low,
-        "o2_storage_critical_kg": o2_low * 0.75,
+        "o2_storage_critical_kg": (
+            float(o2_critical) if o2_critical is not None else o2_low * 0.75
+        ),
         "product_water_low_l": water_low,
-        "product_water_critical_l": water_low * 0.5,
+        "product_water_critical_l": (
+            float(water_critical) if water_critical is not None else water_low * 0.5
+        ),
     }
 
 
@@ -46,11 +52,13 @@ def compute_eclss_storage_health(
     co2_high = effective["co2_storage_high_kg"]
     co2_critical = effective["co2_storage_critical_kg"]
     o2_low = effective["o2_storage_low_kg"]
+    o2_critical = effective["o2_storage_critical_kg"]
     water_low = effective["product_water_low_l"]
+    water_critical = effective["product_water_critical_l"]
 
     co2_status = _co2_status(snap.co2_storage_kg, co2_high, co2_critical)
-    o2_status = _o2_status(snap.o2_storage_kg, o2_low)
-    water_status = _water_status(snap.product_water_reserve_l, water_low)
+    o2_status = _o2_status(snap.o2_storage_kg, o2_low, o2_critical)
+    water_status = _water_status(snap.product_water_reserve_l, water_low, water_critical)
     overall = _worst_status(co2_status, o2_status, water_status)
 
     return {
@@ -77,22 +85,22 @@ def _co2_status(value: Optional[float], high: float, critical: float) -> HealthS
     return HealthStatus.SAFE
 
 
-def _o2_status(value: Optional[float], low: float) -> HealthStatus:
+def _o2_status(value: Optional[float], low: float, critical: float) -> HealthStatus:
     if _invalid_reading(value):
         return HealthStatus.UNKNOWN
     assert value is not None
-    if value <= low * 0.75:
+    if value <= critical:
         return HealthStatus.CRITICAL
     if value <= low:
         return HealthStatus.WARNING
     return HealthStatus.SAFE
 
 
-def _water_status(value: Optional[float], low: float) -> HealthStatus:
+def _water_status(value: Optional[float], low: float, critical: float) -> HealthStatus:
     if _invalid_reading(value):
         return HealthStatus.UNKNOWN
     assert value is not None
-    if value <= low * 0.5:
+    if value <= critical:
         return HealthStatus.CRITICAL
     if value <= low:
         return HealthStatus.WARNING
