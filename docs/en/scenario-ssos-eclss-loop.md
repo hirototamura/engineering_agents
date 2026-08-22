@@ -192,6 +192,7 @@ actor:
       input_water_mass: 0.15
   llm:
     provider: vllm
+    base_url: http://10.10.0.108:8000/v1
     model: qwen3-8b  # current default; may change
 
 design:
@@ -200,6 +201,7 @@ design:
     id_prefix: eclss_designer
   llm:
     provider: vllm
+    base_url: http://10.10.0.108:8000/v1
     model: qwen3-8b
     max_tokens: 2048
 ```

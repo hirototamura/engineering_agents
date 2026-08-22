@@ -71,7 +71,7 @@ CLI (ssos):
 
 - `--actor-mode` → `agents.actor.mode`
 - `--design-mode` → `agents.design.mode`
-- `--llm-provider` / `--llm-model` stamp both sides when both are `llm`. Keep distinct models with `--set agents.actor.llm.model=` / `--set agents.design.llm.model=`
+- `--llm-provider` / `--llm-model` stamp both sides when both are `llm`. Keep distinct URLs/models with `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (same for `.model`)
 - `--agents-mode` — deprecated alias for `--actor-mode` on ssos. Specifying both is an error. Scrubber still uses `--agents-mode` only
 
 Killer combo: `--actor-mode labeled_rule_base --design-mode llm`.

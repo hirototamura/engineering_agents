@@ -62,7 +62,7 @@ ea job run /tmp/job.json
 | `--actor-mode` | `ssos_eclss_loop` in-sim actors: `none`, `labeled_rule_base`, or `llm` |
 | `--design-mode` | `ssos_eclss_loop` post-run designers: `none`, `labeled_rule_base`, or `llm` (omit to inherit actor mode) |
 | `--llm-provider` | `ollama` (local) or `vllm` (lab GPU server). Applied to whichever side is `llm` |
-| `--llm-model` | Override LLM model; on ssos writes both `agents.actor.llm.model` and `agents.design.llm.model` |
+| `--llm-model` | Override LLM model; on ssos writes both `agents.actor.llm.model` and `agents.design.llm.model`. Distinct URLs: `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` |
 | `--steps` | Override `simulation.steps` |
 | `--run-id` | Override output run id when using the default results root |
 | `--output-dir` | Write directly to a directory path |

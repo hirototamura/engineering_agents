@@ -71,7 +71,7 @@ CLI（ssos）:
 
 - `--actor-mode` → `agents.actor.mode`
 - `--design-mode` → `agents.design.mode`
-- `--llm-provider` / `--llm-model` — 両方 `llm` だと両側を同じ値で潰す。分けるなら `--set agents.actor.llm.model=` / `--set agents.design.llm.model=`
+- `--llm-provider` / `--llm-model` — 両方 `llm` だと両側を同じ値で潰す。URL / モデルを分けるなら `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=`（`.model` も同様）
 - `--agents-mode` — ssos では `--actor-mode` の非推奨エイリアス。両方指定はエラー。scrubber は `--agents-mode` のみ
 
 キラー組み合わせ: `--actor-mode labeled_rule_base --design-mode llm`。

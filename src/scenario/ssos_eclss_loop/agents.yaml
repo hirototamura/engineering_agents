@@ -39,8 +39,10 @@ actor:
       urine_volume: 2.0  # [L] urine requested per WRS action (capped by buffer and max_feed)
   llm:
     # Current default: lab vLLM (https://github.com/hirototamura/vllm_server).
-    # Switch to ollama with provider: ollama and a local tag (e.g. qwen3.5:9b).
+    # Switch to ollama with provider: ollama, a local tag, and base_url http://localhost:11434.
+    # Actor and design URLs are independent — VLLM_BASE_URL stamps both sides.
     provider: vllm  # ollama | vllm
+    base_url: http://10.10.0.108:8000/v1  # 8B; 32B is :8001/v1
     model: qwen3-8b  # current default; may change
     temperature: 0.45  # [-] sampling temperature
     max_tokens: 768  # [-] max completion tokens (vLLM prompt fit)
@@ -57,6 +59,7 @@ design:
       emit any number of changes. Do not judge pass/fail.
   llm:
     provider: vllm
+    base_url: http://10.10.0.108:8000/v1  # independent of actor; 32B is :8001/v1
     model: qwen3-8b  # qwen3.8-27b
     temperature: 0.45
     max_tokens: 2048  # room for multiple changes

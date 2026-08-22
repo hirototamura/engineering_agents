@@ -429,7 +429,7 @@ def _preflight_llm(scenario_name: str, overrides: dict | None) -> int:
             hint=(
                 "Connect to the lab LAN or VPN and retry, or run: ea doctor\n"
                 f"Expected: {base_url}  model: {model}\n"
-                "Override with VLLM_BASE_URL or --set agents.llm.base_url=..."
+                "Override with VLLM_BASE_URL or --set agents.actor.llm.base_url= / agents.design.llm.base_url= (ssos) or agents.llm.base_url= (scrubber)"
             ),
         )
     else:
