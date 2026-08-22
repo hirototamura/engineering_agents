@@ -222,38 +222,26 @@ After each step's operations the scenario applies **band dwell**, then the **phy
 
 The scenario never writes `model.state` directly; it calls `backend.set_crew_alive` then `backend.apply_capacity_drop`. Operators shrink with `crew_alive`. Telemetry `raw_topics.plant_sim.survival` accumulates dwell then physics for that step (`lost_this_step` / `limiting`). Those values land on the single `post_ops` telemetry + health row when survival is enabled (at most two rows per step). Survival off does not emit that extra row unless operational commands ran.
 
-Disable with `plant_sim.survival.enabled: false` (unit tests and the ops cheatsheet do this). O2/water CRITICAL thresholds live in YAML (`o2_storage_critical_kg`, `product_water_critical_l`); if omitted they fall back to `o2_storage_low_kg * 0.75` and `product_water_low_l * 0.5`.
+Disable with `plant_sim.survival.enabled: false` (unit tests and the sensitivity sweep do this). O2/water CRITICAL thresholds live in YAML (`o2_storage_critical_kg`, `product_water_critical_l`); if omitted they fall back to `o2_storage_low_kg * 0.75` and `product_water_low_l * 0.5`.
 
-## Ops cheatsheet (offline)
+## Interactive sensitivity (not the run dashboard)
 
-Not the dashboard. Sweep N with survival off and one ARS/OGS/WRS action per step:
-
-```bash
-python3 -m tools.plant_sim_ops_cheatsheet --n-max 8 --steps 36
-```
-
-Writes a 3×4 figure ([figures/ops_cheatsheet.png](figures/ops_cheatsheet.png)): rows are cabin CO2 / O2 / water. Columns:
-
-- **Crew metabolism** — unconstrained demand (∝ N). Not tank-limited consumption; otherwise O2 flattens once the initial tank is empty.
-- **One subsystem action** — nameplate of one ARS/OGS/WRS call with inventory ignored, so the lines are flat vs N.
-- **Tank inventory** — simulated Δ tank / step after both, where O2 starvation and crew-limited WRS feed live.
-- **Tank + initial** — ending tank = `simulation.initial_*` + campaign Δ (own y-scale; dotted line is the initial fill).
-
-Every plotted number is derived from YAML + `PlantModel`. The ledger is [figures/ops_cheatsheet_sources.md](figures/ops_cheatsheet_sources.md) (JSON sidecar too): YAML path, loaded `PlantSimConfig` field, formula, and the unconstrained `PlantModel` probe. `mock_dynamics` is a different backend and is not used here.
-
-Every rate panel uses the same sign (**+ = that tank increased**). Color is the campaign (`no ECLSS`, ARS only, OGS only, WRS only). CSV keeps unsigned flow totals plus demand/nameplate for reproduction. **Columns 1–3 share one y-scale** per row; column 4 is absolute kg / L.
-
-![ops cheatsheet](figures/ops_cheatsheet.png)
-
-### Interactive sensitivity (not the run dashboard)
-
-To drag `simulation.initial_*` and `plant_sim` knobs and watch the same 3×4 update:
+Sweep occupant count N with survival off and one ARS/OGS/WRS action per step. Drag `simulation.initial_*` and `plant_sim` knobs:
 
 ```bash
 python3 -m tools.plant_sim_sensitivity_app
 ```
 
 Opens a dedicated Streamlit app on port 8502 (`python3 -m streamlit run src/tools/plant_sim_sensitivity_app.py --server.port 8502`). It does **not** read `src/experiments/results/` and does not replace `src/tools/dashboard/app.py`. Survival stays off. Crew water sinks are rescaled so urine + condensate + unrecoverable = potable (`PlantSimConfig` mass balance). Dashed lines are the YAML baseline; the dotted vertical line is `plant_sim.crew.size`.
+
+The 3×4 figure: rows are cabin CO2 / O2 / water. Columns:
+
+- **Crew metabolism** — unconstrained demand (∝ N). Not tank-limited consumption; otherwise O2 flattens once the initial tank is empty.
+- **One subsystem action** — nameplate of one ARS/OGS/WRS call with inventory ignored, so the lines are flat vs N.
+- **Tank inventory** — simulated Δ tank / step after both, where O2 starvation and crew-limited WRS feed live.
+- **Tank + initial** — ending tank = `simulation.initial_*` + campaign Δ (own y-scale; dotted line is the initial fill).
+
+Every plotted number is derived from YAML + `PlantModel`. Rate panels use the same sign (**+ = that tank increased**). Color is the campaign (`no ECLSS`, ARS only, OGS only, WRS only). **Columns 1–3 share one y-scale** per row; column 4 is absolute kg / L.
 
 ---
 

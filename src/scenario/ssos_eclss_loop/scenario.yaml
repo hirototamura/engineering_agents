@@ -62,7 +62,7 @@ plant_sim:
     grey_recovery: 0.90  # [-] potable recovered from grey / condensate feed
     max_feed_l_per_operation: 10.0  # [L] urine + grey batch cap per WRS action
   survival:
-    enabled: true  # plant_sim only; cheatsheet/sensitivity leave this false
+    enabled: true  # plant_sim only; sensitivity sweep leaves this false
     o2:
       warning_steps: 2  # [steps] consecutive WARNING before loss
       warning_loss: 1  # [person]

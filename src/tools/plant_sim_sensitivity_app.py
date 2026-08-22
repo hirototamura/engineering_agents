@@ -1,4 +1,4 @@
-"""Interactive plant_sim cheatsheet sensitivity — not the run dashboard.
+"""Interactive plant_sim sensitivity — not the run dashboard.
 
 Usage::
 
@@ -20,10 +20,10 @@ from typing import Any, Dict, Iterable, List, Tuple
 import matplotlib.pyplot as plt
 import streamlit as st
 
-from tools.plant_sim_ops_cheatsheet import CheatsheetRow
 from tools.plant_sim_sensitivity import (
     SLIDER_SPECS,
     SliderSpec,
+    SweepRow,
     run_sensitivity,
     sensitivity_figure,
     yaml_defaults,
@@ -62,7 +62,7 @@ def launch(argv: Iterable[str] | None = None) -> int:
 
 
 @st.cache_data(show_spinner="Running plant_sim sweep…")
-def cached_sweep(items: Tuple[Tuple[str, float], ...], n_max: int, steps: int) -> List[CheatsheetRow]:
+def cached_sweep(items: Tuple[Tuple[str, float], ...], n_max: int, steps: int) -> List[SweepRow]:
     rows, _patched = run_sensitivity(dict(items), n_max=n_max, steps=steps)
     return rows
 
@@ -90,7 +90,7 @@ def _slider(spec: SliderSpec, default: float) -> float | int:
 
 def render() -> None:
     st.set_page_config(page_title="plant_sim sensitivity", layout="wide")
-    st.title("plant_sim cheatsheet sensitivity")
+    st.title("plant_sim sensitivity")
     st.caption(
         "Not the Streamlit run dashboard. Sliders patch scenario.yaml in memory "
         "(initial storage + plant_sim). Survival stays off. Dashed lines are the YAML baseline. "
