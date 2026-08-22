@@ -31,10 +31,20 @@ def run(
         None,
         help="Scenario name (default: scrubber_degradation).",
     ),
+    actor_mode: Optional[str] = typer.Option(
+        None,
+        "--actor-mode",
+        help="ssos_eclss_loop actor mode: none, labeled_rule_base, or llm.",
+    ),
+    design_mode: Optional[str] = typer.Option(
+        None,
+        "--design-mode",
+        help="ssos_eclss_loop design mode: none, labeled_rule_base, or llm.",
+    ),
     agents_mode: Optional[str] = typer.Option(
         None,
         "--agents-mode",
-        help="Agent mode: none, labeled_rule_base, or llm.",
+        help="Agent mode: none, labeled_rule_base, or llm. On ssos_eclss_loop, alias for --actor-mode.",
     ),
     steps: Optional[int] = typer.Option(None, "--steps", help="Override simulation.steps."),
     run_id: Optional[str] = typer.Option(None, "--run-id", help="Override output run id."),
@@ -113,7 +123,10 @@ def run(
 
     try:
         overrides = _build_overrides(
+            scenario_name=scenario_name,
             agents_mode=agents_mode,
+            actor_mode=actor_mode,
+            design_mode=design_mode,
             steps=steps,
             backend=backend,
             inject_failures=inject_failures,
@@ -143,10 +156,7 @@ def run(
     if write_spec is not None:
         spec.write_json(write_spec)
 
-    resolved_mode = (overrides or {}).get("agents", {}).get("mode")
-    if resolved_mode is None:
-        config = load_scenario_config(scenario_name, overrides)
-        resolved_mode = (config.get("agents") or {}).get("mode", "none")
+    resolved_mode = _resolved_display_mode(scenario_name, overrides)
     resolved_steps = (overrides or {}).get("simulation", {}).get("steps")
     if resolved_steps is None:
         config = load_scenario_config(scenario_name, overrides)
@@ -177,7 +187,7 @@ def run(
             typer.echo(spec.to_json())
         raise typer.Exit(exit_codes.SUCCESS)
 
-    if resolved_mode == "llm":
+    if _any_llm_mode(scenario_name, overrides):
         env_code = _preflight_llm(scenario_name, overrides)
         if env_code != exit_codes.SUCCESS:
             raise typer.Exit(env_code)
@@ -205,9 +215,41 @@ def run(
     raise typer.Exit(exit_codes.SUCCESS)
 
 
+def _resolved_display_mode(scenario_name: str, overrides: dict | None) -> str:
+    config = load_scenario_config(scenario_name, overrides)
+    if scenario_name == "ssos_eclss_loop":
+        from scenario.ssos_eclss_loop.agent_config import resolve_ssos_modes
+
+        agents_config = load_agents_config(scenario_name, config) or {}
+        actor_mode, _ = resolve_ssos_modes(agents_config)
+        return actor_mode
+    return str((config.get("agents") or {}).get("mode", "none"))
+
+
+def _any_llm_mode(scenario_name: str, overrides: dict | None) -> bool:
+    config = load_scenario_config(scenario_name, overrides)
+    if scenario_name != "ssos_eclss_loop":
+        return (config.get("agents") or {}).get("mode") == "llm"
+    agents_config = load_agents_config(scenario_name, config) or {}
+    from scenario.ssos_eclss_loop.agent_config import resolve_ssos_modes
+
+    actor_mode, design_mode = resolve_ssos_modes(agents_config)
+    return actor_mode == "llm" or design_mode == "llm"
+
+
+def _require_mode(value: str, label: str) -> str:
+    if value not in VALID_AGENTS_MODES:
+        allowed = ", ".join(sorted(VALID_AGENTS_MODES))
+        raise ValueError(f"Unsupported {label}: {value!r}. Choose one of: {allowed}")
+    return value
+
+
 def _build_overrides(
     *,
+    scenario_name: str,
     agents_mode: Optional[str],
+    actor_mode: Optional[str] = None,
+    design_mode: Optional[str] = None,
     steps: Optional[int],
     backend: Optional[str],
     inject_failures: Optional[bool],
@@ -217,13 +259,19 @@ def _build_overrides(
     llm_model: Optional[str] = None,
 ) -> dict | None:
     parts = []
-    if agents_mode is not None:
-        if agents_mode not in VALID_AGENTS_MODES:
-            allowed = ", ".join(sorted(VALID_AGENTS_MODES))
-            raise ValueError(
-                f"Unsupported agents mode: {agents_mode!r}. Choose one of: {allowed}"
-            )
-        parts.append({"agents": {"mode": agents_mode}})
+    ssos = scenario_name == "ssos_eclss_loop"
+    if ssos and agents_mode is not None and actor_mode is not None:
+        raise ValueError("Specify only one of --actor-mode and --agents-mode")
+    if ssos:
+        resolved_actor = actor_mode or agents_mode
+        if resolved_actor is not None:
+            parts.append({"agents": {"actor": {"mode": _require_mode(resolved_actor, "actor mode")}}})
+        if design_mode is not None:
+            parts.append({"agents": {"design": {"mode": _require_mode(design_mode, "design mode")}}})
+    elif agents_mode is not None:
+        parts.append({"agents": {"mode": _require_mode(agents_mode, "agents mode")}})
+    elif actor_mode is not None or design_mode is not None:
+        raise ValueError("--actor-mode and --design-mode apply only to ssos_eclss_loop")
     if steps is not None:
         parts.append({"simulation": {"steps": steps}})
     if backend is not None:
@@ -242,9 +290,23 @@ def _build_overrides(
             raise ValueError(
                 f"Unsupported LLM provider: {llm_provider!r}. Choose one of: {allowed}"
             )
-        parts.append({"agents": {"llm": {"provider": provider}}})
+        llm_patch = {"provider": provider}
+        if ssos:
+            parts.append({"agents": {"actor": {"llm": llm_patch}, "design": {"llm": dict(llm_patch)}}})
+        else:
+            parts.append({"agents": {"llm": llm_patch}})
     if llm_model is not None:
-        parts.append({"agents": {"llm": {"model": llm_model}}})
+        if ssos:
+            parts.append(
+                {
+                    "agents": {
+                        "actor": {"llm": {"model": llm_model}},
+                        "design": {"llm": {"model": llm_model}},
+                    }
+                }
+            )
+        else:
+            parts.append({"agents": {"llm": {"model": llm_model}}})
     if set_values:
         parts.append(parse_set_values(set_values))
     if override_file is not None:
@@ -271,6 +333,28 @@ def _materialize_resolved_llm(scenario_name: str, overrides: dict | None) -> dic
     inside the container after vLLM already passed on the host.
     """
     scenario_config = load_scenario_config(scenario_name, overrides)
+    if scenario_name == "ssos_eclss_loop":
+        from scenario.ssos_eclss_loop.agent_config import resolve_ssos_modes
+
+        agents_config = load_agents_config(scenario_name, scenario_config) or {}
+        actor_mode, design_mode = resolve_ssos_modes(agents_config)
+        patch: dict = {"agents": {}}
+        if actor_mode == "llm":
+            actor_llm = (agents_config.get("actor") or {}).get("llm") or {}
+            provider, base_url, model = describe_llm_target(actor_llm)
+            patch["agents"]["actor"] = {
+                "llm": {"provider": provider, "base_url": base_url, "model": model}
+            }
+        if design_mode == "llm":
+            design_llm = (agents_config.get("design") or {}).get("llm") or {}
+            provider, base_url, model = describe_llm_target(design_llm)
+            patch["agents"]["design"] = {
+                "llm": {"provider": provider, "base_url": base_url, "model": model}
+            }
+        if not patch["agents"]:
+            return overrides
+        return merge_overrides(overrides or {}, patch)
+
     mode = (scenario_config.get("agents") or {}).get("mode", "none")
     if mode != "llm":
         return overrides
@@ -286,12 +370,19 @@ def _materialize_resolved_llm(scenario_name: str, overrides: dict | None) -> dic
 def _validate_merged_overrides(overrides: dict | None) -> None:
     if not overrides:
         return
-    agents_mode = (overrides.get("agents") or {}).get("mode")
-    if agents_mode is not None and agents_mode not in VALID_AGENTS_MODES:
-        allowed = ", ".join(sorted(VALID_AGENTS_MODES))
-        raise ValueError(
-            f"Unsupported agents mode: {agents_mode!r}. Choose one of: {allowed}"
-        )
+    agents = overrides.get("agents") or {}
+    for key, label in (
+        ("mode", "agents mode"),
+        ("actor", "actor mode"),
+        ("design", "design mode"),
+    ):
+        if key == "mode":
+            value = agents.get("mode")
+        else:
+            value = (agents.get(key) or {}).get("mode") if isinstance(agents.get(key), dict) else None
+        if value is not None and value not in VALID_AGENTS_MODES:
+            allowed = ", ".join(sorted(VALID_AGENTS_MODES))
+            raise ValueError(f"Unsupported {label}: {value!r}. Choose one of: {allowed}")
     backend_kind = (overrides.get("backend") or {}).get("kind")
     if backend_kind is not None and backend_kind not in VALID_SSOS_BACKENDS:
         allowed = ", ".join(sorted(VALID_SSOS_BACKENDS))
@@ -313,7 +404,17 @@ def _preflight_llm(scenario_name: str, overrides: dict | None) -> int:
 
     scenario_config = load_scenario_config(scenario_name, overrides)
     agents_config = load_agents_config(scenario_name, scenario_config) or {}
-    llm_cfg = agents_config.get("llm", {}) or {}
+    if scenario_name == "ssos_eclss_loop":
+        from scenario.ssos_eclss_loop.agent_config import resolve_ssos_modes
+
+        actor_mode, design_mode = resolve_ssos_modes(agents_config)
+        llm_cfg = {}
+        if actor_mode == "llm":
+            llm_cfg = (agents_config.get("actor") or {}).get("llm") or {}
+        elif design_mode == "llm":
+            llm_cfg = (agents_config.get("design") or {}).get("llm") or {}
+    else:
+        llm_cfg = agents_config.get("llm", {}) or {}
     try:
         provider, base_url, model = describe_llm_target(llm_cfg)
         client = build_llm_client(llm_cfg)

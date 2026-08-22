@@ -49,6 +49,8 @@ def resolve_run_id(
         return str(run_id)
 
     mode = agents_config.get("mode")
+    if mode is None and isinstance(agents_config.get("actor"), dict):
+        mode = agents_config["actor"].get("mode")
     if mode == "labeled_rule_base":
         return str(
             output_cfg.get("run_id_labeled_rule_base", f"{scenario_name}_labeled_rule_base")

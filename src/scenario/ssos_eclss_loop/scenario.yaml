@@ -48,10 +48,14 @@ subsystem_failures:
     end_step: 40       
     
 agents:
-  mode: none  # none | labeled_rule_base | llm
-  # After llm deliberation, this many agents may issue operational commands.
-  # Rotates from eclss_operator_{step % N}. Clamped to team.count. labeled_rule_base ignores this.
-  max_actions_per_step: 2
+  actor:
+    mode: none  # none | labeled_rule_base | llm
+    # After llm deliberation, this many actors may issue operational commands.
+    # Rotates from eclss_actor_{step % N}. Clamped to actor.team.count.
+    # labeled_rule_base ignores this.
+    max_actions_per_step: 1
+  design: {}
+    # design.mode omitted: inherit actor.mode. Set none to disable post-run design.
 
 output:
   run_id: ssos_eclss_loop_baseline

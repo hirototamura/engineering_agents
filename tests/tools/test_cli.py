@@ -71,6 +71,58 @@ def test_run_rejects_invalid_backend():
     assert "Unsupported backend kind" in result.output
 
 
+def test_run_ssos_rejects_actor_and_agents_mode_together():
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "labeled_rule_base",
+            "--agents-mode",
+            "llm",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "only one of --actor-mode and --agents-mode" in result.output
+
+
+def test_run_ssos_actor_and_design_mode_dry_run(tmp_path: Path):
+    spec_path = tmp_path / "spec.json"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "labeled_rule_base",
+            "--design-mode",
+            "llm",
+            "--dry-run",
+            "--write-spec",
+            str(spec_path),
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(spec_path.read_text(encoding="utf-8"))
+    assert payload["overrides"]["agents"]["actor"]["mode"] == "labeled_rule_base"
+    assert payload["overrides"]["agents"]["design"]["mode"] == "llm"
+
+
+def test_run_rejects_invalid_design_mode():
+    result = runner.invoke(
+        app,
+        ["run", "ssos_eclss_loop", "--backend", "mock", "--design-mode", "wizard"],
+    )
+    assert result.exit_code == 2
+    assert "Unsupported design mode" in result.output
+
+
 def test_run_rejects_invalid_agents_mode_via_set():
     result = runner.invoke(
         app,

@@ -388,8 +388,9 @@ def test_llm_operational_parse_air_revitalisation_and_request_co2():
 
 
 def test_llm_design_parse_accepts_ssos_change_kinds():
-    team = SsosEclssLoopTeam({"mode": "llm", "team": {"count": 1, "id_prefix": "op"}, "llm": {}})
-    changes, notes = team._parse_llm_design_proposals(
+    from scenario.agents.ssos_post_run_design import parse_llm_design_proposals
+
+    changes, notes = parse_llm_design_proposals(
         [
             {
                 "change_kind": "action_profile",
@@ -410,9 +411,42 @@ def test_llm_design_parse_accepts_ssos_change_kinds():
     assert changes[0]["change_kind"] == "action_profile"
 
 
+def test_llm_design_parse_keeps_any_number_of_valid_changes():
+    from scenario.agents.ssos_post_run_design import parse_llm_design_proposals
+
+    raw = [
+        {
+            "change_kind": "action_profile",
+            "payload": {
+                "subsystem": subsystem,
+                "action": action,
+                "fields": fields,
+            },
+        }
+        for subsystem, action, fields in (
+            ("ars", "air_revitalisation", {"initial_co2_mass": 2.0}),
+            ("ogs", "oxygen_generation", {"input_water_mass": 0.2}),
+            ("wrs", "water_recovery_systems", {"urine_volume": 3.0}),
+        )
+    ] + [
+        {
+            "change_kind": "set_parameter",
+            "payload": {"target": "agents.policy.co2_storage_high_kg", "value": 1.4},
+        },
+        {
+            "change_kind": "service_config",
+            "payload": {"service": "request_co2", "amount": 0.03},
+        },
+    ]
+    changes, notes = parse_llm_design_proposals(raw)
+    assert not notes
+    assert len(changes) == 5
+
+
 def test_llm_design_parse_rejects_unknown_action_profile_fields():
-    team = SsosEclssLoopTeam({"mode": "llm", "team": {"count": 1, "id_prefix": "op"}, "llm": {}})
-    changes, notes = team._parse_llm_design_proposals(
+    from scenario.agents.ssos_post_run_design import parse_llm_design_proposals
+
+    changes, notes = parse_llm_design_proposals(
         [
             {
                 "change_kind": "action_profile",
