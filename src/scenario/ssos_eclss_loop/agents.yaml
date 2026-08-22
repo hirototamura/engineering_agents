@@ -38,20 +38,12 @@ actor:
     wrs_goal:  # water_recovery_systems payload
       urine_volume: 2.0  # [L] urine requested per WRS action (capped by buffer and max_feed)
   llm:
-    # ollama (local daemon) or vllm (lab GPU server: https://github.com/hirototamura/vllm_server)
-    provider: ollama  # ollama | vllm
-    # Host Ollama: localhost. In SSOS Docker use host.docker.internal (ea-loop sets OLLAMA_BASE_URL).
-    # Lab vLLM: --llm-provider vllm (or LLM_PROVIDER=vllm). Defaults to http://10.10.0.108:8000/v1 / qwen3-8b.
-    # Omit max_concurrency so Ollama keeps model caps (~8 for 9b). vLLM 8B still
-    # defaults to 100 in-flight when the provider is switched.
-    # max_concurrency: 100  # in-flight cap; omit for provider/model defaults
-    base_url: http://localhost:11434  # OpenAI-compatible or Ollama endpoint
-    model: qwen3.5:9b  # model id on that endpoint
+    # Current default: lab vLLM (https://github.com/hirototamura/vllm_server).
+    # Switch to ollama with provider: ollama and a local tag (e.g. qwen3.5:9b).
+    provider: vllm  # ollama | vllm
+    model: qwen3-8b  # current default; may change
     temperature: 0.45  # [-] sampling temperature
     max_tokens: 768  # [-] max completion tokens (vLLM prompt fit)
-    repeat_penalty: 1.1  # [-] penalize token repeats
-    repeat_last_n: 128  # [-] window (tokens) for the repeat penalty
-    min_p: 0.05  # [-] min-p sampler floor
     think: false  # if true, request model chain-of-thought (provider-dependent)
     api_timeout: 20  # [s] HTTP timeout; Ollama only — vLLM ignores this
 
