@@ -20,6 +20,14 @@ from scenario.ssos_eclss_loop.scenario_run import (
 )
 
 
+def test_build_effective_thresholds_defaults_match_scenario_yaml():
+    effective = build_effective_thresholds({})
+    assert effective["co2_storage_high_kg"] == pytest.approx(2.0)
+    assert effective["co2_storage_critical_kg"] == pytest.approx(8.0)
+    assert effective["o2_storage_low_kg"] == pytest.approx(6.0)
+    assert effective["product_water_low_l"] == pytest.approx(50.0)
+
+
 def test_build_effective_thresholds_includes_derived_criticals():
     effective = build_effective_thresholds(
         {

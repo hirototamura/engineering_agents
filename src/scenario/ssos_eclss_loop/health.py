@@ -15,13 +15,20 @@ HEALTH_INPUT_FIELDS = {
     "water": "telemetry.product_water_reserve_l",
 }
 
+# Fallback bands when YAML keys are omitted. Keep in lock-step with
+# src/scenario/ssos_eclss_loop/scenario.yaml `thresholds`.
+DEFAULT_CO2_STORAGE_HIGH_KG = 2.0
+DEFAULT_CO2_STORAGE_CRITICAL_KG = 8.0
+DEFAULT_O2_STORAGE_LOW_KG = 6.0
+DEFAULT_PRODUCT_WATER_LOW_L = 50.0
+
 
 def build_effective_thresholds(thresholds: Dict[str, Any]) -> Dict[str, Any]:
     """Thresholds actually used by ``compute_eclss_storage_health`` for a run."""
-    co2_high = float(thresholds.get("co2_storage_high_kg", 1.5))
-    co2_critical = float(thresholds.get("co2_storage_critical_kg", 2.2))
-    o2_low = float(thresholds.get("o2_storage_low_kg", 0.45))
-    water_low = float(thresholds.get("product_water_low_l", 50.0))
+    co2_high = float(thresholds.get("co2_storage_high_kg", DEFAULT_CO2_STORAGE_HIGH_KG))
+    co2_critical = float(thresholds.get("co2_storage_critical_kg", DEFAULT_CO2_STORAGE_CRITICAL_KG))
+    o2_low = float(thresholds.get("o2_storage_low_kg", DEFAULT_O2_STORAGE_LOW_KG))
+    water_low = float(thresholds.get("product_water_low_l", DEFAULT_PRODUCT_WATER_LOW_L))
     o2_critical = thresholds.get("o2_storage_critical_kg")
     water_critical = thresholds.get("product_water_critical_l")
     return {
