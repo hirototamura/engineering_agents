@@ -27,6 +27,23 @@ from environment.ssos.eclss.units import water_kg_to_l
 from scenario.runner import agents_config_path, scenario_config_path
 
 MODES = ("none", "ars", "ogs", "wrs")
+_SUBSYSTEMS = ("ars", "ogs", "wrs")
+PAIR_MODES = ("ars+ogs", "ars+wrs", "ogs+wrs")
+ALL_MODE = "all"
+# First figure still plots MODES only. Extra campaigns feed the combo grid below it.
+SWEEP_MODES = MODES + PAIR_MODES + (ALL_MODE,)
+
+
+def campaign_ops(mode: str) -> Tuple[str, ...]:
+    """Subsystems fired each step. Order is always ARS → OGS → WRS."""
+    if mode == "none":
+        return ()
+    if mode == ALL_MODE:
+        return _SUBSYSTEMS
+    parts = tuple(mode.split("+"))
+    if any(part not in _SUBSYSTEMS for part in parts) or not parts:
+        raise ValueError(f"unknown mode {mode!r}")
+    return tuple(sub for sub in _SUBSYSTEMS if sub in parts)
 
 
 @dataclass
@@ -168,8 +185,7 @@ def run_campaign(
     scenario: Mapping[str, Any],
     policy: Mapping[str, Any],
 ) -> SweepRow:
-    if mode not in MODES:
-        raise ValueError(f"unknown mode {mode!r}")
+    ops = campaign_ops(mode)
     merged = dict(scenario)
     plant = dict(merged.get("plant_sim") or {})
     crew = dict(plant.get("crew") or {})
@@ -195,16 +211,16 @@ def run_campaign(
             co2_metab += float(metab["co2_generated_kg"])
             o2_metab += float(metab["o2_consumed_kg"])
             water_metab += water_kg_to_l(float(metab["water_consumed_kg"]))
-        if mode == "ars":
+        if "ars" in ops:
             result = model.run_ars(ars_goal)
             co2_ops += float(result.get("co2_removed_kg") or 0.0)
-        elif mode == "ogs":
+        if "ogs" in ops:
             result = model.run_ogs(ogs_water)
             o2_ops += float(result.get("o2_generated_kg") or 0.0)
             water_ops += water_kg_to_l(float(result.get("processed_water_kg") or 0.0)) - water_kg_to_l(
                 float(result.get("water_regenerated_kg") or 0.0)
             )
-        elif mode == "wrs":
+        if "wrs" in ops:
             result = model.run_wrs(wrs_urine)
             water_ops -= float(result.get("recovered_water_l") or 0.0)
 
@@ -252,20 +268,64 @@ def sweep(
     policy = _policy_goals(agents)
     rows: List[SweepRow] = []
     for n in range(1, int(n_max) + 1):
-        for mode in MODES:
+        for mode in SWEEP_MODES:
             rows.append(
                 run_campaign(n=n, mode=mode, steps=steps, scenario=scenario, policy=policy)
             )
     return rows
 
 
-MODE_COLORS = {"none": "#4c72b0", "ars": "#c44e52", "ogs": "#55a868", "wrs": "#8172b3"}
+MODE_COLORS = {"none": "#111111", "ars": "#c44e52", "ogs": "#55a868", "wrs": "#1f77b4"}
+MODE_MARKERS = {"none": "o", "ars": "^", "ogs": "D", "wrs": "s"}
+MODE_ALPHAS = {"none": 1.00, "ars": 0.80, "ogs": 0.60, "wrs": 0.40}
 MODE_LABELS = {
     "none": "no ECLSS",
     "ars": "ARS only",
     "ogs": "OGS only",
     "wrs": "WRS only",
 }
+COMBO_COLORS = {
+    "ars": MODE_COLORS["ars"],
+    "ogs": MODE_COLORS["ogs"],
+    "wrs": MODE_COLORS["wrs"],
+    "ars+ogs": "#7b4173",
+    "ars+wrs": "#e377c2",
+    "ogs+wrs": "#17becf",
+    "all": "#ff7f0e",
+}
+COMBO_MARKERS = {
+    "ars": MODE_MARKERS["ars"],
+    "ogs": MODE_MARKERS["ogs"],
+    "wrs": MODE_MARKERS["wrs"],
+    "ars+ogs": "v",
+    "ars+wrs": "P",
+    "ogs+wrs": "X",
+    "all": "*",
+}
+COMBO_ALPHAS = {
+    "ars": MODE_ALPHAS["ars"],
+    "ogs": MODE_ALPHAS["ogs"],
+    "wrs": MODE_ALPHAS["wrs"],
+    "ars+ogs": 0.85,
+    "ars+wrs": 0.75,
+    "ogs+wrs": 0.65,
+    "all": 1.00,
+}
+COMBO_LABELS = {
+    "ars": "ARS only",
+    "ogs": "OGS only",
+    "wrs": "WRS only",
+    "ars+ogs": "ARS + OGS",
+    "ars+wrs": "ARS + WRS",
+    "ogs+wrs": "OGS + WRS",
+    "all": "ARS + OGS + WRS",
+}
+COMBO_RATE_COLUMNS = (
+    ("1 subsystem action", ("ars", "ogs", "wrs"), "Simulated Δ tank / step"),
+    ("2 subsystem actions", PAIR_MODES, "Simulated Δ tank / step"),
+    ("All subsystems", (ALL_MODE,), "1 call each / step"),
+)
+COMBO_LEVEL_MODES = ("ars", "ogs", "wrs") + PAIR_MODES + (ALL_MODE,)
 
 # Rows 0–2 share a tank-delta sign: + means that inventory went up (per step).
 # Column 3 is the ending tank (initial + campaign Δ), not a per-step rate.
@@ -279,7 +339,7 @@ _COLUMNS = (
     ("Crew metabolism", "metabolism", "Unconstrained demand ∝ N"),
     ("One subsystem action", "ops", "Nameplate of 1 call (no inventory)"),
     ("Tank inventory", "net", "Simulated Δ tank / step"),
-    ("Tank + initial", "level", "Ending tank = initial + Δ"),
+    ("Tank + initial", "level", "Ending tank = initial + (Δ tank/step × steps)"),
 )
 N_RATE_COLS = 3
 
@@ -288,7 +348,7 @@ def tank_effect(row: SweepRow, resource: str, kind: str) -> float:
     """Signed effect on the named tank.
 
     metabolism / ops / net are per-step (+ = inventory up).
-    level is the ending tank: initial + campaign Δ (not divided by steps).
+    level is the ending tank: initial + (Δ tank/step × steps), not divided by steps.
     """
     if resource == "co2":
         if kind == "metabolism":
@@ -370,10 +430,10 @@ def make_sweep_figure(
     """Build the 3×4 grid. Caller owns show/save/close.
 
     Columns 0–2 (metabolism / action / tank Δ) share one y-scale per row.
-    Column 3 is ending tank = initial + campaign Δ and uses its own scale.
+    Column 3 is ending tank = initial + (Δ tank/step × steps) and uses its own scale.
     """
-    per_step = [row.per_step() for row in rows]
-    baseline = [row.per_step() for row in baseline_rows] if baseline_rows else []
+    per_step = [row.per_step() for row in rows if row.mode in MODES]
+    baseline = [row.per_step() for row in baseline_rows if row.mode in MODES] if baseline_rows else []
     n_cols = len(_COLUMNS)
     fig, axes = plt.subplots(3, n_cols, figsize=(18.6, 9.2), sharex=True)
     for row_i in range(3):
@@ -384,19 +444,6 @@ def make_sweep_figure(
         axes[0, col].set_title(f"{col_title}\n{col_subtitle}", fontsize=10, pad=8)
         for row_i, (name, resource, rate_unit, level_unit) in enumerate(_RESOURCES):
             ax = axes[row_i, col]
-            if baseline:
-                for mode in MODES:
-                    series = [item for item in baseline if item.mode == mode]
-                    if not series:
-                        continue
-                    ax.plot(
-                        [item.n for item in series],
-                        [tank_effect(item, resource, kind) for item in series],
-                        color=MODE_COLORS[mode],
-                        linewidth=1.2,
-                        linestyle="--",
-                        alpha=0.55,
-                    )
             for mode in MODES:
                 series = [item for item in per_step if item.mode == mode]
                 if not series:
@@ -406,10 +453,27 @@ def make_sweep_figure(
                     [tank_effect(item, resource, kind) for item in series],
                     color=MODE_COLORS[mode],
                     linewidth=1.9,
-                    marker="o",
-                    markersize=3.5,
+                    marker=MODE_MARKERS[mode],
+                    markersize=4.0 if mode in {"none", "wrs"} else 3.5,
                     label=MODE_LABELS[mode],
+                    alpha=MODE_ALPHAS[mode],
+                    zorder=2 + MODES.index(mode),
                 )
+            if baseline:
+                for mode in MODES:
+                    series = [item for item in baseline if item.mode == mode]
+                    if not series:
+                        continue
+                    ax.plot(
+                        [item.n for item in series],
+                        [tank_effect(item, resource, kind) for item in series],
+                        color=MODE_COLORS[mode],
+                        linewidth=1.8,
+                        linestyle=(0, (1.2, 1.6)),
+                        marker="",
+                        alpha=MODE_ALPHAS[mode],
+                        zorder=6 + MODES.index(mode),
+                    )
             if kind == "level":
                 if per_step:
                     ax.axhline(
@@ -445,12 +509,21 @@ def make_sweep_figure(
         axes[row_i, N_RATE_COLS].tick_params(axis="y", labelleft=True)
 
     handles = [
-        Line2D([0], [0], color=MODE_COLORS[mode], lw=2, marker="o", markersize=4, label=MODE_LABELS[mode])
+        Line2D(
+            [0],
+            [0],
+            color=MODE_COLORS[mode],
+            lw=2,
+            marker=MODE_MARKERS[mode],
+            markersize=5,
+            alpha=MODE_ALPHAS[mode],
+            label=MODE_LABELS[mode],
+        )
         for mode in MODES
     ]
     if baseline:
         handles.append(
-            Line2D([0], [0], color="#666666", lw=1.2, linestyle="--", label="YAML baseline")
+            Line2D([0], [0], color="#666666", lw=1.6, linestyle=":", label="YAML baseline")
         )
     handles.append(
         Line2D([0], [0], color="#444444", lw=0.9, linestyle=":", label="YAML initial (col 4)")
@@ -460,8 +533,8 @@ def make_sweep_figure(
     fig.text(
         0.5,
         -0.01,
-        "Columns 1–3 share a per-step y-scale. Column 4 is ending tank = initial + campaign Δ "
-        "(own scale; dotted line = initial fill). Dashed = YAML baseline.",
+        "Columns 1–3 share a per-step y-scale. Column 4 is ending tank = initial + (Δ tank/step × steps) "
+        "(own scale; dotted gray = initial fill). Dotted colored = YAML baseline.",
         ha="center",
         fontsize=9,
     )
@@ -472,7 +545,315 @@ def make_sweep_figure(
     return fig
 
 
-# Dotted paths that the sensitivity app exposes (scenario.yaml).
+def _plot_combo_series(
+    ax,
+    items: Sequence[SweepRow],
+    modes: Sequence[str],
+    resource: str,
+    kind: str,
+    *,
+    baseline: bool,
+) -> None:
+    for index, mode in enumerate(modes):
+        series = [item for item in items if item.mode == mode]
+        if not series:
+            continue
+        if baseline:
+            ax.plot(
+                [item.n for item in series],
+                [tank_effect(item, resource, kind) for item in series],
+                color=COMBO_COLORS[mode],
+                linewidth=1.8,
+                linestyle=(0, (1.2, 1.6)),
+                marker="",
+                alpha=COMBO_ALPHAS[mode],
+                zorder=6 + index,
+            )
+            continue
+        ax.plot(
+            [item.n for item in series],
+            [tank_effect(item, resource, kind) for item in series],
+            color=COMBO_COLORS[mode],
+            linewidth=1.9,
+            marker=COMBO_MARKERS[mode],
+            markersize=5.0 if mode == ALL_MODE else 3.5,
+            label=COMBO_LABELS[mode],
+            alpha=COMBO_ALPHAS[mode],
+            zorder=2 + index,
+        )
+
+
+def make_combo_figure(
+    rows: Sequence[SweepRow],
+    *,
+    baseline_rows: Sequence[SweepRow] | None = None,
+    yaml_n: int | None = None,
+    title: str = "plant_sim sensitivity — 1 / 2 / all subsystem actions",
+) -> plt.Figure:
+    """3×4 grid: 1-action, 2-action, all-three per-step Δ, then ending tank.
+
+    Columns 0–2 share a per-step y-scale per row. Column 3 is campaign ending
+    tank (not divided by steps), same convention as the first figure's right column.
+    """
+    allowed = set(COMBO_LEVEL_MODES)
+    per_step = [row.per_step() for row in rows if row.mode in allowed]
+    baseline = [row.per_step() for row in baseline_rows if row.mode in allowed] if baseline_rows else []
+    n_cols = 4
+    fig, axes = plt.subplots(3, n_cols, figsize=(18.6, 9.2), sharex=True)
+    for row_i in range(3):
+        axes[row_i, 1].sharey(axes[row_i, 0])
+        axes[row_i, 2].sharey(axes[row_i, 0])
+
+    for col, (col_title, modes, col_subtitle) in enumerate(COMBO_RATE_COLUMNS):
+        axes[0, col].set_title(f"{col_title}\n{col_subtitle}", fontsize=10, pad=8)
+        for row_i, (name, resource, rate_unit, _level_unit) in enumerate(_RESOURCES):
+            ax = axes[row_i, col]
+            _plot_combo_series(ax, per_step, modes, resource, "net", baseline=False)
+            if baseline:
+                _plot_combo_series(ax, baseline, modes, resource, "net", baseline=True)
+            ax.axhline(0.0, color="#888888", linewidth=0.8)
+            if yaml_n is not None:
+                ax.axvline(float(yaml_n), color="#bbbbbb", linewidth=0.9, linestyle=":")
+            ax.grid(True, alpha=0.3)
+            ax.tick_params(axis="y", labelleft=True)
+            if col == 0:
+                ax.set_ylabel(f"{name}\n({rate_unit})")
+            if row_i == len(_RESOURCES) - 1:
+                ax.set_xlabel("Occupants N")
+
+    axes[0, 3].set_title(
+        "Tank + initial\nEnding tank = initial + (Δ tank/step × steps)",
+        fontsize=10,
+        pad=8,
+    )
+    for row_i, (name, resource, _rate_unit, level_unit) in enumerate(_RESOURCES):
+        ax = axes[row_i, 3]
+        _plot_combo_series(ax, per_step, COMBO_LEVEL_MODES, resource, "level", baseline=False)
+        if baseline:
+            _plot_combo_series(ax, baseline, COMBO_LEVEL_MODES, resource, "level", baseline=True)
+        if per_step:
+            ax.axhline(
+                initial_tank(per_step[0], resource),
+                color="#444444",
+                linewidth=0.9,
+                linestyle=":",
+            )
+        if yaml_n is not None:
+            ax.axvline(float(yaml_n), color="#bbbbbb", linewidth=0.9, linestyle=":")
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(axis="y", labelleft=True)
+        ax.set_ylabel(f"{name}\n({level_unit})")
+        if row_i == len(_RESOURCES) - 1:
+            ax.set_xlabel("Occupants N")
+
+    for row_i, (_name, resource, _rate_unit, _level_unit) in enumerate(_RESOURCES):
+        rate_vals = [0.0]
+        for item in list(per_step) + list(baseline):
+            rate_vals.append(tank_effect(item, resource, "net"))
+        lo, hi = _row_ylim(rate_vals)
+        for col in range(3):
+            axes[row_i, col].set_ylim(lo, hi)
+            axes[row_i, col].tick_params(axis="y", labelleft=True)
+        level_vals = [0.0]
+        for item in list(per_step) + list(baseline):
+            level_vals.append(tank_effect(item, resource, "level"))
+            level_vals.append(initial_tank(item, resource))
+        lo_l, hi_l = _row_ylim(level_vals)
+        axes[row_i, 3].set_ylim(lo_l, hi_l)
+        axes[row_i, 3].tick_params(axis="y", labelleft=True)
+
+    handles = [
+        Line2D(
+            [0],
+            [0],
+            color=COMBO_COLORS[mode],
+            lw=2,
+            marker=COMBO_MARKERS[mode],
+            markersize=5,
+            alpha=COMBO_ALPHAS[mode],
+            label=COMBO_LABELS[mode],
+        )
+        for mode in COMBO_LEVEL_MODES
+    ]
+    if baseline:
+        handles.append(
+            Line2D([0], [0], color="#666666", lw=1.6, linestyle=":", label="YAML baseline")
+        )
+    handles.append(
+        Line2D([0], [0], color="#444444", lw=0.9, linestyle=":", label="YAML initial (col 4)")
+    )
+    fig.legend(handles=handles, loc="upper center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.98))
+    fig.suptitle(title, y=1.02, fontsize=13)
+    fig.text(
+        0.5,
+        -0.01,
+        "Columns 1–3 are simulated Δ tank / step (1 / 2 / all subsystems called once). "
+        "Column 4 is ending tank after the campaign (not per-step). Dotted colored = YAML baseline.",
+        ha="center",
+        fontsize=9,
+    )
+    fig.tight_layout(rect=(0.0, 0.02, 1.0, 0.94))
+    for row_i in range(3):
+        for col in range(n_cols):
+            axes[row_i, col].tick_params(axis="y", labelleft=True)
+    return fig
+
+
+def _plot_combo_series(
+    ax,
+    items: Sequence[SweepRow],
+    modes: Sequence[str],
+    resource: str,
+    kind: str,
+    *,
+    baseline: bool,
+) -> None:
+    for index, mode in enumerate(modes):
+        series = [item for item in items if item.mode == mode]
+        if not series:
+            continue
+        if baseline:
+            ax.plot(
+                [item.n for item in series],
+                [tank_effect(item, resource, kind) for item in series],
+                color=COMBO_COLORS[mode],
+                linewidth=1.8,
+                linestyle=(0, (1.2, 1.6)),
+                marker="",
+                alpha=COMBO_ALPHAS[mode],
+                zorder=6 + index,
+            )
+            continue
+        ax.plot(
+            [item.n for item in series],
+            [tank_effect(item, resource, kind) for item in series],
+            color=COMBO_COLORS[mode],
+            linewidth=1.9,
+            marker=COMBO_MARKERS[mode],
+            markersize=5.0 if mode == ALL_MODE else 3.5,
+            label=COMBO_LABELS[mode],
+            alpha=COMBO_ALPHAS[mode],
+            zorder=2 + index,
+        )
+
+
+def make_combo_figure(
+    rows: Sequence[SweepRow],
+    *,
+    baseline_rows: Sequence[SweepRow] | None = None,
+    yaml_n: int | None = None,
+    title: str = "plant_sim sensitivity — 1 / 2 / all subsystem actions",
+) -> plt.Figure:
+    """3×4 grid: 1-action, 2-action, all-three per-step Δ, then ending tank.
+
+    Columns 0–2 share a per-step y-scale per row. Column 3 is campaign ending
+    tank (not divided by steps), same convention as the first figure's right column.
+    """
+    allowed = set(COMBO_LEVEL_MODES)
+    per_step = [row.per_step() for row in rows if row.mode in allowed]
+    baseline = [row.per_step() for row in baseline_rows if row.mode in allowed] if baseline_rows else []
+    n_cols = 4
+    fig, axes = plt.subplots(3, n_cols, figsize=(18.6, 9.2), sharex=True)
+    for row_i in range(3):
+        axes[row_i, 1].sharey(axes[row_i, 0])
+        axes[row_i, 2].sharey(axes[row_i, 0])
+
+    for col, (col_title, modes, col_subtitle) in enumerate(COMBO_RATE_COLUMNS):
+        axes[0, col].set_title(f"{col_title}\n{col_subtitle}", fontsize=10, pad=8)
+        for row_i, (name, resource, rate_unit, _level_unit) in enumerate(_RESOURCES):
+            ax = axes[row_i, col]
+            _plot_combo_series(ax, per_step, modes, resource, "net", baseline=False)
+            if baseline:
+                _plot_combo_series(ax, baseline, modes, resource, "net", baseline=True)
+            ax.axhline(0.0, color="#888888", linewidth=0.8)
+            if yaml_n is not None:
+                ax.axvline(float(yaml_n), color="#bbbbbb", linewidth=0.9, linestyle=":")
+            ax.grid(True, alpha=0.3)
+            ax.tick_params(axis="y", labelleft=True)
+            if col == 0:
+                ax.set_ylabel(f"{name}\n({rate_unit})")
+            if row_i == len(_RESOURCES) - 1:
+                ax.set_xlabel("Occupants N")
+
+    axes[0, 3].set_title(
+        "Tank + initial\nEnding tank = initial + (Δ tank/step × steps)",
+        fontsize=10,
+        pad=8,
+    )
+    for row_i, (name, resource, _rate_unit, level_unit) in enumerate(_RESOURCES):
+        ax = axes[row_i, 3]
+        _plot_combo_series(ax, per_step, COMBO_LEVEL_MODES, resource, "level", baseline=False)
+        if baseline:
+            _plot_combo_series(ax, baseline, COMBO_LEVEL_MODES, resource, "level", baseline=True)
+        if per_step:
+            ax.axhline(
+                initial_tank(per_step[0], resource),
+                color="#444444",
+                linewidth=0.9,
+                linestyle=":",
+            )
+        if yaml_n is not None:
+            ax.axvline(float(yaml_n), color="#bbbbbb", linewidth=0.9, linestyle=":")
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(axis="y", labelleft=True)
+        ax.set_ylabel(f"{name}\n({level_unit})")
+        if row_i == len(_RESOURCES) - 1:
+            ax.set_xlabel("Occupants N")
+
+    for row_i, (_name, resource, _rate_unit, _level_unit) in enumerate(_RESOURCES):
+        rate_vals = [0.0]
+        for item in list(per_step) + list(baseline):
+            rate_vals.append(tank_effect(item, resource, "net"))
+        lo, hi = _row_ylim(rate_vals)
+        for col in range(3):
+            axes[row_i, col].set_ylim(lo, hi)
+            axes[row_i, col].tick_params(axis="y", labelleft=True)
+        level_vals = [0.0]
+        for item in list(per_step) + list(baseline):
+            level_vals.append(tank_effect(item, resource, "level"))
+            level_vals.append(initial_tank(item, resource))
+        lo_l, hi_l = _row_ylim(level_vals)
+        axes[row_i, 3].set_ylim(lo_l, hi_l)
+        axes[row_i, 3].tick_params(axis="y", labelleft=True)
+
+    handles = [
+        Line2D(
+            [0],
+            [0],
+            color=COMBO_COLORS[mode],
+            lw=2,
+            marker=COMBO_MARKERS[mode],
+            markersize=5,
+            alpha=COMBO_ALPHAS[mode],
+            label=COMBO_LABELS[mode],
+        )
+        for mode in COMBO_LEVEL_MODES
+    ]
+    if baseline:
+        handles.append(
+            Line2D([0], [0], color="#666666", lw=1.6, linestyle=":", label="YAML baseline")
+        )
+    handles.append(
+        Line2D([0], [0], color="#444444", lw=0.9, linestyle=":", label="YAML initial (col 4)")
+    )
+    fig.legend(handles=handles, loc="upper center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.98))
+    fig.suptitle(title, y=1.02, fontsize=13)
+    fig.text(
+        0.5,
+        -0.01,
+        "Columns 1–3 are simulated Δ tank / step (1 / 2 / all subsystems called once). "
+        "Column 4 is ending tank after the campaign (not per-step). Dotted colored = YAML baseline.",
+        ha="center",
+        fontsize=9,
+    )
+    fig.tight_layout(rect=(0.0, 0.02, 1.0, 0.94))
+    for row_i in range(3):
+        for col in range(n_cols):
+            axes[row_i, col].tick_params(axis="y", labelleft=True)
+    return fig
+
+
+# Dotted paths that the sensitivity app exposes (scenario.yaml + labeled policy).
 STORAGE_KEYS = (
     "simulation.initial_co2_storage_kg",
     "simulation.initial_o2_storage_kg",
@@ -500,7 +881,14 @@ PLANT_SIM_KEYS = (
     "plant_sim.wrs.grey_recovery",
     "plant_sim.wrs.max_feed_l_per_operation",
 )
-SENSITIVITY_KEYS = STORAGE_KEYS + PLANT_SIM_KEYS
+POLICY_KEYS = (
+    "actor.policy.ars_goal.initial_co2_mass",
+    "actor.policy.ogs_goal.input_water_mass",
+    "actor.policy.wrs_goal.urine_volume",
+)
+SCENARIO_KEYS = STORAGE_KEYS + PLANT_SIM_KEYS
+SENSITIVITY_KEYS = SCENARIO_KEYS + POLICY_KEYS
+POLICY_GROUP = "Policy"
 
 
 @dataclass(frozen=True)
@@ -534,11 +922,41 @@ SLIDER_SPECS: Tuple[SliderSpec, ...] = (
     SliderSpec("plant_sim.ars.capacity_kg_day", "ars.capacity_kg_day", "kg/day", "float", 0.1, 15.0, 0.1, "ARS"),
     SliderSpec("plant_sim.ars.capture_efficiency", "ars.capture_efficiency", "-", "float", 0.0, 1.0, 0.01, "ARS"),
     SliderSpec("plant_sim.ars.reference_goal_co2_kg", "ars.reference_goal_co2_kg", "kg", "float", 0.1, 6.0, 0.05, "ARS"),
-    SliderSpec("plant_sim.ogs.max_o2_kg_day", "ogs.max_o2_kg_day", "kg/day", "float", 0.1, 20.0, 0.05, "OGS / Sabatier"),
+    SliderSpec("plant_sim.ogs.max_o2_kg_day", "ogs.max_o2_kg_day", "kg/day", "float", 0.1, 50.0, 0.05, "OGS / Sabatier"),
     SliderSpec("plant_sim.sabatier.conversion_efficiency", "sabatier.conversion_efficiency", "-", "float", 0.0, 1.0, 0.01, "OGS / Sabatier"),
     SliderSpec("plant_sim.wrs.urine_recovery", "wrs.urine_recovery", "-", "float", 0.0, 1.0, 0.01, "WRS"),
     SliderSpec("plant_sim.wrs.grey_recovery", "wrs.grey_recovery", "-", "float", 0.0, 1.0, 0.01, "WRS"),
     SliderSpec("plant_sim.wrs.max_feed_l_per_operation", "wrs.max_feed_l_per_operation", "L", "float", 0.1, 20.0, 0.1, "WRS"),
+    SliderSpec(
+        "actor.policy.ars_goal.initial_co2_mass",
+        "ars_goal.initial_co2_mass",
+        "kg",
+        "float",
+        0.1,
+        6.0,
+        0.05,
+        POLICY_GROUP,
+    ),
+    SliderSpec(
+        "actor.policy.ogs_goal.input_water_mass",
+        "ogs_goal.input_water_mass",
+        "kg",
+        "float",
+        0.01,
+        1.0,
+        0.01,
+        POLICY_GROUP,
+    ),
+    SliderSpec(
+        "actor.policy.wrs_goal.urine_volume",
+        "wrs_goal.urine_volume",
+        "L",
+        "float",
+        0.1,
+        20.0,
+        0.1,
+        POLICY_GROUP,
+    ),
 )
 
 
@@ -562,10 +980,11 @@ def _nested_set(doc: MutableMapping[str, Any], dotted: str, value: Any) -> None:
 
 
 def yaml_defaults() -> Dict[str, float]:
-    scenario, _agents = load_ssos_yaml()
+    scenario, agents = load_ssos_yaml()
     out: Dict[str, float] = {}
     for spec in SLIDER_SPECS:
-        raw = _nested_get(scenario, spec.key)
+        source = agents if spec.key in POLICY_KEYS else scenario
+        raw = _nested_get(source, spec.key)
         out[spec.key] = int(raw) if spec.kind == "int" else float(raw)
     return out
 
@@ -594,6 +1013,19 @@ def close_crew_water(crew: MutableMapping[str, Any]) -> None:
     crew["unrecoverable_water_kg_day_person"] = unrec * scale
 
 
+def apply_policy_overrides(
+    agents: Mapping[str, Any],
+    overrides: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Deep-copy agents.yaml and apply labeled_rule_base policy knobs. Does not write disk."""
+    merged: Dict[str, Any] = deepcopy(dict(agents))
+    for key, value in overrides.items():
+        if key not in POLICY_KEYS:
+            continue
+        _nested_set(merged, key, value)
+    return merged
+
+
 def apply_sensitivity_overrides(
     scenario: Mapping[str, Any],
     overrides: Mapping[str, Any],
@@ -601,7 +1033,9 @@ def apply_sensitivity_overrides(
     """Deep-copy scenario.yaml and apply dotted-path knobs. Does not write disk."""
     merged: Dict[str, Any] = deepcopy(dict(scenario))
     for key, value in overrides.items():
-        if key not in SENSITIVITY_KEYS:
+        if key in POLICY_KEYS:
+            continue
+        if key not in SCENARIO_KEYS:
             raise KeyError(f"unsupported sensitivity key {key!r}")
         _nested_set(merged, key, value)
     crew = dict((merged.get("plant_sim") or {}).get("crew") or {})
@@ -630,8 +1064,9 @@ def run_sensitivity(
     if scenario is None or agents is None:
         scenario, agents = load_ssos_yaml()
     patched = apply_sensitivity_overrides(scenario, overrides or {})
+    patched_agents = apply_policy_overrides(agents, overrides or {})
     PlantSimConfig.from_scenario_config(patched)  # fail fast on invalid knobs
-    rows = sweep(n_max=n_max, steps=steps, scenario=patched, agents=agents)
+    rows = sweep(n_max=n_max, steps=steps, scenario=patched, agents=patched_agents)
     return rows, patched
 
 
@@ -646,4 +1081,18 @@ def sensitivity_figure(
         baseline_rows=baseline_rows,
         yaml_n=yaml_n,
         title="plant_sim sensitivity — not the run dashboard",
+    )
+
+
+def combo_sensitivity_figure(
+    rows: Sequence[SweepRow],
+    *,
+    baseline_rows: Sequence[SweepRow] | None = None,
+    yaml_n: int | None = None,
+) -> Figure:
+    return make_combo_figure(
+        rows,
+        baseline_rows=baseline_rows,
+        yaml_n=yaml_n,
+        title="plant_sim sensitivity — 1 / 2 / all subsystem actions",
     )

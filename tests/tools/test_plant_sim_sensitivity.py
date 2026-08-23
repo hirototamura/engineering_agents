@@ -12,11 +12,14 @@ from environment.ssos.eclss.plant_sim.config import PlantSimConfig
 from environment.ssos.eclss.plant_sim.model import PlantModel
 from environment.ssos.eclss.units import water_kg_to_l
 from tools.plant_sim_sensitivity import (
+    ALL_MODE,
     SLIDER_SPECS,
     _policy_action_goals,
     apply_sensitivity_overrides,
     ars_nameplate_kg,
+    campaign_ops,
     close_crew_water,
+    combo_sensitivity_figure,
     load_dynamics,
     load_ssos_yaml,
     make_sweep_figure,
@@ -32,7 +35,7 @@ from tools.plant_sim_sensitivity import (
 
 
 def test_yaml_defaults_match_scenario_file():
-    scenario, _agents = load_ssos_yaml()
+    scenario, agents = load_ssos_yaml()
     defaults = yaml_defaults()
     assert defaults["simulation.initial_o2_storage_kg"] == pytest.approx(
         float(scenario["simulation"]["initial_o2_storage_kg"])
@@ -41,6 +44,16 @@ def test_yaml_defaults_match_scenario_file():
         float(scenario["plant_sim"]["crew"]["o2_kg_day_person"])
     )
     assert int(defaults["plant_sim.crew.size"]) == int(scenario["plant_sim"]["crew"]["size"])
+    policy = (agents.get("actor") or {}).get("policy") or {}
+    assert defaults["actor.policy.ars_goal.initial_co2_mass"] == pytest.approx(
+        float(policy["ars_goal"]["initial_co2_mass"])
+    )
+    assert defaults["actor.policy.ogs_goal.input_water_mass"] == pytest.approx(
+        float(policy["ogs_goal"]["input_water_mass"])
+    )
+    assert defaults["actor.policy.wrs_goal.urine_volume"] == pytest.approx(
+        float(policy["wrs_goal"]["urine_volume"])
+    )
 
 
 def test_slider_specs_contain_yaml_defaults():
@@ -96,6 +109,40 @@ def test_ars_capacity_override_scales_nameplate():
     assert fat.ars_nameplate_kg == pytest.approx(2 * base.ars_nameplate_kg, rel=1e-6)
 
 
+def test_labeled_policy_ars_goal_override_scales_nameplate():
+    base_rows, _ = run_sensitivity({}, n_max=1, steps=4)
+    fat_rows, _ = run_sensitivity(
+        {"actor.policy.ars_goal.initial_co2_mass": 3.6},
+        n_max=1,
+        steps=4,
+    )
+    base = next(row for row in base_rows if row.mode == "ars")
+    fat = next(row for row in fat_rows if row.mode == "ars")
+    assert fat.ars_nameplate_kg == pytest.approx(2 * base.ars_nameplate_kg, rel=1e-6)
+
+
+def test_labeled_policy_ogs_water_override_does_not_patch_scenario():
+    scenario, _agents = load_ssos_yaml()
+    patched = apply_sensitivity_overrides(
+        scenario,
+        {"actor.policy.ogs_goal.input_water_mass": 0.4},
+    )
+    assert scenario.get("actor") is None
+    assert patched.get("actor") is None
+
+
+def test_labeled_policy_ogs_water_override_scales_nameplate_when_below_capacity():
+    base_rows, _ = run_sensitivity({}, n_max=1, steps=4)
+    low_rows, _ = run_sensitivity(
+        {"actor.policy.ogs_goal.input_water_mass": 0.05},
+        n_max=1,
+        steps=4,
+    )
+    base = next(row for row in base_rows if row.mode == "ogs")
+    low = next(row for row in low_rows if row.mode == "ogs")
+    assert low.ogs_nameplate_o2_kg < base.ogs_nameplate_o2_kg - 1e-6
+
+
 def test_larger_initial_o2_reduces_tank_starvation():
     starved, _ = run_sensitivity(
         {"simulation.initial_o2_storage_kg": 0.05},
@@ -119,6 +166,43 @@ def test_sensitivity_figure_is_3x4():
     assert fig.axes
     assert len(fig.get_axes()) >= 12
     plt.close(fig)
+
+
+def test_campaign_ops_orders_ars_ogs_wrs():
+    assert campaign_ops("none") == ()
+    assert campaign_ops("ogs") == ("ogs",)
+    assert campaign_ops("ogs+ars") == ("ars", "ogs")
+    assert campaign_ops(ALL_MODE) == ("ars", "ogs", "wrs")
+
+
+def test_pair_and_all_campaigns_fire_each_requested_subsystem():
+    rows = sweep(n_max=1, steps=4)
+    pair = next(row for row in rows if row.mode == "ars+ogs")
+    all_row = next(row for row in rows if row.mode == ALL_MODE)
+    assert pair.co2_ops_kg > 0.0
+    assert pair.o2_ops_kg > 0.0
+    assert all_row.co2_ops_kg > 0.0
+    assert all_row.o2_ops_kg > 0.0
+    assert all_row.water_ops_l != 0.0
+    assert all_row.co2_ops_kg >= pair.co2_ops_kg - 1e-9
+
+
+def test_combo_figure_is_3x4_and_does_not_shrink_first_grid():
+    rows, _ = run_sensitivity({}, n_max=2, steps=4)
+    fig = sensitivity_figure(rows, yaml_n=4)
+    combo = combo_sensitivity_figure(rows, yaml_n=4)
+    assert len(fig.get_axes()) >= 12
+    assert len(combo.get_axes()) >= 12
+    plt.close(fig)
+    plt.close(combo)
+
+
+def test_all_mode_ending_tank_is_campaign_not_per_step():
+    rows = sweep(n_max=1, steps=6)
+    all_row = next(row for row in rows if row.mode == ALL_MODE)
+    stepped = all_row.per_step()
+    assert tank_effect(stepped, "o2", "level") == pytest.approx(all_row.final_o2_kg)
+    assert tank_effect(stepped, "o2", "net") == pytest.approx(all_row.o2_net_kg / max(1, all_row.metabolism_steps))
 
 
 def test_metabolism_demand_scales_with_n():
