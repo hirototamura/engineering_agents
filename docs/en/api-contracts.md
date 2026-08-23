@@ -583,5 +583,6 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labe
 
 - [architecture.md](architecture.md) — layers and execution flow
 - [post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md) — actor / designer split
+- [labeled rule-base](memo/ssos_eclss_loop/labeled_rule_base.md) — in-sim labeled ops (sized request, then cap)
 - [one-piece-integration.md](one-piece-integration.md) — provenance details
 - [development-plan.md](development-plan.md) — incomplete items

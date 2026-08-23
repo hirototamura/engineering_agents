@@ -580,5 +580,6 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labe
 
 - [architecture.md](architecture.md) — レイヤと実行フロー
 - [事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md) — actor / designer 分離
+- [ラベル付きルールベース](memo/ssos_eclss_loop/labeled_rule_base.md) — シミュレーション内 labeled 運用（必要量を積んでから上限）
 - [one-piece-integration.md](one-piece-integration.md) — provenance 詳細
 - [development-plan.md](development-plan.md) — 未完了項目

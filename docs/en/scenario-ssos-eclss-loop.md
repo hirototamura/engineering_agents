@@ -96,9 +96,7 @@ Baseline runs show how storage evolves without agent intervention.
 
 **Re-arm**: If storage does not improve after ARS / OGS, the next step can retry (`co2_at_ars_dispatch` / `o2_at_ogs_dispatch` boundaries).
 
-Steps are 0-based (`0 .. steps-1`). `agents.actor.max_actions_per_step` is an **exact** subsystem-action count (needed ARS/OGS/WRS first, then pad ARS→OGS→WRS). Optional `request_co2` before a needed OGS does not consume a slot. After the run, a separate designer team (`eclss_designer_*`) writes `design_proposals.json` (`ssos_graph`).
-
-### llm
+Steps are 0-based (`0 .. steps-1`). `agents.actor.max_actions_per_step` is a **cap**: labeled sizes ARS/OGS/WRS repeats to leave warning/critical, then takes `min(needed, max)`. Optional `request_co2` before a needed OGS does not consume a slot. Design: [labeled rule-base](memo/ssos_eclss_loop/labeled_rule_base.md). After the run, a separate designer team (`eclss_designer_*`) writes `design_proposals.json` (`ssos_graph`).
 
 ### llm
 
@@ -147,7 +145,7 @@ subsystem_failures:
 agents:
   actor:
     mode: none  # none | labeled_rule_base | llm (CLI --actor-mode)
-    max_actions_per_step: 2  # llm cap / labeled exact subsystem actions per step
+    max_actions_per_step: 2  # llm / labeled cap on commands per step
   design: {}  # omit design.mode to inherit actor.mode
 
 output:
@@ -156,7 +154,7 @@ output:
   run_id_llm: ssos_eclss_loop_llm
 ```
 
-CLI: `--set agents.actor.max_actions_per_step=8` (clamped to `actor.team.count`). llm treats this as a cap on action representatives; labeled_rule_base always emits this many subsystem actions per step.
+CLI: `--set agents.actor.max_actions_per_step=8`. llm clamps to `actor.team.count` (action representatives). labeled does not clamp; it sizes ARS/OGS/WRS to leave warning/critical, then takes `min(needed, max)`.
 
 `ssos_graph.rewires` (optional) — when merged via `--apply-proposals` from a prior `graph_rewire` proposal, client remaps are passed to `Ros2EclssBridge` on the next run.
 
@@ -251,7 +249,7 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 | --- | --- |
 | IDs | actors `eclss_actor_1` … `N` (default 50); designers `eclss_designer_1` … `4` |
 | deliberation | llm: one round for all. labeled: operational decision messages |
-| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_actor_{step % N}` (default **2**). labeled: exactly that many subsystem actions per step (needed first, then ARS→OGS→WRS) |
+| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_actor_{step % N}` (default **2**). labeled: needed ARS/OGS/WRS capped at that count |
 | post-run rep | One designer representative emits `changes` (no count cap; file written when non-empty) |
 
 `SsosEclssLoopTeam` extends the `Team` ABC. Signatures: `run_step(backend, obs)` / `apply_outcome(backend, outcome)`.
@@ -428,6 +426,7 @@ Container E2E records: `memo/ssos_eclss_loop/e2e_records/` (repo only).
 
 - [architecture.md](architecture.md) — layers and ssos execution flow
 - [api-contracts.md](api-contracts.md) — `EclssBackend`, JSONL, operational commands
+- [memo/ssos_eclss_loop/labeled_rule_base.md](memo/ssos_eclss_loop/labeled_rule_base.md) — in-sim labeled ops (sized request, then cap)
 - [memo/ssos_eclss_loop/post_run_design_agent.md](memo/ssos_eclss_loop/post_run_design_agent.md) — actor / designer split (as shipped)
 - [one-piece-integration.md](one-piece-integration.md) — operational provenance
 - [development-plan.md](development-plan.md) — Phase 0–7 complete, next tasks

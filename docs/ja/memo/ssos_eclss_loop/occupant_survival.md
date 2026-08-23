@@ -111,4 +111,4 @@ python3 -m tools.cli run ssos_eclss_loop \
 | `src/scenario/ssos_eclss_loop/health.py` | 閾値から WARNING/CRITICAL |
 | `tests/scenario/test_ssos_eclss_loop_survival.py` | dwell の表テスト |
 
-プラントの質量収支（サバイバル以外）は [plant_sim_backend.md](plant_sim_backend.md)。designer は別チーム: [事後設計エージェント](post_run_design_agent.md)。
+プラントの質量収支（サバイバル以外）は [plant_sim_backend.md](plant_sim_backend.md)。シミュレーション内 labeled 運用: [ラベル付きルールベース](labeled_rule_base.md)。designer は別チーム: [事後設計エージェント](post_run_design_agent.md)。

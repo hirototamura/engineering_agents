@@ -213,7 +213,7 @@ The plant is **not** a closed system (vents, brine, unrecoverable crew water). T
 
 ## Occupant survival
 
-Full design (band dwell + physics floor, YAML tables, try commands): [Occupant survival](occupant_survival.md).
+Full design (band dwell + physics floor, YAML tables, try commands): [Occupant survival](occupant_survival.md). Labeled ops that fire on the same health bands: [labeled rule-base](labeled_rule_base.md).
 
 `plant_sim.crew.size` is the canonical occupant count; `actor.team.count` must match. After ops: **band dwell** then **physics floor** (O2/water next interval; no cabin-CO2 wipe; skip floor on the last step). Actors shrink with `crew_alive`. Designers do not. Disable with `plant_sim.survival.enabled: false`.
 
@@ -243,6 +243,7 @@ Every plotted number is derived from YAML + `PlantModel`. Rate panels use the sa
 | Document / path | Content |
 | --- | --- |
 | [occupant_survival.md](occupant_survival.md) | Occupant / actor attrition (band dwell + physics floor) |
+| [labeled_rule_base.md](labeled_rule_base.md) | In-sim labeled ops: sized ARS/OGS/WRS, then cap |
 | [post_run_design_agent.md](post_run_design_agent.md) | Actor / designer split; designers do not shrink with crew |
 | [scenario-ssos-eclss-loop.md](../../scenario-ssos-eclss-loop.md) | Scenario spec and run commands |
 | [ssos/eclss-integration.md](../../ssos/eclss-integration.md) | `EclssBackend` implementations |
