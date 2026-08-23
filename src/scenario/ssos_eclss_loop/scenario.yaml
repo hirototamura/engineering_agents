@@ -97,11 +97,11 @@ subsystem_failures:
 agents:
   actor:
     mode: none  # none | labeled_rule_base | llm (CLI --actor-mode overrides)
-    # llm: after deliberation, this many actors may issue operational commands.
-    # labeled_rule_base: always this many subsystem actions per step
-    #   (needed ARS/OGS/WRS first, then pad ARS→OGS→WRS). request_co2 does not count.
-    # Rotates from eclss_actor_{step % N}. Clamped to actor.team.count.
-    max_actions_per_step: 2  # [-] llm cap / labeled exact subsystem actions per step
+    # Cap on actions per step (llm and labeled). Rotates from eclss_actor_{step % N}.
+    # llm: actors allowed to command after deliberation (clamped to actor.team.count).
+    # labeled: needed ARS/OGS/WRS repeats to leave warning/critical, then min(needed, this).
+    # request_co2 does not count.
+    max_actions_per_step: 2  # [-] llm / labeled cap on commands per step
   design: {}
     # design.mode omitted: inherit actor.mode. Set none to disable post-run design.
 

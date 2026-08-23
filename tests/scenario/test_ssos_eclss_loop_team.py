@@ -6,7 +6,10 @@ import pytest
 
 from core.agents.base import Team
 from scenario.agents.eclss_loop_types import EclssLoopObservation
-from scenario.agents.ssos_eclss_loop_team import SsosEclssLoopTeam
+from scenario.agents.ssos_eclss_loop_team import (
+    SsosEclssLoopTeam,
+    interleave_labeled_actions,
+)
 from environment.ssos.eclss.types import ArsGoal, OgsGoal, EclssTelemetrySnapshot
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 
@@ -105,9 +108,7 @@ def test_team_no_design_change_commands():
     snap = EclssTelemetrySnapshot(co2_storage_kg=0.8, o2_storage_kg=0.6)
     obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "safe"})
     outcome = team.run_step(backend, obs)
-    assert all(cmd.kind != "design_change" for cmd in outcome.commands)
-    # Default quota is 1: pad ARS even when tanks are safe.
-    assert [cmd.kind for cmd in outcome.commands] == ["air_revitalisation"]
+    assert outcome.commands == []
 
 
 def test_llm_situation_uses_health_status_keys():
@@ -610,10 +611,19 @@ def test_max_actions_per_step_accepts_integral_float():
 
 def test_max_actions_per_step_clamped_to_team_count():
     cfg = _team_config()
+    cfg["mode"] = "llm"
+    cfg["llm"] = {}
     cfg["max_actions_per_step"] = 99
     team = SsosEclssLoopTeam(cfg)
     assert team.max_actions_per_step == 2
     assert team._action_rep_ids(0) == ["op_1", "op_2"]
+
+
+def test_labeled_max_actions_not_clamped_to_team_count():
+    cfg = _team_config()
+    cfg["max_actions_per_step"] = 4
+    team = SsosEclssLoopTeam(cfg)
+    assert team.max_actions_per_step == 4
 
 
 @pytest.mark.parametrize("bad", [0, -1, "nope", None, 2.9, True, "2.9"])
@@ -624,19 +634,7 @@ def test_max_actions_per_step_rejects_invalid(bad):
         SsosEclssLoopTeam(cfg)
 
 
-def test_labeled_quota_slots_needed_first_then_cycle():
-    team = SsosEclssLoopTeam(_team_config())
-    team.max_actions_per_step = 2
-    assert team._labeled_quota_slots(["wrs"]) == ["wrs", "ars"]
-    team.max_actions_per_step = 3
-    assert team._labeled_quota_slots(["ogs"]) == ["ogs", "ars", "wrs"]
-    team.max_actions_per_step = 2
-    assert team._labeled_quota_slots(["ars", "ogs", "wrs"]) == ["ars", "ogs"]
-    team.max_actions_per_step = 5
-    assert team._labeled_quota_slots([]) == ["ars", "ogs", "wrs", "ars", "ogs"]
-
-
-def test_labeled_fills_quota_when_max_actions_is_higher():
+def test_labeled_emits_only_needed_actions_below_max():
     cfg = _team_config()
     cfg["max_actions_per_step"] = 2
     team = SsosEclssLoopTeam(cfg)
@@ -649,9 +647,82 @@ def test_labeled_fills_quota_when_max_actions_is_higher():
     snap = backend.poll_telemetry()
     obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
     outcome = team.run_step(backend, obs)
-    assert [cmd.kind for cmd in outcome.commands] == ["air_revitalisation", "oxygen_generation"]
+    assert [cmd.kind for cmd in outcome.commands] == ["air_revitalisation"]
+    assert outcome.commands[0].issued_by == "op_1"
+
+
+def test_labeled_caps_needed_actions_to_max():
+    cfg = _team_config()
+    cfg["max_actions_per_step"] = 2
+    cfg["policy"]["request_co2_before_ogs"] = False
+    team = SsosEclssLoopTeam(cfg)
+    snap = EclssTelemetrySnapshot(
+        co2_storage_kg=1.7,
+        o2_storage_kg=0.4,
+        grey_water_collected_l=1.0,
+    )
+    obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
+    backend = LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}})
+    outcome = team.run_step(backend, obs)
+    assert [cmd.kind for cmd in outcome.commands] == [
+        "air_revitalisation",
+        "oxygen_generation",
+    ]
     assert [cmd.issued_by for cmd in outcome.commands] == ["op_1", "op_2"]
-    assert team.state.ogs_invoked is False
+
+
+def test_interleave_labeled_actions_round_robin_and_cap():
+    assert interleave_labeled_actions({"ars": 4, "ogs": 2, "wrs": 1}, 5) == [
+        "ars",
+        "ogs",
+        "wrs",
+        "ars",
+        "ogs",
+    ]
+    assert interleave_labeled_actions({"wrs": 8}, 3) == ["wrs", "wrs", "wrs"]
+    assert interleave_labeled_actions({}, 4) == []
+
+
+def test_labeled_repeats_ars_to_exit_high_band():
+    cfg = _team_config()
+    cfg["max_actions_per_step"] = 4
+    cfg["mock_dynamics"] = {"ars_co2_reduction_kg": 0.35, "ars_reference_co2_mass_kg": 1.8}
+    team = SsosEclssLoopTeam(cfg)
+    snap = EclssTelemetrySnapshot(co2_storage_kg=2.6, o2_storage_kg=0.6)
+    obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
+    outcome = team.run_step(LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}}), obs)
+    # high=1.5, deficit≈1.1, 0.35 kg/action → 4 ARS
+    assert [cmd.kind for cmd in outcome.commands] == ["air_revitalisation"] * 4
+
+
+def test_labeled_ogs_repeats_while_o2_still_low():
+    cfg = _team_config()
+    cfg["max_actions_per_step"] = 1
+    team = SsosEclssLoopTeam(cfg)
+    snap = EclssTelemetrySnapshot(co2_storage_kg=0.8, o2_storage_kg=0.4)
+    backend = LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}})
+    obs0 = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
+    obs1 = EclssLoopObservation(step=1, telemetry=snap, health={"overall": "warning"})
+    first = team.run_step(backend, obs0)
+    second = team.run_step(backend, obs1)
+    assert any(cmd.kind == "oxygen_generation" for cmd in first.commands)
+    assert any(cmd.kind == "oxygen_generation" for cmd in second.commands)
+
+
+def test_labeled_wrs_repeats_to_drain_urine_buffer():
+    cfg = _team_config()
+    cfg["max_actions_per_step"] = 4
+    cfg["policy"]["wrs_goal"] = {"urine_volume": 0.5}
+    cfg["policy"]["wrs_feed_trigger_l"] = 0.5
+    team = SsosEclssLoopTeam(cfg)
+    snap = EclssTelemetrySnapshot(
+        co2_storage_kg=0.8,
+        o2_storage_kg=0.6,
+        raw_topics={"plant_sim": {"urine_buffer_l": 2.0, "grey_water_l": 0.0}},
+    )
+    obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
+    outcome = team.run_step(LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}}), obs)
+    assert [cmd.kind for cmd in outcome.commands] == ["water_recovery"] * 4
 
 
 def test_labeled_request_co2_does_not_consume_quota():
@@ -664,18 +735,6 @@ def test_labeled_request_co2_does_not_consume_quota():
     outcome = team.run_step(backend, obs)
     assert [cmd.kind for cmd in outcome.commands] == ["request_co2", "oxygen_generation"]
     assert {cmd.issued_by for cmd in outcome.commands} == {"op_1"}
-
-
-def test_labeled_pad_ogs_skips_request_co2():
-    cfg = _team_config()
-    cfg["max_actions_per_step"] = 2
-    team = SsosEclssLoopTeam(cfg)
-    snap = EclssTelemetrySnapshot(co2_storage_kg=0.8, o2_storage_kg=0.6)
-    obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "safe"})
-    backend = LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}})
-    outcome = team.run_step(backend, obs)
-    assert [cmd.kind for cmd in outcome.commands] == ["air_revitalisation", "oxygen_generation"]
-    assert all(cmd.kind != "request_co2" for cmd in outcome.commands)
 
 
 def test_llm_step_runs_multiple_action_reps(monkeypatch):

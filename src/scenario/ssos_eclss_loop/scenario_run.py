@@ -334,6 +334,9 @@ class SsosEclssLoopScenario(Scenario):
         actor = flatten_actor_config(agents_config)
         if actor.get("mode") not in {"labeled_rule_base", "llm"}:
             return None
+        for key in ("plant_sim", "simulation", "mock_dynamics", "thresholds"):
+            if key not in actor and config.get(key) is not None:
+                actor[key] = config.get(key)
         return SsosEclssLoopTeam(actor)
 
     def run(
