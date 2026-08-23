@@ -54,7 +54,7 @@ flowchart TD
 agents:
   actor:
     mode: none                 # none | labeled_rule_base | llm
-    max_actions_per_step: 2    # llm actor のみ。labeled は無視
+    max_actions_per_step: 2    # llm 上限 / labeled は毎 step ちょうどこの件数
   design: {}
     # design.mode 省略時は actor.mode を継承。明示 none で設計オフ
 ```

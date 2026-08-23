@@ -54,7 +54,7 @@ flowchart TD
 agents:
   actor:
     mode: none                 # none | labeled_rule_base | llm
-    max_actions_per_step: 2    # llm actors only; labeled ignores this
+    max_actions_per_step: 2    # llm cap / labeled exact subsystem actions per step
   design: {}
     # omit design.mode to inherit actor.mode; set none to disable post-run design
 ```

@@ -36,6 +36,8 @@ from scenario.ssos_eclss_loop.health import (
 _ECLSS_OPERATIONAL_KINDS = frozenset(
     {"air_revitalisation", "oxygen_generation", "water_recovery", "request_co2", "request_o2"}
 )
+# labeled_rule_base fills max_actions_per_step with this cycle after needed recoveries.
+_LABELED_ACTION_CYCLE = ("ars", "ogs", "wrs")
 
 _ARS_GOAL_FIELDS = frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"})
 _OGS_GOAL_FIELDS = frozenset({"input_water_mass", "iodine_concentration"})
@@ -227,7 +229,9 @@ class SsosEclssLoopTeam(Team):
 
     def _run_step_labeled(self, obs: EclssLoopObservation) -> StepEclssOutcome:
         outcome = StepEclssOutcome()
-        rep = self._action_rep_id(obs.step)
+        reps = self._action_rep_ids(obs.step)
+        if not reps:
+            return outcome
         co2_high = float(self.policy.get("co2_storage_high_kg", DEFAULT_CO2_STORAGE_HIGH_KG))
         co2_critical = float(self.policy.get("co2_storage_critical_kg", DEFAULT_CO2_STORAGE_CRITICAL_KG))
         o2_low = float(self.policy.get("o2_storage_low_kg", DEFAULT_O2_STORAGE_LOW_KG))
@@ -235,13 +239,12 @@ class SsosEclssLoopTeam(Team):
         o2 = obs.telemetry.o2_storage_kg
 
         if co2 is not None and co2 >= co2_high and not self.state.alert_sent:
-            commenter = rep
             self.state.alert_sent = True
             band = "critical" if co2 >= co2_critical else "high"
             outcome.messages.append(
                 AgentMessage(
                     step=obs.step,
-                    from_role=commenter,
+                    from_role=reps[0],
                     to_role="team",
                     message=(
                         f"CO2 storage {co2:.1f} kg exceeds {band} band "
@@ -254,7 +257,7 @@ class SsosEclssLoopTeam(Team):
             )
 
         messages, commands = self._labeled_recovery(
-            obs, rep, co2_high, co2_critical, o2_low, co2, o2
+            obs, reps, co2_high, co2_critical, o2_low, co2, o2
         )
         outcome.messages.extend(messages)
         outcome.commands.extend(commands)
@@ -293,10 +296,37 @@ class SsosEclssLoopTeam(Team):
         ):
             self.state.ogs_invoked = False
 
+    def _waste_feed_l(self, obs: EclssLoopObservation) -> float:
+        raw_topics = obs.telemetry.raw_topics or {}
+        plant_sim_topics = raw_topics.get("plant_sim") if isinstance(raw_topics, dict) else {}
+        urine_buffer_l = 0.0
+        if isinstance(plant_sim_topics, dict):
+            urine_buffer_l = float(plant_sim_topics.get("urine_buffer_l") or 0.0)
+        return float(obs.telemetry.grey_water_collected_l or 0.0) + urine_buffer_l
+
+    def _labeled_quota_slots(self, needed: List[str]) -> List[str]:
+        """Exactly ``max_actions_per_step`` subsystem slots: needed first, then ARS→OGS→WRS."""
+        k = self.max_actions_per_step
+        slots: List[str] = []
+        for name in needed:
+            if len(slots) >= k:
+                return slots
+            slots.append(name)
+        for name in _LABELED_ACTION_CYCLE:
+            if len(slots) >= k:
+                return slots
+            if name not in slots:
+                slots.append(name)
+        index = 0
+        while len(slots) < k:
+            slots.append(_LABELED_ACTION_CYCLE[index % len(_LABELED_ACTION_CYCLE)])
+            index += 1
+        return slots
+
     def _labeled_recovery(
         self,
         obs: EclssLoopObservation,
-        rep: str,
+        reps: List[str],
         co2_high: float,
         co2_critical: float,
         o2_low: float,
@@ -306,18 +336,64 @@ class SsosEclssLoopTeam(Team):
         self._rearm_labeled_recovery(co2, o2, co2_high, o2_low)
         messages: List[AgentMessage] = []
         commands: List[EclssOperationalCommand] = []
-
         in_critical = co2 is not None and co2 >= co2_critical
-        # High/warning band is one-shot (ars_invoked). Critical band keeps
-        # recovering until CO₂ leaves critical — otherwise a partial ARS drop
-        # that stays >= critical stalls with both latches set.
         need_ars = co2 is not None and co2 >= co2_high and (
             not self.state.ars_invoked or in_critical
         )
+        need_ogs = o2 is not None and o2 <= o2_low and not self.state.ogs_invoked
+        wrs_trigger_l = float(self.policy.get("wrs_feed_trigger_l", 0.5))
+        waste_feed_l = self._waste_feed_l(obs)
+        need_wrs = waste_feed_l >= wrs_trigger_l
+        needed: List[str] = []
         if need_ars:
+            needed.append("ars")
+        if need_ogs:
+            needed.append("ogs")
+        if need_wrs:
+            needed.append("wrs")
+        slots = self._labeled_quota_slots(needed)
+        needed_set = set(needed)
+        for slot, name in enumerate(slots):
+            rep = reps[slot % len(reps)]
+            extra_msgs, extra_cmds = self._emit_labeled_subsystem(
+                obs,
+                rep,
+                name,
+                co2=co2,
+                o2=o2,
+                co2_high=co2_high,
+                co2_critical=co2_critical,
+                o2_low=o2_low,
+                waste_feed_l=waste_feed_l,
+                wrs_trigger_l=wrs_trigger_l,
+                in_critical=in_critical,
+                needed=name in needed_set,
+            )
+            messages.extend(extra_msgs)
+            commands.extend(extra_cmds)
+        return messages, commands
+
+    def _emit_labeled_subsystem(
+        self,
+        obs: EclssLoopObservation,
+        rep: str,
+        name: str,
+        *,
+        co2: Optional[float],
+        o2: Optional[float],
+        co2_high: float,
+        co2_critical: float,
+        o2_low: float,
+        waste_feed_l: float,
+        wrs_trigger_l: float,
+        in_critical: bool,
+        needed: bool,
+    ) -> Tuple[List[AgentMessage], List[EclssOperationalCommand]]:
+        messages: List[AgentMessage] = []
+        commands: List[EclssOperationalCommand] = []
+        if name == "ars":
             ars_payload = dict(self.policy.get("ars_goal", {}))
-            if in_critical:
-                # Escalate processed mass when verification critical band is breached (T3).
+            if needed and in_critical:
                 base_mass = float(ars_payload.get("initial_co2_mass", 1.8))
                 ars_payload["initial_co2_mass"] = base_mass * 1.5
             commands.append(
@@ -327,36 +403,45 @@ class SsosEclssLoopTeam(Team):
                     issued_by=rep,
                 )
             )
-            self.state.ars_invoked = True
-            self.state.co2_at_ars_dispatch = co2
-            if in_critical:
-                self.state.ars_critical_escalated = True
-            reason = (
-                f"CO2 storage {co2:.1f} kg >= critical {co2_critical:.1f} kg; escalated ARS."
-                if in_critical
-                else f"CO2 storage {co2:.1f} kg >= {co2_high:.1f} kg."
-            )
+            if needed:
+                self.state.ars_invoked = True
+                self.state.co2_at_ars_dispatch = co2
+                if in_critical:
+                    self.state.ars_critical_escalated = True
+            if needed and co2 is not None:
+                reason = (
+                    f"CO2 storage {co2:.1f} kg >= critical {co2_critical:.1f} kg; escalated ARS."
+                    if in_critical
+                    else f"CO2 storage {co2:.1f} kg >= {co2_high:.1f} kg."
+                )
+                message = (
+                    "Starting escalated ARS air_revitalisation (critical band)."
+                    if in_critical
+                    else "Starting ARS air_revitalisation to vent CO2 from storage."
+                )
+            else:
+                reason = (
+                    f"labeled_rule_base quota ({self.max_actions_per_step} actions/step); ARS pad."
+                )
+                message = "Starting ARS air_revitalisation (labeled action quota)."
             messages.append(
                 AgentMessage(
                     step=obs.step,
                     from_role=rep,
                     to_role="team",
-                    message=(
-                        "Starting escalated ARS air_revitalisation (critical band)."
-                        if in_critical
-                        else "Starting ARS air_revitalisation to vent CO2 from storage."
-                    ),
+                    message=message,
                     message_type="operational_command",
                     reasoning=reason,
                     metadata=self._rule_metadata(),
                 )
             )
-
-        if o2 is not None and o2 <= o2_low and not self.state.ogs_invoked:
-            # Opt-in: explicit request_co2 before OGS. Default is false because real SSOS
-            # OGS already calls /ars/request_co2 for Sabatier. With LoopMock (no CO₂ buffer),
-            # true also runs OGS Sabatier storage debit in the same step → double CO₂ draw.
-            if self.policy.get("request_co2_before_ogs", False) and not self.state.co2_requested:
+            return messages, commands
+        if name == "ogs":
+            if (
+                needed
+                and self.policy.get("request_co2_before_ogs", False)
+                and not self.state.co2_requested
+            ):
                 amount = float(self.policy.get("request_co2_amount", 0.025))
                 commands.append(
                     EclssOperationalCommand(
@@ -373,11 +458,12 @@ class SsosEclssLoopTeam(Team):
                         to_role="team",
                         message=f"Requesting {amount:.1f} kg CO2 feedstock for Sabatier (OGS).",
                         message_type="operational_command",
-                        reasoning=f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg.",
+                        reasoning=f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg."
+                        if o2 is not None
+                        else "OGS CO2 feedstock request.",
                         metadata=self._rule_metadata(),
                     )
                 )
-
             ogs_payload = dict(self.policy.get("ogs_goal", {}))
             commands.append(
                 EclssOperationalCommand(
@@ -386,50 +472,56 @@ class SsosEclssLoopTeam(Team):
                     issued_by=rep,
                 )
             )
-            self.state.ogs_invoked = True
-            self.state.o2_at_ogs_dispatch = o2
+            if needed:
+                self.state.ogs_invoked = True
+                self.state.o2_at_ogs_dispatch = o2
+            if needed and o2 is not None:
+                reason = f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg."
+                message = "Starting OGS oxygen_generation cycle."
+            else:
+                reason = (
+                    f"labeled_rule_base quota ({self.max_actions_per_step} actions/step); OGS pad."
+                )
+                message = "Starting OGS oxygen_generation (labeled action quota)."
             messages.append(
                 AgentMessage(
                     step=obs.step,
                     from_role=rep,
                     to_role="team",
-                    message="Starting OGS oxygen_generation cycle.",
+                    message=message,
                     message_type="operational_command",
-                    reasoning=f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg.",
+                    reasoning=reason,
                     metadata=self._rule_metadata(),
                 )
             )
-
-        # WRS: reclaim water once urine/grey feed has accumulated (plant_sim closes
-        # the water loop). Threshold-gated, so it re-fires as buffers refill.
-        raw_topics = obs.telemetry.raw_topics or {}
-        plant_sim_topics = raw_topics.get("plant_sim") if isinstance(raw_topics, dict) else {}
-        urine_buffer_l = 0.0
-        if isinstance(plant_sim_topics, dict):
-            urine_buffer_l = float(plant_sim_topics.get("urine_buffer_l") or 0.0)
-        waste_feed_l = float(obs.telemetry.grey_water_collected_l or 0.0) + urine_buffer_l
-        wrs_trigger_l = float(self.policy.get("wrs_feed_trigger_l", 0.5))
-        if waste_feed_l >= wrs_trigger_l:
-            wrs_payload = dict(self.policy.get("wrs_goal", {"urine_volume": 2.0}))
-            commands.append(
-                EclssOperationalCommand(
-                    kind="water_recovery",
-                    payload=wrs_payload,
-                    issued_by=rep,
-                )
+            return messages, commands
+        wrs_payload = dict(self.policy.get("wrs_goal", {"urine_volume": 2.0}))
+        commands.append(
+            EclssOperationalCommand(
+                kind="water_recovery",
+                payload=wrs_payload,
+                issued_by=rep,
             )
-            messages.append(
-                AgentMessage(
-                    step=obs.step,
-                    from_role=rep,
-                    to_role="team",
-                    message="Starting WRS water_recovery to reclaim urine/grey water.",
-                    message_type="operational_command",
-                    reasoning=f"Waste feed {waste_feed_l:.2f} L >= {wrs_trigger_l:.2f} L.",
-                    metadata=self._rule_metadata(),
-                )
+        )
+        if needed:
+            reason = f"Waste feed {waste_feed_l:.2f} L >= {wrs_trigger_l:.2f} L."
+            message = "Starting WRS water_recovery to reclaim urine/grey water."
+        else:
+            reason = (
+                f"labeled_rule_base quota ({self.max_actions_per_step} actions/step); WRS pad."
             )
-
+            message = "Starting WRS water_recovery (labeled action quota)."
+        messages.append(
+            AgentMessage(
+                step=obs.step,
+                from_role=rep,
+                to_role="team",
+                message=message,
+                message_type="operational_command",
+                reasoning=reason,
+                metadata=self._rule_metadata(),
+            )
+        )
         return messages, commands
 
     async def _llm_deliberation_turn(

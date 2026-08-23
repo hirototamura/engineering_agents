@@ -608,18 +608,19 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 | Mode | Actors (`agents.actor.mode`) | Designers (`agents.design.mode`) | Tests |
 | --- | --- | --- | --- |
 | `none` | poll only | skip `design_proposals.json` | `test_ssos_eclss_loop.py` |
-| `labeled_rule_base` | thresholds → ARS/OGS | rule `ssos_graph` | `test_ssos_eclss_loop.py`, `test_ssos_agent_config.py` |
+| `labeled_rule_base` | thresholds → exactly `max_actions_per_step` ARS/OGS/WRS | rule `ssos_graph` | `test_ssos_eclss_loop.py`, `test_ssos_agent_config.py` |
 | `llm` | N-way deliberation, then up to `max_actions_per_step` action reps | LLM `changes` (no count cap) | same |
 
 #### labeled_rule_base
 
-`thresholds` (scenario.yaml) + `policy` profile (agents.yaml). Thresholds merged via `merge_labeled_policy_from_thresholds()`.
+`thresholds` (scenario.yaml) + `policy` profile (agents.yaml). Thresholds merged via `merge_labeled_policy_from_thresholds()`. Each step emits **exactly** `max_actions_per_step` subsystem actions (needed recoveries first, then pad ARS→OGS→WRS). `request_co2` before a needed OGS does not consume a slot.
 
 | Behavior | Trigger |
 | --- | --- |
-| `air_revitalisation` | CO₂ ≥ high, ARS not yet dispatched |
+| `air_revitalisation` | CO₂ ≥ high, ARS not yet dispatched (or still critical); also used as pad |
 | `request_co2` | O₂ ≤ low, before OGS when `request_co2_before_ogs: true` (default OFF; OGS handles Sabatier feedstock). On LoopMock, `true` can double-debit CO₂ with OGS Sabatier (no buffer). |
-| `oxygen_generation` | O₂ ≤ low, OGS not yet dispatched |
+| `oxygen_generation` | O₂ ≤ low, OGS not yet dispatched; also used as pad |
+| `water_recovery` | urine+grey ≥ `wrs_feed_trigger_l`; also used as pad |
 | re-arm | retry next step if no improvement |
 
 #### llm
@@ -634,7 +635,7 @@ After the run, one designer representative emits `changes` with no count cap.
 | --- | --- |
 | `summary.backend` | `mock` / `ros2` |
 | `summary.operational_command_count` | operational command count |
-| `summary.max_actions_per_step` | llm: action representatives per step |
+| `summary.max_actions_per_step` | llm: action representatives per step; labeled: exact subsystem actions per step |
 | `events.jsonl` | `operational_applied` |
 
 **Not in ssos from scrubber**: `eps_telemetry.jsonl`, ppm-based KPIs.

@@ -112,7 +112,7 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
         overrides={
             **_ssos_agents("labeled_rule_base"),
             "plant_sim": {"crew": {"size": 4}},
-            "simulation": {"initial_o2_storage_kg": 8.0},
+            "simulation": {"initial_o2_storage_kg": 8.0, "initial_co2_storage_kg": 2.1},
         },
         recreate_output=True,
     )
@@ -137,8 +137,9 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
         "eclss_actor_4",
     ]
     assert summary["message_count"] > 0
-    assert summary["operational_command_count"] >= 1
-    assert summary["ars_invoked_step"] == 12
+    assert summary["max_actions_per_step"] == 2
+    assert summary["operational_command_count"] == summary["steps"] * 2
+    assert summary["ars_invoked_step"] == 0
 
     message_types = {m["message_type"] for m in messages}
     assert "alert" in message_types
@@ -151,9 +152,9 @@ def test_ssos_eclss_loop_labeled_agents_invoke_ars(tmp_path: Path):
     )
 
     assert telemetry[0]["step"] == 0
-    assert telemetry[0]["co2_storage_kg"] == pytest.approx(1.3)
-    assert telemetry[13]["co2_storage_kg"] < telemetry[12]["co2_storage_kg"], (
-        "ARS should reduce CO2 storage after step 12"
+    assert telemetry[0]["co2_storage_kg"] == pytest.approx(2.1)
+    assert telemetry[1]["co2_storage_kg"] < telemetry[0]["co2_storage_kg"], (
+        "ARS should reduce CO2 storage after the first labeled action quota"
     )
     assert (run_dir / "design_proposals.json").exists()
     assert summary.get("design_proposal_count", 0) >= 1
@@ -196,9 +197,9 @@ def test_ssos_eclss_loop_labeled_reinvokes_ars_when_co2_reexceeds(tmp_path: Path
         and (e.get("command") or {}).get("kind") == "air_revitalisation"
     ]
 
-    assert summary["operational_command_count"] >= 2
-    assert 12 in ars_steps
-    assert any(step > 12 for step in ars_steps), "ARS should re-fire after CO2 regrows past threshold"
+    assert summary["operational_command_count"] == summary["steps"] * 2
+    assert 0 in ars_steps
+    assert any(step > 0 for step in ars_steps), "ARS should keep firing under the labeled action quota"
 
 
 def test_ssos_eclss_loop_provenance_includes_operational_records(tmp_path: Path):

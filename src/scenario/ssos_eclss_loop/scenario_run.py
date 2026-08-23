@@ -557,8 +557,7 @@ class SsosEclssLoopScenario(Scenario):
             summary["team_count"] = team.team_cfg.count
             summary["agent_ids"] = list(team.team_cfg.agent_ids)
             summary["agent_ids_remaining"] = list(team.active_ids)
-            if team.mode == "llm":
-                summary["max_actions_per_step"] = team.max_actions_per_step
+            summary["max_actions_per_step"] = team.max_actions_per_step
 
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
             actor_cfg = flatten_actor_config(agents_config)
