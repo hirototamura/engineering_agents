@@ -26,9 +26,9 @@ actor:
   policy:
     request_co2_before_ogs: false  # if true, explicit /ars/request_co2 before OGS (can double-debit on LoopMock)
     request_co2_amount: 0.025  # [kg] CO2 requested when the flag above is true
-    wrs_feed_trigger_l: 0.5  # [L] start WRS when urine+grey buffer ≥ this
+    wrs_feed_trigger_l: 5.0  # [L] start WRS when urine+grey buffer ≥ this
     ars_goal:  # air_revitalisation payload
-      initial_co2_mass: 1.8  # [kg] plant_sim ARS scale = this / plant_sim.ars.reference_goal_co2_kg
+      initial_co2_mass: 4.50  # [kg] plant_sim ARS scale = this / plant_sim.ars.reference_goal_co2_kg
       initial_moisture_content: 25.0  # [%] 0–100; plant_sim ignores, ROS2 forwards
       initial_contaminants: 5.0  # [%] 0–100; plant_sim ignores, ROS2 forwards
     ogs_goal:  # oxygen_generation payload
@@ -36,7 +36,7 @@ actor:
       input_water_mass: 0.15  # [kg] water into electrolysis per OGS action
       iodine_concentration: 2.0  # [mg/L] plant_sim ignores, ROS2 forwards
     wrs_goal:  # water_recovery_systems payload
-      urine_volume: 2.0  # [L] urine requested per WRS action (capped by buffer and max_feed)
+      urine_volume: 0.5  # [L] urine requested per WRS action (capped by buffer and max_feed)
   llm:
     # Current default: lab vLLM (https://github.com/hirototamura/vllm_server).
     # Switch to ollama with provider: ollama, a local tag, and base_url http://localhost:11434.
