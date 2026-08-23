@@ -88,6 +88,8 @@ flowchart TD
 
 プロダクト水 WARNING でも **尿・灰水ゼロ** → そのステップの WRS は 0。代謝がバッファを満たすのを待ちます。
 
+感度アプリは WRS キャンペーンに `wrs_feed_trigger_l` を出します（バッファがトリガに達するまで `run_wrs` しない）。このアプリはプロダクト水 LOW のバイパスを掛けないので、ゲートが見えます。nameplate はトリガを無視します。
+
 ## 上限とインターリーブ
 
 `agents.actor.max_actions_per_step` は **天井** です。

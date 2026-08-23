@@ -219,7 +219,7 @@ Full design (band dwell + physics floor, YAML tables, try commands): [Occupant s
 
 ## Interactive sensitivity (not the run dashboard)
 
-Sweep occupant count N with survival off and one ARS/OGS/WRS action per step. Drag `simulation.initial_*` and `plant_sim` knobs:
+Sweep occupant count N with survival off and one ARS/OGS/WRS action per step. Drag `simulation.initial_*`, `plant_sim`, and labeled `actor.policy` knobs (ARS/OGS/WRS payloads plus `wrs_feed_trigger_l`):
 
 ```bash
 python3 -m tools.plant_sim_sensitivity_app
@@ -230,8 +230,8 @@ Opens a dedicated Streamlit app on port 8502 (`python3 -m streamlit run src/tool
 The 3×4 figure: rows are cabin CO2 / O2 / water. Columns:
 
 - **Crew metabolism** — unconstrained demand (∝ N). Not tank-limited consumption; otherwise O2 flattens once the initial tank is empty.
-- **One subsystem action** — nameplate of one ARS/OGS/WRS call with inventory ignored, so the lines are flat vs N.
-- **Tank inventory** — simulated Δ tank / step after both, where O2 starvation and crew-limited WRS feed live.
+- **One subsystem action** — nameplate of one ARS/OGS/WRS call with inventory ignored, so the lines are flat vs N. WRS nameplate preloads `urine_volume`; `wrs_feed_trigger_l` does not change it.
+- **Tank inventory** — simulated Δ tank / step after both, where O2 starvation and crew-limited WRS feed live. WRS campaigns skip `run_wrs` until urine+grey ≥ `wrs_feed_trigger_l` (labeled ignition; this app does not apply the product-water-low bypass).
 - **Tank + initial** — ending tank = `simulation.initial_*` + campaign Δ (own y-scale; dotted line is the initial fill).
 
 Every plotted number is derived from YAML + `PlantModel`. Rate panels use the same sign (**+ = that tank increased**). Color is the campaign (`no ECLSS`, ARS only, OGS only, WRS only). **Columns 1–3 share one y-scale** per row; column 4 is absolute kg / L.

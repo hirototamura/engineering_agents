@@ -88,6 +88,8 @@ Count is how many `wrs_goal.urine_volume` batches empty the **current** urine an
 
 Product-water WARNING with **zero** urine/grey → zero WRS this step. Recovery waits for metabolism to refill the buffers.
 
+The sensitivity app exposes `wrs_feed_trigger_l` on WRS campaigns (skip `run_wrs` until the buffer reaches the trigger). It does **not** apply this water-low bypass, so the gate stays visible. Nameplate still ignores the trigger.
+
 ## Cap and interleave
 
 `agents.actor.max_actions_per_step` is a **ceiling**.

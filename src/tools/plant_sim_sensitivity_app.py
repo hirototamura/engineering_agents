@@ -117,7 +117,13 @@ def render() -> None:
         overrides: Dict[str, Any] = {}
         for group, specs in grouped.items():
             if group == POLICY_GROUP:
-                st.caption("Policy sliders are labeled_rule_base action payloads; llm mode does not use them.")
+                st.caption(
+                    "Policy sliders are labeled_rule_base knobs (llm ignores them). "
+                    "ARS/OGS/WRS goals are action payloads. wrs_feed_trigger_l is an "
+                    "ignition gate: WRS campaigns skip run_wrs until urine+grey ≥ trigger. "
+                    "Nameplate ignores the trigger. This app does not apply the labeled "
+                    "product-water-low bypass, so the gate stays visible."
+                )
             with st.expander(group, expanded=(group in {"Initial storage", "Crew", POLICY_GROUP})):
                 for spec in specs:
                     overrides[spec.key] = _slider(spec, defaults[spec.key])
@@ -133,7 +139,8 @@ def render() -> None:
     plt.close(fig)
     st.markdown(
         "- **Crew metabolism**: unconstrained demand ∝ N × activity × rates × dt/86400.\n"
-        "- **One subsystem action**: ARS/OGS/WRS nameplate from labeled policy goals, inventory ignored.\n"
+        "- **One subsystem action**: ARS/OGS/WRS nameplate from labeled policy goals, inventory ignored "
+        "(WRS nameplate still preloads `urine_volume`; `wrs_feed_trigger_l` does not change it).\n"
         "- **Tank inventory**: simulated Δ tank / step from `simulation.initial_*`.\n"
         "- **Tank + initial**: ending tank = initial + (Δ tank/step × steps) "
         "(own y-scale; dotted = initial fill).\n"
@@ -143,7 +150,8 @@ def render() -> None:
     st.pyplot(fig_combo, clear_figure=True, use_container_width=True)
     plt.close(fig_combo)
     st.markdown(
-        "- **1 subsystem action**: one of ARS / OGS / WRS each step (simulated Δ tank / step).\n"
+        "- **1 subsystem action**: one of ARS / OGS / WRS each step (simulated Δ tank / step; "
+        "WRS waits until urine+grey ≥ `wrs_feed_trigger_l`).\n"
         "- **2 subsystem actions**: ARS+OGS, ARS+WRS, or OGS+WRS each step.\n"
         "- **All subsystems**: ARS, OGS, and WRS each called once per step.\n"
         "- **Tank + initial**: ending tank after the campaign (not per-step), same convention as the grid above."

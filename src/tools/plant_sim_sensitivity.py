@@ -6,7 +6,8 @@ the Streamlit run dashboard. Interactive knobs live in
 
 Left column is unconstrained demand (∝ N), not tank-limited consumption.
 Middle column is nameplate of one action (inventory ignored). Column 3 is the
-simulated tank Δ / step. Column 4 is the ending tank (initial + campaign Δ).
+simulated tank Δ / step (WRS waits until urine+grey ≥ ``wrs_feed_trigger_l``).
+Column 4 is the ending tank (initial + campaign Δ).
 """
 
 from __future__ import annotations
@@ -177,6 +178,11 @@ def _policy_action_goals(policy: Mapping[str, Any], plant: PlantSimConfig) -> tu
     return ars_goal, ogs_water, wrs_urine
 
 
+def _wrs_feed_trigger_l(policy: Mapping[str, Any]) -> float:
+    """Labeled ignition: skip WRS until urine+grey reaches this (liters)."""
+    return float(policy.get("wrs_feed_trigger_l", 0.5))
+
+
 def run_campaign(
     *,
     n: int,
@@ -196,6 +202,7 @@ def run_campaign(
     cfg = replace(PlantSimConfig.from_scenario_config(merged), survival_enabled=False, crew_size=int(n))
     model = PlantModel(cfg)
     ars_goal, ogs_water, wrs_urine = _policy_action_goals(policy, cfg)
+    wrs_trigger = _wrs_feed_trigger_l(policy)
 
     initial_co2 = model.state.cabin_co2_kg
     initial_o2 = model.state.available_o2_kg
@@ -221,8 +228,10 @@ def run_campaign(
                 float(result.get("water_regenerated_kg") or 0.0)
             )
         if "wrs" in ops:
-            result = model.run_wrs(wrs_urine)
-            water_ops -= float(result.get("recovered_water_l") or 0.0)
+            waste_l = float(model.state.urine_buffer_l) + float(model.state.grey_water_l)
+            if waste_l + 1e-12 >= wrs_trigger:
+                result = model.run_wrs(wrs_urine)
+                water_ops -= float(result.get("recovered_water_l") or 0.0)
 
     o2_demand, co2_demand, water_demand = metabolism_demand_per_step(n, cfg)
     ogs_o2_np, ogs_water_np = ogs_nameplate(ogs_water, cfg)
@@ -687,7 +696,8 @@ def make_combo_figure(
     fig.text(
         0.5,
         -0.01,
-        "Columns 1–3 are simulated Δ tank / step (1 / 2 / all subsystems called once). "
+        "Columns 1–3 are simulated Δ tank / step (1 / 2 / all subsystems called once; "
+        "WRS waits for wrs_feed_trigger_l). "
         "Column 4 is ending tank after the campaign (not per-step). Dotted colored = YAML baseline.",
         ha="center",
         fontsize=9,
@@ -841,7 +851,8 @@ def make_combo_figure(
     fig.text(
         0.5,
         -0.01,
-        "Columns 1–3 are simulated Δ tank / step (1 / 2 / all subsystems called once). "
+        "Columns 1–3 are simulated Δ tank / step (1 / 2 / all subsystems called once; "
+        "WRS waits for wrs_feed_trigger_l). "
         "Column 4 is ending tank after the campaign (not per-step). Dotted colored = YAML baseline.",
         ha="center",
         fontsize=9,
@@ -885,6 +896,7 @@ POLICY_KEYS = (
     "actor.policy.ars_goal.initial_co2_mass",
     "actor.policy.ogs_goal.input_water_mass",
     "actor.policy.wrs_goal.urine_volume",
+    "actor.policy.wrs_feed_trigger_l",
 )
 SCENARIO_KEYS = STORAGE_KEYS + PLANT_SIM_KEYS
 SENSITIVITY_KEYS = SCENARIO_KEYS + POLICY_KEYS
@@ -953,6 +965,16 @@ SLIDER_SPECS: Tuple[SliderSpec, ...] = (
         "L",
         "float",
         0.1,
+        20.0,
+        0.1,
+        POLICY_GROUP,
+    ),
+    SliderSpec(
+        "actor.policy.wrs_feed_trigger_l",
+        "wrs_feed_trigger_l",
+        "L",
+        "float",
+        0.0,
         20.0,
         0.1,
         POLICY_GROUP,

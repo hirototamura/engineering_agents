@@ -54,6 +54,9 @@ def test_yaml_defaults_match_scenario_file():
     assert defaults["actor.policy.wrs_goal.urine_volume"] == pytest.approx(
         float(policy["wrs_goal"]["urine_volume"])
     )
+    assert defaults["actor.policy.wrs_feed_trigger_l"] == pytest.approx(
+        float(policy["wrs_feed_trigger_l"])
+    )
 
 
 def test_slider_specs_contain_yaml_defaults():
@@ -131,6 +134,52 @@ def test_labeled_policy_ogs_water_override_does_not_patch_scenario():
     assert patched.get("actor") is None
 
 
+def test_labeled_policy_wrs_urine_override_scales_nameplate_when_below_max_feed():
+    base_rows, _ = run_sensitivity({}, n_max=1, steps=4)
+    fat_rows, _ = run_sensitivity(
+        {"actor.policy.wrs_goal.urine_volume": 4.0},
+        n_max=1,
+        steps=4,
+    )
+    base = next(row for row in base_rows if row.mode == "wrs")
+    fat = next(row for row in fat_rows if row.mode == "wrs")
+    assert fat.wrs_nameplate_l > base.wrs_nameplate_l + 1e-6
+
+
+def test_wrs_feed_trigger_does_not_change_nameplate():
+    base_rows, _ = run_sensitivity(
+        {"actor.policy.wrs_feed_trigger_l": 0.0},
+        n_max=1,
+        steps=4,
+    )
+    gated_rows, _ = run_sensitivity(
+        {"actor.policy.wrs_feed_trigger_l": 10.0},
+        n_max=1,
+        steps=4,
+    )
+    base = next(row for row in base_rows if row.mode == "wrs")
+    gated = next(row for row in gated_rows if row.mode == "wrs")
+    assert gated.wrs_nameplate_l == pytest.approx(base.wrs_nameplate_l)
+
+
+def test_wrs_feed_trigger_skips_run_wrs_until_buffer_fills():
+    open_rows, _ = run_sensitivity(
+        {"actor.policy.wrs_feed_trigger_l": 0.0},
+        n_max=1,
+        steps=8,
+    )
+    gated_rows, _ = run_sensitivity(
+        {"actor.policy.wrs_feed_trigger_l": 10.0},
+        n_max=1,
+        steps=8,
+    )
+    opened = next(row for row in open_rows if row.mode == "wrs")
+    gated = next(row for row in gated_rows if row.mode == "wrs")
+    assert opened.water_ops_l != 0.0
+    assert gated.water_ops_l == pytest.approx(0.0)
+    assert gated.final_water_l < opened.final_water_l
+
+
 def test_labeled_policy_ogs_water_override_scales_nameplate_when_below_capacity():
     base_rows, _ = run_sensitivity({}, n_max=1, steps=4)
     low_rows, _ = run_sensitivity(
@@ -176,7 +225,11 @@ def test_campaign_ops_orders_ars_ogs_wrs():
 
 
 def test_pair_and_all_campaigns_fire_each_requested_subsystem():
-    rows = sweep(n_max=1, steps=4)
+    rows, _ = run_sensitivity(
+        {"actor.policy.wrs_feed_trigger_l": 0.0},
+        n_max=1,
+        steps=4,
+    )
     pair = next(row for row in rows if row.mode == "ars+ogs")
     all_row = next(row for row in rows if row.mode == ALL_MODE)
     assert pair.co2_ops_kg > 0.0
