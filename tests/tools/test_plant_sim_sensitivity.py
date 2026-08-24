@@ -113,9 +113,10 @@ def test_ars_capacity_override_scales_nameplate():
 
 
 def test_labeled_policy_ars_goal_override_scales_nameplate():
+    base_goal = yaml_defaults()["actor.policy.ars_goal.initial_co2_mass"]
     base_rows, _ = run_sensitivity({}, n_max=1, steps=4)
     fat_rows, _ = run_sensitivity(
-        {"actor.policy.ars_goal.initial_co2_mass": 3.6},
+        {"actor.policy.ars_goal.initial_co2_mass": base_goal * 2},
         n_max=1,
         steps=4,
     )

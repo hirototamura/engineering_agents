@@ -22,6 +22,9 @@ from core.agents.types import AgentMessage, DeliberationPhase
 from core.llm.base import LLMClient
 from core.llm.factory import build_llm_client
 from environment.ssos.eclss.backend import EclssBackend
+from environment.ssos.eclss.plant_sim.config import PlantConfigError, PlantSimConfig
+from environment.ssos.eclss.plant_sim.model import per_interval
+from environment.ssos.eclss.plant_sim.stoichiometry import WATER_PER_O2
 from environment.ssos.eclss.types import ArsGoal, OgsGoal, WrsGoal
 from scenario.agents.eclss_loop_types import (
     EclssLoopObservation,
@@ -86,11 +89,11 @@ def interleave_labeled_actions(counts: Mapping[str, int], cap: int) -> List[str]
     """Round-robin ARS → OGS → WRS, repeating each up to its needed count, capped."""
     queue: deque[Tuple[str, int]] = deque()
     for name in _LABELED_SUBSYSTEMS:
-        n = int(counts.get(name, 0) or 0)
+        n = int(counts.get(name, 0))
         if n > 0:
             queue.append((name, n))
     slots: List[str] = []
-    while queue and len(slots) < max(0, cap):
+    while queue and len(slots) < cap:
         name, n = queue.popleft()
         slots.append(name)
         if n > 1:
@@ -372,18 +375,11 @@ class SsosEclssLoopTeam(Team):
                 return kind.strip()
         return None
 
-    def _plant_config(self) -> Any:
+    def _plant_config(self) -> Optional[PlantSimConfig]:
         if self._backend_kind() == "mock":
             return None
         plant_raw = self.config.get("plant_sim")
         if not isinstance(plant_raw, dict) or not plant_raw:
-            return None
-        try:
-            from environment.ssos.eclss.plant_sim.config import (
-                PlantConfigError,
-                PlantSimConfig,
-            )
-        except ImportError:
             return None
         try:
             return PlantSimConfig.from_scenario_config(
@@ -402,8 +398,6 @@ class SsosEclssLoopTeam(Team):
             goal *= 1.5
         plant = self._plant_config()
         if plant is not None:
-            from environment.ssos.eclss.plant_sim.model import per_interval
-
             capacity = per_interval(plant.ars_capacity_kg_day, plant.ars_operation_seconds)
             ref = max(float(plant.ars_reference_goal_co2_kg), 1e-9)
             return max(1e-9, capacity * (goal / ref))
@@ -413,14 +407,10 @@ class SsosEclssLoopTeam(Team):
         return max(1e-9, base * (goal / ref if ref else 1.0))
 
     def _ogs_effect_kg(self) -> float:
-        from environment.ssos.eclss.plant_sim.stoichiometry import WATER_PER_O2
-
         water_kg = float((self.policy.get("ogs_goal") or {}).get("input_water_mass", 0.015))
         from_water = water_kg / max(WATER_PER_O2, 1e-9)
         plant = self._plant_config()
         if plant is not None:
-            from environment.ssos.eclss.plant_sim.model import per_interval
-
             cap = per_interval(plant.ogs_max_o2_kg_day, plant.ogs_operation_seconds)
             return max(1e-9, min(from_water, cap))
         return max(1e-9, from_water)
@@ -582,11 +572,7 @@ class SsosEclssLoopTeam(Team):
                         to_role="team",
                         message=f"Requesting {amount:.1f} kg CO2 feedstock for Sabatier (OGS).",
                         message_type="operational_command",
-                        reasoning=(
-                            f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg."
-                            if o2 is not None
-                            else "OGS CO2 feedstock request."
-                        ),
+                        reasoning=f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg.",
                         metadata=self._rule_metadata(),
                     )
                 )
@@ -607,11 +593,7 @@ class SsosEclssLoopTeam(Team):
                     to_role="team",
                     message="Starting OGS oxygen_generation cycle.",
                     message_type="operational_command",
-                    reasoning=(
-                        f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg."
-                        if o2 is not None
-                        else "OGS oxygen_generation."
-                    ),
+                    reasoning=f"O2 storage {o2:.1f} kg <= {o2_low:.1f} kg.",
                     metadata=self._rule_metadata(),
                 )
             )

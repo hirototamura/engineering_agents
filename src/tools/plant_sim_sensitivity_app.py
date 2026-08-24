@@ -118,11 +118,8 @@ def render() -> None:
         for group, specs in grouped.items():
             if group == POLICY_GROUP:
                 st.caption(
-                    "Policy sliders are labeled_rule_base knobs (llm ignores them). "
-                    "ARS/OGS/WRS goals are action payloads. wrs_feed_trigger_l is an "
-                    "ignition gate: WRS campaigns skip run_wrs until urine+grey ≥ trigger. "
-                    "Nameplate ignores the trigger. This app does not apply the labeled "
-                    "product-water-low bypass, so the gate stays visible."
+                    "labeled_rule_base knobs (llm ignores them). "
+                    "WRS campaigns skip run_wrs until urine+grey ≥ wrs_feed_trigger_l."
                 )
             with st.expander(group, expanded=(group in {"Initial storage", "Crew", POLICY_GROUP})):
                 for spec in specs:
