@@ -723,6 +723,72 @@ def test_labeled_wrs_repeats_to_drain_urine_buffer():
     obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
     outcome = team.run_step(LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}}), obs)
     assert [cmd.kind for cmd in outcome.commands] == ["water_recovery"] * 4
+    assert any(
+        "Waste feed 2.00 L >= 0.50 L" in (msg.reasoning or "")
+        for msg in outcome.messages
+    )
+
+
+def _plant_sim_nameplate() -> dict:
+    return {
+        "time": {"ars_operation_seconds": 4800},
+        "crew": {"size": 4},
+        "ars": {"capacity_kg_day": 4.50, "reference_goal_co2_kg": 1.80},
+        "ogs": {"max_o2_kg_day": 9.25},
+    }
+
+
+def test_mock_backend_ars_effect_ignores_plant_sim_nameplate():
+    cfg = _team_config()
+    cfg["backend"] = {"kind": "mock"}
+    cfg["mock_dynamics"] = {"ars_co2_reduction_kg": 0.05, "ars_reference_co2_mass_kg": 1.8}
+    cfg["plant_sim"] = _plant_sim_nameplate()
+    team = SsosEclssLoopTeam(cfg)
+    assert team._ars_effect_kg(in_critical=False) == pytest.approx(0.05)
+
+
+def test_plant_sim_backend_ars_effect_uses_nameplate():
+    cfg = _team_config()
+    cfg["backend"] = {"kind": "plant_sim"}
+    cfg["mock_dynamics"] = {"ars_co2_reduction_kg": 0.05, "ars_reference_co2_mass_kg": 1.8}
+    cfg["plant_sim"] = _plant_sim_nameplate()
+    team = SsosEclssLoopTeam(cfg)
+    # 4.50 kg/day × 4800 s / 86400 = 0.25 kg at the reference goal
+    assert team._ars_effect_kg(in_critical=False) == pytest.approx(0.25)
+
+
+def test_labeled_mock_sizes_ars_from_mock_dynamics_not_plant_sim():
+    cfg = _team_config()
+    cfg["max_actions_per_step"] = 8
+    cfg["backend"] = {"kind": "mock"}
+    cfg["mock_dynamics"] = {"ars_co2_reduction_kg": 0.05, "ars_reference_co2_mass_kg": 1.8}
+    cfg["plant_sim"] = _plant_sim_nameplate()
+    team = SsosEclssLoopTeam(cfg)
+    snap = EclssTelemetrySnapshot(co2_storage_kg=2.6, o2_storage_kg=0.6)
+    obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
+    outcome = team.run_step(LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}}), obs)
+    # high=1.5, deficit≈1.1; mock 0.05 → more than 8; plant nameplate 0.25 → only 5
+    assert [cmd.kind for cmd in outcome.commands] == ["air_revitalisation"] * 8
+
+
+def test_labeled_wrs_water_low_bypass_records_actual_reason():
+    cfg = _team_config()
+    cfg["policy"]["wrs_feed_trigger_l"] = 0.5
+    cfg["policy"]["product_water_low_l"] = 50.0
+    team = SsosEclssLoopTeam(cfg)
+    snap = EclssTelemetrySnapshot(
+        co2_storage_kg=0.8,
+        o2_storage_kg=0.6,
+        product_water_reserve_l=10.0,
+        raw_topics={"plant_sim": {"urine_buffer_l": 0.2, "grey_water_l": 0.0}},
+    )
+    obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "warning"})
+    outcome = team.run_step(LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}}), obs)
+    assert any(cmd.kind == "water_recovery" for cmd in outcome.commands)
+    reasoning = " ".join(msg.reasoning or "" for msg in outcome.messages)
+    assert "Waste feed 0.20 L >= 0.50 L" not in reasoning
+    assert "Product water 10.00 L <= 50.00 L" in reasoning
+    assert "below trigger 0.50 L" in reasoning
 
 
 def test_labeled_request_co2_does_not_consume_quota():

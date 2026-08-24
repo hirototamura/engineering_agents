@@ -138,7 +138,7 @@ actor:
       urine_volume: 2.0
 ```
 
-CLI: `--set agents.actor.max_actions_per_step=8`。llm はその値を `actor.team.count` でクランプし、labeled はしません。`scenario_run` は `plant_sim`、`simulation`、`mock_dynamics`、`thresholds` をアクター設定にコピーするので、その YAML ブロックがあるとき効果見積もりが plant_sim を見られます。
+CLI: `--set agents.actor.max_actions_per_step=8`。llm はその値を `actor.team.count` でクランプし、labeled はしません。`scenario_run` は `simulation`、`mock_dynamics`、`thresholds`、解決済みの `backend` をアクター設定にコピーします。`plant_sim` は backend が `mock` 以外のときだけコピーするので、LoopMock の効果見積もりは plant_sim YAML があっても `mock_dynamics` を使います。
 
 `ogs_goal.input_water_mass` が policy に無いときのコード側フォールバックは `0.015` kg。リポジトリの `agents.yaml` 既定は `0.15` です。
 

@@ -364,7 +364,17 @@ class SsosEclssLoopTeam(Team):
         urine_l, grey_l = self._waste_buffers(obs)
         return urine_l + grey_l
 
+    def _backend_kind(self) -> Optional[str]:
+        backend = self.config.get("backend")
+        if isinstance(backend, dict):
+            kind = backend.get("kind")
+            if isinstance(kind, str) and kind.strip():
+                return kind.strip()
+        return None
+
     def _plant_config(self) -> Any:
+        if self._backend_kind() == "mock":
+            return None
         plant_raw = self.config.get("plant_sim")
         if not isinstance(plant_raw, dict) or not plant_raw:
             return None
@@ -614,18 +624,42 @@ class SsosEclssLoopTeam(Team):
                 issued_by=rep,
             )
         )
+        feed_meets_trigger = waste_feed_l >= wrs_trigger_l
         messages.append(
             AgentMessage(
                 step=obs.step,
                 from_role=rep,
                 to_role="team",
-                message="Starting WRS water_recovery to reclaim urine/grey water.",
+                message=(
+                    "Starting WRS water_recovery to reclaim urine/grey water."
+                    if feed_meets_trigger
+                    else "Starting WRS water_recovery because product water is LOW (feed below trigger)."
+                ),
                 message_type="operational_command",
-                reasoning=f"Waste feed {waste_feed_l:.2f} L >= {wrs_trigger_l:.2f} L.",
+                reasoning=self._wrs_start_reasoning(
+                    obs, waste_feed_l=waste_feed_l, wrs_trigger_l=wrs_trigger_l
+                ),
                 metadata=self._rule_metadata(),
             )
         )
         return messages, commands
+
+    def _wrs_start_reasoning(
+        self,
+        obs: EclssLoopObservation,
+        *,
+        waste_feed_l: float,
+        wrs_trigger_l: float,
+    ) -> str:
+        if waste_feed_l >= wrs_trigger_l:
+            return f"Waste feed {waste_feed_l:.2f} L >= {wrs_trigger_l:.2f} L."
+        water_low = float(self.policy.get("product_water_low_l", DEFAULT_PRODUCT_WATER_LOW_L))
+        water = obs.telemetry.product_water_reserve_l
+        water_s = f"{water:.2f} L" if water is not None else "unknown"
+        return (
+            f"Product water {water_s} <= {water_low:.2f} L "
+            f"with waste feed {waste_feed_l:.2f} L (below trigger {wrs_trigger_l:.2f} L)."
+        )
 
     async def _llm_deliberation_turn(
         self,

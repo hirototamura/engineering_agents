@@ -138,7 +138,7 @@ actor:
       urine_volume: 2.0
 ```
 
-CLI: `--set agents.actor.max_actions_per_step=8`. llm clamps that value to `actor.team.count`; labeled does not. `scenario_run` copies `plant_sim`, `simulation`, `mock_dynamics`, and `thresholds` onto the actor config so yield estimates can see plant_sim when that YAML block is present.
+CLI: `--set agents.actor.max_actions_per_step=8`. llm clamps that value to `actor.team.count`; labeled does not. `scenario_run` copies `simulation`, `mock_dynamics`, `thresholds`, and the resolved `backend` onto the actor config. `plant_sim` is copied only when the backend is not `mock`, so LoopMock yield estimates use `mock_dynamics` even if the plant_sim YAML block is present.
 
 `ogs_goal.input_water_mass` missing from policy falls back to `0.015` kg in code; the repo `agents.yaml` default is `0.15`.
 

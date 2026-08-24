@@ -10,6 +10,7 @@ import pytest
 from scenario.runner import list_scenarios, run_scenario
 from scenario.ssos_eclss_loop.scenario_run import (
     BACKEND_ENV_VAR,
+    SsosEclssLoopScenario,
     build_eclss_backend,
     resolve_backend_kind,
 )
@@ -299,6 +300,27 @@ def test_resolve_backend_kind_from_env(monkeypatch):
     config = {"backend": {"kind": "mock"}}
     monkeypatch.setenv(BACKEND_ENV_VAR, "ros2")
     assert resolve_backend_kind(config) == "ros2"
+
+
+def test_build_team_mock_backend_does_not_size_from_plant_sim():
+    scenario = SsosEclssLoopScenario()
+    config = scenario.load_config(
+        {
+            **_ssos_agents("labeled_rule_base", count=4),
+            "backend": {"kind": "mock"},
+            "mock_dynamics": {
+                "ars_co2_reduction_kg": 0.05,
+                "ars_reference_co2_mass_kg": 1.8,
+            },
+        }
+    )
+    team = scenario.build_team(config)
+    assert team is not None
+    assert "plant_sim" not in team.config
+    assert team.config.get("backend", {}).get("kind") == "mock"
+    # agents.yaml ars_goal.initial_co2_mass=4.50; mock scales 0.05 × 4.50/1.8.
+    # plant_sim nameplate would be ~0.625 kg if it leaked onto the actor.
+    assert team._ars_effect_kg(in_critical=False) == pytest.approx(0.125)
 
 
 def test_effective_config_records_env_resolved_backend(tmp_path: Path, monkeypatch):

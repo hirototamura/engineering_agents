@@ -334,7 +334,16 @@ class SsosEclssLoopScenario(Scenario):
         actor = flatten_actor_config(agents_config)
         if actor.get("mode") not in {"labeled_rule_base", "llm"}:
             return None
-        for key in ("plant_sim", "simulation", "mock_dynamics", "thresholds"):
+        backend_kind = resolve_backend_kind(config)
+        merged_backend = dict(config.get("backend") or {})
+        if isinstance(actor.get("backend"), dict):
+            merged_backend.update(actor["backend"])
+        merged_backend["kind"] = backend_kind
+        actor["backend"] = merged_backend
+        merge_keys = ("simulation", "mock_dynamics", "thresholds")
+        if backend_kind != "mock":
+            merge_keys = ("plant_sim",) + merge_keys
+        for key in merge_keys:
             if key not in actor and config.get(key) is not None:
                 actor[key] = config.get(key)
         return SsosEclssLoopTeam(actor)
