@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from core.agents.base import Team
 from scenario.agents.eclss_loop_types import EclssLoopObservation
 from scenario.agents.ssos_eclss_loop_team import (
     SsosEclssLoopTeam,
+    _ceil_positive,
     interleave_labeled_actions,
 )
 from environment.ssos.eclss.types import ArsGoal, OgsGoal, EclssTelemetrySnapshot
@@ -681,6 +684,27 @@ def test_interleave_labeled_actions_round_robin_and_cap():
     ]
     assert interleave_labeled_actions({"wrs": 8}, 3) == ["wrs", "wrs", "wrs"]
     assert interleave_labeled_actions({}, 4) == []
+
+
+def test_ceil_positive_rejects_non_finite_deficit():
+    assert _ceil_positive(math.inf, 0.35) == 0
+    assert _ceil_positive(math.nan, 0.35) == 0
+    assert _ceil_positive(1.1, math.inf) == 0
+    assert _ceil_positive(-math.inf, 0.35) == 0
+
+
+def test_labeled_non_finite_storage_does_not_crash_or_size_ops():
+    cfg = _team_config()
+    cfg["max_actions_per_step"] = 6
+    cfg["policy"]["request_co2_before_ogs"] = False
+    team = SsosEclssLoopTeam(cfg)
+    snap = EclssTelemetrySnapshot(
+        co2_storage_kg=math.inf,
+        o2_storage_kg=-math.inf,
+    )
+    obs = EclssLoopObservation(step=0, telemetry=snap, health={"overall": "unknown"})
+    outcome = team.run_step(LoopMockEclssBackend({"simulation": {}, "mock_dynamics": {}}), obs)
+    assert outcome.commands == []
 
 
 def test_labeled_repeats_ars_to_exit_high_band():

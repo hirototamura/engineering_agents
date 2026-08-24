@@ -78,9 +78,19 @@ def _resolve_max_actions_per_step(
     return value
 
 
+def _finite_reading(value: Optional[float]) -> Optional[float]:
+    """Return ``value`` when it is a finite number; otherwise ``None``."""
+    if value is None:
+        return None
+    number = float(value)
+    if not math.isfinite(number):
+        return None
+    return number
+
+
 def _ceil_positive(deficit: float, per_action: float) -> int:
     """How many actions are needed to cover ``deficit``. Zero if already done."""
-    if deficit <= 0:
+    if not math.isfinite(deficit) or not math.isfinite(per_action) or deficit <= 0:
         return 0
     return max(1, math.ceil(deficit / max(float(per_action), 1e-9)))
 
@@ -431,14 +441,15 @@ class SsosEclssLoopTeam(Team):
         co2: Optional[float],
         o2: Optional[float],
     ) -> Dict[str, int]:
+        co2 = _finite_reading(co2)
+        o2 = _finite_reading(o2)
         in_critical = co2 is not None and co2 >= co2_critical
         water_low = float(self.policy.get("product_water_low_l", DEFAULT_PRODUCT_WATER_LOW_L))
-        water = obs.telemetry.product_water_reserve_l
+        water = _finite_reading(obs.telemetry.product_water_reserve_l)
         urine_l, grey_l = self._waste_buffers(obs)
         waste_feed_l = urine_l + grey_l
         wrs_trigger_l = float(self.policy.get("wrs_feed_trigger_l", 0.5))
         urine_req = float((self.policy.get("wrs_goal") or {}).get("urine_volume", 2.0))
-
         ars_n = 0
         if co2 is not None and co2 >= co2_high:
             ars_n = _ceil_positive((co2 - co2_high) + 1e-6, self._ars_effect_kg(in_critical=in_critical))
