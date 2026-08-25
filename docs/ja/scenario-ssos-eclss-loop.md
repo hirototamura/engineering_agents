@@ -95,7 +95,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 
 **re-arm**: ARS / OGS を打った後もストレージが改善しなければ、次 step で再試行可能（`co2_at_ars_dispatch` / `o2_at_ogs_dispatch` 境界）。
 
-step は 0-based（`0 .. steps-1`）。actor `eclss_actor_{step % N}` が運用コマンドを発行（policy 代表は 1 体。`max_actions_per_step` は使わない）。ラン終了後、別チームの designer（`eclss_designer_*`）が `design_proposals.json`（`ssos_graph`）を出す。
+step は 0-based（`0 .. steps-1`）。`agents.actor.max_actions_per_step` は **上限**: labeled は warning/critical を抜ける回数の ARS/OGS/WRS を見積もり、`min(必要数, max)` で切る。needed OGS に付く任意の `request_co2` は枠を消費しない。設計: [ラベル付きルールベース](memo/ssos_eclss_loop/labeled_rule_base.md)。ラン終了後、別チームの designer（`eclss_designer_*`）が `design_proposals.json`（`ssos_graph`）を出す。
 
 ### llm
 
@@ -146,7 +146,7 @@ subsystem_failures:
 agents:
   actor:
     mode: none  # none | labeled_rule_base | llm（CLI --actor-mode）
-    max_actions_per_step: 2  # llm actor のみ
+    max_actions_per_step: 2  # llm / labeled の step あたりコマンド上限
   design: {}  # design.mode 省略時は actor.mode を継承
 
 output:
@@ -155,7 +155,7 @@ output:
   run_id_llm: ssos_eclss_loop_llm
 ```
 
-CLI: `--set agents.actor.max_actions_per_step=8`（`actor.team.count` でクランプ）。`labeled_rule_base` では無視される。
+CLI: `--set agents.actor.max_actions_per_step=8`。llm は `actor.team.count` でクランプ（action 代表数）。labeled はクランプせず、warning/critical を抜ける回数の ARS/OGS/WRS を見積もり `min(必要数, max)` で切る。
 
 `ssos_graph.rewires`（任意）— 前 run の `graph_rewire` 提案を `--apply-proposals` でマージすると、次 run の `Ros2EclssBridge` に client remap が渡る。
 
@@ -250,7 +250,7 @@ ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlo
 | --- | --- |
 | ID | actor `eclss_actor_1` … `N`（既定 50）；designer `eclss_designer_1` … `4` |
 | deliberation | llm: 全員 1 ラウンド。labeled: 運用判断メッセージ |
-| action reps | llm: `eclss_actor_{step % N}` から `max_actions_per_step` 体の回転窓（既定 **2**）。labeled: policy 代表 1 体 |
+| action reps | llm: `eclss_actor_{step % N}` から `max_actions_per_step` 体の回転窓（既定 **2**）。labeled: 必要な ARS/OGS/WRS をその件数でキャップ |
 | post-run rep | designer 代表 1 体が `changes` を出す（件数上限なし。非空のときだけ `design_proposals.json`） |
 
 `SsosEclssLoopTeam` は `Team` ABC を継承。`run_step(backend, obs)` / `apply_outcome(backend, outcome)` シグネチャ。
@@ -426,6 +426,7 @@ pytest tests/environment/test_graph_rewire*.py -q
 
 - [architecture.md](architecture.md) — レイヤと ssos 実行フロー
 - [api-contracts.md](api-contracts.md) — `EclssBackend`、JSONL、運用コマンド
+- [memo/ssos_eclss_loop/labeled_rule_base.md](memo/ssos_eclss_loop/labeled_rule_base.md) — シミュレーション内 labeled 運用（必要量を積んでから上限）
 - [memo/ssos_eclss_loop/post_run_design_agent.md](memo/ssos_eclss_loop/post_run_design_agent.md) — actor / designer 分離（実装済み）
 - [one-piece-integration.md](one-piece-integration.md) — 運用 provenance
 - [development-plan.md](development-plan.md) — Phase 0–7 完了、次タスク

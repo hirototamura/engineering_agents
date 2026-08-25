@@ -622,20 +622,21 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 | モード | actor（`agents.actor.mode`） | designer（`agents.design.mode`） | テスト |
 | --- | --- | --- | --- |
 | `none` | poll のみ | `design_proposals.json` を書かない | `test_ssos_eclss_loop.py` |
-| `labeled_rule_base` | 閾値 → ARS/OGS | ルール `ssos_graph` | `test_ssos_eclss_loop.py`、`test_ssos_agent_config.py` |
+| `labeled_rule_base` | 閾値 → 必要な ARS/OGS/WRS を `max_actions_per_step` でキャップ | ルール `ssos_graph` | `test_ssos_eclss_loop.py`、`test_ssos_agent_config.py` |
 | `llm` | N 体 deliberation の後、最大 `max_actions_per_step` 体が action | LLM `changes`（件数上限なし） | 同上 |
 
 
 #### labeled_rule_base
 
-`thresholds`（scenario.yaml）+ `policy` プロファイル（agents.yaml）。閾値は `merge_labeled_policy_from_thresholds()` でマージ。
+`thresholds`（scenario.yaml）+ `policy` プロファイル（agents.yaml）。閾値は `merge_labeled_policy_from_thresholds()` でマージ。毎 step warning/critical を抜ける回数の ARS/OGS/WRS を見積もり、`min(必要数, max_actions_per_step)` で切る。needed OGS に付く `request_co2` は枠を消費しない。詳細: [ラベル付きルールベース](memo/ssos_eclss_loop/labeled_rule_base.md)。
 
 
 | 挙動                   | トリガー                         |
 | -------------------- | ---------------------------- |
-| `air_revitalisation` | CO₂ ≥ high、ARS 未起動           |
+| `air_revitalisation` | CO₂ ≥ high。high 帯を抜ける見積もり回数だけ繰り返す |
 | `request_co2`        | O₂ ≤ low、OGS 前（`request_co2_before_ogs: true` のときのみ。既定 OFF。Sabatier 原料は OGS 内部要求に任せる）。LoopMock では `true` だと OGS Sabatier 減算と同一 step で二重減算しうる（バッファなし） |
-| `oxygen_generation`  | O₂ ≤ low、OGS 未起動             |
+| `oxygen_generation`  | O₂ ≤ low。low 帯を抜ける見積もり回数だけ繰り返す |
+| `water_recovery`     | urine+grey ≥ `wrs_feed_trigger_l`、または製品水 ≤ low かつフィードあり。現在のバッファを空にする回数 |
 | re-arm               | 改善なければ次 step で再試行            |
 
 
@@ -652,7 +653,7 @@ N 体同時 deliberation のあと、`agents.actor.max_actions_per_step` 体ま�
 | ----------------------------------- | --------------------- |
 | `summary.backend`                   | `mock` / `ros2`       |
 | `summary.operational_command_count` | 運用コマンド数               |
-| `summary.max_actions_per_step`      | llm: step あたりの action 代表数 |
+| `summary.max_actions_per_step`      | llm / labeled: step あたりのコマンド上限 |
 | `events.jsonl`                      | `operational_applied` |
 
 

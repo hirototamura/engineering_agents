@@ -54,7 +54,7 @@ flowchart TD
 agents:
   actor:
     mode: none                 # none | labeled_rule_base | llm
-    max_actions_per_step: 2    # llm actors only; labeled ignores this
+    max_actions_per_step: 2    # llm / labeled cap on commands per step
   design: {}
     # omit design.mode to inherit actor.mode; set none to disable post-run design
 ```
@@ -110,4 +110,5 @@ In `llm` mode, all designers deliberate once, then **one representative** emits 
 - [AGENTS.md](../../AGENTS.md)
 - [Homogeneous agent team](../agents/homogeneous_agent_team_plan.md)
 - [Occupant survival](occupant_survival.md)
+- [Labeled rule-base](labeled_rule_base.md)
 - [SSOS ECLSS connection plan](ssos_eclss_loop_connection_plan.md)

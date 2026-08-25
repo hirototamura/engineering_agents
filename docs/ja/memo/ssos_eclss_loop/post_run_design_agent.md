@@ -54,7 +54,7 @@ flowchart TD
 agents:
   actor:
     mode: none                 # none | labeled_rule_base | llm
-    max_actions_per_step: 2    # llm actor のみ。labeled は無視
+    max_actions_per_step: 2    # llm / labeled の step あたりコマンド上限
   design: {}
     # design.mode 省略時は actor.mode を継承。明示 none で設計オフ
 ```
@@ -110,4 +110,5 @@ llm 時は designer 全員が 1 ラウンド話し合ったあと、**代表 1 �
 - [AGENTS.md](../../AGENTS.md)
 - [同種エージェントチーム](../agents/homogeneous_agent_team_plan.md)
 - [乗員サバイバル](occupant_survival.md)
+- [ラベル付きルールベース](labeled_rule_base.md)
 - [SSOS ECLSS 接合プラン](ssos_eclss_loop_connection_plan.md)

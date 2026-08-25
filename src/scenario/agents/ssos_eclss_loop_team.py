@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import math
+from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from core.agents.base import Team
 from core.agents.memory import TeamMemoryStore
@@ -21,6 +22,9 @@ from core.agents.types import AgentMessage, DeliberationPhase
 from core.llm.base import LLMClient
 from core.llm.factory import build_llm_client
 from environment.ssos.eclss.backend import EclssBackend
+from environment.ssos.eclss.plant_sim.config import PlantConfigError, PlantSimConfig
+from environment.ssos.eclss.plant_sim.model import per_interval
+from environment.ssos.eclss.plant_sim.stoichiometry import WATER_PER_O2
 from environment.ssos.eclss.types import ArsGoal, OgsGoal, WrsGoal
 from scenario.agents.eclss_loop_types import (
     EclssLoopObservation,
@@ -31,18 +35,22 @@ from scenario.ssos_eclss_loop.health import (
     DEFAULT_CO2_STORAGE_CRITICAL_KG,
     DEFAULT_CO2_STORAGE_HIGH_KG,
     DEFAULT_O2_STORAGE_LOW_KG,
+    DEFAULT_PRODUCT_WATER_LOW_L,
 )
 
 _ECLSS_OPERATIONAL_KINDS = frozenset(
     {"air_revitalisation", "oxygen_generation", "water_recovery", "request_co2", "request_o2"}
 )
+_LABELED_SUBSYSTEMS = ("ars", "ogs", "wrs")
 
 _ARS_GOAL_FIELDS = frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"})
 _OGS_GOAL_FIELDS = frozenset({"input_water_mass", "iodine_concentration"})
 _WRS_GOAL_FIELDS = frozenset({"urine_volume"})
 
 
-def _resolve_max_actions_per_step(raw: Any, *, team_count: int) -> int:
+def _resolve_max_actions_per_step(
+    raw: Any, *, team_count: int, clamp_to_team: bool = True
+) -> int:
     if isinstance(raw, bool) or raw is None:
         raise ValueError(f"max_actions_per_step must be an integer >= 1, got {raw!r}")
     if isinstance(raw, int):
@@ -65,7 +73,66 @@ def _resolve_max_actions_per_step(raw: Any, *, team_count: int) -> int:
         raise ValueError(f"max_actions_per_step must be an integer >= 1, got {raw!r}")
     if value < 1:
         raise ValueError(f"max_actions_per_step must be >= 1, got {value}")
-    return min(value, team_count)
+    if clamp_to_team:
+        return min(value, team_count)
+    return value
+
+
+def _finite_reading(value: Optional[float]) -> Optional[float]:
+    """Return ``value`` when it is a finite number; otherwise ``None``."""
+    if value is None:
+        return None
+    number = float(value)
+    if not math.isfinite(number):
+        return None
+    return number
+
+
+def _ceil_positive(deficit: float, per_action: float) -> int:
+    """How many actions are needed to cover ``deficit``. Zero if already done."""
+    if not math.isfinite(deficit) or not math.isfinite(per_action) or deficit <= 0:
+        return 0
+    return max(1, math.ceil(deficit / max(float(per_action), 1e-9)))
+
+
+def interleave_labeled_actions(counts: Mapping[str, int], cap: int) -> List[str]:
+    """Round-robin ARS → OGS → WRS, repeating each up to its needed count, capped."""
+    queue: deque[Tuple[str, int]] = deque()
+    for name in _LABELED_SUBSYSTEMS:
+        n = int(counts.get(name, 0))
+        if n > 0:
+            queue.append((name, n))
+    slots: List[str] = []
+    while queue and len(slots) < cap:
+        name, n = queue.popleft()
+        slots.append(name)
+        if n > 1:
+            queue.append((name, n - 1))
+    return slots
+
+
+def _wrs_batches_to_empty(
+    urine_l: float,
+    grey_l: float,
+    *,
+    urine_request_l: float,
+    max_feed_l: float,
+) -> int:
+    """How many WRS actions drain the current urine/grey buffers."""
+    urine_req = max(float(urine_request_l), 1e-9)
+    max_feed = max(float(max_feed_l), urine_req)
+    urine = max(0.0, float(urine_l))
+    grey = max(0.0, float(grey_l))
+    batches = 0
+    while (urine > 1e-9 or grey > 1e-9) and batches < 64:
+        urine_feed = min(urine_req, urine, max_feed)
+        grey_feed = min(grey, max(0.0, max_feed - urine_feed))
+        if urine_feed + grey_feed <= 1e-9:
+            break
+        urine -= urine_feed
+        grey -= grey_feed
+        batches += 1
+    return batches
 
 
 @dataclass
@@ -112,6 +179,7 @@ class SsosEclssLoopTeam(Team):
         self.max_actions_per_step = _resolve_max_actions_per_step(
             config.get("max_actions_per_step", 1),
             team_count=self.team_cfg.count,
+            clamp_to_team=self.mode == "llm",
         )
         self._active_ids: List[str] = list(self.team_cfg.agent_ids)
 
@@ -227,7 +295,9 @@ class SsosEclssLoopTeam(Team):
 
     def _run_step_labeled(self, obs: EclssLoopObservation) -> StepEclssOutcome:
         outcome = StepEclssOutcome()
-        rep = self._action_rep_id(obs.step)
+        reps = self._action_rep_ids(obs.step)
+        if not reps:
+            return outcome
         co2_high = float(self.policy.get("co2_storage_high_kg", DEFAULT_CO2_STORAGE_HIGH_KG))
         co2_critical = float(self.policy.get("co2_storage_critical_kg", DEFAULT_CO2_STORAGE_CRITICAL_KG))
         o2_low = float(self.policy.get("o2_storage_low_kg", DEFAULT_O2_STORAGE_LOW_KG))
@@ -235,13 +305,12 @@ class SsosEclssLoopTeam(Team):
         o2 = obs.telemetry.o2_storage_kg
 
         if co2 is not None and co2 >= co2_high and not self.state.alert_sent:
-            commenter = rep
             self.state.alert_sent = True
             band = "critical" if co2 >= co2_critical else "high"
             outcome.messages.append(
                 AgentMessage(
                     step=obs.step,
-                    from_role=commenter,
+                    from_role=reps[0],
                     to_role="team",
                     message=(
                         f"CO2 storage {co2:.1f} kg exceeds {band} band "
@@ -254,7 +323,7 @@ class SsosEclssLoopTeam(Team):
             )
 
         messages, commands = self._labeled_recovery(
-            obs, rep, co2_high, co2_critical, o2_low, co2, o2
+            obs, reps, co2_high, co2_critical, o2_low, co2, o2
         )
         outcome.messages.extend(messages)
         outcome.commands.extend(commands)
@@ -293,10 +362,117 @@ class SsosEclssLoopTeam(Team):
         ):
             self.state.ogs_invoked = False
 
+    def _waste_buffers(self, obs: EclssLoopObservation) -> Tuple[float, float]:
+        grey_l = float(obs.telemetry.grey_water_collected_l or 0.0)
+        urine_l = 0.0
+        raw_topics = obs.telemetry.raw_topics or {}
+        plant_sim_topics = raw_topics.get("plant_sim") if isinstance(raw_topics, dict) else {}
+        if isinstance(plant_sim_topics, dict):
+            urine_l = float(plant_sim_topics.get("urine_buffer_l") or 0.0)
+            if plant_sim_topics.get("grey_water_l") is not None:
+                grey_l = float(plant_sim_topics.get("grey_water_l") or 0.0)
+        return urine_l, grey_l
+
+    def _waste_feed_l(self, obs: EclssLoopObservation) -> float:
+        urine_l, grey_l = self._waste_buffers(obs)
+        return urine_l + grey_l
+
+    def _backend_kind(self) -> Optional[str]:
+        backend = self.config.get("backend")
+        if isinstance(backend, dict):
+            kind = backend.get("kind")
+            if isinstance(kind, str) and kind.strip():
+                return kind.strip()
+        return None
+
+    def _plant_config(self) -> Optional[PlantSimConfig]:
+        if self._backend_kind() == "mock":
+            return None
+        plant_raw = self.config.get("plant_sim")
+        if not isinstance(plant_raw, dict) or not plant_raw:
+            return None
+        try:
+            return PlantSimConfig.from_scenario_config(
+                {
+                    "plant_sim": plant_raw,
+                    "simulation": self.config.get("simulation") or {},
+                    "thresholds": self.config.get("thresholds") or {},
+                }
+            )
+        except PlantConfigError:
+            return None
+
+    def _ars_effect_kg(self, *, in_critical: bool) -> float:
+        goal = float((self.policy.get("ars_goal") or {}).get("initial_co2_mass", 1.8))
+        if in_critical:
+            goal *= 1.5
+        plant = self._plant_config()
+        if plant is not None:
+            capacity = per_interval(plant.ars_capacity_kg_day, plant.ars_operation_seconds)
+            ref = max(float(plant.ars_reference_goal_co2_kg), 1e-9)
+            return max(1e-9, capacity * (goal / ref))
+        mock = self.config.get("mock_dynamics") or {}
+        base = float(mock.get("ars_co2_reduction_kg", 0.35))
+        ref = float(mock.get("ars_reference_co2_mass_kg", 1.8))
+        return max(1e-9, base * (goal / ref if ref else 1.0))
+
+    def _ogs_effect_kg(self) -> float:
+        water_kg = float((self.policy.get("ogs_goal") or {}).get("input_water_mass", 0.015))
+        from_water = water_kg / max(WATER_PER_O2, 1e-9)
+        plant = self._plant_config()
+        if plant is not None:
+            cap = per_interval(plant.ogs_max_o2_kg_day, plant.ogs_operation_seconds)
+            return max(1e-9, min(from_water, cap))
+        return max(1e-9, from_water)
+
+    def _wrs_max_feed_l(self) -> float:
+        plant = self._plant_config()
+        if plant is not None:
+            return float(plant.wrs_max_feed_l_per_operation)
+        return 10.0
+
+    def _labeled_needed_counts(
+        self,
+        obs: EclssLoopObservation,
+        *,
+        co2_high: float,
+        co2_critical: float,
+        o2_low: float,
+        co2: Optional[float],
+        o2: Optional[float],
+    ) -> Dict[str, int]:
+        co2 = _finite_reading(co2)
+        o2 = _finite_reading(o2)
+        in_critical = co2 is not None and co2 >= co2_critical
+        water_low = float(self.policy.get("product_water_low_l", DEFAULT_PRODUCT_WATER_LOW_L))
+        water = _finite_reading(obs.telemetry.product_water_reserve_l)
+        urine_l, grey_l = self._waste_buffers(obs)
+        waste_feed_l = urine_l + grey_l
+        wrs_trigger_l = float(self.policy.get("wrs_feed_trigger_l", 0.5))
+        urine_req = float((self.policy.get("wrs_goal") or {}).get("urine_volume", 2.0))
+        ars_n = 0
+        if co2 is not None and co2 >= co2_high:
+            ars_n = _ceil_positive((co2 - co2_high) + 1e-6, self._ars_effect_kg(in_critical=in_critical))
+        ogs_n = 0
+        if o2 is not None and o2 <= o2_low:
+            ogs_n = _ceil_positive((o2_low - o2) + 1e-6, self._ogs_effect_kg())
+        wrs_n = 0
+        water_low_band = water is not None and water <= water_low
+        if waste_feed_l >= wrs_trigger_l or (water_low_band and waste_feed_l > 0.0):
+            wrs_n = _wrs_batches_to_empty(
+                urine_l,
+                grey_l,
+                urine_request_l=urine_req,
+                max_feed_l=self._wrs_max_feed_l(),
+            )
+            if wrs_n == 0 and waste_feed_l > 0.0:
+                wrs_n = 1
+        return {"ars": ars_n, "ogs": ogs_n, "wrs": wrs_n}
+
     def _labeled_recovery(
         self,
         obs: EclssLoopObservation,
-        rep: str,
+        reps: List[str],
         co2_high: float,
         co2_critical: float,
         o2_low: float,
@@ -306,18 +482,56 @@ class SsosEclssLoopTeam(Team):
         self._rearm_labeled_recovery(co2, o2, co2_high, o2_low)
         messages: List[AgentMessage] = []
         commands: List[EclssOperationalCommand] = []
-
         in_critical = co2 is not None and co2 >= co2_critical
-        # High/warning band is one-shot (ars_invoked). Critical band keeps
-        # recovering until CO₂ leaves critical — otherwise a partial ARS drop
-        # that stays >= critical stalls with both latches set.
-        need_ars = co2 is not None and co2 >= co2_high and (
-            not self.state.ars_invoked or in_critical
+        wrs_trigger_l = float(self.policy.get("wrs_feed_trigger_l", 0.5))
+        waste_feed_l = self._waste_feed_l(obs)
+        counts = self._labeled_needed_counts(
+            obs,
+            co2_high=co2_high,
+            co2_critical=co2_critical,
+            o2_low=o2_low,
+            co2=co2,
+            o2=o2,
         )
-        if need_ars:
+        slots = interleave_labeled_actions(counts, self.max_actions_per_step)
+        for slot, name in enumerate(slots):
+            extra_msgs, extra_cmds = self._emit_labeled_subsystem(
+                obs,
+                reps[slot % len(reps)],
+                name,
+                co2=co2,
+                o2=o2,
+                co2_high=co2_high,
+                co2_critical=co2_critical,
+                o2_low=o2_low,
+                waste_feed_l=waste_feed_l,
+                wrs_trigger_l=wrs_trigger_l,
+                in_critical=in_critical,
+            )
+            messages.extend(extra_msgs)
+            commands.extend(extra_cmds)
+        return messages, commands
+
+    def _emit_labeled_subsystem(
+        self,
+        obs: EclssLoopObservation,
+        rep: str,
+        name: str,
+        *,
+        co2: Optional[float],
+        o2: Optional[float],
+        co2_high: float,
+        co2_critical: float,
+        o2_low: float,
+        waste_feed_l: float,
+        wrs_trigger_l: float,
+        in_critical: bool,
+    ) -> Tuple[List[AgentMessage], List[EclssOperationalCommand]]:
+        messages: List[AgentMessage] = []
+        commands: List[EclssOperationalCommand] = []
+        if name == "ars":
             ars_payload = dict(self.policy.get("ars_goal", {}))
             if in_critical:
-                # Escalate processed mass when verification critical band is breached (T3).
                 base_mass = float(ars_payload.get("initial_co2_mass", 1.8))
                 ars_payload["initial_co2_mass"] = base_mass * 1.5
             commands.append(
@@ -331,11 +545,6 @@ class SsosEclssLoopTeam(Team):
             self.state.co2_at_ars_dispatch = co2
             if in_critical:
                 self.state.ars_critical_escalated = True
-            reason = (
-                f"CO2 storage {co2:.1f} kg >= critical {co2_critical:.1f} kg; escalated ARS."
-                if in_critical
-                else f"CO2 storage {co2:.1f} kg >= {co2_high:.1f} kg."
-            )
             messages.append(
                 AgentMessage(
                     step=obs.step,
@@ -347,15 +556,16 @@ class SsosEclssLoopTeam(Team):
                         else "Starting ARS air_revitalisation to vent CO2 from storage."
                     ),
                     message_type="operational_command",
-                    reasoning=reason,
+                    reasoning=(
+                        f"CO2 storage {co2:.1f} kg >= critical {co2_critical:.1f} kg; escalated ARS."
+                        if in_critical
+                        else f"CO2 storage {co2:.1f} kg >= {co2_high:.1f} kg."
+                    ),
                     metadata=self._rule_metadata(),
                 )
             )
-
-        if o2 is not None and o2 <= o2_low and not self.state.ogs_invoked:
-            # Opt-in: explicit request_co2 before OGS. Default is false because real SSOS
-            # OGS already calls /ars/request_co2 for Sabatier. With LoopMock (no CO₂ buffer),
-            # true also runs OGS Sabatier storage debit in the same step → double CO₂ draw.
+            return messages, commands
+        if name == "ogs":
             if self.policy.get("request_co2_before_ogs", False) and not self.state.co2_requested:
                 amount = float(self.policy.get("request_co2_amount", 0.025))
                 commands.append(
@@ -377,7 +587,6 @@ class SsosEclssLoopTeam(Team):
                         metadata=self._rule_metadata(),
                     )
                 )
-
             ogs_payload = dict(self.policy.get("ogs_goal", {}))
             commands.append(
                 EclssOperationalCommand(
@@ -399,38 +608,51 @@ class SsosEclssLoopTeam(Team):
                     metadata=self._rule_metadata(),
                 )
             )
-
-        # WRS: reclaim water once urine/grey feed has accumulated (plant_sim closes
-        # the water loop). Threshold-gated, so it re-fires as buffers refill.
-        raw_topics = obs.telemetry.raw_topics or {}
-        plant_sim_topics = raw_topics.get("plant_sim") if isinstance(raw_topics, dict) else {}
-        urine_buffer_l = 0.0
-        if isinstance(plant_sim_topics, dict):
-            urine_buffer_l = float(plant_sim_topics.get("urine_buffer_l") or 0.0)
-        waste_feed_l = float(obs.telemetry.grey_water_collected_l or 0.0) + urine_buffer_l
-        wrs_trigger_l = float(self.policy.get("wrs_feed_trigger_l", 0.5))
-        if waste_feed_l >= wrs_trigger_l:
-            wrs_payload = dict(self.policy.get("wrs_goal", {"urine_volume": 2.0}))
-            commands.append(
-                EclssOperationalCommand(
-                    kind="water_recovery",
-                    payload=wrs_payload,
-                    issued_by=rep,
-                )
+            return messages, commands
+        wrs_payload = dict(self.policy.get("wrs_goal", {"urine_volume": 2.0}))
+        commands.append(
+            EclssOperationalCommand(
+                kind="water_recovery",
+                payload=wrs_payload,
+                issued_by=rep,
             )
-            messages.append(
-                AgentMessage(
-                    step=obs.step,
-                    from_role=rep,
-                    to_role="team",
-                    message="Starting WRS water_recovery to reclaim urine/grey water.",
-                    message_type="operational_command",
-                    reasoning=f"Waste feed {waste_feed_l:.2f} L >= {wrs_trigger_l:.2f} L.",
-                    metadata=self._rule_metadata(),
-                )
+        )
+        feed_meets_trigger = waste_feed_l >= wrs_trigger_l
+        messages.append(
+            AgentMessage(
+                step=obs.step,
+                from_role=rep,
+                to_role="team",
+                message=(
+                    "Starting WRS water_recovery to reclaim urine/grey water."
+                    if feed_meets_trigger
+                    else "Starting WRS water_recovery because product water is LOW (feed below trigger)."
+                ),
+                message_type="operational_command",
+                reasoning=self._wrs_start_reasoning(
+                    obs, waste_feed_l=waste_feed_l, wrs_trigger_l=wrs_trigger_l
+                ),
+                metadata=self._rule_metadata(),
             )
-
+        )
         return messages, commands
+
+    def _wrs_start_reasoning(
+        self,
+        obs: EclssLoopObservation,
+        *,
+        waste_feed_l: float,
+        wrs_trigger_l: float,
+    ) -> str:
+        if waste_feed_l >= wrs_trigger_l:
+            return f"Waste feed {waste_feed_l:.2f} L >= {wrs_trigger_l:.2f} L."
+        water_low = float(self.policy.get("product_water_low_l", DEFAULT_PRODUCT_WATER_LOW_L))
+        water = obs.telemetry.product_water_reserve_l
+        water_s = f"{water:.2f} L" if water is not None else "unknown"
+        return (
+            f"Product water {water_s} <= {water_low:.2f} L "
+            f"with waste feed {waste_feed_l:.2f} L (below trigger {wrs_trigger_l:.2f} L)."
+        )
 
     async def _llm_deliberation_turn(
         self,

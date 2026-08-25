@@ -334,6 +334,18 @@ class SsosEclssLoopScenario(Scenario):
         actor = flatten_actor_config(agents_config)
         if actor.get("mode") not in {"labeled_rule_base", "llm"}:
             return None
+        backend_kind = resolve_backend_kind(config)
+        merged_backend = dict(config.get("backend") or {})
+        if isinstance(actor.get("backend"), dict):
+            merged_backend.update(actor["backend"])
+        merged_backend["kind"] = backend_kind
+        actor["backend"] = merged_backend
+        merge_keys = ("simulation", "mock_dynamics", "thresholds")
+        if backend_kind != "mock":
+            merge_keys = ("plant_sim",) + merge_keys
+        for key in merge_keys:
+            if key not in actor and config.get(key) is not None:
+                actor[key] = config.get(key)
         return SsosEclssLoopTeam(actor)
 
     def run(
@@ -557,8 +569,7 @@ class SsosEclssLoopScenario(Scenario):
             summary["team_count"] = team.team_cfg.count
             summary["agent_ids"] = list(team.team_cfg.agent_ids)
             summary["agent_ids_remaining"] = list(team.active_ids)
-            if team.mode == "llm":
-                summary["max_actions_per_step"] = team.max_actions_per_step
+            summary["max_actions_per_step"] = team.max_actions_per_step
 
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
             actor_cfg = flatten_actor_config(agents_config)
