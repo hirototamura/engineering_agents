@@ -240,13 +240,17 @@ class SsosEclssLoopTeam(Team):
         return self._run_step_labeled(obs)
 
     def apply_outcome(self, backend: EclssBackend, outcome: StepEclssOutcome) -> List[Dict[str, Any]]:
-        """Apply this step's commands, at most one per subsystem / service group.
+        """Apply this step's commands, at most one attempt per subsystem / service.
 
         The gate is deterministic and mode-independent (labeled, llm, tests):
-        the first command of a group is applied, every later one is recorded as
-        ``operational_rejected`` with ``reason=duplicate_command_this_step``.
-        ``max_actions_per_step`` still sizes the action round; this is the
-        execution-side safety net (design doc §7).
+        the first command of a group takes the group's slot for this step, every
+        later one is recorded as ``operational_rejected`` with
+        ``reason=duplicate_command_this_step``. The slot is spent on the attempt,
+        not on success — a first command the backend rejects (busy subsystem,
+        failed subsystem, invalid payload) still blocks the rest of the step, so
+        a team cannot retry its way past the limit. ``max_actions_per_step``
+        still sizes the action round; this is the execution-side safety net
+        (design doc §7).
         """
         events: List[Dict[str, Any]] = []
         used_groups: set[str] = set()

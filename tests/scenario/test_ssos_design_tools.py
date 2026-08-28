@@ -244,3 +244,32 @@ def test_plot_writes_a_png_with_the_same_numbers(baseline: Path, tmp_path: Path)
     # boolean failure flags are series too (0 / 1)
     assert result["columns"]["ars_failure_enabled"]["max"] in (0.0, 1.0)
     assert toolkit.plot_paths == [str(plot_path)]
+
+
+def test_a_single_column_name_is_read_as_one_column(baseline: Path):
+    """A model that means one column writes the bare string, not a list."""
+    toolkit = _toolkit(baseline)
+    result = toolkit.call("summarize_timeseries", {"columns": "co2_storage_kg"})
+    # not list("co2_storage_kg") -> fourteen one-character columns
+    assert list(result["columns"]) == ["co2_storage_kg"]
+    assert result["columns"]["co2_storage_kg"]["n"] > 0
+    assert toolkit.call("load_run_artifacts", {"files": "summary"})["summary"]
+    single = toolkit.call("propose_capacity_candidate", {"subsystems": "ars"})
+    assert list(single["fields"]) == ["plant_sim.ars.capacity_kg_day"]
+
+
+def test_a_list_argument_of_the_wrong_type_is_a_visible_error(baseline: Path):
+    result = _toolkit(baseline).call("summarize_timeseries", {"columns": {"a": 1}})
+    assert "columns must be a list of names" in result["error"]
+
+
+def test_housekeeping_calls_do_not_credit_the_evidence_ledger(baseline: Path):
+    """Report assembly re-ranks candidates; the ledger records the designer only."""
+    toolkit = _toolkit(baseline)
+    fields = {"plant_sim.ars.capacity_kg_day": 24.0}
+    toolkit.call("run_design_candidate", {"fields": fields})
+    toolkit.call("compare_design_runs", {}, record_evidence=False)
+    assert toolkit.evidence.get("compared_runs") is not True
+    assert "compared_runs" in toolkit.missing_evidence()
+    toolkit.call("compare_design_runs", {})
+    assert toolkit.evidence["compared_runs"] is True

@@ -17,6 +17,12 @@ simulated (design doc §8.1). Only ``preflight`` (schema / numeric / variable
 scope) blocks a run; budgets and engineering bounds are labels that steer the
 final choice, because "over-budget but everyone survives" is still a useful
 lesson for the designer.
+
+``design_constraints.enabled: false`` turns the labelling off entirely: the
+footprint is still reported, but no candidate is called over-budget or out of
+bounds, so ``require_feasible_final`` stops filtering. ``preflight`` is not
+affected — a candidate that names a variable outside the design scope is still
+invalid.
 """
 
 from __future__ import annotations
@@ -306,6 +312,7 @@ class DesignConstraints:
         if preflight_status == STATUS_INVALID:
             return {
                 "constraint_status": STATUS_INVALID,
+                "constraints_enforced": self.enabled,
                 "preflight_status": preflight_status,
                 "preflight_errors": preflight_errors,
                 "violations": preflight_errors,
@@ -316,30 +323,36 @@ class DesignConstraints:
         baseline = self.baseline_footprint()
         capacity = self.capacity_by_subsystem(fields)
 
+        # ``enabled: false`` keeps the footprint numbers (they still describe the
+        # candidate) but stops labelling anything infeasible, so budgets and
+        # engineering bounds no longer steer the final choice.
         bound_violations: List[str] = []
-        for sub in _SUBSYSTEMS:
-            key = _CAPACITY_KEY_BY_SUBSYSTEM[sub]
-            if key not in fields:
-                continue
-            low, high = self.bounds[sub]["min"], self.bounds[sub]["max"]
-            value = capacity[sub]
-            if value < low:
-                bound_violations.append(f"{key}={value:g} below min {low:g}")
-            elif value > high:
-                bound_violations.append(f"{key}={value:g} above max {high:g}")
-
         budget_violations: List[str] = []
-        checks = (
-            ("max_total_mass_kg", footprint["total_mass_kg"], "total_mass_kg"),
-            ("max_total_cost_musd", footprint["total_cost_musd"], "total_cost_musd"),
-            ("max_total_volume_m3", footprint["total_volume_m3"], "total_volume_m3"),
-        )
-        for budget_key, value, label in checks:
-            cap = self.budgets.get(budget_key)
-            if cap is None:
-                continue
-            if value > cap + 1e-9:
-                budget_violations.append(f"{label}={value:.3f} exceeds {budget_key}={cap:g}")
+        if self.enabled:
+            for sub in _SUBSYSTEMS:
+                key = _CAPACITY_KEY_BY_SUBSYSTEM[sub]
+                if key not in fields:
+                    continue
+                low, high = self.bounds[sub]["min"], self.bounds[sub]["max"]
+                value = capacity[sub]
+                if value < low:
+                    bound_violations.append(f"{key}={value:g} below min {low:g}")
+                elif value > high:
+                    bound_violations.append(f"{key}={value:g} above max {high:g}")
+
+            checks = (
+                ("max_total_mass_kg", footprint["total_mass_kg"], "total_mass_kg"),
+                ("max_total_cost_musd", footprint["total_cost_musd"], "total_cost_musd"),
+                ("max_total_volume_m3", footprint["total_volume_m3"], "total_volume_m3"),
+            )
+            for budget_key, value, label in checks:
+                cap = self.budgets.get(budget_key)
+                if cap is None:
+                    continue
+                if value > cap + 1e-9:
+                    budget_violations.append(
+                        f"{label}={value:.3f} exceeds {budget_key}={cap:g}"
+                    )
 
         if bound_violations:
             status = STATUS_OUT_OF_BOUNDS
@@ -355,6 +368,7 @@ class DesignConstraints:
         }
         return {
             "constraint_status": status,
+            "constraints_enforced": self.enabled,
             "preflight_status": preflight_status,
             "preflight_errors": [],
             "fields": {key: float(value) for key, value in fields.items()},

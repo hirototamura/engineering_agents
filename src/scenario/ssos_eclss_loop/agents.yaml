@@ -70,7 +70,8 @@ design:
     enabled: true  # false = classic summary-only post-run design proposal
     max_tool_iterations: 12  # [-] turns before the deterministic fallback takes over
     max_candidate_runs: 4  # [-] candidate re-simulations allowed per review
-    require_candidate_validation: true  # final proposal must be backed by a candidate run
+    # Candidate validation is not a knob: the Evidence Gate always requires a
+    # re-simulated candidate, and the adopted fields always come from its record.
     # Actor mode inside candidate runs: inherit keeps the baseline crew. Use
     # labeled_rule_base to score candidates cheaply when the crew is an LLM team.
     candidate_actor_mode: inherit  # inherit | labeled_rule_base | llm | none

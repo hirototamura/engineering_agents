@@ -153,7 +153,6 @@ design:
     enabled: true                 # false で従来の summary 直読み designer に戻る
     max_tool_iterations: 12
     max_candidate_runs: 4
-    require_candidate_validation: true
     candidate_actor_mode: inherit # 候補ラン内の actor mode。LLM 乗員のときは labeled_rule_base が安い
     plots_enabled: true
 ```

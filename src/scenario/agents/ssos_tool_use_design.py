@@ -8,7 +8,10 @@ guardrails, not the order of thought:
 * one tool call per turn, from a fixed catalog
 * ``max_tool_iterations`` / ``max_candidate_runs``
 * an Evidence Gate that rejects a ``final_proposal`` which is not backed by
-  artifacts, theory, constraints, a candidate re-simulation and a comparison
+  artifacts, theory, constraints, a candidate re-simulation and a comparison.
+  Candidate validation is an invariant, not a switch: the adopted fields always
+  come from a record written by ``run_design_candidate``, so there is no
+  configuration under which an unverified design is proposed
 * a deterministic rule fallback so the run always yields a design
 
 The Expert Context Pack in the prompt exists because a 8B–32B model, left to
@@ -105,7 +108,6 @@ class ToolUseSettings:
     llm_overrides: Dict[str, Any] = field(default_factory=dict)
     max_tool_iterations: int = DEFAULT_MAX_TOOL_ITERATIONS
     max_candidate_runs: int = DEFAULT_MAX_CANDIDATE_RUNS
-    require_candidate_validation: bool = True
     candidate_actor_mode: str = "inherit"
     candidate_steps: Optional[int] = None
     plots_enabled: bool = True
@@ -133,7 +135,6 @@ class ToolUseSettings:
             llm_overrides=dict(llm_overrides) if isinstance(llm_overrides, Mapping) else {},
             max_tool_iterations=as_int("max_tool_iterations", DEFAULT_MAX_TOOL_ITERATIONS),
             max_candidate_runs=as_int("max_candidate_runs", DEFAULT_MAX_CANDIDATE_RUNS),
-            require_candidate_validation=bool(raw.get("require_candidate_validation", True)),
             candidate_actor_mode=str(raw.get("candidate_actor_mode", "inherit")),
             candidate_steps=candidate_steps,
             plots_enabled=bool(raw.get("plots_enabled", True)),
@@ -506,7 +507,14 @@ class ToolUseDesignAgent:
         result: Mapping[str, Any],
     ) -> Dict[str, Any]:
         run_dir = Path(getattr(bundle, "run_dir", None) or ".")
-        comparison = toolkit.call("compare_design_runs", {}) if toolkit.candidates else {}
+        # Housekeeping, not designer work: re-rank whatever was simulated without
+        # crediting the evidence ledger, so `evidence` still reports what the
+        # designer itself collected.
+        comparison = (
+            toolkit.call("compare_design_runs", {}, record_evidence=False)
+            if toolkit.candidates
+            else {}
+        )
         ranked = toolkit.ranked_candidates
         selection = toolkit.selection or {
             "final_status": STATUS_REJECTED,

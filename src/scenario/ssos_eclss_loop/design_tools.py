@@ -128,6 +128,30 @@ def _numeric_series(
     return series
 
 
+def _name_list(value: Any, *, argument: str) -> Optional[List[str]]:
+    """Normalise a "list of names" argument coming from model-written JSON.
+
+    A model that means one column often writes the bare string, and ``list("co2")``
+    would silently become three one-character column names. A single string is
+    therefore read as a one-element list; anything that is not a string or a
+    sequence of them is an error the model can see and correct. ``None`` means
+    "not given" so the caller can apply its own default.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else None
+    if isinstance(value, (list, tuple)):
+        names = [str(item).strip() for item in value]
+        names = [name for name in names if name]
+        return names or None
+    raise ValueError(
+        f"{argument} must be a list of names or a single name, "
+        f"got {type(value).__name__}"
+    )
+
+
 def _round(value: Any, digits: int = 4) -> Any:
     if isinstance(value, float) and math.isfinite(value):
         return round(value, digits)
@@ -280,7 +304,20 @@ class DesignToolkit:
     def tool_names(self) -> List[str]:
         return list(self._specs)
 
-    def call(self, name: str, arguments: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+    def call(
+        self,
+        name: str,
+        arguments: Optional[Mapping[str, Any]] = None,
+        *,
+        record_evidence: bool = True,
+    ) -> Dict[str, Any]:
+        """Dispatch one tool call.
+
+        ``record_evidence=False`` runs the tool without crediting the evidence
+        ledger, which stays a record of what the *designer* did. Report assembly
+        re-runs ``compare_design_runs`` as housekeeping and must not make the
+        audit trail claim the designer compared anything.
+        """
         handler = self._handlers.get(name)
         if handler is None:
             return {
@@ -298,7 +335,7 @@ class DesignToolkit:
                 "traceback_excerpt": traceback.format_exc(limit=3)[-600:],
             }
         spec = self._specs[name]
-        if spec.evidence and not result.get("error"):
+        if record_evidence and spec.evidence and not result.get("error"):
             self.evidence[spec.evidence] = True
         return result
 
@@ -311,7 +348,10 @@ class DesignToolkit:
         head: int = 3,
         tail: int = 3,
     ) -> Dict[str, Any]:
-        wanted = list(files) if files else list(ARTIFACT_FILES)
+        try:
+            wanted = _name_list(files, argument="files") or list(ARTIFACT_FILES)
+        except ValueError as exc:
+            return {"error": str(exc), "available": sorted(ARTIFACT_FILES)}
         unknown = [name for name in wanted if name not in ARTIFACT_FILES]
         if unknown:
             return {
@@ -386,7 +426,10 @@ class DesignToolkit:
                 "overall_by_step_excerpt": per_step[:12] + (["…"] if len(per_step) > 12 else []),
             }
 
-        names = list(columns) if columns else list(DEFAULT_TIMESERIES_COLUMNS)
+        try:
+            names = _name_list(columns, argument="columns") or list(DEFAULT_TIMESERIES_COLUMNS)
+        except ValueError as exc:
+            return {"error": str(exc)}
         out: Dict[str, Any] = {"source": source, "row_count": len(rows), "columns": {}}
         for name in names:
             series = _numeric_series(rows, name)
@@ -766,7 +809,10 @@ class DesignToolkit:
         run_dir: Optional[str] = None,
         filename: Optional[str] = None,
     ) -> Dict[str, Any]:
-        names = list(columns) if columns else list(DEFAULT_TIMESERIES_COLUMNS)
+        try:
+            names = _name_list(columns, argument="columns") or list(DEFAULT_TIMESERIES_COLUMNS)
+        except ValueError as exc:
+            return {"error": str(exc)}
         summary = self.summarize_timeseries(source="telemetry", columns=names, run_dir=run_dir)
         if summary.get("error"):
             return summary
@@ -874,7 +920,11 @@ class DesignToolkit:
             return {"error": "margin must be numeric"}
         if not math.isfinite(margin_value) or margin_value <= 0:
             return {"error": "margin must be finite and > 0"}
-        wanted = [s.lower() for s in (subsystems or ("ars", "ogs", "wrs"))]
+        try:
+            requested = _name_list(subsystems, argument="subsystems")
+        except ValueError as exc:
+            return {"error": str(exc)}
+        wanted = [s.lower() for s in (requested or ("ars", "ogs", "wrs"))]
         unknown = [s for s in wanted if s not in ("ars", "ogs", "wrs")]
         if unknown:
             return {"error": f"unknown subsystem(s): {unknown}"}

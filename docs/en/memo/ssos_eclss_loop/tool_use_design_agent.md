@@ -151,7 +151,6 @@ design:
     enabled: true                 # false → classic summary-only designer
     max_tool_iterations: 12
     max_candidate_runs: 4
-    require_candidate_validation: true
     candidate_actor_mode: inherit # actor mode inside candidate runs
     plots_enabled: true
 ```

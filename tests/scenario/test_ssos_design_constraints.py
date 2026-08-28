@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 import yaml
 
@@ -186,3 +188,31 @@ def test_band_counts_ignore_post_ops_rows():
     assert counts["warning_step_count"] == 1
     assert counts["critical_step_count"] == 1
     assert counts["first_critical_step"] == 2
+
+
+def test_disabled_constraints_report_the_footprint_without_labelling_it():
+    """`design_constraints.enabled: false` stops labelling, not measuring."""
+    oversized = {
+        "plant_sim.ars.capacity_kg_day": 200.0,  # past the 80 kg/day bound
+        "plant_sim.ogs.max_o2_kg_day": 200.0,
+        "plant_sim.wrs.max_feed_l_per_operation": 10.0,
+    }
+    enforced = _constraints()
+    labelled = enforced.evaluate(oversized)
+    assert labelled["constraint_status"] == STATUS_OUT_OF_BOUNDS
+    assert labelled["constraints_enforced"] is True
+
+    off = replace(enforced, enabled=False)
+    result = off.evaluate(oversized)
+    assert result["constraint_status"] == STATUS_FEASIBLE
+    assert result["constraints_enforced"] is False
+    assert result["violations"] == []
+    # the numbers are still there; only the verdict is withheld
+    assert result["total_mass_kg"] == pytest.approx(labelled["total_mass_kg"])
+    assert off.should_simulate(result["constraint_status"]) is True
+
+
+def test_disabled_constraints_still_reject_a_variable_outside_the_design_scope():
+    off = replace(_constraints(), enabled=False)
+    result = off.evaluate({"plant_sim.ogs.recovery_efficiency": 0.9})
+    assert result["constraint_status"] == STATUS_INVALID
