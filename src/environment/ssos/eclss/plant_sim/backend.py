@@ -62,6 +62,10 @@ class PlantSimEclssBackend:
         self.last_wrs_goal: Optional[WrsGoal] = None
         self._last_metabolism: Optional[Dict[str, float]] = None
         self._last_survival: Dict[str, Any] = {"lost_this_step": 0, "limiting": []}
+        # Operation duration guard (design doc §7.1): a subsystem accepted now
+        # stays busy for ceil(operation_seconds / step_seconds) steps.
+        self._step_index = 0
+        self._busy_remaining: Dict[str, int] = {sub: 0 for sub in _SUBSYSTEMS}
 
     @classmethod
     def from_scenario_config(cls, config: Mapping[str, Any]) -> "PlantSimEclssBackend":
@@ -72,7 +76,52 @@ class PlantSimEclssBackend:
     # ------------------------------------------------------------------ #
     def advance_step(self) -> None:
         self._last_survival = {"lost_this_step": 0, "limiting": []}
+        self._step_index += 1
+        for sub, remaining in self._busy_remaining.items():
+            if remaining > 0:
+                self._busy_remaining[sub] = remaining - 1
         self._last_metabolism = self.model.advance_step()
+
+    # ------------------------------------------------------------------ #
+    # operation duration / busy guard
+    # ------------------------------------------------------------------ #
+    def busy_steps(self, subsystem: str) -> int:
+        """Steps a single ``subsystem`` operation occupies (>= 1)."""
+        c = self.config
+        seconds = {
+            "ars": c.ars_operation_seconds,
+            "ogs": c.ogs_operation_seconds,
+            "wrs": c.wrs_operation_seconds,
+        }[subsystem]
+        step_seconds = max(float(c.step_seconds), 1e-9)
+        return max(1, int(math.ceil(float(seconds) / step_seconds)))
+
+    def busy_remaining_steps(self, subsystem: str) -> int:
+        return int(self._busy_remaining.get(subsystem, 0))
+
+    def _busy_rejection(self, subsystem: str, label: str) -> Optional[ActionResult]:
+        if not self.config.operation_busy_guard_enabled:
+            return None
+        remaining = int(self._busy_remaining.get(subsystem, 0))
+        if remaining <= 0:
+            return None
+        return ActionResult(
+            False,
+            f"{label} rejected: {subsystem.upper()} is busy for {remaining} more step(s)",
+            {
+                "rejected": True,
+                "reason": "subsystem_busy",
+                "subsystem": subsystem,
+                "remaining_steps": remaining,
+                "busy_until_step": self._step_index + remaining,
+                "operation_busy_steps": self.busy_steps(subsystem),
+            },
+        )
+
+    def _mark_busy(self, subsystem: str) -> None:
+        if not self.config.operation_busy_guard_enabled:
+            return
+        self._busy_remaining[subsystem] = self.busy_steps(subsystem)
 
     def apply_capacity_drop(self) -> Dict[str, Any]:
         """Physics floor after band-dwell; returns physics-only lost/limiting.
@@ -122,6 +171,9 @@ class PlantSimEclssBackend:
             "total_wrs_brine_loss_l": s.total_wrs_brine_loss_l,
             "total_o2_shortfall_kg": s.total_o2_shortfall_kg,
             "total_water_shortfall_l": s.total_water_shortfall_l,
+            "ars_busy_steps_remaining": int(self._busy_remaining["ars"]),
+            "ogs_busy_steps_remaining": int(self._busy_remaining["ogs"]),
+            "wrs_busy_steps_remaining": int(self._busy_remaining["wrs"]),
             "crew_initial": self.config.crew_size,
             "crew_alive": s.crew_alive,
             "crew_lost_total": s.crew_lost_total,
@@ -167,7 +219,11 @@ class PlantSimEclssBackend:
                 )
         if self._failure_flags["ars"]:
             return ActionResult(False, "ARS subsystem failure: no operation", {"failed": True})
+        busy = self._busy_rejection("ars", "air_revitalisation")
+        if busy is not None:
+            return busy
 
+        self._mark_busy("ars")
         result = self.model.run_ars(mass)
         result["ignored_inputs"] = ["initial_moisture_content", "initial_contaminants"]
         return ActionResult(True, "air_revitalisation complete", result)
@@ -183,7 +239,11 @@ class PlantSimEclssBackend:
             )
         if self._failure_flags["ogs"]:
             return ActionResult(False, "OGS subsystem failure: no operation", {"failed": True})
+        busy = self._busy_rejection("ogs", "oxygen_generation")
+        if busy is not None:
+            return busy
 
+        self._mark_busy("ogs")
         result = self.model.run_ogs(water)
         return ActionResult(True, "oxygen_generation complete", result)
 
@@ -198,11 +258,16 @@ class PlantSimEclssBackend:
             )
         if self._failure_flags["wrs"]:
             return ActionResult(False, "WRS subsystem failure: no operation", {"failed": True})
+        busy = self._busy_rejection("wrs", "water_recovery")
+        if busy is not None:
+            return busy
 
         result = self.model.run_wrs(urine)
         if not result["has_feed"]:
+            # A no-feed batch never ran, so it does not occupy the WRS.
             result["reason"] = "no_feed"
             return ActionResult(False, "water_recovery no-op: no feed available", result)
+        self._mark_busy("wrs")
         return ActionResult(True, "water_recovery complete", result)
 
     # ------------------------------------------------------------------ #

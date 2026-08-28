@@ -90,6 +90,7 @@ plugins:
                 - Occupant survival: memo/ssos_eclss_loop/occupant_survival.md
                 - Labeled rule-base: memo/ssos_eclss_loop/labeled_rule_base.md
                 - Post-run design agent: memo/ssos_eclss_loop/post_run_design_agent.md
+                - Tool-use design agent: memo/ssos_eclss_loop/tool_use_design_agent.md
                 - Persona LLM OOP plan: memo/agents/persona_llm_core_oop_plan.md
                 - Persona workshop draft: memo/agents/persona_workshop_draft.md
         - locale: ja
@@ -148,6 +149,7 @@ plugins:
                 - 乗員サバイバル: memo/ssos_eclss_loop/occupant_survival.md
                 - ラベル付きルールベース: memo/ssos_eclss_loop/labeled_rule_base.md
                 - 事後設計エージェント: memo/ssos_eclss_loop/post_run_design_agent.md
+                - Tool Use 設計エージェント: memo/ssos_eclss_loop/tool_use_design_agent.md
                 - CLI v3 プラン: memo/cli_v3_plan.md
                 - Persona LLM OOP: memo/agents/persona_llm_core_oop_plan.md
                 - Persona ワークショップ: memo/agents/persona_workshop_draft.md

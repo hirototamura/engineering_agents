@@ -17,16 +17,28 @@ from scenario.ssos_eclss_loop.scenario_run import (
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 
 
-def _ssos_agents(mode: str, *, count: int = 4, design_mode: str | None = None) -> dict:
+def _ssos_agents(
+    mode: str,
+    *,
+    count: int = 4,
+    design_mode: str | None = None,
+    tool_use: bool = False,
+) -> dict:
+    """Agent overrides for a scenario run.
+
+    ``tool_use`` defaults to False so these cases keep exercising the classic
+    summary-only post-run designer; agents.yaml ships the tool-use loop enabled
+    (design doc §11) and it is covered by test_ssos_tool_use_design.py.
+    """
     agents: dict = {
         "mode": mode,
         "actor": {"mode": mode, "team": {"count": count, "id_prefix": "eclss_actor"}},
     }
+    design: dict = {"tool_use": {"enabled": tool_use}}
     if design_mode is not None:
-        agents["design"] = {
-            "mode": design_mode,
-            "team": {"count": 4, "id_prefix": "eclss_designer"},
-        }
+        design["mode"] = design_mode
+        design["team"] = {"count": 4, "id_prefix": "eclss_designer"}
+    agents["design"] = design
     return {"agents": agents}
 
 

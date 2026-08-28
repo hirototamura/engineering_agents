@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.agents.memory import TeamMemoryStore
@@ -19,6 +20,7 @@ from core.agents.persona import (
 from core.agents.types import AgentMessage, DeliberationPhase
 from core.llm.base import LLMClient
 from core.llm.factory import build_llm_client
+from scenario.agents.ssos_tool_use_design import ToolUseDesignAgent, ToolUseSettings
 from scenario.ssos_eclss_loop.design_proposals import (
     DESIGN_DOMAIN,
     SSOS_CHANGE_KINDS,
@@ -43,6 +45,10 @@ class DesignReviewBundle:
     baseline_graph: Dict[str, Any]
     policy: Dict[str, Any]
     actor_snapshot: Optional[ActorTeamSnapshot] = None
+    # Tool-use designers read the run's artifacts and write candidate runs
+    # underneath it; the classic summary-only designers ignore both fields.
+    run_dir: Optional[Path] = None
+    agents_config: Optional[Dict[str, Any]] = None
 
 
 def post_run_message_step(summary: Dict[str, Any]) -> int:
@@ -62,6 +68,7 @@ class PostRunDesignAgent:
         self.config = config
         self.mode = config.get("mode", "none")
         self.llm_mode = self.mode == "llm"
+        self.tool_use = ToolUseSettings.from_design_config(config)
         self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_mode else None
         team_cfg = dict(config)
         team_raw = dict(team_cfg.get("team") or {})
@@ -86,6 +93,8 @@ class PostRunDesignAgent:
 
     def propose(self, bundle: DesignReviewBundle) -> Dict[str, Any]:
         baseline_graph = dict(bundle.baseline_graph or {})
+        if self.llm_mode and self.tool_use.enabled:
+            return self._tool_use_propose(bundle)
         if self.llm_mode:
             return self._llm_propose(bundle, baseline_graph)
         proposed_by = self.team_cfg.agent_ids[0] if self.team_cfg.agent_ids else "eclss_designer_1"
@@ -111,6 +120,29 @@ class PostRunDesignAgent:
             ).to_dict()
         ]
         return proposals
+
+    def _tool_use_propose(self, bundle: DesignReviewBundle) -> Dict[str, Any]:
+        """Delegate to the single tool-use designer (design doc §11).
+
+        ``design.team.count`` may still be > 1 for the classic designer; the
+        tool-use loop is deliberately one agent for now, so it takes the first
+        designer id and the shared persona.
+        """
+        agent_id = (
+            self.team_cfg.agent_ids[0] if self.team_cfg.agent_ids else "eclss_designer_1"
+        )
+        persona = self.personas[agent_id].persona if agent_id in self.personas else ""
+        llm_client = self.llm_client
+        if self.tool_use.llm_overrides and llm_client is not None:
+            merged = {**dict(self.config.get("llm") or {}), **self.tool_use.llm_overrides}
+            llm_client = self._build_llm_client(merged)
+        agent = ToolUseDesignAgent(
+            agent_id=agent_id,
+            persona=persona,
+            settings=self.tool_use,
+            llm_client=llm_client,
+        )
+        return agent.propose(bundle)
 
     def _rep_id(self, summary: Dict[str, Any]) -> str:
         # Designers are a separate team from actors. Labeled always uses

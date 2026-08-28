@@ -197,11 +197,16 @@ def eclss_operational_action_contract() -> str:
         'Optional key: "memory". '
         f"{output_word_limits_clause()} "
         '"commands" is a list of {"kind","payload"} objects. '
-        'kind in ["air_revitalisation","oxygen_generation","request_co2","request_o2"]. '
+        'kind in ["air_revitalisation","oxygen_generation","water_recovery",'
+        '"request_co2","request_o2"]. '
         'air_revitalisation payload fields: initial_co2_mass, initial_moisture_content, '
         'initial_contaminants (numeric). '
         'oxygen_generation payload fields: input_water_mass, iodine_concentration (numeric). '
+        'water_recovery payload fields: urine_volume (liters, numeric). '
         'request_co2 / request_o2 payload: {"amount": <kg>}. '
+        "At most one command per subsystem per step: a second air_revitalisation, "
+        "oxygen_generation, water_recovery, request_co2 or request_o2 in the same step "
+        "is rejected. "
         "Empty commands when you and teammates agree to hold this step."
     )
 
@@ -215,8 +220,13 @@ def eclss_design_proposal_contract() -> str:
         '"changes" is a list of {"change_kind","payload"} objects. '
         "Emit as many valid changes as the run warrants; there is no count cap. "
         "Empty changes is allowed when nothing should be proposed. "
-        'change_kind in ["action_profile","service_config","set_parameter","graph_rewire"]. '
+        'change_kind in ["action_profile","capacity_profile","service_config",'
+        '"set_parameter","graph_rewire"]. '
         'action_profile payload: {"subsystem":"ars|ogs|wrs","action":"...","fields":{...}}. '
+        'capacity_profile payload: {"backend":"plant_sim","fields":{'
+        '"plant_sim.ars.capacity_kg_day":<kg/day>,"plant_sim.ogs.max_o2_kg_day":<kg/day>,'
+        '"plant_sim.wrs.max_feed_l_per_operation":<L>}} — hardware sizing, '
+        'those three keys only. '
         'service_config payload: {"service":"request_co2|request_o2", ...}. '
         'set_parameter payload: {"target":"dotted.config.path","value":...}. '
         "graph_rewire payload: ROS remapping manifest for the next launch. "

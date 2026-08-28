@@ -12,6 +12,11 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from scenario.ssos_eclss_loop.design_variables import (
+    apply_capacity_fields,
+    sync_action_payloads,
+    validate_capacity_fields,
+)
 from scenario.ssos_eclss_loop.health import (
     DEFAULT_CO2_STORAGE_HIGH_KG,
     DEFAULT_O2_STORAGE_LOW_KG,
@@ -22,11 +27,17 @@ DESIGN_DOMAIN = "ssos_graph"
 SSOS_CHANGE_KINDS = frozenset(
     {
         "action_profile",
+        "capacity_profile",
         "service_config",
         "set_parameter",
         "graph_rewire",
     }
 )
+
+# ``capacity_profile`` is hardware sizing (plant_sim nameplate throughput);
+# ``action_profile`` is the operational payload the crew sends at run time.
+# Design doc §6 keeps them distinct on purpose.
+CAPACITY_PROFILE_BACKENDS = frozenset({"plant_sim"})
 
 ACTION_PROFILE_FIELDS_BY_SUBSYSTEM = {
     "ars": frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"}),
@@ -149,6 +160,27 @@ def _apply_action_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> No
             raise ValueError(f"action_profile subsystem must be ars, ogs, or wrs, got {subsystem!r}")
 
 
+def _apply_capacity_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> None:
+    """Size ARS / OGS / WRS throughput and keep the action payloads usable."""
+    backend = str(payload.get("backend", "plant_sim")).lower()
+    if backend not in CAPACITY_PROFILE_BACKENDS:
+        raise ValueError(
+            f"capacity_profile.backend must be one of {sorted(CAPACITY_PROFILE_BACKENDS)}, "
+            f"got {backend!r}"
+        )
+    fields = payload.get("fields")
+    if not isinstance(fields, dict):
+        raise ValueError("capacity_profile.fields must be an object")
+    errors = validate_capacity_fields(fields)
+    if errors:
+        raise ValueError("; ".join(errors))
+    apply_capacity_fields(config, fields)
+    # Nameplate alone is not reachable: OGS is throttled by ogs_goal.input_water_mass
+    # and WRS by wrs_goal.urine_volume (design doc §6.1 / §6.2).
+    if payload.get("sync_action_payloads", True):
+        sync_action_payloads(config)
+
+
 def _apply_service_config(config: Dict[str, Any], payload: Dict[str, Any]) -> None:
     import math
 
@@ -212,6 +244,7 @@ def _apply_graph_rewire(config: Dict[str, Any], payload: Dict[str, Any]) -> None
 
 _APPLY_HANDLERS: Dict[str, ApplyHandler] = {
     "action_profile": _apply_action_profile,
+    "capacity_profile": _apply_capacity_profile,
     "service_config": _apply_service_config,
     "set_parameter": _apply_set_parameter,
     "graph_rewire": _apply_graph_rewire,

@@ -574,6 +574,10 @@ class SsosEclssLoopScenario(Scenario):
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
             actor_cfg = flatten_actor_config(agents_config)
             design_cfg = flatten_design_config(agents_config)
+            # Persist the summary before design so a tool-use designer can read
+            # the run's own artifacts (summary.json included) from disk. It is
+            # rewritten below with the design fields added.
+            log.write_summary(summary)
             designer = PostRunDesignAgent(design_cfg)
             proposals = designer.propose(
                 DesignReviewBundle(
@@ -582,6 +586,8 @@ class SsosEclssLoopScenario(Scenario):
                     baseline_graph=dict(config.get("ssos_graph") or {}),
                     policy=dict(actor_cfg.get("policy") or {}),
                     actor_snapshot=actor_snapshot_from_team(team) if team is not None else None,
+                    run_dir=run_dir,
+                    agents_config=agents_config,
                 )
             )
             # L8/B: only persist when there is at least one change so
@@ -590,6 +596,21 @@ class SsosEclssLoopScenario(Scenario):
             summary["design_proposal_count"] = change_count
             summary["design_proposed_by"] = proposals.get("proposed_by")
             summary["design_decision_source"] = proposals.get("decision_source")
+            # Tool-use design (design doc §11) adds its artifacts to the summary.
+            for key in (
+                "design_family",
+                "final_status",
+                "selected_candidate_id",
+                "requires_supervisor_approval",
+                "tool_trace_path",
+                "candidate_rankings_path",
+                "design_review_report_path",
+                "candidate_run_dirs",
+            ):
+                if proposals.get(key) is not None:
+                    summary[f"design_{key}" if not key.startswith("design_") else key] = (
+                        proposals[key]
+                    )
             for msg in proposals.pop("deliberation_messages", []) or []:
                 if isinstance(msg, dict):
                     log.append("messages", msg)
