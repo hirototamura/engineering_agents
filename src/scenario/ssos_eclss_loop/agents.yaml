@@ -68,7 +68,9 @@ design:
   tool_use:
     # Tool-use loop (design doc §5, §10). Only active when design.mode is llm.
     enabled: true  # false = classic summary-only post-run design proposal
-    max_tool_iterations: 12  # [-] turns before the deterministic fallback takes over
+    # 7 required tools + up to 4 candidate runs = 11 turns of pure evidence, so a
+    # tighter budget spends the LLM path on bookkeeping and falls back.
+    max_tool_iterations: 24  # [-] turns before the deterministic fallback takes over
     max_candidate_runs: 4  # [-] candidate re-simulations allowed per review
     # Candidate validation is not a knob: the Evidence Gate always requires a
     # re-simulated candidate, and the adopted fields always come from its record.

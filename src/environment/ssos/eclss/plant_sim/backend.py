@@ -243,8 +243,13 @@ class PlantSimEclssBackend:
         if busy is not None:
             return busy
 
-        self._mark_busy("ogs")
         result = self.model.run_ogs(water)
+        if result["processed_water_kg"] <= 0.0:
+            # Nothing was electrolysed (empty tank or a zero request), so the
+            # cell never ran and does not occupy OGS — same rule as WRS no_feed.
+            result["reason"] = "no_water"
+            return ActionResult(False, "oxygen_generation no-op: no water available", result)
+        self._mark_busy("ogs")
         return ActionResult(True, "oxygen_generation complete", result)
 
     def send_water_recovery_goal(self, goal: WrsGoal) -> ActionResult:

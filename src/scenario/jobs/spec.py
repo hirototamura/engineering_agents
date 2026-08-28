@@ -20,6 +20,8 @@ class RunSpec:
     recreate_output: bool = True
     seed: Optional[int] = None
     apply_proposals_path: Optional[Path] = None
+    # Adopting a provisional_final design is a human decision (design doc §9).
+    approve_provisional: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)

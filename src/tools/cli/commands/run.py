@@ -68,6 +68,14 @@ def run(
         "--apply-proposals",
         help="Apply design_proposals.json before running (ssos_eclss_loop).",
     ),
+    approve_provisional: bool = typer.Option(
+        False,
+        "--approve-provisional",
+        help=(
+            "Adopt a design_proposals.json marked provisional_final / "
+            "requires_supervisor_approval. Without this, such a document is refused."
+        ),
+    ),
     llm_provider: Optional[str] = typer.Option(
         None,
         "--llm-provider",
@@ -160,6 +168,7 @@ def run(
         recreate_output=not no_recreate,
         seed=seed,
         apply_proposals_path=apply_proposals,
+        approve_provisional=approve_provisional,
     )
 
     if write_spec is not None:
@@ -176,6 +185,8 @@ def run(
         extra_lines["backend"] = backend
     if apply_proposals:
         extra_lines["apply_proposals"] = str(apply_proposals)
+    if approve_provisional:
+        extra_lines["approve_provisional"] = "true"
     if inject_failures is not None:
         extra_lines["inject_failures"] = str(inject_failures).lower()
     if llm_provider:

@@ -46,7 +46,10 @@ from scenario.ssos_eclss_loop.design_variables import CAPACITY_KEYS, read_capaci
 
 DESIGN_FAMILY = "capacity_sizing"
 
-DEFAULT_MAX_TOOL_ITERATIONS = 12
+# Seven required tools plus up to four candidate runs fill eleven turns, so a
+# budget near that leaves no room for a rejected final_proposal, a mistyped tool
+# name or a second look at the data before the deterministic fallback takes over.
+DEFAULT_MAX_TOOL_ITERATIONS = 24
 DEFAULT_MAX_CANDIDATE_RUNS = 4
 
 # Observation text budget per tool result kept in the prompt (characters).
@@ -57,8 +60,13 @@ _FULL_OBSERVATIONS = 3
 
 EXPERT_CONTEXT_PACK = """\
 ### Expert context pack (domain minimum, not a procedure)
-- Objective: maximise crew_remaining. Unbounded capacity growth is not a solution;
-  mass, volume and cost are the price of throughput.
+- Objective: every occupant must survive — a design that loses one is never adopted,
+  whatever it saves. Among designs where crew_remaining == crew_initial, the smallest
+  one wins: mass first, then volume, then cost. So do not stop at the first design
+  that works; find the smallest one that still works.
+- Capacity is not free and not one-way. Spare throughput is mass, volume and cost the
+  station carries for nothing, so sizing a subsystem *down* is a legitimate design
+  move — the candidate re-simulation is what tells you whether it was too far.
 - The only design variables are ARS CO2 removal capacity, OGS O2 generation capacity
   and WRS feed capacity per operation. Recovery efficiencies, Sabatier conversion,
   crew metabolism and health thresholds are NOT design variables — do not propose them.
@@ -71,9 +79,10 @@ EXPERT_CONTEXT_PACK = """\
 - summary.json alone is not enough evidence. Look at the time series, the dwell in
   warning / critical bands, the shortfall ledgers and the crew loss causes.
 - Only a candidate that has been re-simulated may become the final proposal.
-- One verified candidate is the minimum, not the goal. While candidate runs remain and
-  your best candidate still loses occupants, size another one and compare — a design
-  that saves more people outranks a cheaper one that saves fewer."""
+- One verified candidate is the minimum, not the goal. While candidate runs remain,
+  size another one and compare: a candidate that still loses occupants has to grow,
+  and one that saves everyone is worth testing smaller. The comparison tool picks the
+  winner; naming a different candidate in your final_proposal will not change it."""
 
 
 TOOL_LOOP_CONTRACT = """\
@@ -537,19 +546,17 @@ class ToolUseDesignAgent:
             )
         selected_id = (selected or {}).get("candidate_id")
         if requested is not None and requested.get("candidate_id") != selected_id:
-            if requested.get("final_eligible"):
-                selected = requested
-                selection = {
-                    **selection,
-                    "selected_candidate_id": requested.get("candidate_id"),
-                    "reason": "designer selected an eligible candidate other than rank 1",
-                }
-            else:
-                notes.append(
-                    f"designer asked for {requested_id!r}, which is not final-eligible "
-                    f"({', '.join(requested.get('final_ineligible_reasons') or [])}); "
-                    "kept the ranked selection"
-                )
+            # The ranking is the objective: every eligible candidate keeps the
+            # whole crew alive, so rank 1 is the smallest design that does. A
+            # different pick can only be a larger one — record it, do not adopt
+            # it. The designer's judgement steers which candidates get built and
+            # simulated, not which verified candidate wins.
+            reasons = requested.get("final_ineligible_reasons") or []
+            detail = f"not final-eligible ({', '.join(reasons)})" if reasons else "ranked lower"
+            notes.append(
+                f"designer asked for {requested_id!r}, which is {detail}; kept the ranked "
+                f"selection {selected_id!r}"
+            )
 
         evidence = toolkit.evidence_report()
         final_status = selection.get("final_status", STATUS_REJECTED)
@@ -660,6 +667,9 @@ class ToolUseDesignAgent:
             "requires_supervisor_approval": bool(
                 selection.get("requires_supervisor_approval", False)
             ),
+            # Carried into the document so `--apply-proposals` can tell a human
+            # what it is refusing without opening the review report.
+            "selection_reason": selection.get("reason"),
             "expected_outcome": expected_outcome,
             "constraint_evaluation": {
                 key: constraint_evaluation.get(key)

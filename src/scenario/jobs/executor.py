@@ -35,6 +35,7 @@ def execute_run(spec: RunSpec) -> RunResult:
                 overrides=overrides,
                 recreate_output=spec.recreate_output,
                 apply_proposals_path=spec.apply_proposals_path,
+                approve_provisional=spec.approve_provisional,
                 run_id=spec.run_id,
                 results_root=spec.results_root,
             )

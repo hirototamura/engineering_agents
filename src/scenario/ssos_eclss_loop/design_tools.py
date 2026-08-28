@@ -158,6 +158,14 @@ def _round(value: Any, digits: int = 4) -> Any:
     return value
 
 
+def _bound_note(need: float, clamped: float) -> str:
+    """Say so when the engineering bounds, not demand, decided the size."""
+    if abs(need - clamped) <= 1e-9:
+        return ""
+    direction = "raised to the smallest" if clamped > need else "capped at the largest"
+    return f", {direction} buildable machine ({round(clamped, 3)})"
+
+
 @dataclass
 class ToolSpec:
     name: str
@@ -250,8 +258,9 @@ class DesignToolkit:
             ),
             ToolSpec(
                 "propose_capacity_candidate",
-                "Deterministic sizing helper: turn a survival target and a margin into a "
-                "capacity field set. Does not simulate.",
+                "Deterministic sizing helper: turn crew demand and a margin into a "
+                "capacity field set. Sizes down as well as up — spare capacity is "
+                "mass, volume and cost. Does not simulate.",
                 {
                     "margin": "safety factor over theoretical demand (default 1.15)",
                     "subsystems": "optional subset of [ars, ogs, wrs] to resize",
@@ -277,8 +286,9 @@ class DesignToolkit:
             ),
             ToolSpec(
                 "compare_design_runs",
-                "Rank baseline and every simulated candidate by the lexicographic "
-                "objective and report the selected candidate.",
+                "Rank baseline and every simulated candidate — full survival clears, "
+                "then the smallest mass / volume / cost wins — and report the selected "
+                "candidate.",
                 {},
                 evidence="compared_runs",
             ),
@@ -937,24 +947,33 @@ class DesignToolkit:
         fields: Dict[str, float] = {}
         rationale: Dict[str, str] = {}
 
+        # Sizing follows demand in both directions. Capacity that nobody needs is
+        # mass, volume and cost the design is paying for, and every candidate is
+        # re-simulated before it can be adopted, so an undersized guess is caught
+        # by the survival requirement rather than by a floor here. The only floor
+        # is the smallest machine that can actually be built.
         if "ars" in wanted:
             need = float(subs["ars"]["required_nameplate_kg_day"]) * margin_value
-            value = max(need, current["plant_sim.ars.capacity_kg_day"])
+            value = self.constraints.clamp_to_bounds("ars", need)
             fields["plant_sim.ars.capacity_kg_day"] = round(value, 3)
             rationale["ars"] = (
                 f"{subs['ars']['required_kg_day']} kg/day CO2 at "
                 f"{subs['ars']['max_actions_per_day']} actions/day and goal scale "
                 f"{subs['ars']['goal_scale']} → nameplate "
                 f"{subs['ars']['required_nameplate_kg_day']} kg/day × margin {margin_value}"
+                f"{_bound_note(need, value)} (installed "
+                f"{current['plant_sim.ars.capacity_kg_day']})"
             )
         if "ogs" in wanted:
             need = float(subs["ogs"]["required_nameplate_kg_day"]) * margin_value
-            value = max(need, current["plant_sim.ogs.max_o2_kg_day"])
+            value = self.constraints.clamp_to_bounds("ogs", need)
             fields["plant_sim.ogs.max_o2_kg_day"] = round(value, 3)
             rationale["ogs"] = (
                 f"{subs['ogs']['required_kg_day']} kg/day O2 at "
                 f"{subs['ogs']['max_actions_per_day']} actions/day → nameplate "
-                f"{subs['ogs']['required_nameplate_kg_day']} kg/day × margin {margin_value}; "
+                f"{subs['ogs']['required_nameplate_kg_day']} kg/day × margin {margin_value}"
+                f"{_bound_note(need, value)} (installed "
+                f"{current['plant_sim.ogs.max_o2_kg_day']}); "
                 "ogs_goal.input_water_mass is synced on apply"
             )
         if "wrs" in wanted:
@@ -963,13 +982,16 @@ class DesignToolkit:
             # One action must absorb the buffer that triggered it, otherwise the
             # untreated remainder keeps growing and the potable reserve drifts
             # down while nameplate capacity still looks sufficient.
-            need = max(feed_per_step * margin_value, trigger, 1.0)
-            fields["plant_sim.wrs.max_feed_l_per_operation"] = round(need, 3)
+            need = max(feed_per_step * margin_value, trigger)
+            value = self.constraints.clamp_to_bounds("wrs", need)
+            fields["plant_sim.wrs.max_feed_l_per_operation"] = round(value, 3)
             rationale["wrs"] = (
                 f"{subs['wrs']['required_l_day']} L/day feed = {feed_per_step} L/step; the "
                 f"crew starts WRS at a {trigger} L buffer, so one batch must absorb that "
-                f"much → {round(need, 3)} L (margin {margin_value}); oversizing beyond this "
-                "only adds mass"
+                f"much → {round(value, 3)} L (margin {margin_value})"
+                f"{_bound_note(need, value)} (installed "
+                f"{current['plant_sim.wrs.max_feed_l_per_operation']}); oversizing beyond "
+                "this only adds mass"
             )
 
         evaluation = self.constraints.evaluate(fields)
@@ -1084,6 +1106,12 @@ class DesignToolkit:
         fields: Mapping[str, Any],
         steps: Optional[int],
     ) -> Tuple[Path, Dict[str, Any]]:
+        # Deliberately function-local. The cycle is inherent to the feature, not
+        # an accident of layering: scenario_run -> ssos_post_run_design ->
+        # ssos_tool_use_design -> design_tools, and this tool re-enters the
+        # runner because "verify a design by re-simulating it" *is* the runner.
+        # One of the two edges has to be deferred; deferring it here keeps the
+        # runner's import graph honest and costs one lookup per candidate run.
         from scenario.ssos_eclss_loop.scenario_run import SsosEclssLoopScenario
 
         config = copy.deepcopy(self.ctx.scenario_config)
@@ -1113,26 +1141,30 @@ class DesignToolkit:
     # ------------------------------------------------------------------ #
     # 9. comparison / ranking
     # ------------------------------------------------------------------ #
-    def compare_design_runs(
-        self,
-        evidence_complete: Optional[bool] = None,
-    ) -> Dict[str, Any]:
+    def compare_design_runs(self) -> Dict[str, Any]:
+        """Rank every simulated candidate. Takes no arguments — by design.
+
+        Evidence completeness is read from the ledger, never from a caller: an
+        argument here would let the model declare its own homework done and be
+        shown a ranking that says ``final_eligible`` before it had looked at
+        anything.
+        """
         simulated = [dict(record) for record in self.candidates if record.get("simulated")]
         if not simulated:
             return {
                 "error": "no simulated candidate to compare; call run_design_candidate first",
                 "candidates_run": len(self.candidates),
             }
-        complete = (
-            bool(evidence_complete)
-            if evidence_complete is not None
-            else self.evidence_complete()
-        )
+        # ``compared_runs`` is credited only after this call returns, so judging
+        # it as missing here would make the first comparison report every
+        # candidate ineligible.
+        complete = not [key for key in self.missing_evidence() if key != "compared_runs"]
         for record in simulated:
             mark_final_eligibility(
                 record,
                 baseline_outcome=self.baseline_outcome,
-                require_feasible=self.constraints.require_feasible_final,
+                require_in_bounds=self.constraints.require_in_bounds_final,
+                require_within_budget=self.constraints.require_feasible_final,
                 evidence_complete=complete,
             )
         ranked = rank_candidates(simulated)
@@ -1154,6 +1186,8 @@ class DesignToolkit:
             },
             "ranking": [self._ranking_row(record) for record in ranked],
             "selection": selection,
+            "evidence_complete": complete,
+            "require_in_bounds_final": self.constraints.require_in_bounds_final,
             "require_feasible_final": self.constraints.require_feasible_final,
         }
 

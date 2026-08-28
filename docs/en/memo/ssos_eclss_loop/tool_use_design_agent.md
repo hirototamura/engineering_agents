@@ -46,7 +46,7 @@ Two runtime constraints back the sizing problem (design doc §7):
 
 1. **At most one command per subsystem per step.** ARS + OGS + WRS in the same step is fine; two `air_revitalisation` in one step is not. Extra commands become `/eclss/events/operational_rejected` with `reason=duplicate_command_this_step`.
    The gate lives in `SsosEclssLoopTeam.apply_outcome()` and is mode-independent. `max_actions_per_step` keeps its meaning (how many representatives join the action round).
-2. **Operation duration / busy guard.** With `ars_operation_seconds = 4800` and `step_seconds = 1200`, an accepted ARS action occupies the subsystem for `ceil(4800/1200) = 4` steps. Commands during that window are rejected with `reason=subsystem_busy` and details `subsystem` / `remaining_steps` / `busy_until_step`. OGS and WRS run for one step, so they are available again next step.
+2. **Operation duration / busy guard.** With `ars_operation_seconds = 4800` and `step_seconds = 1200`, an accepted ARS action occupies the subsystem for `ceil(4800/1200) = 4` steps. Commands during that window are rejected with `reason=subsystem_busy` and details `subsystem` / `remaining_steps` / `busy_until_step`. OGS and WRS run for one step, so they are available again next step. An action that processed nothing never ran, so it does not occupy the subsystem: WRS with no feed (`reason=no_feed`) and OGS with no water or a zero request (`reason=no_water`) both leave the machine free. An action that processed nothing never ran, so it does not occupy the subsystem: WRS with no feed (`reason=no_feed`) and OGS with no water or a zero request (`reason=no_water`) both leave the machine free.
    Implemented in `PlantSimEclssBackend`; revert with `plant_sim.operations.busy_guard_enabled: false`.
 
 Consequence: ARS effective throughput is bounded by 18 actions/day, so the 4.5 kg/day nameplate visibly cannot meet the 52 kg/day that 50 occupants generate.
@@ -65,7 +65,7 @@ Consequence: ARS effective throughput is bounded by 18 actions/day, so the 4.5 k
 | `propose_capacity_candidate` | build a capacity set from theory + margin (no simulation) |
 | `evaluate_design_constraints` | mass / volume / cost / bounds / budget labels |
 | `run_design_candidate` | **re-simulate** the candidate (post-run design disabled inside it) |
-| `compare_design_runs` | rank baseline and candidates lexicographically and select the final one |
+| `compare_design_runs` | rank baseline and candidates by the objective and select the final one (no arguments — evidence completeness is read from the ledger, never from the model) |
 
 ## Constraint model (`rack_affine_linear_v1`)
 
@@ -85,31 +85,60 @@ Baseline footprint: 1800 kg / 6.8 m³ / 259 MUSD (160 hardware + 99 launch). `la
 Checking happens in two stages (design doc §8.1):
 
 - **Preflight** — broken schema, NaN/Inf/negative, or a variable outside the three → `invalid`, **never simulated**.
-- **Constraint evaluation** — budget / bound violations only *label* the candidate (`over_budget`, `out_of_bounds`); it still runs, because “over-designed but everyone survives” is a useful lesson. While `require_feasible_final: true`, only `feasible` candidates may be adopted.
+- **Constraint evaluation** — budget / bound violations only *label* the candidate (`over_budget`, `out_of_bounds`); it still runs, because “over-designed but everyone survives” is a useful lesson. The two labels are then treated differently at adoption: an `out_of_bounds` machine cannot be built, so it is never adopted (`require_in_bounds_final: true`); an `over_budget` one is money, so it *is* selected and comes back as `provisional_final` for a human (`require_feasible_final: false`, set it to `true` to make budgets a hard gate too).
+- A candidate that names only some subsystems is priced as a whole station: the unnamed ones weigh what the **installed** machine weighs, not the sizing-model baseline. `capacity_source` in the evaluation says which is which.
 
-## Objective and ranking (lexicographic)
+## Objective: a clearance line, then the smallest machine
 
-Not a weighted sum: a weighted score lets a few hundred kilograms buy a human life.
+Survival is **not** a ranking key. A design that loses an occupant is not adoptable at
+all, so no amount of saved mass can be traded against a life. Among the designs that
+clear the line, the objective is the smallest station that still works.
 
 ```python
+final_eligible = (
+    preflight_valid                     # schema / numeric / in-scope variables
+    and simulated                       # re-simulated, not asserted
+    and evidence_complete               # the review did its homework
+    and crew_remaining == crew_initial  # the clearance line
+    and constraint_status != "out_of_bounds"   # it can actually be built
+)
+
 rank_key = (
     not final_eligible,     # adoptable candidates first
-    -crew_remaining,        # maximise survivors
-    critical_step_count,    # minimise CRITICAL dwell
-    warning_step_count,     # minimise WARNING dwell
-    total_mass_kg,          # then the smallest footprint wins
+    -crew_remaining,        # only orders the ineligible ones among themselves
+    total_mass_kg,          # among adoptable designs: the smallest wins
     total_volume_m3,
     total_cost_musd,
+    critical_step_count,    # tie-break: less CRITICAL dwell
+    warning_step_count,
 )
 ```
+
+Because the ranking *is* the objective, the model cannot override it: naming another
+`candidate_id` in `final_proposal` is recorded in `parse_notes` and changes nothing.
+The designer decides which candidates get built and simulated; which verified candidate
+wins is arithmetic.
+
+`design_constraints.objective` in `scenario.yaml` documents this objective and is
+validated when the scenario loads — an unimplemented value fails the run before the
+simulation starts, so config and behaviour cannot drift apart.
 
 `design_penalty` (normalised mass / cost / volume) stays **descriptive**; it never decides adoption.
 
 | Final status | Meaning |
 | --- | --- |
-| `approved_final` | full survival + Evidence Gate passed + `feasible` + rank 1 |
-| `provisional_final` | best observed candidate, but not full survival or outside budget / bounds — reported with `requires_supervisor_approval: true` |
-| `rejected_final` | evidence missing, invalid, run failed, or worse than baseline |
+| `approved_final` | full survival + Evidence Gate passed + in bounds + inside the budgets + rank 1 |
+| `provisional_final` | the selected design, but it loses occupants or busts a budget — reported with `requires_supervisor_approval: true` |
+| `rejected_final` | evidence missing, invalid, or no candidate was produced |
+
+### Adoption is a separate act
+
+`design_proposals.json` is written whatever the status, because the record is worth
+keeping. Adopting it is gated: `--apply-proposals` **refuses** a document whose
+`final_status` is not `approved_final`, or which carries
+`requires_supervisor_approval`, and says why. A human who wants it anyway passes
+`--approve-provisional`. Being handed the file is not approval; deciding to pay for an
+over-budget design is.
 
 ## Evidence Gate
 
@@ -149,7 +178,7 @@ design:
     count: 1                      # one tool-use designer (design doc §4); debate is a future phase
   tool_use:
     enabled: true                 # false → classic summary-only designer
-    max_tool_iterations: 12
+    max_tool_iterations: 24
     max_candidate_runs: 4
     candidate_actor_mode: inherit # actor mode inside candidate runs
     plots_enabled: true
@@ -172,7 +201,7 @@ With no LLM client, three consecutive unparsable replies, or `max_tool_iteration
 ea run ssos_eclss_loop --backend plant_sim --steps 72 --actor-mode labeled_rule_base --design-mode llm
 ```
 
-`design.mode = llm` talks to the lab vLLM in `agents.yaml` (`design.llm.base_url`) and needs the VPN. A turn costs tens of seconds to ~2 minutes (32B with thinking), so a 12-turn review takes roughly 10–25 minutes. Each candidate re-simulation itself is about a second.
+`design.mode = llm` talks to the lab vLLM in `agents.yaml` (`design.llm.base_url`) and needs the VPN. A turn costs tens of seconds to ~2 minutes (32B with thinking), so a review that uses its full 24-turn budget takes roughly 20–50 minutes. Each candidate re-simulation itself is about a second.
 
 ## Known consequence
 

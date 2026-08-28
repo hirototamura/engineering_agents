@@ -150,6 +150,7 @@ plugins:
                 - ラベル付きルールベース: memo/ssos_eclss_loop/labeled_rule_base.md
                 - 事後設計エージェント: memo/ssos_eclss_loop/post_run_design_agent.md
                 - Tool Use 設計エージェント: memo/ssos_eclss_loop/tool_use_design_agent.md
+                - Phase 0 実装前調査レポート: memo/ssos_eclss_loop/eclss_recursive_design_phase0_report.md
                 - CLI v3 プラン: memo/cli_v3_plan.md
                 - Persona LLM OOP: memo/agents/persona_llm_core_oop_plan.md
                 - Persona ワークショップ: memo/agents/persona_workshop_draft.md

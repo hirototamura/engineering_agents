@@ -98,37 +98,66 @@ def test_status_labels_bounds_budget_and_schema():
     assert constraints.should_simulate(STATUS_INVALID) is False
 
 
-def test_survival_outranks_footprint():
-    ranked = rank_candidates(
-        [
-            _record("light_but_lethal", crew=40, mass=1800.0),
-            _record("heavy_but_safe", crew=50, mass=5000.0, cost=800.0),
-        ]
-    )
+def test_a_design_that_loses_an_occupant_is_never_eligible():
+    """Full survival is the clearance line, not a ranking key."""
+    baseline = {"crew_remaining": 10, "crew_initial": 50}
+    lethal = _record("light_but_lethal", crew=49, mass=1800.0)
+    safe = _record("heavy_but_safe", crew=50, mass=5000.0, cost=800.0)
+    for record in (lethal, safe):
+        mark_final_eligibility(record, baseline_outcome=baseline)
+
+    assert lethal["final_eligible"] is False
+    assert any(r.startswith("not_full_survival") for r in lethal["final_ineligible_reasons"])
+    assert safe["final_eligible"] is True
+    ranked = rank_candidates([lethal, safe])
     assert [r["candidate_id"] for r in ranked] == ["heavy_but_safe", "light_but_lethal"]
 
 
-def test_equal_survival_prefers_less_dwell_then_less_mass():
-    ranked = rank_candidates(
-        [
-            _record("heavy", crew=50, mass=5000.0),
-            _record("light", crew=50, mass=2000.0),
-            _record("light_but_critical", crew=50, critical=3, mass=1900.0),
-        ]
-    )
-    assert [r["candidate_id"] for r in ranked] == ["light", "heavy", "light_but_critical"]
+def test_among_full_survival_designs_the_smallest_wins():
+    baseline = {"crew_remaining": 0, "crew_initial": 50}
+    records = [
+        _record("heavy", crew=50, mass=5000.0),
+        _record("light", crew=50, mass=2000.0),
+        _record("lighter_but_critical", crew=50, critical=3, mass=1900.0),
+    ]
+    for record in records:
+        mark_final_eligibility(record, baseline_outcome=baseline)
+    ranked = rank_candidates(records)
+    # Mass decides before dwell time: every candidate here already kept the crew.
+    assert [r["candidate_id"] for r in ranked] == ["lighter_but_critical", "light", "heavy"]
 
 
-def test_eligible_candidates_sort_before_ineligible_ones():
-    good = _record("feasible", crew=45)
-    bad = _record("over", crew=50, status=STATUS_OVER_BUDGET)
+def test_dwell_time_only_breaks_a_footprint_tie():
+    baseline = {"crew_remaining": 0, "crew_initial": 50}
+    calm = _record("calm", crew=50, mass=2000.0)
+    tense = _record("tense", crew=50, critical=3, mass=2000.0)
+    for record in (calm, tense):
+        mark_final_eligibility(record, baseline_outcome=baseline)
+    ranked = rank_candidates([tense, calm])
+    assert [r["candidate_id"] for r in ranked] == ["calm", "tense"]
+
+
+def test_over_budget_is_eligible_but_out_of_bounds_is_not():
+    """Budgets are money; bounds are what can be built."""
     baseline = {"crew_remaining": 10, "crew_initial": 50}
-    for record in (good, bad):
-        mark_final_eligibility(record, baseline_outcome=baseline, require_feasible=True)
-    assert good["final_eligible"] is True
-    assert bad["final_eligible"] is False
-    ranked = rank_candidates([bad, good])
-    assert ranked[0]["candidate_id"] == "feasible"
+    over = _record("over_budget", crew=50, status=STATUS_OVER_BUDGET)
+    unbuildable = _record("out_of_bounds", crew=50, status=STATUS_OUT_OF_BOUNDS, mass=100.0)
+    for record in (over, unbuildable):
+        mark_final_eligibility(record, baseline_outcome=baseline)
+    assert over["final_eligible"] is True
+    assert unbuildable["final_eligible"] is False
+    ranked = rank_candidates([unbuildable, over])
+    assert ranked[0]["candidate_id"] == "over_budget"
+
+
+def test_budgets_can_still_be_made_a_hard_gate():
+    record = _record("over", crew=50, status=STATUS_OVER_BUDGET)
+    mark_final_eligibility(
+        record,
+        baseline_outcome={"crew_remaining": 0, "crew_initial": 50},
+        require_within_budget=True,
+    )
+    assert record["final_eligible"] is False
 
 
 def test_candidate_worse_than_baseline_is_not_eligible():
@@ -138,6 +167,19 @@ def test_candidate_worse_than_baseline_is_not_eligible():
     )
     assert record["final_eligible"] is False
     assert "worse_than_baseline_survival" in record["final_ineligible_reasons"]
+
+
+def test_a_float_valued_occupant_count_still_reaches_full_survival():
+    """A summary that reports 50.0 (or a numpy int) is not a survival failure."""
+    record = _record("full", crew=50)
+    record["outcome"]["crew_remaining"] = 50.0
+    record["outcome"]["crew_initial"] = 50.0
+    mark_final_eligibility(record, baseline_outcome={"crew_remaining": 0, "crew_initial": 50})
+    assert record["final_eligible"] is True
+    selection = select_final_candidate(
+        rank_candidates([record]), baseline_outcome={"crew_remaining": 0, "crew_initial": 50}
+    )
+    assert selection["final_status"] == STATUS_APPROVED
 
 
 def test_missing_evidence_disqualifies_every_candidate():
@@ -168,11 +210,13 @@ def test_full_survival_is_approved_and_partial_survival_is_provisional():
 
 
 def test_over_budget_best_candidate_is_provisional_not_approved():
+    """It is still the selected design — a human decides whether to pay for it."""
     baseline = {"crew_remaining": 0, "crew_initial": 50}
     record = _record("over", crew=50, status=STATUS_OVER_BUDGET)
-    mark_final_eligibility(record, baseline_outcome=baseline, require_feasible=True)
+    mark_final_eligibility(record, baseline_outcome=baseline)
     selection = select_final_candidate(rank_candidates([record]), baseline_outcome=baseline)
     assert selection["final_status"] == STATUS_PROVISIONAL
+    assert selection["selected_candidate_id"] == "over"
     assert selection["requires_supervisor_approval"] is True
 
 
@@ -216,3 +260,61 @@ def test_disabled_constraints_still_reject_a_variable_outside_the_design_scope()
     off = replace(_constraints(), enabled=False)
     result = off.evaluate({"plant_sim.ogs.recovery_efficiency": 0.9})
     assert result["constraint_status"] == STATUS_INVALID
+
+
+# --------------------------------------------------------------------------- #
+# partial candidates and the installed machine
+# --------------------------------------------------------------------------- #
+def _constraints_with_installed(**installed) -> DesignConstraints:
+    base = _constraints()
+    return replace(base, installed_capacity={**base.installed_capacity, **installed})
+
+
+def test_a_partial_candidate_is_priced_against_the_installed_machine():
+    """Naming only ARS does not un-build the OGS a previous review installed."""
+    constraints = _constraints_with_installed(ogs=40.0)
+    evaluation = constraints.evaluate({"plant_sim.ars.capacity_kg_day": 20.0})
+    capacity = evaluation["capacity_by_subsystem"]
+    assert capacity["ars"] == 20.0
+    assert capacity["ogs"] == 40.0  # installed, not the 9.25 sizing baseline
+    assert evaluation["capacity_source"] == {
+        "ars": "candidate",
+        "ogs": "installed",
+        "wrs": "installed",
+    }
+
+    naive = _constraints().evaluate({"plant_sim.ars.capacity_kg_day": 20.0})
+    assert evaluation["total_mass_kg"] > naive["total_mass_kg"]
+
+
+def test_the_installed_machine_comes_from_the_scenario_config():
+    constraints = DesignConstraints.from_scenario_config(
+        {"plant_sim": {"ogs": {"max_o2_kg_day": 37.0}}}
+    )
+    assert constraints.installed_capacity["ogs"] == 37.0
+    assert constraints.installed_capacity["ars"] == BASELINE["plant_sim.ars.capacity_kg_day"]
+    # the sizing-model reference point is unchanged by what is installed
+    assert constraints.baseline_capacity["ogs"] == 9.25
+
+
+def test_downsizing_gives_mass_back_relative_to_what_is_installed():
+    constraints = _constraints_with_installed(ars=40.0)
+    evaluation = constraints.evaluate({"plant_sim.ars.capacity_kg_day": 20.0})
+    assert evaluation["delta_installed_mass_kg"] < 0
+    assert evaluation["delta_installed_cost_musd"] < 0
+
+
+# --------------------------------------------------------------------------- #
+# objective: config must describe what the code does (§9)
+# --------------------------------------------------------------------------- #
+def test_an_objective_the_ranking_does_not_implement_is_rejected():
+    with pytest.raises(ValueError, match="not implemented"):
+        DesignConstraints.from_scenario_config(
+            {"design_constraints": {"objective": {"primary": "minimize_cost"}}}
+        )
+
+
+def test_the_shipped_scenario_objective_is_the_implemented_one():
+    constraints = _constraints()
+    assert constraints.objective_primary == "require_full_survival"
+    assert constraints.objective_secondary == "minimize_resource_footprint"

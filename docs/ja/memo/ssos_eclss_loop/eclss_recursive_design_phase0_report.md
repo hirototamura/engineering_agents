@@ -1,4 +1,9 @@
-# PREIMPLEMENTATION_REPORT — ECLSS Recursive Subsystem Engineering Agents
+# Phase 0 preimplementation report — ECLSS recursive subsystem engineering agents
+
+> **過去の記録。** Tool Use 設計エージェントを実装する前に書いた Phase 0 調査であり、
+> 現行とは別の（古い）設計を記述している。仕様書としてではなく、preflight の証拠
+> （GPU / vLLM、plant_sim smoke、物理感度）として残してある。実際に実装された内容は
+> [Tool Use 設計エージェント](tool_use_design_agent.md) を読むこと。
 
 **Phase:** 0 — Repository + GPU Preflight（設計書 §57 / §82）
 **日付:** 2026-08-16（調査） / 2026-08-21（方針確定・追記）

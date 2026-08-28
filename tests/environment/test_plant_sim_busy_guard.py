@@ -79,6 +79,26 @@ def test_wrs_no_feed_does_not_occupy_the_subsystem():
     assert b.send_water_recovery_goal(WrsGoal(urine_volume=1.0)).success is True
 
 
+def test_ogs_with_no_water_does_not_occupy_the_subsystem():
+    """A cell that electrolysed nothing never ran — same rule as WRS no_feed."""
+    b = _backend(initial_product_water_l=0.0)
+    empty = b.send_oxygen_generation_goal(OgsGoal(input_water_mass=1.0))
+    assert empty.success is False
+    assert empty.details["reason"] == "no_water"
+    assert empty.details["processed_water_kg"] == pytest.approx(0.0)
+    # The machine is free, so the next step's real request is not rejected as busy.
+    b.model.state.product_water_l = 50.0
+    assert b.send_oxygen_generation_goal(OgsGoal(input_water_mass=1.0)).success is True
+
+
+def test_ogs_zero_request_does_not_occupy_the_subsystem():
+    b = _backend()
+    idle = b.send_oxygen_generation_goal(OgsGoal(input_water_mass=0.0))
+    assert idle.success is False
+    assert idle.details["reason"] == "no_water"
+    assert b.send_oxygen_generation_goal(OgsGoal(input_water_mass=0.1)).success is True
+
+
 def test_guard_can_be_disabled():
     b = _backend(operation_busy_guard_enabled=False)
     assert b.send_air_revitalisation_goal(ArsGoal()).success is True

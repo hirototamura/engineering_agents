@@ -233,6 +233,7 @@ def _container_spec(
         recreate_output=spec.recreate_output,
         seed=spec.seed,
         apply_proposals_path=apply_proposals_path if apply_proposals_path is not None else spec.apply_proposals_path,
+        approve_provisional=spec.approve_provisional,
     )
 
 

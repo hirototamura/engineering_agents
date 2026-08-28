@@ -273,3 +273,78 @@ def test_housekeeping_calls_do_not_credit_the_evidence_ledger(baseline: Path):
     assert "compared_runs" in toolkit.missing_evidence()
     toolkit.call("compare_design_runs", {})
     assert toolkit.evidence["compared_runs"] is True
+
+
+# --------------------------------------------------------------------------- #
+# sizing follows demand in both directions (review finding 5)
+# --------------------------------------------------------------------------- #
+def test_the_sizing_helper_can_shrink_an_oversized_subsystem(baseline: Path):
+    """Spare capacity is mass, volume and cost — sizing down is a design move."""
+    scenario_config = yaml.safe_load(
+        (baseline / "scenario_config.yaml").read_text(encoding="utf-8")
+    )
+    oversized = json.loads(json.dumps(scenario_config))
+    oversized["plant_sim"]["ars"]["capacity_kg_day"] = 300.0
+    oversized["plant_sim"]["ogs"]["max_o2_kg_day"] = 300.0
+    oversized["plant_sim"]["wrs"]["max_feed_l_per_operation"] = 19.0
+    toolkit = DesignToolkit(
+        DesignToolContext(
+            run_dir=baseline,
+            scenario_config=oversized,
+            summary=json.loads((baseline / "summary.json").read_text(encoding="utf-8")),
+            agents_config=yaml.safe_load(
+                (baseline / "agents_config.yaml").read_text(encoding="utf-8")
+            ),
+            constraints=DesignConstraints.from_scenario_config(oversized),
+            max_candidate_runs=1,
+            plots_enabled=False,
+            candidate_steps=12,
+        )
+    )
+
+    candidate = toolkit.call("propose_capacity_candidate", {"margin": 1.15})
+    fields = candidate["fields"]
+    assert fields["plant_sim.ars.capacity_kg_day"] < 300.0
+    assert fields["plant_sim.ogs.max_o2_kg_day"] < 300.0
+
+
+def test_sizing_never_leaves_the_buildable_range(baseline: Path):
+    toolkit = _toolkit(baseline)
+    bounds = toolkit.constraints.bounds
+    candidate = toolkit.call("propose_capacity_candidate", {"margin": 0.001})
+    fields = candidate["fields"]
+    assert fields["plant_sim.ars.capacity_kg_day"] >= bounds["ars"]["min"]
+    assert fields["plant_sim.ogs.max_o2_kg_day"] >= bounds["ogs"]["min"]
+    assert fields["plant_sim.wrs.max_feed_l_per_operation"] >= bounds["wrs"]["min"]
+
+
+# --------------------------------------------------------------------------- #
+# the comparison tool grades nothing on the model's word (review finding 4)
+# --------------------------------------------------------------------------- #
+def test_the_model_cannot_declare_its_own_evidence_complete(baseline: Path):
+    toolkit = _toolkit(baseline)
+    spec = next(row for row in toolkit.catalog() if row["name"] == "compare_design_runs")
+    assert spec["arguments"] == {}
+
+    result = toolkit.call("compare_design_runs", {"evidence_complete": True})
+    assert result["error"].startswith("bad arguments for compare_design_runs")
+
+
+def test_the_first_comparison_does_not_report_a_lying_ranking(baseline: Path):
+    """`compared_runs` is credited by this very call; it must not judge itself missing."""
+    toolkit = _toolkit(baseline)
+    for name, arguments in (
+        ("load_run_artifacts", {}),
+        ("summarize_timeseries", {"source": "telemetry"}),
+        ("compute_theoretical_capacity", {}),
+        ("evaluate_design_constraints", {"fields": {"plant_sim.ars.capacity_kg_day": 40.0}}),
+        ("run_design_candidate", {"fields": {"plant_sim.ars.capacity_kg_day": 40.0}}),
+    ):
+        assert "error" not in toolkit.call(name, arguments)
+
+    first = toolkit.call("compare_design_runs", {})
+    assert first["evidence_complete"] is True
+    assert all(
+        "evidence_incomplete" not in (row["final_ineligible_reasons"] or [])
+        for row in first["ranking"]
+    )

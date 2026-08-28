@@ -18,11 +18,16 @@ scope) blocks a run; budgets and engineering bounds are labels that steer the
 final choice, because "over-budget but everyone survives" is still a useful
 lesson for the designer.
 
+Bounds and budgets are not the same kind of limit. An out-of-bounds machine
+cannot be built, so it cannot be adopted (``require_in_bounds_final``). A
+budget is money: an over-budget design that keeps the whole crew alive is still
+the answer, reported as ``provisional_final`` for a human to accept or refuse
+(``require_feasible_final``, off by default).
+
 ``design_constraints.enabled: false`` turns the labelling off entirely: the
 footprint is still reported, but no candidate is called over-budget or out of
-bounds, so ``require_feasible_final`` stops filtering. ``preflight`` is not
-affected — a candidate that names a variable outside the design scope is still
-invalid.
+bounds, so neither gate filters. ``preflight`` is not affected — a candidate
+that names a variable outside the design scope is still invalid.
 """
 
 from __future__ import annotations
@@ -35,10 +40,20 @@ from scenario.ssos_eclss_loop.design_variables import (
     BASELINE_CAPACITY,
     CAPACITY_KEYS,
     CAPACITY_VARIABLES,
+    read_capacity_fields,
     validate_capacity_fields,
 )
 
 SIZING_MODE = "rack_affine_linear_v1"
+
+# The objective is implemented in :mod:`design_eval` (full survival clears, then
+# the smallest footprint wins). ``design_constraints.objective`` in scenario.yaml
+# documents it; any other value is a config/behaviour mismatch and is rejected at
+# load time rather than silently ignored.
+SUPPORTED_OBJECTIVES: Dict[str, Tuple[str, ...]] = {
+    "primary": ("require_full_survival",),
+    "secondary": ("minimize_resource_footprint",),
+}
 
 STATUS_FEASIBLE = "feasible"
 STATUS_OVER_BUDGET = "over_budget"
@@ -93,7 +108,11 @@ DEFAULT_SIMULATION_POLICY: Dict[str, bool] = {
     "run_invalid_candidates": False,
     "run_over_budget_candidates": True,
     "run_out_of_bounds_candidates": True,
-    "require_feasible_final": True,
+    # An unbuildable machine is not a design, so bounds gate adoption. Budgets
+    # do not: an over-budget design that saves the whole crew is reported as
+    # provisional and left for a human to accept or refuse.
+    "require_in_bounds_final": True,
+    "require_feasible_final": False,
 }
 
 DEFAULT_PENALTY_WEIGHTS: Dict[str, float] = {"mass": 0.5, "cost": 0.3, "volume": 0.2}
@@ -131,7 +150,7 @@ def _merge_affine(
 @dataclass(frozen=True)
 class DesignConstraints:
     enabled: bool = True
-    objective_primary: str = "maximize_crew_remaining"
+    objective_primary: str = "require_full_survival"
     objective_secondary: str = "minimize_resource_footprint"
     budgets: Dict[str, float] = field(default_factory=lambda: dict(DEFAULT_BUDGETS))
     bounds: Dict[str, Dict[str, float]] = field(
@@ -139,6 +158,13 @@ class DesignConstraints:
     )
     sizing_mode: str = SIZING_MODE
     baseline_capacity: Dict[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_SIZING["baseline"])
+    )
+    # What is actually installed in the scenario this review is sizing against.
+    # A candidate that names only ARS is still a whole station: the other two
+    # subsystems weigh what the machine currently in the config weighs, not what
+    # the sizing-model baseline weighs.
+    installed_capacity: Dict[str, float] = field(
         default_factory=lambda: dict(DEFAULT_SIZING["baseline"])
     )
     mass_kg: Dict[str, Dict[str, float]] = field(
@@ -161,12 +187,14 @@ class DesignConstraints:
     # ------------------------------------------------------------------ #
     @classmethod
     def from_scenario_config(cls, config: Optional[Mapping[str, Any]]) -> "DesignConstraints":
+        installed = cls._installed_from_config(config)
         section = (config or {}).get("design_constraints")
         if not isinstance(section, Mapping):
-            return cls()
+            return cls(installed_capacity=installed)
 
         objective = section.get("objective")
         objective = objective if isinstance(objective, Mapping) else {}
+        cls._check_objective(objective)
         budgets_raw = section.get("budgets")
         budgets_raw = budgets_raw if isinstance(budgets_raw, Mapping) else {}
         budgets = {
@@ -234,20 +262,64 @@ class DesignConstraints:
             ),
             simulation_policy=policy,
             penalty_weights=weights,
+            installed_capacity=installed,
         )
+
+    @staticmethod
+    def _installed_from_config(config: Optional[Mapping[str, Any]]) -> Dict[str, float]:
+        """Per-subsystem capacity currently configured (baseline when absent)."""
+        fields = read_capacity_fields(config or {})
+        return {
+            sub: float(fields[_CAPACITY_KEY_BY_SUBSYSTEM[sub]]) for sub in _SUBSYSTEMS
+        }
+
+    @staticmethod
+    def _check_objective(objective: Mapping[str, Any]) -> None:
+        """Fail loudly on an objective the ranking does not implement (§9).
+
+        The ranking is a safety property, not a knob: it is written in code on
+        purpose. The YAML key documents which objective that code implements, so
+        a value the code does not implement is a mismatch, not a preference.
+        """
+        problems = []
+        for name, supported in SUPPORTED_OBJECTIVES.items():
+            value = objective.get(name)
+            if value is None:
+                continue
+            if str(value) not in supported:
+                problems.append(
+                    f"design_constraints.objective.{name}={value!r} is not implemented "
+                    f"(supported: {', '.join(supported)})"
+                )
+        if problems:
+            raise ValueError("; ".join(problems))
 
     # ------------------------------------------------------------------ #
     def capacity_by_subsystem(self, fields: Mapping[str, Any]) -> Dict[str, float]:
-        """Fill the three variables, defaulting to the sizing-model baseline."""
+        """Fill the three variables, defaulting to the *installed* machine.
+
+        A partial candidate (``fields`` naming only ARS) is still evaluated as a
+        whole station. Defaulting the unnamed subsystems to the sizing-model
+        baseline would price a station that is not the one the candidate
+        simulation actually runs.
+        """
         out: Dict[str, float] = {}
         for sub in _SUBSYSTEMS:
             key = _CAPACITY_KEY_BY_SUBSYSTEM[sub]
-            raw = fields.get(key, self.baseline_capacity[sub])
+            fallback = float(self.installed_capacity.get(sub, self.baseline_capacity[sub]))
+            raw = fields.get(key, fallback)
             try:
                 out[sub] = float(raw)
             except (TypeError, ValueError):
-                out[sub] = float(self.baseline_capacity[sub])
+                out[sub] = fallback
         return out
+
+    def capacity_source(self, fields: Mapping[str, Any]) -> Dict[str, str]:
+        """Whether each subsystem's capacity came from the candidate or the config."""
+        return {
+            sub: ("candidate" if _CAPACITY_KEY_BY_SUBSYSTEM[sub] in fields else "installed")
+            for sub in _SUBSYSTEMS
+        }
 
     def _affine(self, table: Mapping[str, Mapping[str, float]], sub: str, ratio: float) -> float:
         block = table.get(sub) or {}
@@ -288,6 +360,16 @@ class DesignConstraints:
         }
 
     def baseline_footprint(self) -> Dict[str, Any]:
+        """Footprint of the sizing-model baseline machine (the reference point)."""
+        return self.footprint(
+            {
+                _CAPACITY_KEY_BY_SUBSYSTEM[sub]: self.baseline_capacity[sub]
+                for sub in _SUBSYSTEMS
+            }
+        )
+
+    def installed_footprint(self) -> Dict[str, Any]:
+        """Footprint of the machine the scenario currently configures."""
         return self.footprint({})
 
     def max_footprint(self) -> Dict[str, Any]:
@@ -361,10 +443,21 @@ class DesignConstraints:
         else:
             status = STATUS_FEASIBLE
 
+        installed = self.installed_footprint()
         added = {
             "added_mass_kg": footprint["total_mass_kg"] - baseline["total_mass_kg"],
             "added_volume_m3": footprint["total_volume_m3"] - baseline["total_volume_m3"],
             "added_cost_musd": footprint["total_cost_musd"] - baseline["total_cost_musd"],
+        }
+        # Signed: a candidate that downsizes a subsystem gives mass back.
+        delta_installed = {
+            "delta_installed_mass_kg": footprint["total_mass_kg"] - installed["total_mass_kg"],
+            "delta_installed_volume_m3": (
+                footprint["total_volume_m3"] - installed["total_volume_m3"]
+            ),
+            "delta_installed_cost_musd": (
+                footprint["total_cost_musd"] - installed["total_cost_musd"]
+            ),
         }
         return {
             "constraint_status": status,
@@ -373,11 +466,17 @@ class DesignConstraints:
             "preflight_errors": [],
             "fields": {key: float(value) for key, value in fields.items()},
             "capacity_by_subsystem": capacity,
+            "capacity_source": self.capacity_source(fields),
+            "installed_capacity": dict(self.installed_capacity),
             **footprint,
             **added,
+            **delta_installed,
             "baseline_total_mass_kg": baseline["total_mass_kg"],
             "baseline_total_volume_m3": baseline["total_volume_m3"],
             "baseline_total_cost_musd": baseline["total_cost_musd"],
+            "installed_total_mass_kg": installed["total_mass_kg"],
+            "installed_total_volume_m3": installed["total_volume_m3"],
+            "installed_total_cost_musd": installed["total_cost_musd"],
             "bound_violations": bound_violations,
             "budget_violations": budget_violations,
             "violations": bound_violations + budget_violations,
@@ -417,7 +516,20 @@ class DesignConstraints:
 
     @property
     def require_feasible_final(self) -> bool:
-        return bool(self.simulation_policy.get("require_feasible_final", True))
+        """Whether busting a budget disqualifies a candidate (default: no)."""
+        return bool(self.simulation_policy.get("require_feasible_final", False))
+
+    @property
+    def require_in_bounds_final(self) -> bool:
+        """Whether a machine outside the engineering bounds may be adopted."""
+        return bool(self.simulation_policy.get("require_in_bounds_final", True))
+
+    def clamp_to_bounds(self, subsystem: str, value: float) -> float:
+        """Keep a sized capacity inside what can actually be built."""
+        block = self.bounds.get(subsystem) or {}
+        low = float(block.get("min", 0.0))
+        high = float(block.get("max", float("inf")))
+        return min(max(float(value), low), high)
 
     def describe(self) -> Dict[str, Any]:
         """Compact, LLM-facing description of the constraint environment."""
@@ -426,8 +538,14 @@ class DesignConstraints:
             "objective": {
                 "primary": self.objective_primary,
                 "secondary": self.objective_secondary,
+                "note": (
+                    "full survival is the clearance line, not a score: a design that "
+                    "loses an occupant is never adopted. Among designs that keep every "
+                    "occupant alive, the smallest mass wins, then volume, then cost."
+                ),
             },
             "design_variables": list(CAPACITY_KEYS),
+            "installed_capacity": dict(self.installed_capacity),
             "budgets": dict(self.budgets),
             "subsystem_bounds": {k: dict(v) for k, v in self.bounds.items()},
             "sizing_model": {
@@ -446,12 +564,18 @@ class DesignConstraints:
                 for key, value in self.baseline_footprint().items()
                 if key != "by_subsystem"
             },
+            "installed_footprint": {
+                key: value
+                for key, value in self.installed_footprint().items()
+                if key != "by_subsystem"
+            },
         }
 
 
 __all__ = [
     "DesignConstraints",
     "SIZING_MODE",
+    "SUPPORTED_OBJECTIVES",
     "STATUS_FEASIBLE",
     "STATUS_INVALID",
     "STATUS_OUT_OF_BOUNDS",

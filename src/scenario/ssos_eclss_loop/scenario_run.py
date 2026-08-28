@@ -49,6 +49,7 @@ from scenario.ssos_eclss_loop.survival import (
     map_physics_limiting,
 )
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
+from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_proposals import (
     apply_design_proposals,
     load_design_proposals,
@@ -356,6 +357,7 @@ class SsosEclssLoopScenario(Scenario):
         apply_proposals_path: Optional[Path] = None,
         run_id: Optional[str] = None,
         results_root: Optional[Path] = None,
+        approve_provisional: bool = False,
     ) -> Path:
         # Load order (before any simulation step):
         # 1) scenario.yaml (+ CLI overrides)
@@ -365,8 +367,14 @@ class SsosEclssLoopScenario(Scenario):
         applied_proposals_path: Optional[Path] = None
         if apply_proposals_path is not None:
             proposals = load_design_proposals(apply_proposals_path)
-            config = apply_design_proposals(config, proposals)
+            config = apply_design_proposals(
+                config, proposals, approve_provisional=approve_provisional
+            )
             applied_proposals_path = Path(apply_proposals_path)
+        # Fail before the simulation, not after it: a design_constraints block
+        # the ranking does not implement is a config error, and finding it in
+        # the post-run designer would waste the whole run.
+        DesignConstraints.from_scenario_config(config)
         thresholds = config.get("thresholds", {}) or {}
         agents_config = load_agents_config(self.name, config)
         if agents_config:
@@ -672,6 +680,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         metavar="PATH",
         help="Apply design_proposals.json from a prior run before executing",
     )
+    parser.add_argument(
+        "--approve-provisional",
+        action="store_true",
+        help=(
+            "Adopt a proposal marked provisional_final / requires_supervisor_approval "
+            "(design doc §9: otherwise such a document is refused)"
+        ),
+    )
     args = parser.parse_args(argv)
 
     overrides: Dict[str, Any] = {}
@@ -697,6 +713,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             output_dir=args.output_dir,
             overrides=overrides or None,
             apply_proposals_path=args.apply_proposals,
+            approve_provisional=args.approve_provisional,
         )
     )
     if result.exit_code != 0:

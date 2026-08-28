@@ -12,8 +12,13 @@ import yaml
 from scenario.agents.ssos_post_run_design import DesignReviewBundle, PostRunDesignAgent
 from scenario.agents.ssos_tool_use_design import (
     EXPERT_CONTEXT_PACK,
+    STATUS_APPROVED,
     ToolUseDesignAgent,
     ToolUseSettings,
+)
+from scenario.ssos_eclss_loop.design_proposals import (
+    apply_design_proposals,
+    supervisor_approval_reasons,
 )
 from scenario.runner import run_scenario
 
@@ -222,7 +227,38 @@ def test_no_llm_client_uses_the_fallback(baseline: Path):
     assert proposals["changes"]
 
 
-def test_designer_may_pick_an_eligible_candidate_other_than_rank_one(baseline: Path):
+def test_a_real_review_document_carries_its_own_approval_gate(baseline: Path):
+    """End to end: what the designer writes is what --apply-proposals judges."""
+    bundle = _bundle(baseline)
+    proposals = _agent(None).propose(bundle)
+    blocking = supervisor_approval_reasons(proposals)
+
+    if proposals["final_status"] == STATUS_APPROVED:
+        assert blocking == []
+        merged = apply_design_proposals(bundle.scenario_config, proposals)
+        assert merged["plant_sim"]["ars"]["capacity_kg_day"] > 0
+        return
+
+    assert blocking, "a provisional design must not slip through the apply path"
+    assert proposals["selection_reason"]
+    with pytest.raises(ValueError, match="requires supervisor approval"):
+        apply_design_proposals(bundle.scenario_config, proposals)
+    # ... and a human can still take it on purpose
+    merged = apply_design_proposals(
+        bundle.scenario_config, proposals, approve_provisional=True
+    )
+    fields = proposals["changes"][0]["payload"]["fields"]
+    assert merged["plant_sim"]["ars"]["capacity_kg_day"] == fields[
+        "plant_sim.ars.capacity_kg_day"
+    ]
+
+
+def test_the_designer_cannot_overrule_the_ranking(baseline: Path):
+    """Rank 1 is the smallest design that saves everyone; a named runner-up is not.
+
+    The designer steers which candidates get built and simulated. Which verified
+    candidate is adopted is the objective's call, not the model's.
+    """
     llm = _ScriptedLlm(
         [
             _tool("load_run_artifacts"),
@@ -242,13 +278,9 @@ def test_designer_may_pick_an_eligible_candidate_other_than_rank_one(baseline: P
     proposals = _agent(llm).propose(_bundle(baseline))
     rankings = json.loads(Path(proposals["candidate_rankings_path"]).read_text(encoding="utf-8"))
     assert len(rankings["ranking"]) == 2
-    requested = next(
-        row for row in rankings["ranking"] if row["candidate_id"] == "candidate_002"
-    )
-    if requested["final_eligible"]:
-        assert proposals["selected_candidate_id"] == "candidate_002"
-    else:
-        # not eligible: the ranked selection stands and the reason is recorded
+    rank_one = next(row for row in rankings["ranking"] if row["rank"] == 1)
+    assert proposals["selected_candidate_id"] == rank_one["candidate_id"]
+    if rank_one["candidate_id"] != "candidate_002":
         assert any("candidate_002" in note for note in proposals["parse_notes"])
 
 

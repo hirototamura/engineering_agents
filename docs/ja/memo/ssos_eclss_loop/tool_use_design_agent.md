@@ -46,7 +46,7 @@ wrs_goal.urine_volume     >= 1 step あたりの尿発生量（バッチ上限�
 
 1. **1 step あたり同一 subsystem のコマンドは 1 回まで。** ARS / OGS / WRS を同じ step に 1 回ずつは許可。ARS を同じ step に 2 回は禁止。2 件目以降は `/eclss/events/operational_rejected`（`reason=duplicate_command_this_step`）。
    実装は `SsosEclssLoopTeam.apply_outcome()` の**実行ゲート**で、mode に依存しない。`max_actions_per_step`（action round に参加する代表人数）は従来どおり残る。
-2. **operation duration / busy guard.** `ars_operation_seconds = 4800`、`step_seconds = 1200` なので、ARS は 1 回受理すると `ceil(4800/1200) = 4 step` 作動中になる。作動中の再コマンドは `reason=subsystem_busy` で拒否（`details` に `subsystem` / `remaining_steps` / `busy_until_step`）。OGS / WRS は既定 1 step なので次 step で再実行できる。
+2. **operation duration / busy guard.** `ars_operation_seconds = 4800`、`step_seconds = 1200` なので、ARS は 1 回受理すると `ceil(4800/1200) = 4 step` 作動中になる。作動中の再コマンドは `reason=subsystem_busy` で拒否（`details` に `subsystem` / `remaining_steps` / `busy_until_step`）。OGS / WRS は既定 1 step なので次 step で再実行できる。なお、実際に何も処理しなかった回は装置を占有しない: 供給のない WRS（`reason=no_feed`）と、水がない / 要求 0 の OGS（`reason=no_water`）はどちらも busy にならない。
    実装は `PlantSimEclssBackend`。`plant_sim.operations.busy_guard_enabled: false` で切り戻せる。
 
 この結果、ARS の実効能力は `capacity_kg_day × goal_scale`（1 日 18 action が上限）になり、50 人の `52 kg/day` にまったく届かないことが**ランに現れる**ようになった。
@@ -65,7 +65,7 @@ wrs_goal.urine_volume     >= 1 step あたりの尿発生量（バッチ上限�
 | `propose_capacity_candidate` | 理論値 + margin から候補 capacity を組む（シミュレーションはしない） |
 | `evaluate_design_constraints` | 質量・体積・コスト・bounds・budget のラベル付け |
 | `run_design_candidate` | 候補で**再シミュレーション**（候補ラン内では designer を無効化） |
-| `compare_design_runs` | baseline と全候補を lexicographic にランキングし、採用候補を決める |
+| `compare_design_runs` | baseline と全候補を目的関数でランキングし、採用候補を決める（引数なし。evidence 完了判定は台帳から読む。モデルからは渡せない）|
 
 ## 制約モデル（`rack_affine_linear_v1`）
 
@@ -85,23 +85,42 @@ baseline footprint は 1800 kg / 6.8 m³ / 259 MUSD（hardware 160 + launch 99�
 制約チェックは 2 段階（設計書 §8.1）:
 
 - **Preflight**: schema 破損・NaN/Inf/負値・設計変数外の変更 → `invalid`。**シミュレーションしない**。
-- **Constraint evaluation**: budget / bounds 超過は候補を止めず `over_budget` / `out_of_bounds` と**ラベルするだけ**。「過剰設計だが生存性は改善する」も学びなので走らせる。ただし `require_feasible_final: true` の間、最終採用は `feasible` 候補に限る。
+- **Constraint evaluation**: budget / bounds 超過は候補を止めず `over_budget` / `out_of_bounds` と**ラベルするだけ**。「過剰設計だが生存性は改善する」も学びなので走らせる。ただし 2 つのラベルは採用段階で扱いが違う。`out_of_bounds` は物理的に製造できない機体なので採用しない（`require_in_bounds_final: true`）。`over_budget` は金の話なので採用対象にはなり、`provisional_final` として人間に上げる（`require_feasible_final: false`。予算も硬い門にしたければ `true`）。
+- 一部のサブシステムだけを指定した候補も、ステーション全体として価格計算される。指定しなかったサブシステムは **現在インストールされている**容量で計算する（サイジングモデルの初期値ではない）。どちらを使ったかは評価結果の `capacity_source` に出る。
 
-## 評価とランキング（lexicographic）
+## 評価: まず合格ライン、その中で最小の機体
 
-重み付き和にはしない。数百 kg で人命が買えてしまうため。
+生存はランキングのキーではなく**合格条件**。1 人でも失う設計はそもそも採用できないので、
+質量削減と人命が天秤に載ること自体が起きない。合格した設計の中で、まだ成立する最小の
+ステーションを選ぶ、というのが目的関数。
 
 ```python
+final_eligible = (
+    preflight_valid                     # schema / 数値 / 設計変数の範囲
+    and simulated                       # 主張ではなく再シミュレーション済み
+    and evidence_complete               # レビューが証拠を揃えている
+    and crew_remaining == crew_initial  # 合格ライン
+    and constraint_status != "out_of_bounds"   # 実際に製造できる
+)
+
 rank_key = (
     not final_eligible,     # 採用可能な候補を先に
-    -crew_remaining,        # 生存者最大化
-    critical_step_count,    # CRITICAL 滞在を最小化
-    warning_step_count,     # WARNING 滞在を最小化
-    total_mass_kg,          # 以降は footprint 最小化
+    -crew_remaining,        # 不合格候補どうしの並び順にしか効かない
+    total_mass_kg,          # 合格候補の中では最小の機体が勝つ
     total_volume_m3,
     total_cost_musd,
+    critical_step_count,    # 同点時の tie-break: 危険帯の滞在が短い方
+    warning_step_count,
 )
 ```
+
+ランキング自体が目的関数なので、**モデルはこれを上書きできない**。`final_proposal` で別の
+`candidate_id` を指名しても `parse_notes` に記録されるだけで採用は動かない。どの候補を作って
+走らせるかは designer の判断、どの検証済み候補を採るかは計算。
+
+`scenario.yaml` の `design_constraints.objective` はこの目的関数を記述するもので、シナリオ
+ロード時に検証する。実装されていない値が書かれていればシミュレーション開始前に落ちるので、
+設定と挙動が食い違ったまま走ることはない。
 
 `design_penalty`（質量・コスト・体積の正規化和）は**説明用**であり、採用判定の正本ではない。
 
@@ -109,9 +128,17 @@ final status:
 
 | status | 意味 |
 | --- | --- |
-| `approved_final` | 全員生存 + Evidence Gate 通過 + `feasible` + rank 最上位 |
-| `provisional_final` | 観測された最良候補だが、全員生存でない／budget・bounds 超過。`requires_supervisor_approval: true` を付けて報告する |
-| `rejected_final` | evidence 不足、invalid、シミュレーション失敗、baseline より悪い |
+| `approved_final` | 全員生存 + Evidence Gate 通過 + bounds 内 + budget 内 + rank 最上位 |
+| `provisional_final` | 選ばれた設計だが、全員生存でない、または budget 超過。`requires_supervisor_approval: true` を付けて報告する |
+| `rejected_final` | evidence 不足、invalid、候補が 1 つも作られなかった |
+
+### 採用は別の行為
+
+`design_proposals.json` は status に関わらず書き出す（記録として要る）。採用側に門がある:
+`--apply-proposals` は `final_status` が `approved_final` でない文書、または
+`requires_supervisor_approval` が付いた文書を**理由付きで拒否する**。それでも採る場合は人間が
+`--approve-provisional` を渡す。ファイルを渡されたことは承認ではなく、予算超過の設計に金を
+払うと決めることが承認である。
 
 ## Evidence Gate
 
@@ -151,7 +178,7 @@ design:
     count: 1                      # Tool Use designer は 1 人（設計書 §4）。複数人の議論は future phase
   tool_use:
     enabled: true                 # false で従来の summary 直読み designer に戻る
-    max_tool_iterations: 12
+    max_tool_iterations: 24
     max_candidate_runs: 4
     candidate_actor_mode: inherit # 候補ラン内の actor mode。LLM 乗員のときは labeled_rule_base が安い
     plots_enabled: true
@@ -176,7 +203,7 @@ LLM が居ない / JSON を 3 回続けて壊す / `max_tool_iterations` に到�
 ea run ssos_eclss_loop --backend plant_sim --steps 72 --actor-mode labeled_rule_base --design-mode llm
 ```
 
-`design.mode = llm` は lab vLLM（`agents.yaml` の `design.llm.base_url`）に接続する。VPN が必要。1 turn あたり数十秒〜2 分（32B + thinking）かかるため、12 turn のレビューは 10〜25 分程度を見込む。候補の再シミュレーション自体は 1 本あたり 1 秒程度。
+`design.mode = llm` は lab vLLM（`agents.yaml` の `design.llm.base_url`）に接続する。VPN が必要。1 turn あたり数十秒〜2 分（32B + thinking）かかるため、24 turn の予算を使い切るレビューは 20〜50 分程度を見込む。候補の再シミュレーション自体は 1 本あたり 1 秒程度。
 
 ## 既知の帰結
 

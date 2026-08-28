@@ -90,8 +90,10 @@ plant_sim:
 design_constraints:
   enabled: true  # if false, candidates are still simulated but never labelled infeasible
   objective:
-    primary: maximize_crew_remaining  # lexicographic first key
-    secondary: minimize_resource_footprint  # mass → volume → cost, after dwell time
+    # Documents the objective implemented in design_eval; any other value is
+    # rejected when the scenario loads, so config and behaviour cannot drift.
+    primary: require_full_survival  # clearance line: crew_remaining == crew_initial
+    secondary: minimize_resource_footprint  # then mass → volume → cost
   budgets:
     # Soft caps used for labelling, not a pre-simulation hard stop (§8.1).
     max_total_mass_kg: 4000.0  # [kg] ARS + OGS + WRS installed mass
@@ -132,7 +134,11 @@ design_constraints:
     run_invalid_candidates: false  # schema / numeric / out-of-scope variable: never run
     run_over_budget_candidates: true  # over budget still teaches the designer something
     run_out_of_bounds_candidates: true  # same for beyond engineering bounds
-    require_feasible_final: true  # but only feasible candidates may be adopted
+    require_in_bounds_final: true  # an unbuildable machine is never adopted
+    # Budgets label, they do not filter: at 50 occupants no full-survival design
+    # fits, and hiding it would leave the review with nothing to report. An
+    # over-budget winner comes back provisional_final for a human to accept.
+    require_feasible_final: false
   penalty_weights:  # descriptive design_penalty only; ranking stays lexicographic
     mass: 0.5
     cost: 0.3

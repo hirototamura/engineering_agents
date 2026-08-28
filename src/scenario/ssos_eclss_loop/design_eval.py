@@ -1,19 +1,31 @@
 """Scoring and ranking for ECLSS capacity candidates (design doc §9).
 
-Ranking is lexicographic, not a weighted sum: occupants first, then how long
-the station sat in a dangerous band, then footprint. A weighted score would let
-a few hundred kilograms buy a human life, which is not the trade the objective
-states.
+Full survival is a **hard eligibility condition**, not a ranking key: a design
+that loses an occupant cannot be adopted at all, so no amount of saved mass can
+buy a human life. Among the designs that keep everyone alive, the objective is
+to minimise the footprint — mass, then volume, then cost.
+
+    eligible = preflight valid
+               and simulated
+               and evidence complete
+               and crew_remaining == crew_initial      # the clearance line
+               and inside the engineering bounds       # you cannot build it otherwise
 
     rank_key = (
         not final_eligible,   # eligible candidates first
-        -crew_remaining,      # maximise survivors
-        critical_step_count,  # minimise time in CRITICAL
-        warning_step_count,   # minimise time in WARNING
-        total_mass_kg,        # then the cheapest / smallest machine wins
+        -crew_remaining,      # only separates the ineligible ones from each other
+        total_mass_kg,        # among eligible designs: the smallest machine wins
         total_volume_m3,
         total_cost_musd,
+        critical_step_count,  # final tie-break: less time in a dangerous band
+        warning_step_count,
     )
+
+Budgets are deliberately **not** an eligibility condition (they would leave no
+eligible candidate at all at 50 occupants). An eligible candidate that busts a
+budget is still selected — as ``provisional_final`` requiring human approval, so
+the overage is a decision a person makes rather than a filter that hides the
+only surviving design.
 
 ``design_penalty`` from :mod:`design_constraints` stays a descriptive number for
 reports; it never decides adoption.
@@ -22,8 +34,15 @@ reports; it never decides adoption.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
+
+from scenario.ssos_eclss_loop.design_constraints import (
+    STATUS_FEASIBLE,
+    STATUS_OUT_OF_BOUNDS,
+    STATUS_OVER_BUDGET,
+)
 
 STATUS_APPROVED = "approved_final"
 STATUS_PROVISIONAL = "provisional_final"
@@ -130,9 +149,11 @@ def evaluate_run_outcome(run_dir: Path) -> Dict[str, Any]:
         "operational_command_count": summary.get("operational_command_count"),
         **counts,
     }
-    if isinstance(crew_initial, int) and isinstance(crew_remaining, int) and crew_initial > 0:
-        outcome["survival_fraction"] = crew_remaining / crew_initial
-        outcome["full_survival"] = crew_remaining == crew_initial
+    start = occupant_count(crew_initial)
+    left = occupant_count(crew_remaining)
+    if start is not None and left is not None and start > 0:
+        outcome["survival_fraction"] = left / start
+        outcome["full_survival"] = left == start
     else:
         outcome["survival_fraction"] = None
         outcome["full_survival"] = None
@@ -144,6 +165,26 @@ def _as_int(value: Any, default: int = 0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def occupant_count(value: Any) -> Optional[int]:
+    """An occupant count as ``int``, or None when it is not a whole number.
+
+    ``summary.json`` is JSON, so counts normally arrive as ``int`` — but a
+    numpy integer or a float-valued count (``50.0``) is just as correct, and an
+    ``isinstance(value, int)`` test would silently make full survival
+    unreachable for those. Anything fractional stays None: half an occupant is
+    a broken summary, not a survival verdict.
+    """
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number) or number != int(number):
+        return None
+    return int(number)
 
 
 def _as_float(value: Any, default: float = 0.0) -> float:
@@ -159,12 +200,14 @@ def candidate_rank_key(record: Mapping[str, Any]) -> tuple:
     constraints = record.get("constraint_evaluation") or {}
     return (
         not bool(record.get("final_eligible")),
+        # Every eligible candidate keeps the whole crew alive, so this key only
+        # orders the ineligible ones among themselves (report readability).
         -_as_int(outcome.get("crew_remaining"), -1),
-        _as_int(outcome.get("critical_step_count"), 10**6),
-        _as_int(outcome.get("warning_step_count"), 10**6),
         _as_float(constraints.get("total_mass_kg"), float("inf")),
         _as_float(constraints.get("total_volume_m3"), float("inf")),
         _as_float(constraints.get("total_cost_musd"), float("inf")),
+        _as_int(outcome.get("critical_step_count"), 10**6),
+        _as_int(outcome.get("warning_step_count"), 10**6),
     )
 
 
@@ -180,15 +223,21 @@ def mark_final_eligibility(
     record: Dict[str, Any],
     *,
     baseline_outcome: Mapping[str, Any],
-    require_feasible: bool = True,
+    require_in_bounds: bool = True,
+    require_within_budget: bool = False,
     evidence_complete: bool = True,
 ) -> Dict[str, Any]:
     """Decide whether a candidate may become the final proposal.
 
-    A candidate must be preflight-valid, actually simulated, not worse than
-    baseline survival, and — when ``require_feasible`` — inside budget and
-    engineering bounds. Missing evidence disqualifies every candidate: the
-    Evidence Gate is a property of the review, not of one candidate.
+    A candidate must be preflight-valid, actually simulated, keep **every**
+    occupant alive, and stay inside the engineering bounds — a machine outside
+    those bounds cannot be built, so it is not a design. Missing evidence
+    disqualifies every candidate: the Evidence Gate is a property of the
+    review, not of one candidate.
+
+    ``require_within_budget`` is off by default: an over-budget design that
+    saves the whole crew is a decision for a human (it comes back as
+    ``provisional_final``), not something to filter out silently.
     """
     constraints = record.get("constraint_evaluation") or {}
     outcome = record.get("outcome") or {}
@@ -201,14 +250,24 @@ def mark_final_eligibility(
     if not evidence_complete:
         reasons.append("evidence_incomplete")
 
-    baseline_crew = baseline_outcome.get("crew_remaining")
-    crew = outcome.get("crew_remaining")
-    if isinstance(baseline_crew, int) and isinstance(crew, int) and crew < baseline_crew:
+    crew = occupant_count(outcome.get("crew_remaining"))
+    crew_initial = occupant_count(outcome.get("crew_initial"))
+    if crew is None or crew_initial is None or crew_initial <= 0:
+        reasons.append("survival_unknown")
+    elif crew < crew_initial:
+        reasons.append(f"not_full_survival={crew}/{crew_initial}")
+
+    baseline_crew = occupant_count(baseline_outcome.get("crew_remaining"))
+    if baseline_crew is not None and crew is not None and crew < baseline_crew:
         reasons.append("worse_than_baseline_survival")
 
     status = str(constraints.get("constraint_status", ""))
-    if require_feasible and status != "feasible":
-        reasons.append(f"constraint_status={status or 'unknown'}")
+    if status == STATUS_OUT_OF_BOUNDS and require_in_bounds:
+        reasons.append(f"constraint_status={status}")
+    elif status == STATUS_OVER_BUDGET and require_within_budget:
+        reasons.append(f"constraint_status={status}")
+    elif status and status not in (STATUS_FEASIBLE, STATUS_OUT_OF_BOUNDS, STATUS_OVER_BUDGET):
+        reasons.append(f"constraint_status={status}")
 
     record["final_eligible"] = not reasons
     record["final_ineligible_reasons"] = reasons
@@ -222,10 +281,12 @@ def select_final_candidate(
 ) -> Dict[str, Any]:
     """Pick the final candidate and classify the decision.
 
-    ``approved_final`` requires an eligible candidate that keeps every occupant
-    alive. An eligible-but-lossy best candidate, or a best candidate that only
-    exists outside the budget, is reported as ``provisional_final`` — useful,
-    but not auto-adopted (design doc §9).
+    ``approved_final`` requires an eligible candidate — every occupant alive,
+    inside the engineering bounds — that also fits the documented budgets. An
+    ineligible best candidate, or an eligible one that busts a budget, is
+    reported as ``provisional_final``: useful, but not auto-adopted
+    (design doc §9). ``apply_design_proposals`` refuses a provisional document
+    unless a human passes ``approve_provisional``.
     """
     if not ranked:
         return {
@@ -236,6 +297,7 @@ def select_final_candidate(
 
     best = ranked[0]
     outcome = best.get("outcome") or {}
+    constraints = best.get("constraint_evaluation") or {}
     baseline_crew = baseline_outcome.get("crew_remaining")
     crew = outcome.get("crew_remaining")
     crew_initial = outcome.get("crew_initial")
@@ -247,20 +309,20 @@ def select_final_candidate(
             "reason": (
                 "best observed candidate is not final-eligible: "
                 + ", ".join(best.get("final_ineligible_reasons") or ["unknown"])
+                + f" (baseline kept {baseline_crew})"
             ),
             "requires_supervisor_approval": True,
         }
 
-    full_survival = (
-        isinstance(crew, int) and isinstance(crew_initial, int) and crew == crew_initial
-    )
-    if not full_survival:
+    status = str(constraints.get("constraint_status", ""))
+    if status and status != STATUS_FEASIBLE:
+        violations = constraints.get("budget_violations") or constraints.get("violations") or []
         return {
             "final_status": STATUS_PROVISIONAL,
             "selected_candidate_id": best.get("candidate_id"),
             "reason": (
-                f"best feasible candidate keeps {crew}/{crew_initial} occupants alive "
-                f"(baseline {baseline_crew}); not full survival"
+                f"smallest design that keeps {crew}/{crew_initial} occupants alive is "
+                f"{status}: {'; '.join(str(v) for v in violations) or 'no detail'}"
             ),
             "requires_supervisor_approval": True,
         }
@@ -269,8 +331,8 @@ def select_final_candidate(
         "final_status": STATUS_APPROVED,
         "selected_candidate_id": best.get("candidate_id"),
         "reason": (
-            f"feasible candidate with full survival ({crew}/{crew_initial}), "
-            f"lowest footprint among ranked candidates"
+            f"full survival ({crew}/{crew_initial}) with the smallest footprint among "
+            f"ranked candidates, inside the documented budgets"
         ),
         "requires_supervisor_approval": False,
     }
@@ -284,6 +346,7 @@ __all__ = [
     "candidate_rank_key",
     "evaluate_run_outcome",
     "mark_final_eligibility",
+    "occupant_count",
     "rank_candidates",
     "read_summary",
     "select_final_candidate",
