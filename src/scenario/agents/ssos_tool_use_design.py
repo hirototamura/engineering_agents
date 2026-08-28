@@ -67,7 +67,10 @@ EXPERT_CONTEXT_PACK = """\
   Applying a capacity_profile re-syncs both payloads for you.
 - summary.json alone is not enough evidence. Look at the time series, the dwell in
   warning / critical bands, the shortfall ledgers and the crew loss causes.
-- Only a candidate that has been re-simulated may become the final proposal."""
+- Only a candidate that has been re-simulated may become the final proposal.
+- One verified candidate is the minimum, not the goal. While candidate runs remain and
+  your best candidate still loses occupants, size another one and compare — a design
+  that saves more people outranks a cheaper one that saves fewer."""
 
 
 TOOL_LOOP_CONTRACT = """\

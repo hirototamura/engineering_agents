@@ -78,9 +78,10 @@ design:
     llm:
       # Merged over design.llm for tool-loop turns only. A turn emits one small
       # JSON object; with design.llm's 16384 budget the 27B model spends it all
-      # on thinking and can pass the 300 s HTTP timeout (empty reply). 4096
-      # keeps a turn at roughly 10-30 s.
-      max_tokens: 4096  # [-] completion budget per tool-loop turn
+      # on thinking and can pass the 300 s HTTP timeout (empty reply). This
+      # keeps a turn at roughly 40-70 s and still leaves room for the final
+      # proposal, which is the longest reply of the loop.
+      max_tokens: 6144  # [-] completion budget per tool-loop turn (~40-70 s)
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8001/v1  # independent of actor; 32B is :8001/v1
