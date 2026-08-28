@@ -522,7 +522,13 @@ class ToolUseDesignAgent:
         selected = self._pick_record(ranked, selection.get("selected_candidate_id"))
         requested = self._pick_record(ranked, requested_id) if requested_id else None
         notes = list(result.get("parse_notes") or [])
-        if requested is not None and requested is not selected:
+        if requested_id and requested is None:
+            notes.append(
+                f"designer referenced {requested_id!r}, which is not among the simulated "
+                "candidates; kept the ranked selection"
+            )
+        selected_id = (selected or {}).get("candidate_id")
+        if requested is not None and requested.get("candidate_id") != selected_id:
             if requested.get("final_eligible"):
                 selected = requested
                 selection = {
@@ -550,6 +556,8 @@ class ToolUseDesignAgent:
                 ).strip(" |"),
             }
 
+        if selected is None and ranked:
+            selected = dict(ranked[0])
         changes: List[Dict[str, Any]] = []
         constraint_evaluation: Dict[str, Any] = {}
         expected_outcome: Dict[str, Any] = {}
@@ -690,12 +698,18 @@ class ToolUseDesignAgent:
         ranked: Sequence[Mapping[str, Any]],
         candidate_id: Optional[str],
     ) -> Optional[Dict[str, Any]]:
+        """The named candidate, or rank 1 when no name is given.
+
+        An unknown name returns None so the caller can say so instead of
+        silently substituting the top-ranked candidate.
+        """
         if not ranked:
             return None
         if candidate_id:
             for record in ranked:
                 if record.get("candidate_id") == candidate_id:
                     return dict(record)
+            return None
         return dict(ranked[0])
 
     @staticmethod

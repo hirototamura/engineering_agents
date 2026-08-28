@@ -306,3 +306,18 @@ def test_tool_loop_llm_overrides_are_merged_over_design_llm(baseline: Path, monk
     assert seen[0]["max_tokens"] == 16384  # designer default, built in __init__
     assert seen[1]["max_tokens"] == 4096  # tool loop override
     assert seen[1]["think"] is True  # everything else is inherited
+
+
+def test_selecting_the_ranked_candidate_by_name_adds_no_note(baseline: Path):
+    """Naming rank 1 is agreement, not a disagreement worth recording."""
+    llm = _ScriptedLlm([*_happy_path_replies()[:-1], _final("candidate_001")])
+    proposals = _agent(llm).propose(_bundle(baseline))
+    assert proposals["selected_candidate_id"] == "candidate_001"
+    assert proposals["parse_notes"] == []
+
+
+def test_unknown_candidate_id_is_reported_not_silently_swapped(baseline: Path):
+    llm = _ScriptedLlm([*_happy_path_replies()[:-1], _final("candidate_999")])
+    proposals = _agent(llm).propose(_bundle(baseline))
+    assert proposals["selected_candidate_id"] == "candidate_001"
+    assert any("candidate_999" in note for note in proposals["parse_notes"])
