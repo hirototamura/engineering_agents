@@ -150,7 +150,7 @@ Verification: potable vs electrolysis water tradeoff, `water_tradeoff_signal`
 
 | Item | Description |
 | --- | --- |
-| LLM agent mode | `agents.mode: llm` with Ollama |
+| LLM agent mode | Nested `agents.actor.mode` / `agents.design.mode: llm`; Ollama or lab vLLM |
 | Docker `ea-loop` | Container entry with ros2 / Ollama defaults |
 | `run_ssos_eclss_loop.sh` | Host wrapper for container runs |
 

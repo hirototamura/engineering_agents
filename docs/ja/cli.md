@@ -57,6 +57,12 @@ ea job run /tmp/job.json
 
 `ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。
 
+LLM の落とし穴:
+
+- `--llm-model` は **両側**の `agents.actor.llm.model` と `agents.design.llm.model` を同じ値で潰す。研究室の分割（`:8000` の `qwen3.5-9b`、`:8001` の `qwen3.8-27b-uncensored`）は YAML か `--set` で保つ。
+- `VLLM_BASE_URL` / `VLLM_MODEL` もすべての vLLM クライアントに効く。
+- `provider: vllm` のまま Ollama タグ（`gemma4:e4b`）を置くと `resolve_vllm_model` が捨て、クライアントは `qwen3-8b` になる。
+
 ## 結果の確認
 
 ```bash

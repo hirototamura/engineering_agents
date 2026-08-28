@@ -25,8 +25,8 @@
 
 | 種類 | いつ動く | 役割 | id_prefix | モデル（いまの既定。後で変える） |
 | --- | --- | --- | --- | --- |
-| actor | 各ステップ | 会話 + ARS/OGS/WRS 運用コマンドのみ | `eclss_actor` → `eclss_actor_1` … `_50` | vLLM `qwen3-8b`。`labeled_rule_base` 可 |
-| designer | **ラン終了後だけ** | 初期値・テレメトリ・actor 最終状態を見て `design_proposals.json` | `eclss_designer` → `eclss_designer_1` … `_4` | vLLM `qwen3-8b`。`max_tokens: 2048` |
+| actor | 各ステップ | 会話 + ARS/OGS/WRS 運用コマンドのみ | `eclss_actor` → `eclss_actor_1` … `_50` | vLLM `qwen3.5-9b`（`:8000`）。`labeled_rule_base` 可 |
+| designer | **ラン終了後だけ** | 初期値・テレメトリ・actor 最終状態を見て `design_proposals.json` | `eclss_designer` → `eclss_designer_1` … `_4` | vLLM `qwen3.8-27b-uncensored`（`:8001`）。`max_tokens: 16384`、`think: true` |
 
 検証の合否は `src/scenario/ssos_eclss_loop/health.py` の決定論チェック。設計 LLM に pass/fail はさせない。LLM / Persona は `environment/` に入れない。
 

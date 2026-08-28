@@ -81,6 +81,12 @@ ea job run /tmp/job.json
 
 On `ssos_eclss_loop`, in-sim actors and post-run designers are separate. See [post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md). `--agents-mode` is a deprecated alias for `--actor-mode`.
 
+LLM pitfalls:
+
+- `--llm-model` writes **both** `agents.actor.llm.model` and `agents.design.llm.model`. Keep the lab split (`qwen3.5-9b` on `:8000`, `qwen3.8-27b-uncensored` on `:8001`) with YAML or `--set`.
+- `VLLM_BASE_URL` / `VLLM_MODEL` likewise apply to every vLLM client.
+- An Ollama tag (`gemma4:e4b`) under `provider: vllm` is rejected by `resolve_vllm_model`; the client uses `qwen3-8b` instead.
+
 ## Exit codes
 
 | Code | Meaning |

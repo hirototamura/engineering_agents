@@ -332,7 +332,7 @@ python src/scripts/run_tests.py
 
 ### 4. LLM バックエンド（LLM モード用）
 
-`agents.mode: llm` は次のいずれかが必要です。既定は **Ollama**。`--llm-provider vllm` または `LLM_PROVIDER=vllm` で切り替えます。
+`agents.mode: llm`（scrubber）または `agents.actor.mode` / `agents.design.mode: llm`（ssos）は次のいずれかが必要です。scrubber の YAML 既定は **Ollama**。ssos の YAML 既定は **vLLM**。`--llm-provider` または `LLM_PROVIDER` で切り替えます。
 
 #### Ollama（ローカル）
 
@@ -353,18 +353,21 @@ ollama list
 
 研究室マシン `gpu-sv-008`（`10.10.0.108`）が OpenAI 互換 API を公開しています。研究室 LAN または VPN から到達できます（公開アドレスではありません）。そのマシンで別の `vllm serve` を立てないこと。セットアップ: [hirototamura/vllm_server](https://github.com/hirototamura/vllm_server)。
 
-| 用途 | URL | `model` |
+| 用途 | URL | served `model`（`ssos_eclss_loop/agents.yaml`） |
 | --- | --- | --- |
-| 日常の議論（既定） | `http://10.10.0.108:8000/v1` | `qwen3-8b` |
-| 重い判断 | `http://10.10.0.108:8001/v1` | `qwen3-32b` |
+| ssos actor（運用） | `http://10.10.0.108:8000/v1` | `qwen3.5-9b`（`think: false`、`max_tokens: 768`） |
+| ssos designer（事後） | `http://10.10.0.108:8001/v1` | `qwen3.8-27b-uncensored`（`think: true`、`max_tokens: 16384`） |
+
+`VllmClient` は YAML の `model` が Ollama 形式（`:` を含む。例: `gemma4:e4b`）または未設定のとき、`:8000` の **`qwen3-8b`** にフォールバックします。これは上の ssos YAML id とは別です。
 
 ```bash
+ea run ssos_eclss_loop --backend mock --actor-mode llm --design-mode llm
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
-ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3-32b \
-  --set agents.llm.base_url=http://10.10.0.108:8001/v1
+# ssos の URL/モデルを分けるときは --llm-model を使わない（両側を同じ値で潰す）。
+# YAML か --set agents.actor.llm.model= / agents.design.llm.model= を使う。
 ```
 
-環境変数: `VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT`、`LLM_PROVIDER`。SSH トンネル例: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`。`agents.llm.api_timeout` は Ollama 用。vLLM は既定 300s（`VLLM_API_TIMEOUT` で上書き）。
+環境変数: `VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT`、`LLM_PROVIDER`。**`VLLM_BASE_URL` / `VLLM_MODEL` はすべての vLLM クライアントに効く**ため、actor と designer が同じ端点に潰れる。分けたいときは `--set`。SSH トンネル例: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`。YAML の `api_timeout` は Ollama 用。vLLM は既定 300s（`VLLM_API_TIMEOUT` で上書き）。`think: true` のとき、クライアントは最終回答用に少なくとも 2048 トークン（または `max_tokens/4`）を残し、reasoning が completion 予算を使い切らないようにします。
 
 デフォルトの LLM 設定は各シナリオの `agents.yaml`（scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml)、ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)）。選択したバックエンドに届かないと `llm` モードは失敗します。
 

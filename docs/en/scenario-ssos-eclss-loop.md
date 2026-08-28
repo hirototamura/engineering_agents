@@ -100,8 +100,6 @@ Steps are 0-based (`0 .. steps-1`). Actor `eclss_actor_{step % N}` issues operat
 
 ### llm
 
-### llm
-
 Each step: all N actors deliberate in parallel → up to `agents.actor.max_actions_per_step` rotating representatives issue `operational_command`. After the run, designers deliberate and **one representative** emits `changes`. That representative may emit **any number** of proposals (empty list allowed; file written only when non-empty). `policy` thresholds are not included in prompts. The parameter is the **number of actors who may command**, not a cap on one actor’s `commands` list.
 
 ---
@@ -111,7 +109,7 @@ Each step: all N actors deliberate in parallel → up to `agents.actor.max_actio
 | File | Purpose |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.actor.mode` / `agents.design.mode`, run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Actor team (`eclss_actor_*`), designer team (`eclss_designer_*`), actor `policy` (labeled only), both vLLM `qwen3-8b` for now |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Actor team (`eclss_actor_*`), designer team (`eclss_designer_*`), actor `policy` (labeled only), vLLM `qwen3.5-9b` (actors, `:8000`) and `qwen3.8-27b-uncensored` (designers, `:8001`) |
 
 ### scenario.yaml (main fields)
 
@@ -193,7 +191,9 @@ actor:
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b  # current default; may change
+    model: qwen3.5-9b  # current default; may change
+    max_tokens: 768
+    think: false
 
 design:
   team:
@@ -201,9 +201,10 @@ design:
     id_prefix: eclss_designer
   llm:
     provider: vllm
-    base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b
-    max_tokens: 2048
+    base_url: http://10.10.0.108:8001/v1
+    model: qwen3.8-27b-uncensored
+    max_tokens: 16384
+    think: true
 ```
 
 ---

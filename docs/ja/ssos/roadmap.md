@@ -149,7 +149,7 @@ gantt
 
 | 項目 | 説明 |
 | --- | --- |
-| LLM エージェントモード | `agents.mode: llm` + Ollama |
+| LLM エージェントモード | `agents.actor.mode` / `agents.design.mode: llm`。Ollama または研究室 vLLM |
 | Docker `ea-loop` | ros2 / Ollama デフォルトのコンテナエントリ |
 | `run_ssos_eclss_loop.sh` | コンテナ実行用ホストラッパ |
 

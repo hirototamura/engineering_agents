@@ -25,8 +25,8 @@ Naming: **actor** (in-sim operational agents) and **designer** (post-run design 
 
 | Kind | When | Role | id_prefix | Model (current default; may change) |
 | --- | --- | --- | --- | --- |
-| actor | Each step | Discourse + ARS/OGS/WRS operational commands only | `eclss_actor` → `eclss_actor_1` … `_50` | vLLM `qwen3-8b`; `labeled_rule_base` allowed |
-| designer | **After the run only** | Read ICs, telemetry, and actor final state; write `design_proposals.json` | `eclss_designer` → `eclss_designer_1` … `_4` | vLLM `qwen3-8b`; `max_tokens: 2048` |
+| actor | Each step | Discourse + ARS/OGS/WRS operational commands only | `eclss_actor` → `eclss_actor_1` … `_50` | vLLM `qwen3.5-9b` on `:8000`; `labeled_rule_base` allowed |
+| designer | **After the run only** | Read ICs, telemetry, and actor final state; write `design_proposals.json` | `eclss_designer` → `eclss_designer_1` … `_4` | vLLM `qwen3.8-27b-uncensored` on `:8001`; `max_tokens: 16384`; `think: true` |
 
 Pass/fail stays deterministic in `src/scenario/ssos_eclss_loop/health.py`. The design LLM does not judge. LLM / Persona stay out of `environment/`.
 

@@ -681,7 +681,7 @@ run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
 | SSOS EPS（scrubber 電力）  | scrubber | ✅ `environment/ssos/eps/ros2/` — `Ros2EpsBridge`（`eps.backend: ros2` で任意） |
 | SSOS EPS（eclss loop）   | ssos     | — 未接続。`ssos/eps/ros2/` は eclss loop とは別 |
 | Ollama                 | 両方       | ✅ コンテナは `host.docker.internal` |
-| 研究室 vLLM              | 両方       | ✅ `http://10.10.0.108:8000/v1`（`qwen3-8b`）。LAN または VPN |
+| 研究室 vLLM              | 両方       | ✅ `:8000` `qwen3.5-9b`（ssos actor）/ `:8001` `qwen3.8-27b-uncensored`（ssos designer）。クライアント fallback は `qwen3-8b`。LAN または VPN |
 | One Piece Web UI       | —        | スコープ外                          |
 
 

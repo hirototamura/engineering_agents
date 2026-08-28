@@ -110,7 +110,7 @@ step は 0-based（`0 .. steps-1`）。actor `eclss_actor_{step % N}` が運用�
 | ファイル | 用途 |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | step 数、初期ストレージ、backend 種別、閾値、`agents.actor.mode` / `agents.design.mode`、run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | actor チーム（`eclss_actor_*`）、designer チーム（`eclss_designer_*`）、actor `policy`（labeled のみ）、いまは両側とも vLLM `qwen3-8b` |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | actor チーム（`eclss_actor_*`）、designer チーム（`eclss_designer_*`）、actor `policy`（labeled のみ）、vLLM `qwen3.5-9b`（actor、`:8000`）と `qwen3.8-27b-uncensored`（designer、`:8001`） |
 
 ### scenario.yaml（主要項目）
 
@@ -192,7 +192,9 @@ actor:
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b  # いまの既定。後で変える
+    model: qwen3.5-9b  # いまの既定。後で変える
+    max_tokens: 768
+    think: false
 
 design:
   team:
@@ -200,9 +202,10 @@ design:
     id_prefix: eclss_designer
   llm:
     provider: vllm
-    base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b
-    max_tokens: 2048
+    base_url: http://10.10.0.108:8001/v1
+    model: qwen3.8-27b-uncensored
+    max_tokens: 16384
+    think: true
 ```
 
 ---

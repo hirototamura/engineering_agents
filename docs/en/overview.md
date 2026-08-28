@@ -337,7 +337,7 @@ python src/scripts/run_tests.py
 
 ### 4. LLM backends (for LLM mode)
 
-`agents.mode: llm` needs one of the following. Default is **Ollama**. Switch with `--llm-provider vllm` or `LLM_PROVIDER=vllm`.
+`agents.mode: llm` (scrubber) or `agents.actor.mode` / `agents.design.mode: llm` (ssos) needs one of the following. Scrubber YAML defaults to **Ollama**. ssos YAML defaults to **vLLM**. Switch provider with `--llm-provider` or `LLM_PROVIDER`.
 
 #### Ollama (local)
 
@@ -358,18 +358,21 @@ Container `ea-loop` defaults to `OLLAMA_BASE_URL=host.docker.internal`.
 
 The lab box `gpu-sv-008` (`10.10.0.108`) serves OpenAI-compatible APIs. Reachable on the lab LAN or via VPN — not a public address. Do not start another `vllm serve` on that machine. Setup: [hirototamura/vllm_server](https://github.com/hirototamura/vllm_server).
 
-| Use | URL | `model` |
+| Use | URL | Served `model` (from `ssos_eclss_loop/agents.yaml`) |
 | --- | --- | --- |
-| Daily deliberation (default) | `http://10.10.0.108:8000/v1` | `qwen3-8b` |
-| Heavier judgment | `http://10.10.0.108:8001/v1` | `qwen3-32b` |
+| ssos actors (daily ops) | `http://10.10.0.108:8000/v1` | `qwen3.5-9b` (`think: false`, `max_tokens: 768`) |
+| ssos designers (post-run) | `http://10.10.0.108:8001/v1` | `qwen3.8-27b-uncensored` (`think: true`, `max_tokens: 16384`) |
+
+`VllmClient` still falls back to **`qwen3-8b`** on `:8000` when YAML has an Ollama-style tag (`model` contains `:`, e.g. `gemma4:e4b`) or when no model is set. That fallback is independent of the ssos YAML ids above.
 
 ```bash
+ea run ssos_eclss_loop --backend mock --actor-mode llm --design-mode llm
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
-ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3-32b \
-  --set agents.llm.base_url=http://10.10.0.108:8001/v1
+# Distinct ssos URLs/models: do not use --llm-model (it stamps both sides).
+# Prefer YAML, or --set agents.actor.llm.model= / agents.design.llm.model=
 ```
 
-Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. `agents.llm.api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set.
+Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. **`VLLM_BASE_URL` / `VLLM_MODEL` apply to every vLLM client**, so they collapse actor and designer onto one endpoint — use `--set` when the two sides must stay split. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. YAML `api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set. With `think: true`, the client reserves at least 2048 completion tokens (or `max_tokens/4`) for the final answer so reasoning cannot consume the whole budget.
 
 Default LLM settings are in each scenario's `agents.yaml` (scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml), ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)). `llm` mode fails if the selected backend is not reachable.
 
