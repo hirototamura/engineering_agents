@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from rich.console import Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.panel import Panel
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
+from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunResult
 
 console = Console(stderr=False)
@@ -66,6 +69,156 @@ def print_run_result(result: RunResult, *, quiet: bool = False, as_json: bool = 
             border_style="green",
         )
     )
+
+
+def crew_remaining_table(rows: List[Dict[str, Any]]) -> Table:
+    table = Table(title="Design iterate — crew remaining")
+    table.add_column("Iter")
+    table.add_column("Crew remaining")
+    table.add_column("Lost")
+    table.add_column("Proposals")
+    table.add_column("Apply")
+    for row in rows:
+        apply_path = row.get("apply_proposals_path") or "—"
+        apply_name = Path(str(apply_path)).name if apply_path not in {None, "—"} else "—"
+        table.add_row(
+            str(row.get("iteration", "")),
+            str(row.get("crew_remaining", "—")),
+            str(row.get("crew_lost", "—")),
+            str(row.get("design_proposal_count", "—")),
+            apply_name,
+        )
+    return table
+
+
+class ChainLiveReporter(IterateReporter):
+    """Live table plus iteration/step progress bars for `ea iterate`."""
+
+    def __init__(self, *, iterations: int, console: Console) -> None:
+        self.iterations = iterations
+        self.console = console
+        self._rows: List[Dict[str, Any]] = []
+        self._run_label = ""
+        self._steps = 1
+        self.progress = Progress(
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        )
+        self.iter_task = self.progress.add_task("Iterations", total=max(iterations, 1))
+        self.sim_task = self.progress.add_task("Simulation", total=1)
+        self._live: Optional[Live] = None
+
+    def _render(self) -> Group:
+        return Group(crew_remaining_table(self._rows), self.progress)
+
+    def _ensure_live(self) -> None:
+        if self._live is None:
+            self._live = Live(
+                self._render(),
+                console=self.console,
+                refresh_per_second=8,
+                transient=False,
+            )
+            self._live.start()
+
+    def _refresh(self) -> None:
+        if self._live is not None:
+            self._live.update(self._render())
+
+    def close(self) -> None:
+        if self._live is not None:
+            self._live.stop()
+            self._live = None
+
+    def on_run_start(
+        self,
+        *,
+        index: int,
+        total: int,
+        label: str,
+        steps: int,
+        kind: str = "iteration",
+    ) -> None:
+        self._steps = max(steps, 1)
+        if kind == "replay":
+            self._run_label = f"Replay {label}"
+            self.progress.update(self.iter_task, completed=self.iterations, total=max(total, 1))
+        else:
+            self._run_label = f"Iteration {index}/{total}"
+            self.progress.update(
+                self.iter_task,
+                completed=max(index - 1, 0),
+                total=max(total, 1),
+            )
+        self.progress.reset(self.sim_task, total=self._steps, completed=0)
+        self.progress.update(self.sim_task, description=f"{self._run_label}  0/{self._steps} steps")
+        self._ensure_live()
+        self._refresh()
+
+    def on_step(self, *, step: int, steps: int) -> None:
+        total = max(steps, 1)
+        completed = min(step + 1, total)
+        self._steps = total
+        self.progress.update(
+            self.sim_task,
+            total=total,
+            completed=completed,
+            description=f"{self._run_label}  {completed}/{total} steps",
+        )
+
+    def on_phase(self, detail: str) -> None:
+        total = max(self._steps, 1)
+        self.progress.update(
+            self.sim_task,
+            total=total,
+            completed=total,
+            description=f"{self._run_label}  {detail}",
+        )
+
+    def on_run_end(self, row: Dict[str, Any]) -> None:
+        self._rows.append(row)
+        label = row.get("iteration")
+        if isinstance(label, int):
+            self.progress.update(self.iter_task, completed=label)
+        self._refresh()
+
+
+def print_chain_summary(
+    chain_summary: Dict[str, Any],
+    *,
+    quiet: bool = False,
+    as_json: bool = False,
+    skip_runs_table: bool = False,
+) -> None:
+    if as_json:
+        console.print_json(json.dumps(chain_summary, ensure_ascii=False))
+        return
+    if quiet:
+        console.print(str(chain_summary.get("chain_summary_path") or ""))
+        return
+
+    if not skip_runs_table:
+        rows = list(chain_summary.get("runs") or []) + list(chain_summary.get("replay_runs") or [])
+        console.print(crew_remaining_table(rows))
+    verdict = chain_summary.get("verdict", "")
+    first = chain_summary.get("crew_remaining_first")
+    last = chain_summary.get("crew_remaining_last")
+    baseline = chain_summary.get("crew_remaining_baseline_replay")
+    final_replay = chain_summary.get("crew_remaining_final_replay")
+    lines = [
+        f"verdict: {verdict}",
+        f"crew_remaining first → last: {first} → {last}",
+        f"crew_remaining baseline replay → final replay: {baseline} → {final_replay}",
+        f"claim: {chain_summary.get('claim')}",
+    ]
+    if chain_summary.get("stopped_reason"):
+        lines.append(f"stopped: {chain_summary['stopped_reason']}")
+    console.print(Panel("\n".join(lines), title="Chain", border_style="cyan"))
 
 
 def print_error(message: str, *, hint: Optional[str] = None) -> None:

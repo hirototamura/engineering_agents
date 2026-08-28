@@ -399,6 +399,8 @@ Runs with `summary.scenario == "ssos_eclss_loop"` branch to `src/tools/dashboard
 2. **Step replay** — `operational_applied` timeline, utterances / reasoning, storage plots
 3. **Design proposals** — `ssos_graph` `action_profile` / `graph_rewire` preview
 
+`ea iterate` chains appear in the sidebar as children such as `design-iter-3/01` and `design-iter-3/final-replay`. Use Compare to view two iterations side by side.
+
 Scrubber screenshots: [Overview](overview.md#dashboard-at-a-glance).
 
 ---

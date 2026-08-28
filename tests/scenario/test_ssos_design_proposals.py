@@ -46,7 +46,7 @@ def test_apply_action_profile_and_service_config():
     assert merged["agents"]["policy"]["request_co2_amount"] == 30.0
     assert merged["agents"]["actor"]["policy"]["request_co2_amount"] == 30.0
     assert merged["agents"]["policy"]["request_co2_before_ogs"] is False
-    assert merged["thresholds"]["co2_storage_high_kg"] == 1600.0
+    assert "co2_storage_high_kg" not in merged["thresholds"]
     assert merged["agents"]["policy"]["ars_goal"]["initial_co2_mass"] == 1000.0
 
 
@@ -264,7 +264,7 @@ def test_round_trip_via_json_file(tmp_path):
     assert merged["agents"]["actor"]["policy"]["ogs_goal"]["input_water_mass"] == pytest.approx(9.9)
 
 
-def test_apply_action_profile_rejects_unknown_fields():
+def test_apply_action_profile_ignores_unknown_fields():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
         "changes": [
@@ -280,40 +280,39 @@ def test_apply_action_profile_rejects_unknown_fields():
             }
         ],
     }
-    with pytest.raises(ValueError, match="unsupported keys"):
-        apply_design_proposals({"agents": {"policy": {}}}, proposals)
+    merged = apply_design_proposals({"agents": {"policy": {}}}, proposals)
+    assert merged["agents"]["policy"]["ars_goal"]["initial_co2_mass"] == pytest.approx(1800.0)
+    assert "duration_steps" not in merged["agents"]["policy"]["ars_goal"]
 
 
-def test_apply_set_parameter_rejects_arbitrary_target():
+def test_apply_set_parameter_is_not_applied():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
         "changes": [
             {
                 "change_kind": "set_parameter",
                 "payload": {"target": "simulation.steps", "value": 999},
-            }
-        ],
-    }
-    with pytest.raises(ValueError, match="not allowed"):
-        apply_design_proposals({"agents": {"policy": {}}}, proposals)
-
-
-def test_apply_set_parameter_canonical_target_dual_writes_legacy_alias():
-    proposals = {
-        "design_domain": DESIGN_DOMAIN,
-        "changes": [
+            },
             {
                 "change_kind": "set_parameter",
                 "payload": {
                     "target": "agents.actor.policy.co2_storage_high_kg",
                     "value": 1.1,
                 },
-            }
+            },
+            {
+                "change_kind": "set_parameter",
+                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1600.0},
+            },
         ],
     }
-    merged = apply_design_proposals({"agents": {}}, proposals)
-    assert merged["agents"]["actor"]["policy"]["co2_storage_high_kg"] == 1.1
-    assert merged["agents"]["policy"]["co2_storage_high_kg"] == 1.1
+    merged = apply_design_proposals(
+        {"agents": {}, "simulation": {"steps": 50}, "thresholds": {"co2_storage_high_kg": 2.0}},
+        proposals,
+    )
+    assert merged["simulation"]["steps"] == 50
+    assert "policy" not in merged.get("agents", {}).get("actor", {})
+    assert merged["thresholds"]["co2_storage_high_kg"] == 2.0
 
 
 def test_apply_without_legacy_policy_key_still_loads_actor_policy():
@@ -343,3 +342,82 @@ def test_apply_without_legacy_policy_key_still_loads_actor_policy():
     agents = load_agents_config("ssos_eclss_loop", merged)
     assert agents is not None
     assert agents["actor"]["policy"]["ars_goal"]["initial_co2_mass"] == 2.5
+
+
+def test_overlay_auto_applied_changes_restates_prior_fields():
+    from scenario.ssos_eclss_loop.design_proposals import overlay_auto_applied_changes
+
+    prior = [
+        {
+            "change_kind": "action_profile",
+            "payload": {"subsystem": "ars", "fields": {"initial_co2_mass": 2.0}},
+        },
+        {
+            "change_kind": "set_parameter",
+            "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1.8},
+        },
+    ]
+    new = [
+        {
+            "change_kind": "action_profile",
+            "payload": {"subsystem": "ogs", "fields": {"input_water_mass": 0.2}},
+        },
+        {
+            "change_kind": "set_parameter",
+            "payload": {"target": "thresholds.o2_storage_low_kg", "value": 6.5},
+        },
+    ]
+    merged = overlay_auto_applied_changes(prior, new)
+    kinds = {(c["change_kind"], (c.get("payload") or {}).get("subsystem")) for c in merged}
+    assert ("action_profile", "ars") in kinds
+    assert ("action_profile", "ogs") in kinds
+    requirement = [c for c in merged if c["change_kind"] == "set_parameter"]
+    assert len(requirement) == 1
+    assert requirement[0]["payload"]["target"] == "thresholds.o2_storage_low_kg"
+
+
+def test_proposal_covers_prior_detects_dropped_profile_field():
+    from scenario.ssos_eclss_loop.design_proposals import proposal_covers_prior
+
+    prior = [
+        {
+            "change_kind": "action_profile",
+            "payload": {"subsystem": "ars", "fields": {"initial_co2_mass": 2.0}},
+        }
+    ]
+    incomplete = [
+        {
+            "change_kind": "action_profile",
+            "payload": {"subsystem": "ogs", "fields": {"input_water_mass": 0.2}},
+        }
+    ]
+    covers, missing = proposal_covers_prior(incomplete, prior)
+    assert covers is False
+    assert any("initial_co2_mass" in item for item in missing)
+
+
+def test_split_design_changes_keeps_set_parameter_as_requirement():
+    from scenario.ssos_eclss_loop.design_proposals import split_design_changes
+
+    applied, requirement = split_design_changes(
+        [
+            {
+                "change_kind": "action_profile",
+                "payload": {"subsystem": "ars", "fields": {"initial_co2_mass": 2.0}},
+            },
+            {
+                "change_kind": "set_parameter",
+                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1.8},
+            },
+        ]
+    )
+    assert [c["change_kind"] for c in applied] == ["action_profile"]
+    assert [c["change_kind"] for c in requirement] == ["set_parameter"]
+
+
+def test_set_parameter_accepts_o2_critical_threshold():
+    from scenario.ssos_eclss_loop.design_proposals import validate_ssos_proposal_change
+
+    payload = {"target": "thresholds.o2_storage_critical_kg", "value": 0.5}
+    assert validate_ssos_proposal_change("set_parameter", payload) == payload
+

@@ -30,6 +30,7 @@ To match the physics-only baseline in `scenario.yaml`, pass `--agents-mode none`
 | Command | Purpose |
 | --- | --- |
 | `ea run [SCENARIO]` | Run one simulation |
+| `ea iterate [SCENARIO]` | Chain `ssos_eclss_loop` design→verify (apply previous proposals only) |
 | `ea scenarios` | List available scenarios |
 | `ea results [RUN_ID]` | List recent runs or show one `summary.json` |
 | `ea doctor` | Check Python 3.11+, dependencies, Docker/SSOS mounts, Ollama, and vLLM |
@@ -54,6 +55,7 @@ ea run scrubber_degradation --output-dir /tmp/my-run
 ea run scrubber_degradation --run-id sweep-001
 ea run --dry-run --write-spec /tmp/job.json
 ea job run /tmp/job.json
+python3 -m tools.cli iterate ssos_eclss_loop --iterations 10
 ```
 
 | Flag | Description |
@@ -80,6 +82,8 @@ ea job run /tmp/job.json
 | `--quiet` | Print only the output path |
 
 On `ssos_eclss_loop`, in-sim actors and post-run designers are separate. See [post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md). `--agents-mode` is a deprecated alias for `--actor-mode`.
+
+`ea iterate` is a **controller-policy adaptation** chain. Defaults: `--backend plant_sim`, `--actor-mode labeled_rule_base`, `--design-mode llm`, `--inject-failures`, paired replay on. Run k applies only run k-1's `applied_proposals.json`. Empty or missing proposals do not stop the chain: the next simulation reuses the last applied file, or the initial YAML if none exist yet, until `--iterations` complete. `set_parameter` (including `thresholds.*`) is not auto-applied by `--apply-proposals`; it is recorded in `requirement_change_proposals.json`. The last run verifies prior proposals; proposals it emits stay unverified. The verdict compares `crew_remaining` from post-chain baseline vs final replays. Verdicts: `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`. `--no-paired-replay` is inconclusive. `ros2` is rejected. The terminal shows a crew-remaining table plus progress for the current simulation (step %) and completed iterations (N/M).
 
 ## Exit codes
 

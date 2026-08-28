@@ -399,6 +399,8 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm 
 2. **Step replay** — `operational_applied` タイムライン、発言・reasoning、ストレージプロット
 3. **設計提案** — `ssos_graph` の `action_profile` / `graph_rewire` プレビュー
 
+`ea iterate` の連鎖はサイドバーに `design-iter-3/01`、`design-iter-3/final-replay` のように子ディレクトリが出る。Compare でイテレーション同士を横並びできる。
+
 scrubber 向けスクリーンショット: [概要](overview.md#一目でわかるダッシュボード)。
 
 ---

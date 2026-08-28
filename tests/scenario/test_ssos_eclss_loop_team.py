@@ -81,7 +81,152 @@ def test_post_run_design_does_not_revive_depleted_actors():
     assert proposal["proposed_by"].startswith("eclss_designer_")
     assert not proposal["proposed_by"].startswith("op_")
     assert hasattr(team, "set_crew_alive")
-    assert not hasattr(team, "propose_post_run_design")
+def test_llm_propose_overlays_prior_ogs_when_ars_only(monkeypatch):
+    import json
+
+    from scenario.agents.ssos_post_run_design import (
+        ActorTeamSnapshot,
+        DesignReviewBundle,
+        PostRunDesignAgent,
+    )
+
+    class _ArsOnlyLlm:
+        def generate(self, prompt: str) -> str:
+            if "phase: post_run_proposal" in prompt.lower():
+                return json.dumps(
+                    {
+                        "message": "Raise ARS mass only.",
+                        "reasoning": "CO2 stress",
+                        "changes": [
+                            {
+                                "change_kind": "action_profile",
+                                "payload": {
+                                    "subsystem": "ars",
+                                    "action": "air_revitalisation",
+                                    "fields": {"initial_co2_mass": 2.0},
+                                },
+                            }
+                        ],
+                    }
+                )
+            return json.dumps({"message": "ok", "reasoning": "ok"})
+
+        def check_connection(self) -> bool:
+            return True
+
+        async def generate_async(self, prompt: str) -> str:
+            return self.generate(prompt)
+
+    monkeypatch.setattr(
+        PostRunDesignAgent, "_build_llm_client", staticmethod(lambda _: _ArsOnlyLlm())
+    )
+    designer = PostRunDesignAgent(
+        {"mode": "llm", "team": {"count": 1, "id_prefix": "eclss_designer"}, "llm": {}}
+    )
+    prior = [
+        {
+            "change_kind": "action_profile",
+            "payload": {
+                "subsystem": "ogs",
+                "action": "oxygen_generation",
+                "fields": {"input_water_mass": 0.2},
+            },
+        }
+    ]
+    proposal = designer.propose(
+        DesignReviewBundle(
+            summary={"steps": 3, "crew_remaining": 4},
+            scenario_config={},
+            baseline_graph={},
+            policy={},
+            actor_snapshot=ActorTeamSnapshot(agent_ids=[], mode="llm", policy={}),
+            prior_changes=prior,
+            strict=True,
+        )
+    )
+    profiles = {
+        c["payload"]["subsystem"]: c["payload"]["fields"]
+        for c in proposal["changes"]
+        if c["change_kind"] == "action_profile"
+    }
+    assert profiles["ars"]["initial_co2_mass"] == 2.0
+    assert profiles["ogs"]["input_water_mass"] == 0.2
+    assert proposal["coverage_complete"] is True
+
+
+def test_llm_propose_strict_keeps_valid_items_when_siblings_invalid(monkeypatch):
+    import json
+
+    from scenario.agents.ssos_post_run_design import (
+        ActorTeamSnapshot,
+        DesignReviewBundle,
+        PostRunDesignAgent,
+    )
+
+    class _MixedLlm:
+        def generate(self, prompt: str) -> str:
+            if "phase: post_run_proposal" in prompt.lower():
+                return json.dumps(
+                    {
+                        "message": "Raise OGS water and retune O2 critical.",
+                        "reasoning": "crew lost to O2",
+                        "changes": [
+                            {
+                                "change_kind": "graph_rewire",
+                                "payload": {"nodes": [{"id": "x"}]},
+                            },
+                            {
+                                "change_kind": "set_parameter",
+                                "payload": {"target": "not.a.real.target", "value": 0.5},
+                            },
+                            {
+                                "change_kind": "action_profile",
+                                "payload": {
+                                    "subsystem": "ogs",
+                                    "action": "oxygen_generation",
+                                    "fields": {"input_water_mass": 0.25, "duration_steps": 3},
+                                },
+                            },
+                            {
+                                "change_kind": "set_parameter",
+                                "payload": {
+                                    "target": "thresholds.o2_storage_critical_kg",
+                                    "value": 0.5,
+                                },
+                            },
+                        ],
+                    }
+                )
+            return json.dumps({"message": "ok", "reasoning": "ok"})
+
+        def check_connection(self) -> bool:
+            return True
+
+        async def generate_async(self, prompt: str) -> str:
+            return self.generate(prompt)
+
+    monkeypatch.setattr(
+        PostRunDesignAgent, "_build_llm_client", staticmethod(lambda _: _MixedLlm())
+    )
+    designer = PostRunDesignAgent(
+        {"mode": "llm", "team": {"count": 1, "id_prefix": "eclss_designer"}, "llm": {}}
+    )
+    proposal = designer.propose(
+        DesignReviewBundle(
+            summary={"steps": 3, "crew_remaining": 13, "crew_lost": 37},
+            scenario_config={},
+            baseline_graph={},
+            policy={},
+            actor_snapshot=ActorTeamSnapshot(agent_ids=[], mode="llm", policy={}),
+            strict=True,
+        )
+    )
+    kinds = [c["change_kind"] for c in proposal["changes"]]
+    assert kinds == ["action_profile", "set_parameter"]
+    assert proposal["changes"][0]["payload"]["fields"]["input_water_mass"] == 0.25
+    assert proposal["changes"][1]["payload"]["target"] == "thresholds.o2_storage_critical_kg"
+    assert any("graph_rewire" in note for note in proposal["parse_notes"])
+    assert any("invalid payload" in note for note in proposal["parse_notes"])
 
 
 def test_team_applies_ars_to_backend():
@@ -499,7 +644,7 @@ def test_llm_design_parse_keeps_any_number_of_valid_changes():
     assert len(changes) == 5
 
 
-def test_llm_design_parse_rejects_unknown_action_profile_fields():
+def test_llm_design_parse_ignores_unknown_action_profile_fields():
     from scenario.agents.ssos_post_run_design import parse_llm_design_proposals
 
     changes, notes = parse_llm_design_proposals(
@@ -516,8 +661,9 @@ def test_llm_design_parse_rejects_unknown_action_profile_fields():
             }
         ]
     )
-    assert changes == []
-    assert notes
+    assert len(changes) == 1
+    assert changes[0]["payload"]["fields"]["input_water_mass"] == 10.0
+    assert not notes
 
 
 def test_llm_design_parse_rejects_unknown_set_parameter_and_negative_profile():
@@ -575,6 +721,85 @@ def test_llm_design_parse_rejects_empty_graph_rewire():
     )
     assert changes == []
     assert notes
+
+
+def test_llm_design_parse_rejects_graph_rewire_with_payload():
+    from scenario.agents.ssos_post_run_design import parse_llm_design_proposals
+
+    changes, notes = parse_llm_design_proposals(
+        [
+            {
+                "change_kind": "graph_rewire",
+                "payload": {"public": "/grey_water", "backend": "/grey_water/wrs"},
+            }
+        ]
+    )
+    assert changes == []
+    assert any("graph_rewire" in note for note in notes)
+
+
+def test_llm_design_parse_strict_drops_all_on_invalid_item():
+    from scenario.agents.ssos_post_run_design import parse_llm_design_proposals
+
+    raw = [
+        {
+            "change_kind": "action_profile",
+            "payload": {"subsystem": "ars", "fields": {"initial_co2_mass": 2.0}},
+        },
+        {
+            "change_kind": "action_profile",
+            "payload": {"subsystem": "ogs", "fields": {"input_water_mass": -1.0}},
+        },
+    ]
+    loose, loose_notes = parse_llm_design_proposals(raw, strict=False)
+    assert len(loose) == 1
+    assert loose_notes
+    strict, strict_notes = parse_llm_design_proposals(raw, strict=True)
+    assert strict == []
+    assert strict_notes
+
+
+def test_build_llm_post_run_situation_includes_history_and_crew():
+    from scenario.agents.ssos_post_run_design import (
+        DesignReviewBundle,
+        build_llm_post_run_situation,
+    )
+
+    text = build_llm_post_run_situation(
+        DesignReviewBundle(
+            summary={
+                "steps": 4,
+                "crew_initial": 50,
+                "crew_remaining": 41,
+                "crew_lost": 9,
+                "crew_lost_by_cause": {"o2_warning": 1},
+                "inject_failures": True,
+            },
+            scenario_config={
+                "simulation": {"initial_co2_storage_kg": 1.3},
+                "thresholds": {"co2_storage_high_kg": 2.0},
+            },
+            baseline_graph={},
+            policy={},
+            accumulated_history=[
+                {
+                    "iteration": 1,
+                    "changes": [
+                        {
+                            "change_kind": "action_profile",
+                            "payload": {"subsystem": "ars", "fields": {"initial_co2_mass": 2.0}},
+                        }
+                    ],
+                }
+            ],
+        )
+    )
+    assert "crew_remaining=41" in text
+    assert "Prior design changes (accumulated)" in text
+    assert "initial_co2_mass" in text
+    assert "controller-policy adaptation" in text
+    assert "graph_rewire" not in text
+
 
 
 def test_post_run_message_step_is_last_zero_based_index():

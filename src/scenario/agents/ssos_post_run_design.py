@@ -21,8 +21,10 @@ from core.llm.base import LLMClient
 from core.llm.factory import build_llm_client
 from scenario.ssos_eclss_loop.design_proposals import (
     DESIGN_DOMAIN,
-    SSOS_CHANGE_KINDS,
+    SSOS_PROPOSABLE_CHANGE_KINDS,
     build_design_proposals_from_run,
+    overlay_auto_applied_changes,
+    proposal_covers_prior,
     validate_ssos_proposal_change,
 )
 
@@ -43,6 +45,9 @@ class DesignReviewBundle:
     baseline_graph: Dict[str, Any]
     policy: Dict[str, Any]
     actor_snapshot: Optional[ActorTeamSnapshot] = None
+    prior_changes: List[Dict[str, Any]] = field(default_factory=list)
+    accumulated_history: List[Dict[str, Any]] = field(default_factory=list)
+    strict: bool = False
 
 
 def post_run_message_step(summary: Dict[str, Any]) -> int:
@@ -96,6 +101,17 @@ class PostRunDesignAgent:
             summary=bundle.summary,
             baseline_graph=baseline_graph or None,
         )
+        if bundle.prior_changes:
+            proposals["changes"] = overlay_auto_applied_changes(
+                bundle.prior_changes,
+                list(proposals.get("changes") or []),
+            )
+        covers, missing = proposal_covers_prior(
+            list(proposals.get("changes") or []),
+            bundle.prior_changes,
+        )
+        proposals["coverage_complete"] = covers
+        proposals["coverage_missing"] = missing
         proposals["deliberation_messages"] = [
             AgentMessage(
                 step=post_run_message_step(bundle.summary),
@@ -178,6 +194,34 @@ class PostRunDesignAgent:
             ("message", "reasoning", "changes"),
         )
         if parsed is None:
+            if bundle.strict:
+                return {
+                    "design_domain": DESIGN_DOMAIN,
+                    "proposed_by": rep,
+                    "decision_source": "llm_parse_fail",
+                    "message": "LLM response could not be parsed.",
+                    "reasoning": "LLM response could not be parsed; strict mode skips rule fallback.",
+                    "changes": [],
+                    "baseline_graph": baseline_graph,
+                    "coverage_complete": True,
+                    "coverage_missing": [],
+                    "parse_notes": ["llm_parse_fail"],
+                    "deliberation_messages": [msg.to_dict() for msg in step_discourse]
+                    + [
+                        AgentMessage(
+                            step=step,
+                            from_role=rep,
+                            to_role="team",
+                            message="LLM response could not be parsed.",
+                            message_type="comment",
+                            reasoning="Strict mode: no rule fallback.",
+                            metadata={
+                                "decision_source": "llm_parse_fail",
+                                "deliberation_phase": DeliberationPhase.POST_RUN,
+                            },
+                        ).to_dict()
+                    ],
+                }
             fallback = build_design_proposals_from_run(
                 proposed_by=rep,
                 decision_source="llm_parse_fail",
@@ -203,9 +247,33 @@ class PostRunDesignAgent:
                     },
                 ).to_dict()
             ]
+            if bundle.prior_changes:
+                fallback["changes"] = overlay_auto_applied_changes(
+                    bundle.prior_changes,
+                    list(fallback.get("changes") or []),
+                )
+            covers, missing = proposal_covers_prior(
+                list(fallback.get("changes") or []),
+                bundle.prior_changes,
+            )
+            fallback["coverage_complete"] = covers
+            fallback["coverage_missing"] = missing
             return fallback
 
-        changes, parse_notes = parse_llm_design_proposals(parsed.data.get("changes", []))
+        # Keep valid items even in iterate (bundle.strict). All-or-none parse
+        # discarded mixed LLM output — typical models emit graph_rewire or a
+        # bad set_parameter next to a usable action_profile.
+        changes, parse_notes = parse_llm_design_proposals(
+            parsed.data.get("changes", []),
+            strict=False,
+        )
+        if _should_overlay_llm_changes(changes, parse_notes, strict=bundle.strict):
+            if bundle.prior_changes:
+                changes = overlay_auto_applied_changes(
+                    bundle.prior_changes,
+                    changes,
+                )
+        covers, missing = proposal_covers_prior(changes, bundle.prior_changes)
         return {
             "design_domain": DESIGN_DOMAIN,
             "proposed_by": rep,
@@ -217,6 +285,8 @@ class PostRunDesignAgent:
             "parse_status": parsed.status,
             "parse_error": parsed.error,
             "parse_notes": parse_notes,
+            "coverage_complete": covers,
+            "coverage_missing": missing,
             "raw_response_excerpt": parsed.raw_excerpt,
             "deliberation_messages": [msg.to_dict() for msg in step_discourse]
             + [
@@ -264,28 +334,62 @@ class PostRunDesignAgent:
         return build_llm_client(llm_cfg)
 
 
-def parse_llm_design_proposals(raw_changes: Any) -> Tuple[List[Dict[str, Any]], List[str]]:
-    """Accept every valid change. One representative may emit any count."""
+def parse_llm_design_proposals(
+    raw_changes: Any,
+    *,
+    strict: bool = False,
+) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """Accept valid proposable changes. One representative may emit any count.
+
+    ``strict=True`` rejects the whole list when any proposable item is invalid
+    (all-or-none). ``graph_rewire`` is never accepted; it only adds a note.
+    """
     if not isinstance(raw_changes, list):
         return [], ["changes is not a list"]
     accepted: List[Dict[str, Any]] = []
     notes: List[str] = []
+    blocking = False
     for item in raw_changes:
         if not isinstance(item, dict):
             notes.append("change item is not an object")
+            blocking = True
             continue
         change_kind = str(item.get("change_kind", "")).strip()
         payload = item.get("payload", {})
         if not isinstance(payload, dict):
             payload = {}
-        if change_kind not in SSOS_CHANGE_KINDS:
+        if change_kind not in SSOS_PROPOSABLE_CHANGE_KINDS:
             notes.append(f"unsupported change_kind: {change_kind}")
+            if change_kind != "graph_rewire":
+                blocking = True
             continue
         if validate_ssos_proposal_change(change_kind, payload) is None:
             notes.append(f"invalid payload for {change_kind}")
+            blocking = True
             continue
         accepted.append({"change_kind": change_kind, "payload": payload})
+    if strict and blocking:
+        return [], notes
     return accepted, notes
+
+
+def _should_overlay_llm_changes(
+    changes: List[Dict[str, Any]],
+    parse_notes: List[str],
+    *,
+    strict: bool,
+) -> bool:
+    """Overlay prior auto-applied fields unless strict validation emptied the list."""
+    if not strict:
+        return True
+    if changes:
+        return True
+    blocking_notes = [
+        note
+        for note in parse_notes
+        if note != "unsupported change_kind: graph_rewire"
+    ]
+    return not blocking_notes
 
 
 def build_llm_post_run_situation(bundle: DesignReviewBundle) -> str:
@@ -317,17 +421,38 @@ def build_llm_post_run_situation(bundle: DesignReviewBundle) -> str:
         "\n".join(f"- {msg.from_role}: {msg.message}" for msg in discourse[-8:]) or "(none)"
     )
     graph = json.dumps(bundle.baseline_graph, ensure_ascii=False)
+    history = json.dumps(bundle.accumulated_history or [], ensure_ascii=False)
+    crew = (
+        f"crew_initial={summary.get('crew_initial')}, "
+        f"crew_remaining={summary.get('crew_remaining')}, "
+        f"crew_lost={summary.get('crew_lost')}, "
+        f"crew_lost_by_cause={json.dumps(summary.get('crew_lost_by_cause') or {}, ensure_ascii=False)}"
+    )
+    failures = (
+        f"inject_failures={summary.get('inject_failures')}, "
+        f"failure_events={summary.get('subsystem_failure_event_count', summary.get('failure_event_count'))}"
+    )
     return (
         "Post-run SSOS graph design review. Simulation complete. "
         "Do not judge verification pass/fail. "
         "One representative emits changes; include as many proposals as needed "
-        "(no count cap).\n\n"
+        "(no count cap).\n"
+        "This is controller-policy adaptation (action_profile / service_config), "
+        "not a hardware topology redesign. "
+        "set_parameter is a requirement-change suggestion and will not be auto-applied. "
+        "If crew_lost > 0, changes must be a non-empty list of valid objects — "
+        "do not put the proposal only in message/reasoning. "
+        "The next run applies only the changes list you emit now; restate every "
+        "prior auto-applied action_profile field and service_config.\n\n"
         f"### Initial conditions\n{initials}\n\n"
-        f"### Verification requirement stubs (context only)\n{req_stubs}\n\n"
+        f"### Verification requirement stubs (frozen; do not auto-apply changes)\n{req_stubs}\n\n"
+        f"### Occupant survival (objective)\n{crew}\n\n"
+        f"### Failures\n{failures}\n\n"
         f"### Telemetry\n{telemetry_summary}\n\n"
         f"### World state\n{final_health}\n\n"
         f"### Actor final state\n{actor_state}\n\n"
         f"### Actor discourse (recent)\n{discourse_lines}\n\n"
+        f"### Prior design changes (accumulated)\n{history}\n\n"
         f"Baseline ssos_graph at run end: {graph}"
     )
 

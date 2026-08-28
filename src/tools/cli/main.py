@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 
 from tools import __version__
-from tools.cli.commands import doctor, job, results, run, scenarios
+from tools.cli.commands import doctor, iterate, job, results, run, scenarios
 
 app = typer.Typer(
     name="ea",
@@ -35,6 +35,7 @@ def main(
     """Engineering Agents — design and verification simulation CLI."""
 
 
+iterate.register(app)
 run.register(app)
 scenarios.register(app)
 results.register(app)

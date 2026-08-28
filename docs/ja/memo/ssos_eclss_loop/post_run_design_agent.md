@@ -95,11 +95,27 @@ llm 時は designer 全員が 1 ラウンド話し合ったあと、**代表 1 �
 
 `summary` に `actor_mode`, `design_mode`, `design_proposed_by`。`agents_mode` は `actor_mode` と同じ（ダッシュボード互換）。
 
+## 10 回連鎖（`ea iterate`）
+
+```bash
+python3 -m tools.cli iterate ssos_eclss_loop --iterations 10 --backend plant_sim \
+  --actor-mode labeled_rule_base --design-mode llm --inject-failures --steps 50 \
+  --run-id design-iter-10
+```
+
+- ラン k のシミュはラン k-1 の `applied_proposals.json` のみ（`action_profile` / `service_config`）
+- 事後 LLM には 1…k-1 の accumulated history を渡す。成功時は前回の auto-applied を overlay する
+- `set_parameter`（`thresholds.*` など）は `requirement_change_proposals.json` に残し、`ea iterate` でも `ea run --apply-proposals` でも自動適用しない
+- `graph_rewire` は提案しない（旧 JSON の apply だけ残す）
+- 不正な兄弟アイテムがあっても、有効な `action_profile` / `service_config` は残す。`design_proposals.json` が空でも `design_review.json` にパースメモを残す
+- 最後のランは検証専用。そこで出た提案は未検証
+- `design_proposals.json` が空・欠落でも連鎖は止めず、直前の適用ファイル（まだ無ければ初期 YAML）のまま続ける
+- 連鎖後に `design.mode=none` の baseline / final replay を回し、その `crew_remaining` で `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE` を決める
+- 主張はハードウェア再設計ではなく controller-policy adaptation
+
 ## やらないこと（プランどおり未着手）
 
 - scrubber の分離
-- 提案スキーマや `--apply-proposals` の意味変更
-- labeled 設計への `graph_rewire` 追加
 - One Piece への要求 pull / provenance 拡張
 - 設計 LLM による合否判定
 

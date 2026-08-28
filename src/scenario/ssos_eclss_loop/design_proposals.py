@@ -28,6 +28,24 @@ SSOS_CHANGE_KINDS = frozenset(
     }
 )
 
+# New proposals may emit these. graph_rewire remains apply-only for old files.
+SSOS_PROPOSABLE_CHANGE_KINDS = frozenset(
+    {
+        "action_profile",
+        "service_config",
+        "set_parameter",
+    }
+)
+
+# Iterate auto-applies these onto the next sim. set_parameter targets are
+# verification/actor bands — recorded as requirement-change proposals, not applied.
+SSOS_AUTO_APPLIED_CHANGE_KINDS = frozenset(
+    {
+        "action_profile",
+        "service_config",
+    }
+)
+
 ACTION_PROFILE_FIELDS_BY_SUBSYSTEM = {
     "ars": frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"}),
     "ogs": frozenset({"input_water_mass", "iodine_concentration"}),
@@ -45,7 +63,9 @@ ALLOWED_SET_PARAMETER_TARGETS = frozenset(
         "thresholds.co2_storage_high_kg",
         "thresholds.co2_storage_critical_kg",
         "thresholds.o2_storage_low_kg",
+        "thresholds.o2_storage_critical_kg",
         "thresholds.product_water_low_l",
+        "thresholds.product_water_critical_l",
     }
 )
 
@@ -100,11 +120,6 @@ def _filter_action_profile_fields(subsystem: str, fields: Dict[str, Any]) -> Dic
     allowed = ACTION_PROFILE_FIELDS_BY_SUBSYSTEM.get(subsystem.lower())
     if allowed is None:
         raise ValueError(f"action_profile subsystem must be ars, ogs, or wrs, got {subsystem!r}")
-    unknown = sorted(set(fields) - allowed)
-    if unknown:
-        raise ValueError(
-            f"action_profile.fields contains unsupported keys for {subsystem}: {unknown}"
-        )
     filtered: Dict[str, Any] = {}
     for key in fields:
         if key not in allowed:
@@ -237,11 +252,125 @@ def validate_ssos_proposal_change(
     return payload
 
 
+def is_auto_applied_change(change: Dict[str, Any]) -> bool:
+    return str(change.get("change_kind", "")) in SSOS_AUTO_APPLIED_CHANGE_KINDS
+
+
+def split_design_changes(
+    changes: List[Dict[str, Any]],
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Split auto-applied controller changes from requirement-change proposals."""
+    applied: List[Dict[str, Any]] = []
+    requirement: List[Dict[str, Any]] = []
+    for change in changes:
+        if is_auto_applied_change(change):
+            applied.append(copy.deepcopy(change))
+        else:
+            requirement.append(copy.deepcopy(change))
+    return applied, requirement
+
+
+def auto_applied_identities(changes: List[Dict[str, Any]]) -> set[tuple[Any, ...]]:
+    """Identity keys that last-file-only apply must restate to avoid YAML revert."""
+    identities: set[tuple[Any, ...]] = set()
+    for change in changes:
+        kind = str(change.get("change_kind", ""))
+        payload = change.get("payload") or {}
+        if kind == "action_profile":
+            subsystem = str(payload.get("subsystem", "")).lower()
+            fields = payload.get("fields") or {}
+            if isinstance(fields, dict):
+                for field in fields:
+                    identities.add(("action_profile", subsystem, str(field)))
+        elif kind == "service_config":
+            identities.add(("service_config", str(payload.get("service", "")).lower()))
+    return identities
+
+
+def proposal_covers_prior(
+    new_changes: List[Dict[str, Any]],
+    prior_changes: List[Dict[str, Any]],
+) -> tuple[bool, List[str]]:
+    """Return whether *new_changes* restates every auto-applied prior identity."""
+    missing = auto_applied_identities(prior_changes) - auto_applied_identities(new_changes)
+    missing_labels = [
+        ".".join(str(part) for part in identity) for identity in sorted(missing)
+    ]
+    return (not missing_labels, missing_labels)
+
+
+def overlay_auto_applied_changes(
+    prior_changes: List[Dict[str, Any]],
+    new_changes: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Union prior auto-applied changes with *new_changes*; new values win.
+
+    Labeled (and any snapshot builder) uses this so last-file-only apply cannot
+    drop earlier ARS/OGS/WRS or service_config fields. Requirement-change
+    items come from *new_changes* only.
+    """
+    profiles: Dict[str, Dict[str, Any]] = {}
+    services: Dict[str, Dict[str, Any]] = {}
+
+    def _ingest(change: Dict[str, Any]) -> None:
+        kind = str(change.get("change_kind", ""))
+        payload = copy.deepcopy(change.get("payload") or {})
+        if kind == "action_profile":
+            subsystem = str(payload.get("subsystem", "")).lower()
+            if not subsystem:
+                return
+            existing = profiles.get(subsystem)
+            if existing is None:
+                merged_change = copy.deepcopy(change)
+                merged_payload = dict(merged_change.get("payload") or {})
+                merged_payload["subsystem"] = subsystem
+                merged_payload["fields"] = dict(payload.get("fields") or {})
+                merged_change["payload"] = merged_payload
+                profiles[subsystem] = merged_change
+                return
+            existing_fields = dict((existing.get("payload") or {}).get("fields") or {})
+            existing_fields.update(payload.get("fields") or {})
+            existing_payload = dict(existing.get("payload") or {})
+            existing_payload["fields"] = existing_fields
+            existing["payload"] = existing_payload
+        elif kind == "service_config":
+            service = str(payload.get("service", "")).lower()
+            if not service:
+                return
+            merged_change = copy.deepcopy(change)
+            merged_payload = dict(merged_change.get("payload") or {})
+            merged_payload["service"] = service
+            merged_change["payload"] = merged_payload
+            services[service] = merged_change
+
+    for change in prior_changes:
+        if is_auto_applied_change(change):
+            _ingest(change)
+    for change in new_changes:
+        if is_auto_applied_change(change):
+            _ingest(change)
+
+    requirement = [copy.deepcopy(c) for c in new_changes if not is_auto_applied_change(c)]
+    return list(profiles.values()) + list(services.values()) + requirement
+
+
+def applied_proposals_document(proposals: Dict[str, Any]) -> Dict[str, Any]:
+    """Copy of *proposals* containing only auto-applied changes."""
+    applied, _requirement = split_design_changes(list(proposals.get("changes") or []))
+    doc = copy.deepcopy(proposals)
+    doc["changes"] = applied
+    return doc
+
+
 def apply_design_proposals(
     config: Dict[str, Any],
     proposals: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Merge proposal changes into scenario config for the *next* run."""
+    """Merge auto-applied proposal changes into scenario config for the *next* run.
+
+    ``set_parameter`` (including ``thresholds.*``) is a requirement-change
+    proposal and is not applied. Legacy ``graph_rewire`` still applies.
+    """
     errors = validate_design_proposals(proposals)
     if errors:
         raise ValueError("; ".join(errors))
@@ -249,6 +378,10 @@ def apply_design_proposals(
     merged = copy.deepcopy(config)
     for change in proposals.get("changes", []):
         kind = change["change_kind"]
+        if kind == "set_parameter":
+            continue
+        if kind not in SSOS_AUTO_APPLIED_CHANGE_KINDS and kind != "graph_rewire":
+            continue
         payload = change.get("payload") or {}
         handler = _APPLY_HANDLERS.get(kind)
         if handler is None:

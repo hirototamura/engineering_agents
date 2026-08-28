@@ -95,11 +95,27 @@ In `llm` mode, all designers deliberate once, then **one representative** emits 
 
 `summary` includes `actor_mode`, `design_mode`, `design_proposed_by`. `agents_mode` stays equal to `actor_mode` for dashboard compatibility.
 
+## 10-run chain (`ea iterate`)
+
+```bash
+python3 -m tools.cli iterate ssos_eclss_loop --iterations 10 --backend plant_sim \
+  --actor-mode labeled_rule_base --design-mode llm --inject-failures --steps 50 \
+  --run-id design-iter-10
+```
+
+- Run k applies only run k-1 `applied_proposals.json` (`action_profile` / `service_config`)
+- The post-run LLM sees accumulated history from runs 1…k-1. On success, prior auto-applied changes are overlaid in code
+- `set_parameter` (`thresholds.*` and policy bands) is written to `requirement_change_proposals.json` and is not auto-applied by `ea iterate` or `ea run --apply-proposals`
+- `graph_rewire` is not a proposable kind (legacy apply still accepted)
+- Invalid sibling items do not discard valid `action_profile` / `service_config`; `design_review.json` records parse notes even when `design_proposals.json` is omitted
+- The last run is verification-only; proposals it emits stay unverified
+- Empty or missing `design_proposals.json` does not stop the chain; the next sim keeps the last applied file (or the initial YAML)
+- After the chain, baseline vs final replays (`design.mode=none`) decide `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`
+- The claim is controller-policy adaptation, not hardware redesign
+
 ## Out of scope (still not done)
 
 - Splitting scrubber
-- Changing proposal schema or `--apply-proposals` meaning
-- Adding `graph_rewire` to labeled design
 - Pulling requirements from One Piece / expanding provenance
 - Pass/fail judgment by the design LLM
 

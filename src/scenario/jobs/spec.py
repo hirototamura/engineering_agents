@@ -20,6 +20,9 @@ class RunSpec:
     recreate_output: bool = True
     seed: Optional[int] = None
     apply_proposals_path: Optional[Path] = None
+    design_history: Optional[list] = None
+    prior_changes: Optional[list] = None
+    design_strict: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)

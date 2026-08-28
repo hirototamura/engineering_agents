@@ -10,7 +10,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import yaml
 
@@ -50,8 +50,10 @@ from scenario.ssos_eclss_loop.survival import (
 )
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 from scenario.ssos_eclss_loop.design_proposals import (
+    applied_proposals_document,
     apply_design_proposals,
     load_design_proposals,
+    split_design_changes,
     write_design_proposals,
 )
 from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
@@ -356,6 +358,11 @@ class SsosEclssLoopScenario(Scenario):
         apply_proposals_path: Optional[Path] = None,
         run_id: Optional[str] = None,
         results_root: Optional[Path] = None,
+        design_history: Optional[List[Dict[str, Any]]] = None,
+        prior_changes: Optional[List[Dict[str, Any]]] = None,
+        design_strict: bool = False,
+        on_step: Optional[Callable[[int, int], None]] = None,
+        on_phase: Optional[Callable[[str], None]] = None,
     ) -> Path:
         # Load order (before any simulation step):
         # 1) scenario.yaml (+ CLI overrides)
@@ -392,6 +399,11 @@ class SsosEclssLoopScenario(Scenario):
             results_root=results_root,
             recreate_output=recreate_output,
         )
+        if design_history:
+            (run_dir / "design_history.json").write_text(
+                json.dumps(design_history, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
         config_paths = write_effective_configs(
             run_dir,
             scenario_config=config,
@@ -433,6 +445,8 @@ class SsosEclssLoopScenario(Scenario):
         try:
             # 0-based steps: step 0 observes configured initial state; advance before 1..steps-1.
             for step in range(steps):
+                if on_step is not None:
+                    on_step(step, steps)
                 commands_this_step = False
                 if step > 0 and hasattr(backend, "advance_step"):
                     backend.advance_step()
@@ -572,6 +586,8 @@ class SsosEclssLoopScenario(Scenario):
             summary["max_actions_per_step"] = team.max_actions_per_step
 
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
+            if on_phase is not None:
+                on_phase("design review")
             actor_cfg = flatten_actor_config(agents_config)
             design_cfg = flatten_design_config(agents_config)
             designer = PostRunDesignAgent(design_cfg)
@@ -582,6 +598,9 @@ class SsosEclssLoopScenario(Scenario):
                     baseline_graph=dict(config.get("ssos_graph") or {}),
                     policy=dict(actor_cfg.get("policy") or {}),
                     actor_snapshot=actor_snapshot_from_team(team) if team is not None else None,
+                    prior_changes=list(prior_changes or []),
+                    accumulated_history=list(design_history or []),
+                    strict=design_strict,
                 )
             )
             # L8/B: only persist when there is at least one change so
@@ -590,6 +609,25 @@ class SsosEclssLoopScenario(Scenario):
             summary["design_proposal_count"] = change_count
             summary["design_proposed_by"] = proposals.get("proposed_by")
             summary["design_decision_source"] = proposals.get("decision_source")
+            summary["design_coverage_complete"] = proposals.get("coverage_complete")
+            summary["design_coverage_missing"] = proposals.get("coverage_missing") or []
+            parse_notes = list(proposals.get("parse_notes") or [])
+            summary["design_parse_notes"] = parse_notes
+            if proposals.get("parse_status"):
+                summary["design_parse_status"] = proposals.get("parse_status")
+            if proposals.get("raw_response_excerpt"):
+                summary["design_raw_response_excerpt"] = proposals.get("raw_response_excerpt")
+            review_doc = {
+                key: value
+                for key, value in proposals.items()
+                if key != "deliberation_messages"
+            }
+            review_path = run_dir / "design_review.json"
+            review_path.write_text(
+                json.dumps(review_doc, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            summary["design_review_path"] = str(review_path)
             for msg in proposals.pop("deliberation_messages", []) or []:
                 if isinstance(msg, dict):
                     log.append("messages", msg)
@@ -599,6 +637,22 @@ class SsosEclssLoopScenario(Scenario):
                 proposals_path = run_dir / "design_proposals.json"
                 write_design_proposals(proposals_path, proposals)
                 summary["design_proposals_path"] = str(proposals_path)
+                applied_doc = applied_proposals_document(proposals)
+                if applied_doc.get("changes"):
+                    applied_out = run_dir / "applied_proposals.json"
+                    write_design_proposals(applied_out, applied_doc)
+                    summary["applied_proposals_path"] = str(applied_out)
+                _applied, requirement = split_design_changes(
+                    list(proposals.get("changes") or [])
+                )
+                if requirement:
+                    req_doc = dict(applied_doc)
+                    req_doc["changes"] = requirement
+                    req_doc["message"] = "Requirement-change proposals (not auto-applied)."
+                    req_path = run_dir / "requirement_change_proposals.json"
+                    write_design_proposals(req_path, req_doc)
+                    summary["requirement_change_proposals_path"] = str(req_path)
+                    summary["requirement_change_count"] = len(requirement)
 
         log.write_summary(summary)
 

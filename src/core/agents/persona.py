@@ -214,12 +214,27 @@ def eclss_design_proposal_contract() -> str:
         f"{output_word_limits_clause()} "
         '"changes" is a list of {"change_kind","payload"} objects. '
         "Emit as many valid changes as the run warrants; there is no count cap. "
-        "Empty changes is allowed when nothing should be proposed. "
-        'change_kind in ["action_profile","service_config","set_parameter","graph_rewire"]. '
-        'action_profile payload: {"subsystem":"ars|ogs|wrs","action":"...","fields":{...}}. '
-        'service_config payload: {"service":"request_co2|request_o2", ...}. '
-        'set_parameter payload: {"target":"dotted.config.path","value":...}. '
-        "graph_rewire payload: ROS remapping manifest for the next launch. "
+        "If occupants were lost, do not emit an empty changes list. "
+        'change_kind in ["action_profile","service_config","set_parameter"]. '
+        'action_profile payload: {"subsystem":"ars|ogs|wrs",'
+        '"action":"air_revitalisation|oxygen_generation|water_recovery_systems",'
+        '"fields":{...}}. '
+        "Known fields: ars initial_co2_mass; ogs input_water_mass; wrs urine_volume "
+        "(positive numbers). Extra field names are ignored. "
+        'Example action_profile: {"change_kind":"action_profile","payload":'
+        '{"subsystem":"ogs","action":"oxygen_generation","fields":{"input_water_mass":0.2}}}. '
+        'service_config payload: {"service":"request_co2|request_o2","amount": <positive kg>}. '
+        "set_parameter payload: {\"target\":\"dotted.path\",\"value\":...} where target is one of "
+        "thresholds.co2_storage_high_kg, thresholds.co2_storage_critical_kg, "
+        "thresholds.o2_storage_low_kg, thresholds.o2_storage_critical_kg, "
+        "thresholds.product_water_low_l, thresholds.product_water_critical_l, "
+        "agents.actor.policy.co2_storage_high_kg, agents.actor.policy.o2_storage_low_kg, "
+        "agents.actor.policy.product_water_low_l. "
+        "Do not emit graph_rewire. "
+        "action_profile and service_config are auto-applied on the next run. "
+        "set_parameter is a requirement-change proposal: it is recorded, not auto-applied. "
+        "If prior design changes are listed, restate every auto-applied field; "
+        "the next run applies only this changes list. "
         "Proposals are post-run only — they will NOT be applied during this simulation."
     )
 
@@ -377,7 +392,10 @@ class PersonaAgent:
         if phase == DeliberationPhase.POST_RUN:
             return (
                 "Post-run design review: simulation is complete. You are the sole representative. "
-                "Propose as many structural changes as needed — no count cap on the changes list. "
+                "Fill the JSON changes list with action_profile and/or service_config items "
+                "(optional set_parameter). Do not emit graph_rewire. "
+                "Propose as many controller-policy changes as needed — no count cap on the changes list. "
+                "If occupants were lost, changes must be non-empty. "
                 "Recommendations only — cite team discourse and run outcomes."
             )
         return PersonaAgent.action_round_hint()

@@ -450,3 +450,40 @@ def test_preflight_targets_cover_both_ssos_llm_sides():
         {"agents": {"actor": {"mode": "labeled_rule_base"}, "design": {"mode": "llm"}}},
     )
     assert [side for side, _cfg in design_only] == ["design"]
+
+
+def test_iterate_rejects_scrubber():
+    result = runner.invoke(app, ["iterate", "scrubber_degradation", "--dry-run"])
+    assert result.exit_code == 2
+    assert "ssos_eclss_loop" in result.output
+
+
+def test_iterate_rejects_ros2_backend():
+    result = runner.invoke(
+        app,
+        ["iterate", "ssos_eclss_loop", "--backend", "ros2", "--dry-run"],
+    )
+    assert result.exit_code == 2
+    assert "plant_sim" in result.output
+
+
+def test_iterate_dry_run_defaults(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        [
+            "iterate",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--design-mode",
+            "labeled_rule_base",
+            "--iterations",
+            "3",
+            "--output-dir",
+            str(tmp_path / "chain"),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert str(tmp_path / "chain") in result.stdout
+

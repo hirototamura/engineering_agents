@@ -263,11 +263,7 @@ def test_ssos_eclss_loop_apply_proposals(tmp_path: Path):
         assert "ars_goal" in policy or "ogs_goal" in policy or "wrs_goal" in policy
     if "service_config" in applied_kinds:
         assert "request_co2_amount" in policy or "request_o2_amount" in policy
-    if "set_parameter" in applied_kinds:
-        # set_parameter may land in scenario thresholds and/or agents.policy
-        assert "thresholds" in effective_scenario or any(
-            k.endswith("_kg") or k.endswith("_l") for k in policy
-        )
+    # set_parameter is a requirement-change proposal and is not merged into config.
 
 
 def test_ssos_eclss_loop_labeled_agents_ogs_when_o2_low(tmp_path: Path):
@@ -574,6 +570,8 @@ def test_ssos_eclss_loop_skips_empty_design_proposals_file(tmp_path: Path, monke
     assert summary.get("design_proposal_count") == 0
     assert "design_proposals_path" not in summary
     assert not (run_dir / "design_proposals.json").exists()
+    assert (run_dir / "design_review.json").exists()
+    assert summary.get("design_review_path")
 
 
 def test_ssos_eclss_loop_subsystem_failures_schedule_mock(tmp_path: Path):

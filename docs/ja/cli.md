@@ -30,6 +30,7 @@ ea run
 | コマンド | 用途 |
 | --- | --- |
 | `ea run [SCENARIO]` | 1回シミュレーション実行 |
+| `ea iterate [SCENARIO]` | `ssos_eclss_loop` の設計→検証連鎖（前回提案のみ適用） |
 | `ea scenarios` | 利用可能なシナリオ一覧 |
 | `ea results [RUN_ID]` | 直近 run 一覧、または `summary.json` 表示 |
 | `ea doctor` | Python 3.11+・依存関係・Docker/SSOS マウント・Ollama・vLLM の確認 |
@@ -51,11 +52,14 @@ ea run scrubber_degradation --agents-mode llm --llm-provider vllm
 ea run scrubber_degradation --set simulation.steps=10
 ea run --dry-run --write-spec /tmp/job.json
 ea job run /tmp/job.json
+python3 -m tools.cli iterate ssos_eclss_loop --iterations 10
 ```
 
 英語版の詳細（フラグ一覧・exit code）: [en/cli.md](../en/cli.md)
 
 `ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。
+
+`ea iterate` は **controller-policy adaptation** の連鎖実験である。既定は `--backend plant_sim`、`--actor-mode labeled_rule_base`、`--design-mode llm`、`--inject-failures`、paired replay オン。ラン k のシミュはラン k-1 の `applied_proposals.json` のみを適用する。提案が空・欠落でも連鎖は止めず、直前の適用ファイル（まだ無ければ初期 YAML）のまま `--iterations` まで回す。`set_parameter`（`thresholds.*` 含む）は `--apply-proposals` でも自動適用しない（`requirement_change_proposals.json` に残す）。最後のランはそれまでの提案の検証であり、そこで出た提案は未検証。判定の正本は連鎖後の baseline / final replay の `crew_remaining`。結果は `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`。`--no-paired-replay` は判定不能。`ros2` は拒否する。ターミナルには乗員残数テーブルに加え、現在のシミュレーション（ステップ％）と完了したイテレーション（N/M）の進捗を出す。
 
 ## 結果の確認
 
