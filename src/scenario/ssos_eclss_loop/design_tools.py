@@ -1207,6 +1207,8 @@ class DesignToolkit:
             "peak_co2_storage_kg": outcome.get("peak_co2_storage_kg"),
             "min_o2_storage_kg": outcome.get("min_o2_storage_kg"),
             "final_product_water_reserve_l": outcome.get("final_product_water_reserve_l"),
+            "physics_gate_passed": outcome.get("physics_gate_passed"),
+            "evaluation_compact": outcome.get("evaluation_compact"),
             "constraint_status": constraints.get("constraint_status"),
             "total_mass_kg": _round(constraints.get("total_mass_kg"), 2),
             "total_volume_m3": _round(constraints.get("total_volume_m3"), 3),

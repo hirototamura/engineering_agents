@@ -137,6 +137,10 @@ def evaluate_run_outcome(run_dir: Path) -> Dict[str, Any]:
         "backend": summary.get("backend"),
         "actor_mode": summary.get("actor_mode"),
         "design_mode": summary.get("design_mode"),
+        "physics_gate_passed": summary.get("physics_gate_passed"),
+        "evaluation_status": summary.get("evaluation_status"),
+        "evaluation_score": summary.get("evaluation_score"),
+        "evaluation_compact": summary.get("evaluation_compact"),
         "crew_initial": crew_initial,
         "crew_remaining": crew_remaining,
         "crew_lost": summary.get("crew_lost"),
@@ -250,6 +254,12 @@ def mark_final_eligibility(
         reasons.append("not_simulated")
     if not evidence_complete:
         reasons.append("evidence_incomplete")
+
+    # The deterministic evaluator is a measurement gate, not a score objective.
+    # A plant_sim candidate whose persisted physics cannot be audited is never
+    # eligible regardless of survival, mass, or model-written prose.
+    if outcome.get("backend") == "plant_sim" and outcome.get("physics_gate_passed") is not True:
+        reasons.append("physics_gate_not_passed")
 
     crew = occupant_count(outcome.get("crew_remaining"))
     crew_initial = occupant_count(outcome.get("crew_initial"))

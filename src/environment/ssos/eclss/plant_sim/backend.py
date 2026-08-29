@@ -163,6 +163,11 @@ class PlantSimEclssBackend:
         s = self.model.state
         plant_sim_topic: Dict[str, Any] = {
             "simulation_time_s": s.simulation_time_s,
+            # Persist enough cumulative bookkeeping for the deterministic
+            # evaluator to independently audit each candidate run.
+            "initial_captured_co2_kg": self.config.initial_captured_co2_kg,
+            "initial_urine_buffer_l": self.config.initial_urine_buffer_l,
+            "initial_grey_water_l": self.config.initial_grey_water_l,
             "captured_co2_kg": s.captured_co2_kg,
             "urine_buffer_l": s.urine_buffer_l,
             "total_co2_vented_kg": s.total_co2_vented_kg,
@@ -171,6 +176,21 @@ class PlantSimEclssBackend:
             "total_wrs_brine_loss_l": s.total_wrs_brine_loss_l,
             "total_o2_shortfall_kg": s.total_o2_shortfall_kg,
             "total_water_shortfall_l": s.total_water_shortfall_l,
+            "total_unrecoverable_crew_water_l": s.total_unrecoverable_crew_water_l,
+            "total_co2_generated_kg": s.total_co2_generated_kg,
+            "total_o2_consumed_kg": s.total_o2_consumed_kg,
+            "total_potable_water_consumed_l": s.total_potable_water_consumed_l,
+            "total_urine_generated_l": s.total_urine_generated_l,
+            "total_condensate_generated_l": s.total_condensate_generated_l,
+            "total_o2_generated_kg": s.total_o2_generated_kg,
+            "total_electrolysis_water_kg": s.total_electrolysis_water_kg,
+            "total_sabatier_co2_used_kg": s.total_sabatier_co2_used_kg,
+            "total_water_regenerated_l": s.total_water_regenerated_l,
+            "total_wrs_recovered_water_l": s.total_wrs_recovered_water_l,
+            "total_o2_delivered_kg": s.total_o2_delivered_kg,
+            "total_co2_delivered_kg": s.total_co2_delivered_kg,
+            "total_product_water_delivered_l": s.total_product_water_delivered_l,
+            "total_external_grey_water_submitted_l": s.total_external_grey_water_submitted_l,
             "ars_busy_steps_remaining": int(self._busy_remaining["ars"]),
             "ogs_busy_steps_remaining": int(self._busy_remaining["ogs"]),
             "wrs_busy_steps_remaining": int(self._busy_remaining["wrs"]),
