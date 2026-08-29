@@ -424,6 +424,7 @@ pytest tests/environment/test_graph_rewire*.py -q
 
 ## 関連ドキュメント
 
+- [設計ループの学術解析](design-loop-analysis.md) — 設計→検証ループのアンサンブル物理（応答面・臨界性・可制御性）
 - [architecture.md](architecture.md) — レイヤと ssos 実行フロー
 - [api-contracts.md](api-contracts.md) — `EclssBackend`、JSONL、運用コマンド
 - [memo/ssos_eclss_loop/labeled_rule_base.md](memo/ssos_eclss_loop/labeled_rule_base.md) — シミュレーション内 labeled 運用（必要量を積んでから上限）

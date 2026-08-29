@@ -14,6 +14,7 @@ MkDocs サイトの全ページ一覧です。ヘッダーの言語切替で Eng
 | SSOS | [SSOS 接合](ssos/index.md) | Docker / ROS 2 運用ガイド |
 | | [ロードマップ](ssos/roadmap.md) | Phase 0–8 状態 |
 | その他 | [CLI ガイド](cli.md) | `ea` コマンド |
+| | [設計ループの学術解析](design-loop-analysis.md) | 順序変数・臨界性・可制御性（キャンペーン HTML） |
 | | [開発プラン](development-plan.md) | ロードマップ索引 |
 | | [保守ガイド](MAINTENANCE.md) | ドキュメント編集・プレビュー |
 | メモ | [バックログ](memo/backlog.md) | BL-001–BL-007 |

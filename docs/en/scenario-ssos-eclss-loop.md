@@ -424,6 +424,7 @@ Container E2E records: `memo/ssos_eclss_loop/e2e_records/` (repo only).
 
 ## Related documentation
 
+- [Design-loop analysis](design-loop-analysis.md) — ensemble physics of the design→verify loop (response surface, criticality, controllability)
 - [architecture.md](architecture.md) — layers and ssos execution flow
 - [api-contracts.md](api-contracts.md) — `EclssBackend`, JSONL, operational commands
 - [memo/ssos_eclss_loop/labeled_rule_base.md](memo/ssos_eclss_loop/labeled_rule_base.md) — in-sim labeled ops (sized request, then cap)
