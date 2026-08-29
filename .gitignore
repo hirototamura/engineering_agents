@@ -46,6 +46,13 @@ simulation.log
 src/experiments/results/*
 !src/experiments/results/.gitkeep
 !src/experiments/results/evaluation.html
+
+# Design-loop analysis: the run directories are regenerable and large, the
+# datasets and the report are the deliverable and are small.
+src/experiments/analysis/*
+!src/experiments/analysis/datasets/
+!src/experiments/analysis/design_loop_analysis.html
+!src/experiments/analysis/design_loop_analysis.findings.json
 artifacts/ssos-regression/
 output/
 041922_output/
