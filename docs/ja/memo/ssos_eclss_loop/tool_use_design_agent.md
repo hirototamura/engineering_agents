@@ -136,8 +136,10 @@ final status:
 
 `design_proposals.json` は status に関わらず書き出す（記録として要る）。採用側に門がある:
 `--apply-proposals` は `final_status` が `approved_final` でない文書、または
-`requires_supervisor_approval` が付いた文書を**理由付きで拒否する**。それでも採る場合は人間が
-`--approve-provisional` を渡す。ファイルを渡されたことは承認ではなく、予算超過の設計に金を
+`requires_supervisor_approval` が付いた文書を**理由付きで拒否する**（ライブラリ既定）。
+`ea run` のシミュレーション既定は `--approve-provisional` オンで、人間の介在をなくすため
+LLM 設計提案を自動承認する（INFO を出す）。監督ゲートを戻すには
+`--no-approve-provisional`。ファイルを渡されたことは承認ではなく、予算超過の設計に金を
 払うと決めることが承認である。
 
 ## Evidence Gate

@@ -13,7 +13,12 @@ from scenario.jobs.executor import execute_run
 from scenario.jobs.spec import RunSpec
 from scenario.runner import load_agents_config, load_scenario_config, scenario_descriptions
 from tools.cli import exit_codes
-from tools.cli.output import print_error, print_run_plan, print_run_result
+from tools.cli.output import (
+    maybe_note_approve_provisional,
+    print_error,
+    print_run_plan,
+    print_run_result,
+)
 from tools.cli.overrides import load_override_file, merge_overrides, parse_set_values
 
 DEFAULT_SCENARIO = "scrubber_degradation"
@@ -93,11 +98,13 @@ def run(
         help="With --iterate: re-run baseline vs final design after the chain (default: on).",
     ),
     approve_provisional: bool = typer.Option(
-        False,
-        "--approve-provisional",
+        True,
+        "--approve-provisional/--no-approve-provisional",
         help=(
             "Adopt a design_proposals.json marked provisional_final / "
-            "requires_supervisor_approval. Without this, such a document is refused."
+            "requires_supervisor_approval. Default on so the "
+            "sim can close the design loop without a human supervisor (prints an "
+            "INFO note on ssos_eclss_loop). Pass --no-approve-provisional to restore the gate."
         ),
     ),
     llm_provider: Optional[str] = typer.Option(
@@ -160,6 +167,11 @@ def run(
         from scenario.jobs.iterate import ITERATE_SCENARIO
         from tools.cli.commands.iterate import run_iterate_from_run
 
+        maybe_note_approve_provisional(
+            scenario=scenario or ITERATE_SCENARIO,
+            approve_provisional=approve_provisional,
+            quiet=quiet,
+        )
         run_iterate_from_run(
             scenario_name=scenario or ITERATE_SCENARIO,
             iterations=iterate,
@@ -252,8 +264,8 @@ def run(
         extra_lines["backend"] = backend
     if apply_proposals:
         extra_lines["apply_proposals"] = str(apply_proposals)
-    if approve_provisional:
-        extra_lines["approve_provisional"] = "true"
+    if scenario_name == "ssos_eclss_loop":
+        extra_lines["approve_provisional"] = str(approve_provisional).lower()
     if inject_failures is not None:
         extra_lines["inject_failures"] = str(inject_failures).lower()
     if llm_provider:
@@ -261,6 +273,11 @@ def run(
     if llm_model:
         extra_lines["llm_model"] = llm_model
 
+    maybe_note_approve_provisional(
+        scenario=scenario_name,
+        approve_provisional=approve_provisional,
+        quiet=quiet,
+    )
     if not quiet and not json_output:
         print_run_plan(
             scenario_name,

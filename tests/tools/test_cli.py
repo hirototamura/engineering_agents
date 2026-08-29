@@ -126,9 +126,12 @@ def test_run_ssos_bare_defaults_plant_sim_labeled_llm(tmp_path: Path):
     assert overrides["backend"]["kind"] == "plant_sim"
     assert overrides["agents"]["actor"]["mode"] == "labeled_rule_base"
     assert overrides["agents"]["design"]["mode"] == "llm"
+    assert payload["approve_provisional"] is True
     assert "actor=labeled_rule_base" in result.stdout
     assert "design=llm" in result.stdout
     assert "backend: plant_sim" in result.stdout
+    assert "INFO" in result.output
+    assert "auto-approves LLM design proposals" in result.output
 
 
 def test_run_ssos_actor_flag_without_design_inherits(tmp_path: Path):
@@ -552,6 +555,9 @@ def test_iterate_dry_run_defaults(tmp_path: Path):
     )
     assert result.exit_code == 0
     assert str(tmp_path / "chain") in result.stdout
+    assert "approve_provisional: true" in result.stdout
+    assert "INFO" in result.output
+    assert "auto-approves LLM design proposals" in result.output
 
 
 def test_iterate_omitted_scenario_defaults_to_ssos(tmp_path: Path):
@@ -561,3 +567,115 @@ def test_iterate_omitted_scenario_defaults_to_ssos(tmp_path: Path):
     )
     assert result.exit_code == 0
     assert str(tmp_path / "chain") in result.stdout
+    assert "INFO" in result.output
+
+
+def test_run_ssos_no_approve_provisional_skips_info(tmp_path: Path):
+    spec_path = tmp_path / "spec.json"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--dry-run",
+            "--no-approve-provisional",
+            "--write-spec",
+            str(spec_path),
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(spec_path.read_text(encoding="utf-8"))
+    assert payload["approve_provisional"] is False
+    assert "auto-approves LLM design proposals" not in result.output
+
+
+def test_run_scrubber_does_not_note_approve_provisional(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "scrubber_degradation",
+            "--agents-mode",
+            "none",
+            "--dry-run",
+            "--output-dir",
+            str(tmp_path / "scrubber"),
+        ],
+    )
+    assert result.exit_code == 0
+    assert "auto-approves LLM design proposals" not in result.output
+
+
+def test_chain_exit_code_fails_on_run_or_incomplete_chain():
+    from tools.cli import exit_codes
+    from tools.cli.commands.iterate import chain_exit_code
+
+    assert chain_exit_code(
+        {
+            "iterations_requested": 2,
+            "iterations_completed": 2,
+            "runs": [{"exit_code": 0}, {"exit_code": 0}],
+            "replay_runs": [{"exit_code": 0}],
+        }
+    ) == exit_codes.SUCCESS
+    assert chain_exit_code(
+        {
+            "iterations_requested": 2,
+            "iterations_completed": 1,
+            "runs": [{"exit_code": 0}, {"exit_code": 1}],
+            "stopped_reason": "iteration 2 failed",
+        }
+    ) == exit_codes.RUN_FAILURE
+    assert chain_exit_code(
+        {
+            "iterations_requested": 2,
+            "iterations_completed": 2,
+            "runs": [{"exit_code": 0}, {"exit_code": 0}],
+            "replay_runs": [{"exit_code": 1}],
+        }
+    ) == exit_codes.RUN_FAILURE
+    assert chain_exit_code(
+        {
+            "iterations_requested": 3,
+            "iterations_completed": 2,
+            "runs": [{"exit_code": 0}, {"exit_code": 0}],
+            "stopped_reason": "frozen requirements hash changed",
+        }
+    ) == exit_codes.RUN_FAILURE
+
+
+def test_iterate_exits_nonzero_when_a_chained_run_fails(monkeypatch, tmp_path: Path):
+    def fake_run_design_iterate(**_kwargs):
+        return {
+            "iterations_requested": 2,
+            "iterations_completed": 1,
+            "stopped_reason": "iteration 2 failed",
+            "runs": [
+                {"iteration": 1, "exit_code": 0, "crew_remaining": 4, "crew_lost": 0},
+                {"iteration": 2, "exit_code": 1, "crew_remaining": None, "crew_lost": None},
+            ],
+            "replay_runs": [],
+            "verdict": "INCONCLUSIVE",
+            "chain_summary_path": str(tmp_path / "chain_summary.json"),
+        }
+
+    monkeypatch.setattr("tools.cli.commands.iterate.run_design_iterate", fake_run_design_iterate)
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--iterate",
+            "2",
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "labeled_rule_base",
+            "--design-mode",
+            "labeled_rule_base",
+            "--output-dir",
+            str(tmp_path / "chain"),
+        ],
+    )
+    assert result.exit_code == 1
+    assert "iteration 2 failed" in result.output

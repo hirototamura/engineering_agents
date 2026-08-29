@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import typer
 
@@ -155,7 +155,23 @@ def run_iterate_from_run(
         as_json=json_output,
         skip_runs_table=live is not None,
     )
+    code = chain_exit_code(chain_summary)
+    if code != exit_codes.SUCCESS:
+        print_error(str(chain_summary.get("stopped_reason") or "Iterate chain failed."))
+        raise typer.Exit(code)
     raise typer.Exit(exit_codes.SUCCESS)
+
+
+def chain_exit_code(chain_summary: Dict[str, Any]) -> int:
+    """Non-zero when a chained sim or replay failed, or the chain aborted early."""
+    rows = list(chain_summary.get("runs") or []) + list(chain_summary.get("replay_runs") or [])
+    if any(int(row.get("exit_code") or 0) != 0 for row in rows):
+        return exit_codes.RUN_FAILURE
+    requested = int(chain_summary.get("iterations_requested") or 0)
+    completed = int(chain_summary.get("iterations_completed") or 0)
+    if requested > 0 and completed < requested:
+        return exit_codes.RUN_FAILURE
+    return exit_codes.SUCCESS
 
 
 def _apply_iterate_defaults(

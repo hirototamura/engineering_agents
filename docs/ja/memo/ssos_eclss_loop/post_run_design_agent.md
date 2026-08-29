@@ -107,7 +107,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10 --backend plant_sim \
 
 - 設計提案の**生成**は unified の事後 designer（既定は tool-use）。連鎖は生成ロジックを差し替えない
 - ラン k のシミュはラン k-1 で採用した `applied_proposals.json` を unified の `apply_design_proposals` で適用する（`capacity_profile` 含む）
-- `set_parameter`（`thresholds.*`）は連鎖では自動適用しない。provisional は `--approve-provisional` なしでは採用しない
+- `set_parameter`（`thresholds.*`）は連鎖では自動適用しない。`ea run` の既定は `--approve-provisional` オン（INFO を出して LLM 提案を自動承認し、人間の介在なしにループを閉じる）。監督ゲートを戻すには `--no-approve-provisional`
 - 空・不採用の提案でも連鎖は止めず、直前の適用ファイル（まだ無ければ初期 YAML）のまま続ける
 - 最後のランは検証専用。そこで出た提案は未検証
 - 連鎖後に `design.mode=none` の baseline / final replay を回し、その `crew_remaining` で `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE` を決める

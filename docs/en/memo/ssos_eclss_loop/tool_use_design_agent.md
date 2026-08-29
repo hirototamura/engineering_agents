@@ -137,9 +137,11 @@ simulation starts, so config and behaviour cannot drift apart.
 `design_proposals.json` is written whatever the status, because the record is worth
 keeping. Adopting it is gated: `--apply-proposals` **refuses** a document whose
 `final_status` is not `approved_final`, or which carries
-`requires_supervisor_approval`, and says why. A human who wants it anyway passes
-`--approve-provisional`. Being handed the file is not approval; deciding to pay for an
-over-budget design is.
+`requires_supervisor_approval`, and says why (library default). `ea run`
+defaults to `--approve-provisional` so the simulation can auto-approve LLM
+designs and close the loop without a human (it prints an INFO note). Pass
+`--no-approve-provisional` to restore the supervisor gate. Being handed the
+file is not approval; deciding to pay for an over-budget design is.
 
 ## Evidence Gate
 

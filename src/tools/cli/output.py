@@ -14,6 +14,7 @@ from rich.table import Table
 
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunResult
+from scenario.ssos_eclss_loop.design_proposals import APPROVE_PROVISIONAL_SIM_INFO
 
 console = Console(stderr=False)
 err_console = Console(stderr=True)
@@ -224,6 +225,22 @@ def print_chain_summary(
 def print_error(message: str, *, hint: Optional[str] = None) -> None:
     body = message if hint is None else f"{message}\n\n{hint}"
     err_console.print(Panel(body, title="Error", border_style="red"))
+
+
+def print_info(message: str, *, title: str = "INFO") -> None:
+    err_console.print(Panel(message, title=title, border_style="blue"))
+
+
+def maybe_note_approve_provisional(
+    *,
+    scenario: str,
+    approve_provisional: bool,
+    quiet: bool,
+) -> None:
+    """Note auto-approval of LLM designs on ssos_eclss_loop simulations."""
+    if quiet or not approve_provisional or scenario != "ssos_eclss_loop":
+        return
+    print_info(APPROVE_PROVISIONAL_SIM_INFO)
 
 
 def print_run_list(runs: list[Path]) -> None:
