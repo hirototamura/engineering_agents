@@ -132,7 +132,9 @@ def test_run_ssos_bare_defaults_plant_sim_labeled_llm(tmp_path: Path):
     assert overrides["agents"]["actor"]["mode"] == "labeled_rule_base"
     assert overrides["agents"]["design"]["mode"] == "llm"
     assert payload["approve_provisional"] is True
-    assert "iterate: 5" in result.stdout
+    assert "inject_failures" not in overrides
+    assert "inject_failures: false" in result.stdout
+    assert "iterate: 10" in result.stdout
     assert "actor=labeled_rule_base" in result.stdout
     assert "design=llm" in result.stdout
     assert "backend: plant_sim" in result.stdout
@@ -570,8 +572,85 @@ def test_iterate_dry_run_defaults(tmp_path: Path):
     assert result.exit_code == 0
     assert str(tmp_path / "chain") in result.stdout
     assert "approve_provisional: true" in result.stdout
+    assert "inject_failures: false" in result.stdout
     assert "INFO" in result.output
     assert "auto-approves LLM design proposals" in result.output
+
+
+def test_iterate_inherits_inject_failures_from_scenario(monkeypatch, tmp_path: Path):
+    monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    chain_dir = tmp_path / "chain-no-fail"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--iterate",
+            "1",
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "none",
+            "--design-mode",
+            "none",
+            "--steps",
+            "2",
+            "--no-paired-replay",
+            "--output-dir",
+            str(chain_dir),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 0
+    summary = json.loads((chain_dir / "01" / "summary.json").read_text(encoding="utf-8"))
+    assert summary["inject_failures"] is False
+
+
+def test_iterate_inject_failures_flag_overrides_scenario(monkeypatch, tmp_path: Path):
+    monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    chain_dir = tmp_path / "chain-fail"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--iterate",
+            "1",
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "none",
+            "--design-mode",
+            "none",
+            "--steps",
+            "2",
+            "--inject-failures",
+            "--no-paired-replay",
+            "--output-dir",
+            str(chain_dir),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 0
+    summary = json.loads((chain_dir / "01" / "summary.json").read_text(encoding="utf-8"))
+    assert summary["inject_failures"] is True
+
+
+def test_iterate_rejects_defaults_set():
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--set",
+            "iteration.defaults.inject_failures=true",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "iteration.defaults was removed" in result.output
 
 
 def test_iterate_yaml_enabled_via_set(tmp_path: Path):
@@ -691,7 +770,7 @@ def test_ssos_bare_run_chains_from_yaml(tmp_path: Path):
         ],
     )
     assert result.exit_code == 0
-    assert "iterate: 5" in result.stdout
+    assert "iterate: 10" in result.stdout
 
 
 def test_yaml_chain_without_iterate_flag_uses_live_reporter(monkeypatch, tmp_path: Path):
@@ -726,7 +805,7 @@ def test_yaml_chain_without_iterate_flag_uses_live_reporter(monkeypatch, tmp_pat
     )
     assert result.exit_code == 0
     assert isinstance(captured.get("reporter"), ChainLiveReporter)
-    assert captured["reporter"].iterations == 5
+    assert captured["reporter"].iterations == 10
 
 
 def test_single_ssos_run_hooks_step_progress(monkeypatch, tmp_path: Path):

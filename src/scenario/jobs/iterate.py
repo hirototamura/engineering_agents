@@ -30,12 +30,6 @@ REPLAY_FINAL = "final-replay"
 ITERATION_COUNT_MIN = 1
 ITERATION_COUNT_MAX = 50
 DEFAULT_ITERATION_RUN_ID = "ssos_eclss_loop_design_iter"
-DEFAULT_ITERATION_DEFAULTS: Dict[str, Any] = {
-    "backend": "plant_sim",
-    "inject_failures": True,
-    "actor_mode": "labeled_rule_base",
-    "design_mode": "llm",
-}
 
 
 @dataclass(frozen=True)
@@ -47,7 +41,6 @@ class IterationSettings:
     paired_replay: bool
     approve_provisional: bool
     run_id: str
-    defaults: Dict[str, Any]
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -56,7 +49,6 @@ class IterationSettings:
             "paired_replay": self.paired_replay,
             "approve_provisional": self.approve_provisional,
             "run_id": self.run_id,
-            "defaults": dict(self.defaults),
         }
 
 
@@ -68,10 +60,20 @@ def resolve_iteration(
     cli_approve_provisional: Optional[bool] = None,
     cli_run_id: Optional[str] = None,
 ) -> IterationSettings:
-    """Merge ``iteration:`` from scenario config with explicit CLI flags."""
+    """Merge ``iteration:`` from scenario config with explicit CLI flags.
+
+    Child sims inherit the same scenario-level keys as a single run
+    (``inject_failures``, ``backend``, actor/design modes). ``iteration.defaults``
+    is rejected so a leftover block cannot silently diverge from those keys.
+    """
     raw = dict((config or {}).get("iteration") or {})
-    yaml_defaults = raw.get("defaults") if isinstance(raw.get("defaults"), dict) else {}
-    defaults = {**DEFAULT_ITERATION_DEFAULTS, **yaml_defaults}
+    if "defaults" in raw:
+        raise ValueError(
+            "iteration.defaults was removed; chained runs use the same "
+            "inject_failures, backend, and actor/design modes as a single run. "
+            "Set those keys at scenario level, or pass --inject-failures / "
+            "--backend / --actor-mode / --design-mode."
+        )
 
     yaml_enabled = bool(raw.get("enabled", False))
     try:
@@ -106,7 +108,6 @@ def resolve_iteration(
         paired_replay=paired,
         approve_provisional=approve,
         run_id=run_id,
-        defaults=defaults,
     )
 
 

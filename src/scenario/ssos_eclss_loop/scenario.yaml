@@ -196,17 +196,14 @@ evaluation:
 
 # Design→verify chain (not simulation.steps). CLI --iterate N overrides count.
 # enabled: true → `ea run ssos_eclss_loop` chains without --iterate.
+# Child sims use the same backend / actor / design / inject_failures as a
+# single `ea run` (CLI pins plant_sim + labeled actors + llm design).
 iteration:
   enabled: true  # true → chain without --iterate
-  count: 5  # [-] 1–50 chained sims; --iterate N wins
+  count: 10  # [-] 1–50 chained sims; --iterate N wins
   paired_replay: true  # baseline vs final replay after the chain
   approve_provisional: true  # auto-adopt provisional_final (INFO on ssos). --no-approve-provisional restores the gate
   run_id: ssos_eclss_loop_design_iter  # default chain directory name
-  defaults:  # applied only to chained child sims; a single run ignores these
-    backend: plant_sim  # mock | plant_sim (ros2 rejected)
-    inject_failures: true  # scenario-level inject_failures stays false for single runs
-    actor_mode: labeled_rule_base
-    design_mode: llm
 
 agents:
   actor:

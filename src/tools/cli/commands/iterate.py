@@ -14,10 +14,11 @@ from scenario.jobs.iterate import (
 )
 from scenario.jobs.resolve import default_results_root, sanitize_run_id
 from scenario.jobs.spec import RunSpec
+from scenario.runner import load_scenario_config
+from scenario.ssos_eclss_loop.subsystem_failures import resolve_inject_subsystem_failures
 from tools.cli import exit_codes
 from tools.cli.commands import run as run_cmd
 from tools.cli.output import ChainLiveReporter, console, print_chain_summary, print_error, print_run_plan
-from tools.cli.overrides import merge_overrides
 
 DEFAULT_RUN_ID = "ssos_eclss_loop_design_iter"
 
@@ -39,7 +40,6 @@ def run_iterate_from_run(
     inject_failures: Optional[bool],
     paired_replay: bool,
     approve_provisional: bool,
-    iteration_defaults: Optional[Dict[str, Any]] = None,
     iteration_record: Optional[Dict[str, Any]] = None,
     seed: Optional[int],
     set_values: List[str],
@@ -71,15 +71,7 @@ def run_iterate_from_run(
             set_values=set_values,
             override_file=override_file,
         )
-        overrides = _apply_iterate_defaults(
-            overrides,
-            defaults=iteration_defaults or {},
-            actor_mode=actor_mode,
-            agents_mode=agents_mode,
-            design_mode=design_mode,
-            backend=backend,
-            inject_failures=inject_failures,
-        )
+        overrides = run_cmd._apply_cli_defaults(scenario_name, overrides)
         overrides = run_cmd._apply_llm_cli_to_llm_sides(
             scenario_name, overrides, llm_provider=llm_provider, llm_model=llm_model
         )
@@ -106,10 +98,11 @@ def run_iterate_from_run(
 
     resolved_mode = run_cmd._resolved_display_mode(scenario_name, overrides)
     resolved_steps = (overrides or {}).get("simulation", {}).get("steps")
+    resolved_config = load_scenario_config(scenario_name, overrides)
     extra_lines = {
         "iterate": str(iterations),
         "backend": str(((overrides or {}).get("backend") or {}).get("kind")),
-        "inject_failures": str((overrides or {}).get("inject_failures")),
+        "inject_failures": str(resolve_inject_subsystem_failures(resolved_config)).lower(),
         "paired_replay": str(paired_replay).lower(),
         "approve_provisional": str(approve_provisional).lower(),
         "chain_dir": str(parent),
@@ -176,36 +169,6 @@ def chain_exit_code(chain_summary: Dict[str, Any]) -> int:
     if requested > 0 and completed < requested:
         return exit_codes.RUN_FAILURE
     return exit_codes.SUCCESS
-
-
-def _apply_iterate_defaults(
-    overrides: dict | None,
-    *,
-    defaults: Dict[str, Any],
-    actor_mode: Optional[str],
-    agents_mode: Optional[str],
-    design_mode: Optional[str],
-    backend: Optional[str],
-    inject_failures: Optional[bool],
-) -> dict:
-    merged = dict(overrides or {})
-    backend_kind = str(defaults.get("backend") or "plant_sim")
-    actor = str(defaults.get("actor_mode") or "labeled_rule_base")
-    design = str(defaults.get("design_mode") or "llm")
-    inj = bool(defaults.get("inject_failures", True))
-    if backend is None and not ((merged.get("backend") or {}).get("kind")):
-        merged = merge_overrides(merged, {"backend": {"kind": backend_kind}}) or {}
-    if actor_mode is None and agents_mode is None:
-        existing = ((merged.get("agents") or {}).get("actor") or {}).get("mode")
-        if existing is None:
-            merged = merge_overrides(merged, {"agents": {"actor": {"mode": actor}}}) or {}
-    if design_mode is None:
-        existing = ((merged.get("agents") or {}).get("design") or {}).get("mode")
-        if existing is None:
-            merged = merge_overrides(merged, {"agents": {"design": {"mode": design}}}) or {}
-    if inject_failures is None and "inject_failures" not in merged:
-        merged = merge_overrides(merged, {"inject_failures": inj}) or {}
-    return merged
 
 
 def _validate_iterate_backend(overrides: dict | None) -> None:

@@ -33,6 +33,7 @@ def test_resolve_iteration_yaml_enabled():
     settings = resolve_iteration({"iteration": {"enabled": True, "count": 3}})
     assert settings.chain is True
     assert settings.count == 3
+    assert "defaults" not in settings.as_dict()
 
 
 def test_resolve_iteration_cli_flags_override_yaml():
@@ -58,6 +59,11 @@ def test_resolve_iteration_cli_flags_override_yaml():
 def test_resolve_iteration_missing_block_does_not_chain():
     settings = resolve_iteration({})
     assert settings.chain is False
+
+
+def test_resolve_iteration_rejects_defaults_block():
+    with pytest.raises(ValueError, match="iteration.defaults was removed"):
+        resolve_iteration({"iteration": {"defaults": {"inject_failures": True}}})
 
 
 def test_resolve_iteration_count_out_of_range_when_chaining():
