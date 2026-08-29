@@ -254,7 +254,7 @@ def test_a_real_review_document_carries_its_own_approval_gate(baseline: Path):
 
 
 def test_the_designer_cannot_overrule_the_ranking(baseline: Path):
-    """Rank 1 is the smallest design that saves everyone; a named runner-up is not.
+    """Rank 1 is the calmest then smallest design that saves everyone; a named runner-up is not.
 
     The designer steers which candidates get built and simulated. Which verified
     candidate is adopted is the objective's call, not the model's.

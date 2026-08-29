@@ -88,11 +88,12 @@ Checking happens in two stages (design doc §8.1):
 - **Constraint evaluation** — budget / bound violations only *label* the candidate (`over_budget`, `out_of_bounds`); it still runs, because “over-designed but everyone survives” is a useful lesson. The two labels are then treated differently at adoption: an `out_of_bounds` machine cannot be built, so it is never adopted (`require_in_bounds_final: true`); an `over_budget` one is money, so it *is* selected and comes back as `provisional_final` for a human (`require_feasible_final: false`, set it to `true` to make budgets a hard gate too).
 - A candidate that names only some subsystems is priced as a whole station: the unnamed ones weigh what the **installed** machine weighs, not the sizing-model baseline. `capacity_source` in the evaluation says which is which.
 
-## Objective: a clearance line, then the smallest machine
+## Objective: a clearance line, then the calmest machine, then the smallest
 
 Survival is **not** a ranking key. A design that loses an occupant is not adoptable at
 all, so no amount of saved mass can be traded against a life. Among the designs that
-clear the line, the objective is the smallest station that still works.
+clear the line, less CRITICAL dwell wins before a lighter footprint: a heavy but
+calm station beats a light one that lives in a dangerous band.
 
 ```python
 final_eligible = (
@@ -106,11 +107,11 @@ final_eligible = (
 rank_key = (
     not final_eligible,     # adoptable candidates first
     -crew_remaining,        # only orders the ineligible ones among themselves
-    total_mass_kg,          # among adoptable designs: the smallest wins
+    critical_step_count,    # among adoptable designs: less CRITICAL dwell first
+    warning_step_count,
+    total_mass_kg,          # then the smallest machine
     total_volume_m3,
     total_cost_musd,
-    critical_step_count,    # tie-break: less CRITICAL dwell
-    warning_step_count,
 )
 ```
 

@@ -61,9 +61,10 @@ _FULL_OBSERVATIONS = 3
 EXPERT_CONTEXT_PACK = """\
 ### Expert context pack (domain minimum, not a procedure)
 - Objective: every occupant must survive — a design that loses one is never adopted,
-  whatever it saves. Among designs where crew_remaining == crew_initial, the smallest
-  one wins: mass first, then volume, then cost. So do not stop at the first design
-  that works; find the smallest one that still works.
+  whatever it saves. Among designs where crew_remaining == crew_initial, less CRITICAL
+  dwell wins before mass, then volume, then cost. A light machine that lives in a
+  dangerous band loses to a heavier calm one. So do not stop at the first design
+  that works; find the calmest, then smallest, that still works.
 - Capacity is not free and not one-way. Spare throughput is mass, volume and cost the
   station carries for nothing, so sizing a subsystem *down* is a legitimate design
   move — the candidate re-simulation is what tells you whether it was too far.
@@ -547,10 +548,11 @@ class ToolUseDesignAgent:
         selected_id = (selected or {}).get("candidate_id")
         if requested is not None and requested.get("candidate_id") != selected_id:
             # The ranking is the objective: every eligible candidate keeps the
-            # whole crew alive, so rank 1 is the smallest design that does. A
-            # different pick can only be a larger one — record it, do not adopt
-            # it. The designer's judgement steers which candidates get built and
-            # simulated, not which verified candidate wins.
+            # whole crew alive, so rank 1 is the calmest then smallest design
+            # that does. A different pick can only be a more CRITICAL or larger
+            # one — record it, do not adopt it. The designer's judgement steers
+            # which candidates get built and simulated, not which verified
+            # candidate wins.
             reasons = requested.get("final_ineligible_reasons") or []
             detail = f"not final-eligible ({', '.join(reasons)})" if reasons else "ranked lower"
             notes.append(

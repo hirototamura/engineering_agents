@@ -287,8 +287,8 @@ class DesignToolkit:
             ToolSpec(
                 "compare_design_runs",
                 "Rank baseline and every simulated candidate — full survival clears, "
-                "then the smallest mass / volume / cost wins — and report the selected "
-                "candidate.",
+                "then less CRITICAL dwell, then the smallest mass / volume / cost — "
+                "and report the selected candidate.",
                 {},
                 evidence="compared_runs",
             ),

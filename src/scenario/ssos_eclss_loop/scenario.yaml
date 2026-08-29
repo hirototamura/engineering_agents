@@ -93,7 +93,7 @@ design_constraints:
     # Documents the objective implemented in design_eval; any other value is
     # rejected when the scenario loads, so config and behaviour cannot drift.
     primary: require_full_survival  # clearance line: crew_remaining == crew_initial
-    secondary: minimize_resource_footprint  # then mass → volume → cost
+    secondary: minimize_resource_footprint  # then CRITICAL dwell → warning → mass → volume → cost
   budgets:
     # Soft caps used for labelling, not a pre-simulation hard stop (§8.1).
     max_total_mass_kg: 4000.0  # [kg] ARS + OGS + WRS installed mass

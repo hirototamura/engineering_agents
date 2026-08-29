@@ -88,11 +88,11 @@ baseline footprint は 1800 kg / 6.8 m³ / 259 MUSD（hardware 160 + launch 99�
 - **Constraint evaluation**: budget / bounds 超過は候補を止めず `over_budget` / `out_of_bounds` と**ラベルするだけ**。「過剰設計だが生存性は改善する」も学びなので走らせる。ただし 2 つのラベルは採用段階で扱いが違う。`out_of_bounds` は物理的に製造できない機体なので採用しない（`require_in_bounds_final: true`）。`over_budget` は金の話なので採用対象にはなり、`provisional_final` として人間に上げる（`require_feasible_final: false`。予算も硬い門にしたければ `true`）。
 - 一部のサブシステムだけを指定した候補も、ステーション全体として価格計算される。指定しなかったサブシステムは **現在インストールされている**容量で計算する（サイジングモデルの初期値ではない）。どちらを使ったかは評価結果の `capacity_source` に出る。
 
-## 評価: まず合格ライン、その中で最小の機体
+## 評価: まず合格ライン、その中で危険帯の滞在が短い機体、その中で最小
 
 生存はランキングのキーではなく**合格条件**。1 人でも失う設計はそもそも採用できないので、
-質量削減と人命が天秤に載ること自体が起きない。合格した設計の中で、まだ成立する最小の
-ステーションを選ぶ、というのが目的関数。
+質量削減と人命が天秤に載ること自体が起きない。合格した設計の中では、CRITICAL 滞在が
+短い方が質量より優先する。軽いが危険帯にいる機体が、重いが安全な機体に勝つことはない。
 
 ```python
 final_eligible = (
@@ -106,11 +106,11 @@ final_eligible = (
 rank_key = (
     not final_eligible,     # 採用可能な候補を先に
     -crew_remaining,        # 不合格候補どうしの並び順にしか効かない
-    total_mass_kg,          # 合格候補の中では最小の機体が勝つ
+    critical_step_count,    # 合格候補の中では CRITICAL 滞在が短い方が勝つ
+    warning_step_count,
+    total_mass_kg,          # その次に最小の機体
     total_volume_m3,
     total_cost_musd,
-    critical_step_count,    # 同点時の tie-break: 危険帯の滞在が短い方
-    warning_step_count,
 )
 ```
 

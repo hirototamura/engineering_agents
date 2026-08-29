@@ -113,7 +113,7 @@ def test_a_design_that_loses_an_occupant_is_never_eligible():
     assert [r["candidate_id"] for r in ranked] == ["heavy_but_safe", "light_but_lethal"]
 
 
-def test_among_full_survival_designs_the_smallest_wins():
+def test_among_full_survival_designs_critical_dwell_beats_mass():
     baseline = {"crew_remaining": 0, "crew_initial": 50}
     records = [
         _record("heavy", crew=50, mass=5000.0),
@@ -123,11 +123,11 @@ def test_among_full_survival_designs_the_smallest_wins():
     for record in records:
         mark_final_eligibility(record, baseline_outcome=baseline)
     ranked = rank_candidates(records)
-    # Mass decides before dwell time: every candidate here already kept the crew.
-    assert [r["candidate_id"] for r in ranked] == ["lighter_but_critical", "light", "heavy"]
+    # A light machine that lives in CRITICAL loses to a heavier calm one.
+    assert [r["candidate_id"] for r in ranked] == ["light", "heavy", "lighter_but_critical"]
 
 
-def test_dwell_time_only_breaks_a_footprint_tie():
+def test_dwell_time_beats_a_footprint_advantage():
     baseline = {"crew_remaining": 0, "crew_initial": 50}
     calm = _record("calm", crew=50, mass=2000.0)
     tense = _record("tense", crew=50, critical=3, mass=2000.0)
@@ -135,6 +135,18 @@ def test_dwell_time_only_breaks_a_footprint_tie():
         mark_final_eligibility(record, baseline_outcome=baseline)
     ranked = rank_candidates([tense, calm])
     assert [r["candidate_id"] for r in ranked] == ["calm", "tense"]
+
+
+def test_equal_critical_dwell_then_smaller_mass_wins():
+    baseline = {"crew_remaining": 0, "crew_initial": 50}
+    records = [
+        _record("heavy_calm", crew=50, mass=5000.0),
+        _record("light_calm", crew=50, mass=2000.0),
+    ]
+    for record in records:
+        mark_final_eligibility(record, baseline_outcome=baseline)
+    ranked = rank_candidates(records)
+    assert [r["candidate_id"] for r in ranked] == ["light_calm", "heavy_calm"]
 
 
 def test_over_budget_is_eligible_but_out_of_bounds_is_not():

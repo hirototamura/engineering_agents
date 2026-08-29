@@ -47,9 +47,9 @@ from scenario.ssos_eclss_loop.design_variables import (
 SIZING_MODE = "rack_affine_linear_v1"
 
 # The objective is implemented in :mod:`design_eval` (full survival clears, then
-# the smallest footprint wins). ``design_constraints.objective`` in scenario.yaml
-# documents it; any other value is a config/behaviour mismatch and is rejected at
-# load time rather than silently ignored.
+# less CRITICAL dwell, then the smallest footprint). ``design_constraints.objective``
+# in scenario.yaml documents it; any other value is a config/behaviour mismatch
+# and is rejected at load time rather than silently ignored.
 SUPPORTED_OBJECTIVES: Dict[str, Tuple[str, ...]] = {
     "primary": ("require_full_survival",),
     "secondary": ("minimize_resource_footprint",),
@@ -541,7 +541,8 @@ class DesignConstraints:
                 "note": (
                     "full survival is the clearance line, not a score: a design that "
                     "loses an occupant is never adopted. Among designs that keep every "
-                    "occupant alive, the smallest mass wins, then volume, then cost."
+                    "occupant alive, less CRITICAL dwell wins first, then warning "
+                    "dwell, then the smallest mass, volume, and cost."
                 ),
             },
             "design_variables": list(CAPACITY_KEYS),

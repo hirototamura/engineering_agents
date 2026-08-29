@@ -2,8 +2,9 @@
 
 Full survival is a **hard eligibility condition**, not a ranking key: a design
 that loses an occupant cannot be adopted at all, so no amount of saved mass can
-buy a human life. Among the designs that keep everyone alive, the objective is
-to minimise the footprint — mass, then volume, then cost.
+buy a human life. Among the designs that keep everyone alive, less time in a
+dangerous band beats a lighter machine: a heavy but calm design wins over a
+light one that lives in CRITICAL.
 
     eligible = preflight valid
                and simulated
@@ -14,11 +15,11 @@ to minimise the footprint — mass, then volume, then cost.
     rank_key = (
         not final_eligible,   # eligible candidates first
         -crew_remaining,      # only separates the ineligible ones from each other
-        total_mass_kg,        # among eligible designs: the smallest machine wins
+        critical_step_count,  # among eligible: less CRITICAL dwell first
+        warning_step_count,
+        total_mass_kg,        # then the smallest machine
         total_volume_m3,
         total_cost_musd,
-        critical_step_count,  # final tie-break: less time in a dangerous band
-        warning_step_count,
     )
 
 Budgets are deliberately **not** an eligibility condition (they would leave no
@@ -203,11 +204,11 @@ def candidate_rank_key(record: Mapping[str, Any]) -> tuple:
         # Every eligible candidate keeps the whole crew alive, so this key only
         # orders the ineligible ones among themselves (report readability).
         -_as_int(outcome.get("crew_remaining"), -1),
+        _as_int(outcome.get("critical_step_count"), 10**6),
+        _as_int(outcome.get("warning_step_count"), 10**6),
         _as_float(constraints.get("total_mass_kg"), float("inf")),
         _as_float(constraints.get("total_volume_m3"), float("inf")),
         _as_float(constraints.get("total_cost_musd"), float("inf")),
-        _as_int(outcome.get("critical_step_count"), 10**6),
-        _as_int(outcome.get("warning_step_count"), 10**6),
     )
 
 
@@ -331,8 +332,9 @@ def select_final_candidate(
         "final_status": STATUS_APPROVED,
         "selected_candidate_id": best.get("candidate_id"),
         "reason": (
-            f"full survival ({crew}/{crew_initial}) with the smallest footprint among "
-            f"ranked candidates, inside the documented budgets"
+            f"full survival ({crew}/{crew_initial}) with the least CRITICAL dwell "
+            f"then the smallest footprint among ranked candidates, inside the documented "
+            f"budgets"
         ),
         "requires_supervisor_approval": False,
     }
