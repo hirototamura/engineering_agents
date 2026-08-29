@@ -104,7 +104,7 @@ The source of truth for the design→verify chain is `ssos_eclss_loop` `scenario
 ea results
 python3 -m streamlit run src/tools/dashboard/app.py
 python3 -m tools.plant_sim_sensitivity_app  # plant_sim 3×4 knobs; not the run dashboard (port 8502)
-python3 -m tools.analysis all              # ensemble design-loop campaign + HTML report
+python3 -m tools.analysis all              # ensemble design-loop campaign + HTML (en + ja)
 ```
 
 The per-run dashboard answers "what happened in this simulation." The analysis campaign answers questions that are properties of the *ensemble* — order parameter, criticality, controllability, whether the mission is feasible inside `design_constraints.budgets`. See [Design-loop analysis](design-loop-analysis.md). The HTML lands at `src/experiments/analysis/design_loop_analysis.html`.

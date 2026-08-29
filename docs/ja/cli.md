@@ -68,7 +68,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 ea results
 python3 -m streamlit run src/tools/dashboard/app.py
 python3 -m tools.plant_sim_sensitivity_app  # plant_sim 3×4 の感度。ラン用ダッシュボードではない (port 8502)
-python3 -m tools.analysis all              # 設計ループのアンサンブル解析と HTML レポート
+python3 -m tools.analysis all              # 設計ループのアンサンブル解析と HTML（英・日）
 ```
 
 実行ごとのダッシュボードは「このシミュレーションで何が起きたか」に答えます。解析キャンペーンは**アンサンブル**の性質 — 順序変数、臨界性、可制御性、ミッションが `design_constraints.budgets` の内側で達成可能か — に答えます。[設計ループの学術解析](design-loop-analysis.md) を参照。HTML は `src/experiments/analysis/design_loop_analysis.html` に出力されます。

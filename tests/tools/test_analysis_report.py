@@ -278,6 +278,39 @@ def test_render_survives_empty_datasets():
     assert "<!DOCTYPE html>" in document
 
 
+def test_render_japanese_uses_ja_lang_and_translated_prose():
+    data = datasets()
+    chains = [chain()]
+    findings = report.analyse(data, chains, config=SCENARIO)
+    document = report.render(
+        findings, data, chains, lang="ja", peer_href="design_loop_analysis.html",
+    )
+    assert 'lang="ja"' in document
+    assert "設計エージェントの物理" in document
+    assert "要約" in document
+    assert "図 1." in document
+    assert "実行不能" in document
+    assert str(findings["surface"]["n_full_survival"]) in document
+    assert "design_loop_analysis.html" in document
+    assert "<img" not in document
+
+
+def test_render_english_stays_the_default():
+    data = datasets()
+    chains = [chain()]
+    document = report.render(report.analyse(data, chains, config=SCENARIO), data, chains)
+    assert 'lang="en"' in document
+    assert "Summary" in document
+    assert "Figure 1." in document
+
+
+def test_sibling_report_path_pairs_en_and_ja():
+    en = Path("src/experiments/analysis/design_loop_analysis.html")
+    ja = report.sibling_report_path(en, "ja")
+    assert ja.name == "design_loop_analysis.ja.html"
+    assert report.sibling_report_path(ja, "en") == en
+
+
 def test_load_datasets_reads_what_the_campaign_wrote(tmp_path):
     (tmp_path / "datasets").mkdir()
     (tmp_path / "datasets" / "response_surface.json").write_text(json.dumps(surface_rows()))

@@ -17,8 +17,9 @@ It answers questions the per-run dashboard cannot, because they are properties o
 # execute the experiment battery (about 340 simulations, ~1 minute on 4 workers)
 python3 -m tools.analysis run
 
-# analyse the datasets and write the self-contained HTML report
+# analyse the datasets and write the English and Japanese HTML reports
 python3 -m tools.analysis report
+python3 -m tools.analysis report --lang ja   # Japanese only
 
 # both, in order
 python3 -m tools.analysis all
@@ -28,7 +29,8 @@ Outputs land under `src/experiments/analysis/`:
 
 | Path | Contents |
 | --- | --- |
-| `design_loop_analysis.html` | the report, one file, no external assets |
+| `design_loop_analysis.html` | English report, one file, no external assets |
+| `design_loop_analysis.ja.html` | Japanese report (same numbers, translated prose) |
 | `design_loop_analysis.findings.json` | every computed number, for diffing and regression |
 | `datasets/*.json` | one flat row per run, per experiment block |
 | `<block>/<run_id>/` | the raw run directories (git-ignored, regenerable) |
@@ -215,7 +217,7 @@ The layering rule (`tools → scenario → environment → core`) holds: this pa
 - Failure injection is off in the sweeps so that coverage is the only thing varying. The chains keep the shipped default, which enables it.
 - The grid holds WRS fixed, justified by its measured zero gain and a baseline coverage of 6.4.
 
-The self-contained HTML at `src/experiments/analysis/design_loop_analysis.html` is the numbered report; this page is the operator's guide to regenerating it.
+The self-contained HTML reports at `src/experiments/analysis/design_loop_analysis.html` (English) and `design_loop_analysis.ja.html` (日本語) are the numbered documents; this page is the operator's guide to regenerating them.
 
 ## See also
 

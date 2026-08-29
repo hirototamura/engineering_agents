@@ -17,8 +17,9 @@
 # 実験バッテリを実行（約 340 シミュレーション、4 並列で約 1 分）
 python3 -m tools.analysis run
 
-# データセットを解析し、単一ファイルの HTML レポートを生成
+# データセットを解析し、英語・日本語の HTML レポートを生成
 python3 -m tools.analysis report
+python3 -m tools.analysis report --lang ja   # 日本語のみ
 
 # 上記を順に実行
 python3 -m tools.analysis all
@@ -28,7 +29,8 @@ python3 -m tools.analysis all
 
 | パス | 内容 |
 | --- | --- |
-| `design_loop_analysis.html` | レポート本体。外部アセットなしの 1 ファイル |
+| `design_loop_analysis.html` | 英語レポート。外部アセットなしの 1 ファイル |
+| `design_loop_analysis.ja.html` | 日本語レポート（同じ数値、本文は翻訳） |
 | `design_loop_analysis.findings.json` | 算出したすべての数値。差分確認と回帰検出用 |
 | `datasets/*.json` | 実験ブロックごとの、1 実行 1 行のフラットな行 |
 | `<block>/<run_id>/` | 生の実行ディレクトリ（git 管理外・再生成可能） |
@@ -215,7 +217,7 @@ ARS 軸に沿った容量増加のうち 16 % は結果を**悪化**させ、最
 - スイープでは障害注入をオフにし、カバレッジだけが変わるようにしています。チェーンは出荷時デフォルト（有効）のままです。
 - グリッドは WRS を固定しています。実測ゲインがゼロで、ベースラインのカバレッジが 6.4 であることが根拠です。
 
-数値つきのレポート本体は `src/experiments/analysis/design_loop_analysis.html` です。このページはそれを再生成するための運用ガイドです。
+数値つきのレポート本体は `src/experiments/analysis/design_loop_analysis.html`（英語）と `design_loop_analysis.ja.html`（日本語）です。このページはそれを再生成するための運用ガイドです。
 
 ## 関連
 

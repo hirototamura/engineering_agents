@@ -22,6 +22,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from tools.analysis import figures
 from tools.analysis.artifacts import load_chain
+from tools.analysis.copy import DEFAULT_SUBTITLE, DEFAULT_TITLE, strings_for
 from tools.analysis.design_space import budget_limits, capacity_bounds
 from tools.analysis.loop_dynamics import (
     ARCHETYPE_DESCRIPTIONS,
@@ -562,6 +563,18 @@ tr.hl td { background: #fff8f3; font-weight: 600; }
 .kpi.good .v { color: var(--green); }
 footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--rule);
          font-size: 12.5px; color: var(--muted); }
+.lang { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+.lang a { color: var(--accent); text-decoration: none; }
+.lang [aria-current="page"] { color: var(--ink); font-weight: 600; }
+html[lang="ja"] body {
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans CJK JP",
+               "Yu Gothic", "YuGothic", "WenQuanYi Micro Hei", sans-serif;
+  line-height: 1.75;
+}
+html[lang="ja"] .kpi .l, html[lang="ja"] th {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
 """
 
 
@@ -569,11 +582,11 @@ def _esc(value: Any) -> str:
     return html.escape(str(value))
 
 
-def _fmt(value: Any, digits: int = 3) -> str:
+def _fmt(value: Any, digits: int = 3, *, yes: str = "yes", no: str = "no") -> str:
     if value is None:
         return "—"
     if isinstance(value, bool):
-        return "yes" if value else "no"
+        return yes if value else no
     if isinstance(value, (int,)) and not isinstance(value, bool):
         return f"{value:,}"
     if isinstance(value, float):
@@ -607,12 +620,24 @@ def _table(headers: Sequence[str], rows: Sequence[Sequence[Any]],
     return f"<table><thead><tr>{head}</tr></thead><tbody>{''.join(body)}</tbody></table>"
 
 
-def _figure(svg: str, number: int, title: str, caption: str) -> str:
+def _figure(svg: str, number: int, title: str, caption: str, *, prefix: str = "Figure") -> str:
     return (
         f"<figure>{svg}"
-        f"<figcaption><b>Figure {number}. {_esc(title)}</b> {_esc(caption)}</figcaption>"
+        f"<figcaption><b>{_esc(prefix)} {number}. {_esc(title)}</b> {_esc(caption)}</figcaption>"
         f"</figure>"
     )
+
+
+def _lang_nav(lang: str, t: Mapping[str, Any], peer_href: Optional[str]) -> str:
+    if not peer_href:
+        return ""
+    if lang == "ja":
+        current = t["lang_ja"]
+        other = f'<a href="{_esc(peer_href)}">{_esc(t["lang_en"])}</a>'
+        return f'<nav class="lang">{other} · <span aria-current="page">{_esc(current)}</span></nav>'
+    current = t["lang_en"]
+    other = f'<a href="{_esc(peer_href)}">{_esc(t["lang_ja"])}</a>'
+    return f'<nav class="lang"><span aria-current="page">{_esc(current)}</span> · {other}</nav>'
 
 
 def _pct(value: Optional[float], digits: int = 0) -> str:
@@ -626,10 +651,21 @@ def render(
     datasets: Mapping[str, Sequence[Mapping[str, Any]]],
     chains: Sequence[ChainDynamics],
     *,
-    title: str = "Physics of a design agent",
+    title: str = "",
     subtitle: str = "",
+    lang: str = "en",
+    peer_href: Optional[str] = None,
 ) -> str:
     """Assemble the full HTML report from findings, datasets and figures."""
+
+    t = strings_for(lang)
+    if not title:
+        title = DEFAULT_TITLE[lang]
+    if not subtitle:
+        subtitle = DEFAULT_SUBTITLE[lang]
+
+    def fmt(value: Any, digits: int = 3) -> str:
+        return _fmt(value, digits, yes=str(t["yes"]), no=str(t["no"]))
 
     surface = list(datasets.get("response_surface") or [])
     all_rows = [r for name in DATASET_NAMES for r in (datasets.get(name) or [])]
@@ -644,6 +680,8 @@ def render(
     pred = findings.get("predictive", {})
     det = findings.get("determinism", {})
     phys = findings.get("physics", {})
+    profile_names: Mapping[str, str] = t.get("profile_names") or {}
+    model_notes: Mapping[str, str] = t.get("model_notes") or {}
 
     parts: List[str] = []
     figure_no = 0
@@ -651,9 +689,8 @@ def render(
     def add_figure(svg: str, title_: str, caption: str) -> None:
         nonlocal figure_no
         figure_no += 1
-        parts.append(_figure(svg, figure_no, title_, caption))
+        parts.append(_figure(svg, figure_no, title_, caption, prefix=str(t["figure_prefix"])))
 
-    # ---------------- header + KPIs ----------------
     lightest = surf.get("lightest_full_survival") or {}
     budgets = surf.get("budgets") or {}
     mass_ratio = surf.get("mass_overrun_ratio")
@@ -663,137 +700,92 @@ def render(
 
     parts.append(
         '<div class="kpis">'
-        + _kpi(f"{n_runs:,}", "simulations analysed")
-        + _kpi(f"{surf.get('n_full_survival', 0)}/{surf.get('n', 0)}", "designs saving the crew")
+        + _kpi(f"{n_runs:,}", str(t["kpi_simulations"]))
+        + _kpi(f"{surf.get('n_full_survival', 0)}/{surf.get('n', 0)}", str(t["kpi_saving"]))
         + _kpi(str(surf.get("n_full_survival_within_budget", 0)),
-               "of those within budget",
+               str(t["kpi_budget"]),
                "warn" if surf.get("n_full_survival_within_budget") == 0 else "good")
         + _kpi(f"{len(zero_axes)}/{len(ctrl.get('shipped_operating_point') or [])}",
-               "axes with zero gain", "warn" if zero_axes else "")
-        + _kpi(dominant, "dominant loop archetype",
+               str(t["kpi_zero_gain"]), "warn" if zero_axes else "")
+        + _kpi(dominant, str(t["kpi_archetype"]),
                "warn" if dominant in ("saturating", "frozen") else "good")
         + "</div>"
     )
 
-    # ---------------- summary ----------------
-    parts.append("<h2>Summary</h2>")
+    parts.append(f"<h2>{_esc(t['h_summary'])}</h2>")
+    parts.append(f"<p>{t['summary_intro']}</p>")
+    r2_response = (pred.get("models", {}).get("Liebig on response", {}) or {}).get("r_squared")
     parts.append(
-        "<p>This report treats an Engineering Agents campaign as a dynamical system on a "
-        "design space and characterises it the way a physical system would be characterised: "
-        "identify the order parameter, locate the transition, measure the response, and only "
-        "then judge the controller. Three results follow, in that order.</p>"
+        '<div class="key">'
+        + t["key1"].format(r2=fmt(r2_response, 3), n=surf.get("n", 0),
+                           delta=fmt(collapse.get("max_abs_difference"), 2))
+        + "</div>"
     )
     parts.append(
-        '<div class="key"><p><b>1. The system has one order parameter and a sharp transition.</b> '
-        f"Survival is governed by how much margin each subsystem has against its own critical "
-        f"coverage. Two logistics combined by the law of the minimum explain "
-        f"{_fmt((pred.get('models', {}).get('Liebig on response', {}) or {}).get('r_squared'), 3)} of the "
-        f"variance in surviving crew on held-out designs from the {surf.get('n', 0)}-point grid. Scaling the "
-        "hardware up and scaling the crew down — two physically unrelated manipulations — trace "
-        f"the same curve to within {_fmt(collapse.get('max_abs_difference'), 2)} crew fraction.</p></div>"
+        '<div class="key warn">'
+        + t["key2"].format(
+            n=surf.get("n", 0),
+            n_full=surf.get("n_full_survival", 0),
+            n_budget=surf.get("n_full_survival_within_budget", 0),
+            mass=fmt(lightest.get("total_mass_kg"), 0),
+            mass_ceil=fmt(budgets.get("max_total_mass_kg"), 0),
+            over=fmt((mass_ratio or 1) * 100 - 100, 0),
+            cost=fmt(lightest.get("total_cost_musd"), 0),
+            cost_ceil=fmt(budgets.get("max_total_cost_musd"), 0),
+        )
+        + "</div>"
     )
     parts.append(
-        '<div class="key warn"><p><b>2. The mission is infeasible under its own budget.</b> '
-        f"Of {surf.get('n', 0)} designs on the grid, {surf.get('n_full_survival', 0)} keep the whole "
-        f"crew alive and <b>{surf.get('n_full_survival_within_budget', 0)}</b> of those fit inside the "
-        f"declared <code>design_constraints.budgets</code>. The lightest surviving station masses "
-        f"{_fmt(lightest.get('total_mass_kg'), 0)} kg against a {_fmt(budgets.get('max_total_mass_kg'), 0)} kg "
-        f"ceiling ({_fmt((mass_ratio or 1) * 100 - 100, 0)}% over) and costs "
-        f"{_fmt(lightest.get('total_cost_musd'), 0)} MUSD against {_fmt(budgets.get('max_total_cost_musd'), 0)} MUSD. "
-        "No design agent, however good, can satisfy both. Under this repository's own stated "
-        "hierarchy — the mission is paramount and design requirements may be revised beneath it — "
-        "the budget is the requirement that has to move.</p></div>"
-    )
-    parts.append(
-        '<div class="key warn"><p><b>3. The shipped rule designer actuates axes with zero gain '
-        "at the point where it starts.</b> "
-        f"It places {_pct((ctrl.get('designer_magnitude_share') or {}).get('action'))} of its step "
-        "magnitude in the action subspace and "
-        f"{_pct((ctrl.get('designer_magnitude_share') or {}).get('capacity'))} in the capacity "
-        "subspace. At the shipped operating point every action and policy axis measures a gain of "
-        "exactly zero: sweeping them over a 20-fold range leaves surviving crew unchanged. Every "
-        f"chain lands in the <i>saturating</i> archetype — the loop moves steadily "
-        f"(turning cosine {_fmt((loop.get('turning_cosine') or {}).get('mean'), 2)}, i.e. a perfectly "
-        "straight march) and the outcome never changes.</p></div>"
+        '<div class="key warn">'
+        + t["key3"].format(
+            action_share=_pct((ctrl.get("designer_magnitude_share") or {}).get("action")),
+            capacity_share=_pct((ctrl.get("designer_magnitude_share") or {}).get("capacity")),
+            cosine=fmt((loop.get("turning_cosine") or {}).get("mean"), 2),
+        )
+        + "</div>"
     )
 
-    # ---------------- methods ----------------
-    parts.append("<h2>Method and data</h2>")
-    parts.append(
-        "<p>Every run is a 72-step <code>plant_sim</code> simulation of a 24-hour mission with 50 "
-        "crew, driven through the documented CLI. A design is imposed by writing a "
-        "<code>capacity_profile</code> proposal and passing it to <code>--apply-proposals</code>, "
-        "which is the same path the tool-use designer uses to adopt a candidate, so the "
-        "experiment grid and the agent's own proposals move through identical code.</p>"
+    parts.append(f"<h2>{_esc(t['h_method'])}</h2>")
+    parts.append(f"<p>{t['method_p1']}</p>")
+    parts.append(f"<p>{t['method_p2']}</p>")
+    if t.get("method_figures_note"):
+        parts.append(f"<p>{t['method_figures_note']}</p>")
+    size = findings.get("dataset_sizes") or {}
+    ds_keys = (
+        "seed_replicates", "response_surface", "one_at_a_time",
+        "one_at_a_time_relieved", "crew_scaling", "iso_ray", "chains",
     )
-    parts.append(
-        "<p>One consequence of using that path is worth stating, because it shapes what the grid "
-        "measures. Applying a capacity change also runs <code>sync_action_payloads</code>, which "
-        "raises the crew's request to what the new hardware can honour. Every point on the "
-        "response surface is therefore a <i>well-operated</i> station rather than new hardware "
-        "driven by stale procedures, which is the right comparison for a sizing question and is "
-        "also what the design agent would actually ship. The one-at-a-time sweeps deliberately do "
-        "not sync, so they isolate the payload axis on its own.</p>"
-    )
+    ds_rows = [
+        [row[0], size.get(key, 0), row[1], row[2]]
+        for key, row in zip(ds_keys, t["datasets"])
+    ]
     parts.append(_table(
-        ["dataset", "runs", "what it varies", "what it answers"],
-        [
-            ["seed replicates", findings["dataset_sizes"].get("seed_replicates", 0),
-             "--seed only", "is the plant stochastic?"],
-            ["response surface", findings["dataset_sizes"].get("response_surface", 0),
-             "ARS x OGS nameplate", "phase diagram, criticality, cost of survival"],
-            ["one-at-a-time", findings["dataset_sizes"].get("one_at_a_time", 0),
-             "one axis, shipped point", "controllability where the loop starts"],
-            ["one-at-a-time (relieved)", findings["dataset_sizes"].get("one_at_a_time_relieved", 0),
-             "one axis, OGS sized to 42 kg/day", "controllability once O2 is not binding"],
-            ["crew scaling", findings["dataset_sizes"].get("crew_scaling", 0),
-             "crew size, station fixed", "denominator half of the collapse test"],
-            ["iso-ray", findings["dataset_sizes"].get("iso_ray", 0),
-             "all capacities by a common factor", "numerator half of the collapse test"],
-            ["design chains", findings["dataset_sizes"].get("chains", 0),
-             "--iterate length", "the closed loop actually running"],
-        ],
+        [str(t["th_dataset"]), str(t["th_runs"]), str(t["th_varies"]), str(t["th_answers"])],
+        ds_rows,
         numeric=(1,),
     ))
 
-    # ---------------- determinism + physics ----------------
-    parts.append("<h3>Where the uncertainty is</h3>")
+    parts.append(f"<h3>{_esc(t['h_uncertainty'])}</h3>")
     spreads = det.get("spreads") or {}
-    parts.append(
-        f"<p>Replaying one configuration under {det.get('n_seeds', 0)} different seeds reproduces "
-        f"the outcome exactly: the spread in evaluation score across seeds is "
-        f"{_fmt(spreads.get('evaluation_score'), 6)} and in surviving crew "
-        f"{_fmt(spreads.get('crew_remaining'), 6)}. With rule-based actors and designers the whole "
-        "pipeline is deterministic, so there is no replicate noise to bootstrap over. Every "
-        "interval in this report is therefore taken across design points and scenario conditions, "
-        "which is where the variation genuinely lives. Stochasticity would enter only through an "
-        "LLM designer, which needs a provider this analysis did not have.</p>"
-    )
+    parts.append("<p>" + t["p_uncertainty"].format(
+        n_seeds=det.get("n_seeds", 0),
+        score_spread=fmt(spreads.get("evaluation_score"), 6),
+        crew_spread=fmt(spreads.get("crew_remaining"), 6),
+    ) + "</p>")
     add_figure(
         figures.fig_mass_balance(all_rows),
-        "Conservation holds in every run",
-        "The physics gate recomputes each mass ledger independently of the state it audits and "
-        f"passed in {phys.get('gate_passed', 0)} of {phys.get('gate_total', 0)} runs. Residuals are "
-        "identically zero, so no result below is an artefact of a leaking simulator.",
+        str(t["fig_mass_title"]),
+        t["fig_mass_caption"].format(
+            passed=phys.get("gate_passed", 0), total=phys.get("gate_total", 0),
+        ),
     )
 
-    # ---------------- order parameter ----------------
-    parts.append("<h2>The order parameter and its transition</h2>")
-    parts.append(
-        "<p>The three sizing variables have different units and baselines that differ by an order "
-        "of magnitude, so they cannot be compared directly. Dividing each by the crew's daily "
-        "demand for the same quantity gives a dimensionless coverage ratio ρ whose unit point is "
-        "physically meaningful: ρ = 1 is the smallest station that services the crew in steady "
-        "state. Liebig's law of the minimum then suggests the binding coverage "
-        "ρ<sub>min</sub> = min(ρ<sub>ARS</sub>, ρ<sub>OGS</sub>, ρ<sub>WRS</sub>) as the single "
-        "scalar order parameter. The shipped station sits at ρ<sub>ARS</sub> = 0.087 and "
-        "ρ<sub>OGS</sub> = 0.220 — undersized by a factor of eleven and five.</p>"
-    )
+    parts.append(f"<h2>{_esc(t['h_order'])}</h2>")
+    parts.append(f"<p>{t['p_order']}</p>")
     add_figure(
         figures.fig_phase_diagram(surface),
-        "Survival phase diagram",
-        "The habitable region is bounded on the O2 axis and is entered well below ρ = 1 on the "
-        "CO2 axis, because the survival rule watches stored CO2 rather than instantaneous removal.",
+        str(t["fig_phase_title"]),
+        str(t["fig_phase_caption"]),
     )
 
     fits = {
@@ -807,33 +799,27 @@ def render(
     }
     add_figure(
         figures.fig_criticality(profiles, fits),
-        "Order parameter and susceptibility",
-        "The plant is deterministic, so the susceptibility is the derivative of the response, not "
-        "a variance over replicates. Its peak locates the critical coverage.",
+        str(t["fig_crit_title"]),
+        str(t["fig_crit_caption"]),
     )
     parts.append(_table(
-        ["axis", "critical coverage ρ*", "transition width", "peak susceptibility", "R²"],
+        [str(t["th_crit_axis"]), str(t["th_rho_star"]), str(t["th_width"]),
+         str(t["th_peak"]), str(t["th_r2"])],
         [
-            [name, _fmt(fit.x0, 3), _fmt(fit.width, 3), _fmt(fit.max_slope, 2),
-             _fmt(fit.r_squared, 3)]
+            [profile_names.get(name, name), fmt(fit.x0, 3), fmt(fit.width, 3),
+             fmt(fit.max_slope, 2), fmt(fit.r_squared, 3)]
             for name, fit in fits.items()
         ],
         numeric=(1, 2, 3, 4),
     ))
 
-    # ---------------- collapse ----------------
-    parts.append("<h3>A falsification test of the coverage ratio</h3>")
-    parts.append(
-        "<p>If ρ really is the order parameter, then halving the crew and doubling the hardware "
-        "must be the same intervention, because both double ρ. The two sweeps share no runs and "
-        "manipulate physically unrelated quantities. They agree to within "
-        f"{_fmt(collapse.get('max_abs_difference'), 2)} crew fraction at worst and "
-        f"{_fmt(collapse.get('mean_abs_difference'), 3)} on average across "
-        f"{collapse.get('n_paired', 0)} paired points, with correlation "
-        f"{_fmt(collapse.get('correlation'), 3)}. The residual gap is real and systematic: at equal "
-        "ρ a smaller crew does slightly better, because a fixed per-operation batch size serves a "
-        "smaller crew proportionally further.</p>"
-    )
+    parts.append(f"<h3>{_esc(t['h_collapse'])}</h3>")
+    parts.append("<p>" + t["p_collapse"].format(
+        max_abs=fmt(collapse.get("max_abs_difference"), 2),
+        mean_abs=fmt(collapse.get("mean_abs_difference"), 3),
+        n_paired=collapse.get("n_paired", 0),
+        corr=fmt(collapse.get("correlation"), 3),
+    ) + "</p>")
     add_figure(
         figures.fig_crew_scaling(
             (collapse.get("iso_ray_profile", {}).get("x", []),
@@ -841,13 +827,11 @@ def render(
             (collapse.get("crew_profile", {}).get("x", []),
              collapse.get("crew_profile", {}).get("y", [])),
         ),
-        "Two independent sweeps collapse onto one curve",
-        "Adding hardware and removing people are different physical acts that move the same "
-        "dimensionless quantity, and the response follows the quantity rather than the act.",
+        str(t["fig_collapse_title"]),
+        str(t["fig_collapse_caption"]),
     )
 
-    # ---------------- controllability ----------------
-    parts.append("<h2>What the loop can steer, and what it steers</h2>")
+    parts.append(f"<h2>{_esc(t['h_steer'])}</h2>")
     controls = [
         _c for _c in _controls_from(ctrl.get("shipped_operating_point") or [])
     ]
@@ -855,30 +839,27 @@ def render(
         figures.fig_controllability(
             controls, ctrl.get("designer_magnitude_share") or {}
         ),
-        "Controllability against actuation",
-        "Only one axis moves the outcome at the point where the loop starts, and it is the one "
-        "the shipped designer never touches.",
+        str(t["fig_ctrl_title"]),
+        str(t["fig_ctrl_caption"]),
     )
     span = ctrl.get("action_axis_span") or {}
-    parts.append(
-        "<p>At the shipped operating point, sweeping every action-subspace axis across "
-        f"{len(span.get('multipliers') or [])} multipliers spanning "
-        f"{_fmt(min(span.get('multipliers') or [1]), 2)}× to {_fmt(max(span.get('multipliers') or [1]), 2)}× "
-        f"produces exactly {len(span.get('distinct_outcomes') or [])} distinct outcome"
-        f"{'' if len(span.get('distinct_outcomes') or []) == 1 else 's'}: "
-        f"{', '.join(_fmt(v, 2) for v in (span.get('distinct_outcomes') or []))}. "
-        "The mechanism is visible in the operations log.</p>"
-    )
+    n_out = len(span.get("distinct_outcomes") or [])
+    plural = "" if lang == "ja" or n_out == 1 else "s"
+    parts.append("<p>" + t["p_span"].format(
+        n_mult=len(span.get("multipliers") or []),
+        lo=fmt(min(span.get("multipliers") or [1]), 2),
+        hi=fmt(max(span.get("multipliers") or [1]), 2),
+        n_out=n_out,
+        plural=plural,
+        outcomes=", ".join(fmt(v, 2) for v in (span.get("distinct_outcomes") or [])),
+    ) + "</p>")
     add_figure(
         figures.fig_saturation(list(datasets.get("one_at_a_time") or [])),
-        "Why the request payload does nothing for O2",
-        "The plant delivers the smaller of the request and the nameplate and says so in "
-        "limited_by, so everything above the nameplate is discarded on arrival. This is the "
-        "mechanism behind the zero gain measured above, read off the plant's own limiter field "
-        "rather than inferred.",
+        str(t["fig_sat_title"]),
+        str(t["fig_sat_caption"]),
     )
 
-    parts.append("<h3>Controllability is state-dependent</h3>")
+    parts.append(f"<h3>{_esc(t['h_state_dep'])}</h3>")
     relieved = {c["axis"]: c for c in (ctrl.get("relieved_operating_point") or [])}
     shipped = {c["axis"]: c for c in (ctrl.get("shipped_operating_point") or [])}
     rows = []
@@ -888,61 +869,45 @@ def render(
         rows.append([
             axis.replace("_", " "),
             (shipped.get(axis) or relieved.get(axis) or {}).get("subspace", "—"),
-            _fmt(s_gain, 3), _fmt(r_gain, 3),
+            fmt(s_gain, 3), fmt(r_gain, 3),
         ])
     highlight = [
         i for i, row in enumerate(rows)
         if row[2] == "0" and row[3] not in ("0", "—")
     ]
     parts.append(_table(
-        ["axis", "subspace", "gain at shipped point", "gain with O2 relieved"],
+        [str(t["th_crit_axis"]), str(t["th_subspace"]),
+         str(t["th_gain_shipped"]), str(t["th_gain_relieved"])],
         rows, numeric=(2, 3), highlight=highlight,
     ))
-    parts.append(
-        "<p>The highlighted rows are the important ones. They have zero gain where the loop starts "
-        "and substantial gain once the oxygen famine is lifted, which means the shipped designer's "
-        "preferred axis is not useless in general — it is useless <i>until a different subsystem "
-        "is fixed first</i>. Diagnosing that requires reasoning about which constraint binds, and "
-        "the rule designer's fixed multiplicative policy has no mechanism to do so. One-at-a-time "
-        "sensitivity measured at a single operating point would have concluded the axis was dead; "
-        "the second sweep is what distinguishes the two cases.</p>"
-    )
+    parts.append(f"<p>{t['p_state_dep']}</p>")
 
-    # ---------------- ruggedness ----------------
-    parts.append("<h3>The landscape is not monotone</h3>")
-    parts.append(
-        f"<p>Along the ARS axis, {rugged.get('surface_descents', 0)} of "
-        f"{rugged.get('surface_transitions', 0)} grid transitions "
-        f"({_pct(rugged.get('surface_descent_rate'))}) move the outcome <i>down</i> while capacity "
-        f"goes up, with a worst single descent of {_fmt(rugged.get('surface_worst_descent'), 2)} "
-        "crew fraction. Adding hardware can cost lives here because the operations are scheduled "
-        "against a busy guard: a larger batch occupies the subsystem for longer and can miss the "
-        "window in which the next one was needed. A designer that trusts one evaluation per step "
-        "and climbs greedily will be sent backwards by these reversals, which is an argument for "
-        "the multi-candidate re-simulation the tool-use designer performs rather than for a larger "
-        "step size.</p>"
-    )
+    parts.append(f"<h3>{_esc(t['h_rugged'])}</h3>")
+    parts.append("<p>" + t["p_rugged"].format(
+        descents=rugged.get("surface_descents", 0),
+        transitions=rugged.get("surface_transitions", 0),
+        rate=_pct(rugged.get("surface_descent_rate")),
+        worst=fmt(rugged.get("surface_worst_descent"), 2),
+    ) + "</p>")
 
-    # ---------------- loop dynamics ----------------
-    parts.append("<h2>The closed loop as a trajectory</h2>")
+    parts.append(f"<h2>{_esc(t['h_loop'])}</h2>")
     add_figure(
         figures.fig_loop_dynamics(chains),
-        "Order parameters of the design chain",
-        "Displacement grows linearly, the step size never decays, the turning angle is pinned at "
-        "+1, and the outcome is flat. This is an open-loop march, not a search.",
+        str(t["fig_loop_title"]),
+        str(t["fig_loop_caption"]),
     )
     add_figure(
         figures.fig_archetypes(archetypes, loop.get("n_chains", 0)),
-        "Trajectory archetypes",
-        "Separating 'proposed nothing' from 'proposed something ineffective' matters: the two look "
-        "identical in an outcome plot and have opposite fixes.",
+        str(t["fig_arch_title"]),
+        str(t["fig_arch_caption"]),
     )
     parts.append(_table(
-        ["chain", "iterations", "archetype", "displacement", "Δ survival",
-         "capacity share", "action share", "proposals discarded"],
+        [str(t["th_chain"]), str(t["th_iterations"]), str(t["th_archetype"]),
+         str(t["th_displacement"]), str(t["th_dsurvival"]),
+         str(t["th_cap_share"]), str(t["th_act_share"]), str(t["th_discarded"])],
         [
-            [c.chain_id, c.length, c.archetype, _fmt(c.total_displacement, 3),
-             _fmt(c.outcome_change, 3),
+            [c.chain_id, c.length, c.archetype, fmt(c.total_displacement, 3),
+             fmt(c.outcome_change, 3),
              _pct(c.magnitude_share.get("capacity")),
              _pct(c.magnitude_share.get("action")),
              _pct(c.discarded_fraction)]
@@ -950,58 +915,44 @@ def render(
         ],
         numeric=(1, 3, 4, 5, 6, 7),
     ))
-    parts.append(
-        f"<p>A further {_pct((loop.get('discarded_fraction') or {}).get('mean'))} of proposals never "
-        "reach a simulation at all. The chain strips every <code>set_parameter</code> change from "
-        "<code>applied_proposals.json</code> to keep the verification requirements frozen across "
-        "iterations — a correct and deliberate safeguard, since a designer that can move its own "
-        "acceptance thresholds can declare success without changing the plant. The designer, "
-        "however, is never told, so it re-proposes the identical threshold change on every "
-        "iteration and spends two of its five proposal slots on a move that is discarded by "
-        "construction.</p>"
-    )
+    parts.append("<p>" + t["p_discarded"].format(
+        rate=_pct((loop.get("discarded_fraction") or {}).get("mean")),
+    ) + "</p>")
 
-    # ---------------- survival analysis ----------------
-    parts.append("<h2>Time to first crew loss</h2>")
+    parts.append(f"<h2>{_esc(t['h_tcl'])}</h2>")
     km = findings.get("_km_curves") or {}
     if km:
         lr = findings.get("survival", {}).get("log_rank") or {}
         annotation = (
-            f"Log-rank χ²(1) = {_fmt(lr.get('statistic'), 1)}, p = {_fmt(lr.get('p_value'), 4)}."
+            t["log_rank"].format(stat=fmt(lr.get("statistic"), 1), p=fmt(lr.get("p_value"), 4))
             if lr else ""
         )
         add_figure(
             figures.fig_survival_curves(km, annotation),
-            "Survival curves by coverage regime",
-            "Designs above and below half coverage separate immediately and never re-cross. "
-            "Censoring is taken from the scorecard's own right_censored status rather than "
-            "imputed.",
+            str(t["fig_surv_title"]),
+            str(t["fig_surv_caption"]),
         )
 
-    # ---------------- predictive law ----------------
-    parts.append("<h2>A compact predictive law</h2>")
+    parts.append(f"<h2>{_esc(t['h_predictive'])}</h2>")
     models = pred.get("models") or {}
     best_model = (
         max(models.items(), key=lambda kv: kv[1].get("r_squared", -math.inf))[0]
         if models else None
     )
     stars = pred.get("critical_coverage") or {}
-    parts.append(
-        "<p>The comparison below follows the structure used for collective-dynamics models: a "
-        "trivial baseline, single-variable models, and the structured models the physics "
-        f"suggests. Each is fitted on a random half of the grid ({pred.get('n_train', 0)} designs) "
-        f"and scored on the other half ({pred.get('n_test', 0)}), so a flexible model cannot win by "
-        "memorising the surface. Balanced accuracy accompanies R² because the outcome saturates "
-        "hard at 0 and 1, and plain accuracy would reward a constant predictor.</p>"
-    )
+    parts.append("<p>" + t["p_predictive"].format(
+        n_train=pred.get("n_train", 0),
+        n_test=pred.get("n_test", 0),
+    ) + "</p>")
     model_rows = [
-        [name, _fmt(models[name].get("r_squared"), 3), _fmt(models[name].get("rmse"), 3),
-         _fmt(models[name].get("balanced_accuracy"), 3),
-         models[name].get("note", "")]
+        [name, fmt(models[name].get("r_squared"), 3), fmt(models[name].get("rmse"), 3),
+         fmt(models[name].get("balanced_accuracy"), 3),
+         model_notes.get(models[name].get("note", ""), models[name].get("note", ""))]
         for name in MODEL_ORDER if name in models
     ]
     parts.append(_table(
-        ["model", "held-out R²", "RMSE", "balanced accuracy", "what it assumes"],
+        [str(t["th_model"]), str(t["th_heldout_r2"]), str(t["th_rmse"]),
+         str(t["th_ba"]), str(t["th_assumes"])],
         model_rows, numeric=(1, 2, 3),
         highlight=[i for i, row in enumerate(model_rows) if row[0] == best_model],
     ))
@@ -1009,123 +960,81 @@ def render(
     margin_model = (models.get("Liebig on margin") or {}).get("r_squared")
     response_model = (models.get("Liebig on response") or {}).get("r_squared")
     ogs_only = (models.get("OGS only") or {}).get("r_squared")
-    parts.append(
-        "<p>The law of the minimum as usually stated does <i>badly</i> here — held-out R² of "
-        f"{_fmt(naive, 3)}, worse than ignoring the CO2 axis altogether ({_fmt(ogs_only, 3)}). The "
-        "reason is that the two subsystems do not become critical at the same coverage: the ARS "
-        f"transition sits at ρ* = {_fmt(stars.get('ARS'), 2)} and the OGS transition at "
-        f"ρ* = {_fmt(stars.get('OGS'), 2)}. Taking the raw minimum therefore names the wrong "
-        "bottleneck wherever the numerically smaller coverage is the one with the lower threshold, "
-        "which on this grid is most cells. Rescaling each coverage by its own critical value first "
-        f"recovers {_fmt(margin_model, 3)}, and taking the minimum of the two fitted <i>responses</i> "
-        f"rather than of their inputs reaches {_fmt(response_model, 3)} on held-out designs. Two "
-        "logistics, four parameters, and a minimum reproduce a 121-point response surface. The "
-        "quantity that matters is each subsystem's margin against its own threshold, not its raw "
-        "coverage.</p>"
-    )
+    parts.append("<p>" + t["p_predictive_result"].format(
+        naive=fmt(naive, 3),
+        ogs_only=fmt(ogs_only, 3),
+        star_ars=fmt(stars.get("ARS"), 2),
+        star_ogs=fmt(stars.get("OGS"), 2),
+        margin=fmt(margin_model, 3),
+        response=fmt(response_model, 3),
+    ) + "</p>")
     if pred.get("_predictions"):
         add_figure(
             figures.fig_predictive_law(
                 pred["_observed"], pred["_predictions"], models
             ),
-            "Observed against predicted survival",
-            "Two logistics in the two coverage ratios, combined by the law of the minimum, "
-            "reproduce a 121-point response surface.",
+            str(t["fig_pred_title"]),
+            str(t["fig_pred_caption"]),
         )
 
-    # ---------------- cost ----------------
-    parts.append("<h2>The cost of keeping the crew alive</h2>")
+    parts.append(f"<h2>{_esc(t['h_cost'])}</h2>")
     add_figure(
         figures.fig_pareto(surface, budgets),
-        "Survival against station footprint",
-        "The feasible box and the surviving set do not intersect. This is a property of the "
-        "requirements, not of any agent that searches inside them.",
+        str(t["fig_pareto_title"]),
+        str(t["fig_pareto_caption"]),
     )
-    parts.append(
-        f"<p>The lightest station on the grid that keeps all 50 crew alive sizes ARS to "
-        f"{_fmt(lightest.get('ars'), 1)} kg/day and OGS to {_fmt(lightest.get('ogs'), 1)} kg/day, "
-        f"reaching ρ<sub>ARS</sub> = {_fmt(lightest.get('rho_ars'), 2)} and ρ<sub>OGS</sub> = "
-        f"{_fmt(lightest.get('rho_ogs'), 2)}. It masses {_fmt(lightest.get('total_mass_kg'), 0)} kg, "
-        f"costs {_fmt(lightest.get('total_cost_musd'), 0)} MUSD and occupies "
-        f"{_fmt(lightest.get('total_volume_m3'), 1)} m³, against ceilings of "
-        f"{_fmt(budgets.get('max_total_mass_kg'), 0)} kg, {_fmt(budgets.get('max_total_cost_musd'), 0)} MUSD "
-        f"and {_fmt(budgets.get('max_total_volume_m3'), 0)} m³. It breaches all three.</p>"
-    )
+    parts.append("<p>" + t["p_cost"].format(
+        ars=fmt(lightest.get("ars"), 1),
+        ogs=fmt(lightest.get("ogs"), 1),
+        rho_ars=fmt(lightest.get("rho_ars"), 2),
+        rho_ogs=fmt(lightest.get("rho_ogs"), 2),
+        mass=fmt(lightest.get("total_mass_kg"), 0),
+        cost=fmt(lightest.get("total_cost_musd"), 0),
+        volume=fmt(lightest.get("total_volume_m3"), 1),
+        mass_ceil=fmt(budgets.get("max_total_mass_kg"), 0),
+        cost_ceil=fmt(budgets.get("max_total_cost_musd"), 0),
+        vol_ceil=fmt(budgets.get("max_total_volume_m3"), 0),
+    ) + "</p>")
 
-    # ---------------- implications ----------------
-    parts.append("<h2>What this implies for the design agent</h2>")
+    parts.append(f"<h2>{_esc(t['h_implies'])}</h2>")
     parts.append("<ol>")
+    parts.append(f"<li><b>{t['imp1_title']}</b> {t['imp1']}</li>")
+    parts.append(f"<li><b>{t['imp2_title']}</b> {t['imp2']}</li>")
+    parts.append(f"<li><b>{t['imp3_title']}</b> {t['imp3']}</li>")
     parts.append(
-        "<li><b>Report infeasibility as a result, not a failure.</b> The chain currently ends with "
-        "<code>NOT_IMPROVED</code>, which reads as an agent that underperformed. The measured "
-        "situation is that the mission and the budget cannot both be met, and the honest output is "
-        "a request to revise the budget with the cheapest surviving design attached as evidence.</li>"
+        "<li><b>" + t["imp4_title"] + "</b> "
+        + t["imp4"].format(rate=_pct(rugged.get("surface_descent_rate")))
+        + "</li>"
     )
     parts.append(
-        "<li><b>Make the binding constraint drive the proposal.</b> The plant already reports "
-        "<code>limited_by</code> and <code>fully_satisfied</code> on every operation, and those "
-        "fields identify the binding subsystem exactly. A designer that reads them would not spend "
-        "six iterations enlarging a request the backend discards.</li>"
-    )
-    parts.append(
-        "<li><b>Tell the designer what was discarded.</b> Freezing the requirements is right; "
-        "silently dropping the proposals is what makes the designer repeat them. Echoing the "
-        "filtered changes back would free two of five proposal slots immediately.</li>"
-    )
-    parts.append(
-        "<li><b>Do not climb greedily.</b> "
-        f"{_pct(rugged.get('surface_descent_rate'))} of capacity increases along the ARS axis make "
-        "the outcome worse, so single-evaluation hill climbing is unreliable here. The tool-use "
-        "designer's multi-candidate re-simulation is the right shape of answer.</li>"
-    )
-    parts.append(
-        "<li><b>Instrument coverage directly.</b> ρ is computable from the config before a run "
-        "starts and predicts the outcome with R² = "
-        f"{_fmt((models.get('Liebig min') or {}).get('r_squared'), 3)}. Surfacing it in the "
-        "scorecard would turn most of this analysis into a single pre-flight number.</li>"
+        "<li><b>" + t["imp5_title"] + "</b> "
+        + t["imp5"].format(r2=fmt(r2_response, 3))
+        + "</li>"
     )
     parts.append("</ol>")
 
-    # ---------------- limits ----------------
-    parts.append("<h2>Limits of this analysis</h2>")
+    parts.append(f"<h2>{_esc(t['h_limits'])}</h2>")
     parts.append("<ul>")
-    parts.append(
-        "<li>Both agent sides run in <code>labeled_rule_base</code> mode. No LLM provider was "
-        "reachable, so the tool-use designer that <i>can</i> emit <code>capacity_profile</code> "
-        "changes was never exercised. The controllability and phase-diagram results characterise "
-        "the plant and therefore apply to any designer; the loop-dynamics results characterise the "
-        "rule designer specifically.</li>"
-    )
-    parts.append(
-        "<li>All runs use the <code>plant_sim</code> backend. The <code>mock</code> backend "
-        "produces no survival or scorecard data, and <code>ros2</code> needs SSOS Docker.</li>"
-    )
-    parts.append(
-        "<li>Failure injection is off in the sweeps so that coverage is the only thing varying. "
-        "The chains keep the shipped default, which enables it.</li>"
-    )
-    parts.append(
-        f"<li>The grid is {surf.get('n', 0)} points over two axes with WRS held fixed, justified by "
-        "its measured zero gain and a baseline coverage of 6.4. A finer grid would sharpen the "
-        "critical coverage estimates but is unlikely to move the qualitative conclusions.</li>"
-    )
+    parts.append(f"<li>{t['lim1']}</li>")
+    parts.append(f"<li>{t['lim2']}</li>")
+    parts.append(f"<li>{t['lim3']}</li>")
+    parts.append(f"<li>{t['lim4'].format(n=surf.get('n', 0))}</li>")
     parts.append("</ul>")
 
     generated = findings.get("generated_utc", "")
     body = "\n".join(parts)
     subtitle_html = f"<p class='sub'>{_esc(subtitle)}</p>" if subtitle else ""
+    nav = _lang_nav(lang, t, peer_href)
     return f"""<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="{_esc(t['html_lang'])}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{_esc(title)}</title><style>{_CSS}</style></head>
 <body><div class="wrap">
-<header><h1>{_esc(title)}</h1>{subtitle_html}
-<p class="sub">Generated {_esc(generated)} from {n_runs:,} simulations
-&middot; Engineering Agents <code>ssos_eclss_loop</code> &middot; plant_sim backend</p></header>
+<header>{nav}<h1>{_esc(title)}</h1>{subtitle_html}
+<p class="sub">{t['generated'].format(generated=_esc(generated), n_runs=f'{n_runs:,}')}
+&middot; {t['backend_line']}</p></header>
 {body}
-<footer>Reproduce with <code>python3 -m tools.analysis run</code> then
-<code>python3 -m tools.analysis report</code>. Every number in this document is computed from the
-datasets under <code>src/experiments/analysis/datasets/</code>; none is typed in.</footer>
+<footer>{t['footer']}</footer>
 </div></body></html>"""
 
 
@@ -1146,22 +1055,56 @@ def _controls_from(records: Sequence[Mapping[str, Any]]):
     ]
 
 
-def build(
-    root: Path | str,
-    *,
-    config: Optional[Mapping[str, Any]] = None,
-    title: str = "Physics of a design agent",
-    subtitle: str = "",
-) -> Tuple[Dict[str, Any], str]:
-    """Load datasets from ``root``, analyse them, and render the report."""
+def load_campaign(root: Path | str, *, config: Optional[Mapping[str, Any]] = None
+                  ) -> Tuple[Dict[str, Any], Dict[str, List[Dict[str, Any]]], List[ChainDynamics]]:
+    """Load datasets, reconstruct chains, and compute findings."""
 
     from tools.analysis.campaign import chain_dirs
 
     datasets = load_datasets(root)
     chains = [analyse_chain(load_chain(path)) for path in chain_dirs(root)]
     findings = analyse(datasets, chains, config=config)
-    document = render(findings, datasets, chains, title=title, subtitle=subtitle)
+    return findings, datasets, chains
+
+
+def build(
+    root: Path | str,
+    *,
+    config: Optional[Mapping[str, Any]] = None,
+    title: str = "",
+    subtitle: str = "",
+    lang: str = "en",
+    peer_href: Optional[str] = None,
+) -> Tuple[Dict[str, Any], str]:
+    """Load datasets from ``root``, analyse them, and render the report."""
+
+    findings, datasets, chains = load_campaign(root, config=config)
+    document = render(
+        findings, datasets, chains,
+        title=title, subtitle=subtitle, lang=lang, peer_href=peer_href,
+    )
     return findings, document
 
 
-__all__ = ["DATASET_NAMES", "analyse", "build", "load_datasets", "render"]
+def sibling_report_path(path: Path, lang: str) -> Path:
+    """English report ``foo.html`` pairs with Japanese ``foo.ja.html``."""
+
+    path = Path(path)
+    if lang == "ja":
+        if path.name.endswith(".ja.html"):
+            return path
+        return path.with_name(path.stem + ".ja.html")
+    if path.name.endswith(".ja.html"):
+        return path.with_name(path.name[: -len(".ja.html")] + ".html")
+    return path
+
+
+__all__ = [
+    "DATASET_NAMES",
+    "analyse",
+    "build",
+    "load_campaign",
+    "load_datasets",
+    "render",
+    "sibling_report_path",
+]

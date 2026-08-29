@@ -65,24 +65,33 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    from tools.analysis.report import build
+    from tools.analysis.report import load_campaign, render, sibling_report_path
 
-    findings, document = build(
-        args.root,
-        config=_scenario_config(),
-        title=args.title,
-        subtitle=args.subtitle,
-    )
-    out = Path(args.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(document, encoding="utf-8")
+    findings, datasets, chains = load_campaign(args.root, config=_scenario_config())
+    langs = ["en", "ja"] if args.lang == "all" else [args.lang]
+    requested = Path(args.out)
 
-    findings_path = out.with_suffix(".findings.json")
-    serialisable = {k: v for k, v in findings.items() if not k.startswith("_")}
-    findings_path.write_text(json.dumps(serialisable, indent=2, default=str), encoding="utf-8")
+    for lang in langs:
+        path = sibling_report_path(requested, lang) if args.lang == "all" else requested
+        peer = sibling_report_path(path, "ja" if lang == "en" else "en").name
+        title = args.title or ""
+        subtitle = args.subtitle or ""
+        if args.lang == "all" and lang == "ja":
+            title = subtitle = ""
+        document = render(
+            findings, datasets, chains,
+            title=title, subtitle=subtitle, lang=lang, peer_href=peer,
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(document, encoding="utf-8")
+        print(f"report ({lang}): {path}", file=sys.stderr)
 
-    print(f"report:   {out}", file=sys.stderr)
-    print(f"findings: {findings_path}", file=sys.stderr)
+    if args.lang != "ja":
+        findings_path = sibling_report_path(requested, "en").with_suffix(".findings.json")
+        serialisable = {k: v for k, v in findings.items() if not k.startswith("_")}
+        findings_path.write_text(json.dumps(serialisable, indent=2, default=str), encoding="utf-8")
+        print(f"findings: {findings_path}", file=sys.stderr)
+
     surface = findings.get("surface", {})
     loop = findings.get("loop", {})
     print(json.dumps({
@@ -123,11 +132,14 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--no-cache", action="store_true",
                        help="re-simulate points that already have results")
     for p in (report, every):
-        p.add_argument("--out", type=Path, default=DEFAULT_REPORT, help="HTML output path")
-        p.add_argument("--title", default="Physics of a design agent")
-        p.add_argument("--subtitle",
-                       default="Order parameters, criticality and controllability of the "
-                               "ECLSS design-verify loop")
+        p.add_argument("--out", type=Path, default=DEFAULT_REPORT,
+                       help="English HTML path; Japanese is written beside it as *.ja.html")
+        p.add_argument("--lang", choices=("en", "ja", "all"), default="all",
+                       help="which HTML locale(s) to write (default: both)")
+        p.add_argument("--title", default="",
+                       help="HTML title (default: language-specific)")
+        p.add_argument("--subtitle", default="",
+                       help="HTML subtitle (default: language-specific)")
     every.add_argument("--keep-going", action="store_true",
                        help="write the report even if some simulations failed")
 

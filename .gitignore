@@ -52,6 +52,7 @@ src/experiments/results/*
 src/experiments/analysis/*
 !src/experiments/analysis/datasets/
 !src/experiments/analysis/design_loop_analysis.html
+!src/experiments/analysis/design_loop_analysis.ja.html
 !src/experiments/analysis/design_loop_analysis.findings.json
 artifacts/ssos-regression/
 output/
