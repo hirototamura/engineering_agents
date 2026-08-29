@@ -10,7 +10,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import yaml
 
@@ -360,6 +360,9 @@ class SsosEclssLoopScenario(Scenario):
         run_id: Optional[str] = None,
         results_root: Optional[Path] = None,
         approve_provisional: bool = False,
+        design_history: Optional[List[Dict[str, Any]]] = None,
+        on_step: Optional[Callable[[int, int], None]] = None,
+        on_phase: Optional[Callable[[str], None]] = None,
     ) -> Path:
         # Load order (before any simulation step):
         # 1) scenario.yaml (+ CLI overrides)
@@ -402,6 +405,11 @@ class SsosEclssLoopScenario(Scenario):
             results_root=results_root,
             recreate_output=recreate_output,
         )
+        if design_history:
+            (run_dir / "design_history.json").write_text(
+                json.dumps(design_history, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
         config_paths = write_effective_configs(
             run_dir,
             scenario_config=config,
@@ -443,6 +451,8 @@ class SsosEclssLoopScenario(Scenario):
         try:
             # 0-based steps: step 0 observes configured initial state; advance before 1..steps-1.
             for step in range(steps):
+                if on_step is not None:
+                    on_step(step, steps)
                 commands_this_step = False
                 if step > 0 and hasattr(backend, "advance_step"):
                     backend.advance_step()
@@ -589,6 +599,8 @@ class SsosEclssLoopScenario(Scenario):
         )
 
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
+            if on_phase is not None:
+                on_phase("design review")
             actor_cfg = flatten_actor_config(agents_config)
             design_cfg = flatten_design_config(agents_config)
             # Persist the summary before design so a tool-use designer can read

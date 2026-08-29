@@ -29,7 +29,7 @@ ea run
 
 | コマンド | 用途 |
 | --- | --- |
-| `ea run [SCENARIO]` | 1回シミュレーション実行 |
+| `ea run [SCENARIO]` | 1回シミュレーション実行。`ssos_eclss_loop` は `--iterate N` で設計→検証連鎖 |
 | `ea scenarios` | 利用可能なシナリオ一覧 |
 | `ea results [RUN_ID]` | 直近 run 一覧、または `summary.json` 表示 |
 | `ea doctor` | Python 3.11+・依存関係・Docker/SSOS マウント・Ollama・vLLM の確認 |
@@ -51,11 +51,14 @@ ea run scrubber_degradation --agents-mode llm --llm-provider vllm
 ea run scrubber_degradation --set simulation.steps=10
 ea run --dry-run --write-spec /tmp/job.json
 ea job run /tmp/job.json
+python3 -m tools.cli run ssos_eclss_loop --iterate 10
 ```
 
 英語版の詳細（フラグ一覧・exit code）: [en/cli.md](../en/cli.md)
 
 `ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。
+
+`ea run --iterate N` は unified の事後設計（tool-use / labeled）が出した `design_proposals.json` を次ランに載せる連鎖である。シナリオを省略すると `ssos_eclss_loop`。既定は `--backend plant_sim`、`--actor-mode labeled_rule_base`、`--design-mode llm`、`--inject-failures`、paired replay オン。ラン k のシミュはラン k-1 で採用した `applied_proposals.json` を **unified の `apply_design_proposals`**（`capacity_profile` 含む、`--approve-provisional` ゲート付き）で適用する。`set_parameter`（`thresholds.*`）は連鎖では自動適用しない（検証要求を凍結）。採用できない提案（空・provisional）では直前の適用ファイル（まだ無ければ初期 YAML）のまま `--iterate` 回まで回す。最後のランはそれまでの提案の検証であり、そこで出た提案は未検証。判定の正本は連鎖後の baseline / final replay の `crew_remaining`。結果は `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`。`--no-paired-replay` は判定不能。`ros2` は拒否する。`--apply-proposals` とは同時指定できない。ターミナルには乗員残数テーブルに加え、現在のシミュレーション（ステップ％）と完了したイテレーション（N/M）の進捗を出す。ダッシュボードは連鎖の子ディレクトリ（`01/`、replay）を個別 run として列挙する。
 
 ## 結果の確認
 

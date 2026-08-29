@@ -499,3 +499,65 @@ def test_preflight_targets_cover_both_ssos_llm_sides():
         {"agents": {"actor": {"mode": "labeled_rule_base"}, "design": {"mode": "llm"}}},
     )
     assert [side for side, _cfg in design_only] == ["design"]
+
+
+def test_iterate_rejects_scrubber():
+    result = runner.invoke(app, ["run", "scrubber_degradation", "--iterate", "2", "--dry-run"])
+    assert result.exit_code == 2
+    assert "ssos_eclss_loop" in result.output
+
+
+def test_iterate_rejects_ros2_backend():
+    result = runner.invoke(
+        app,
+        ["run", "ssos_eclss_loop", "--iterate", "2", "--backend", "ros2", "--dry-run"],
+    )
+    assert result.exit_code == 2
+    assert "plant_sim" in result.output
+
+
+def test_iterate_rejects_apply_proposals(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--iterate",
+            "2",
+            "--apply-proposals",
+            str(tmp_path / "design_proposals.json"),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "apply-proposals" in result.output
+
+
+def test_iterate_dry_run_defaults(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--iterate",
+            "3",
+            "--backend",
+            "mock",
+            "--design-mode",
+            "labeled_rule_base",
+            "--output-dir",
+            str(tmp_path / "chain"),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert str(tmp_path / "chain") in result.stdout
+
+
+def test_iterate_omitted_scenario_defaults_to_ssos(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        ["run", "--iterate", "2", "--backend", "mock", "--output-dir", str(tmp_path / "chain"), "--dry-run"],
+    )
+    assert result.exit_code == 0
+    assert str(tmp_path / "chain") in result.stdout

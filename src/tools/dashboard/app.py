@@ -40,14 +40,48 @@ def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
-def _list_runs() -> List[Path]:
-    if not RESULTS_ROOT.exists():
+def _has_summary(path: Path) -> bool:
+    return path.is_dir() and (path / "summary.json").exists()
+
+
+def _has_telemetry(path: Path) -> bool:
+    return (path / "telemetry.jsonl").exists()
+
+
+def _run_label(path: Path, results_root: Path = RESULTS_ROOT) -> str:
+    try:
+        return str(path.resolve().relative_to(results_root.resolve()))
+    except ValueError:
+        return path.name
+
+
+def _list_runs(results_root: Optional[Path] = None) -> List[Path]:
+    """List dashboard-selectable runs, including iterate chain children.
+
+    Top-level ``summary.json`` dirs stay listed. If a directory has child
+    folders with ``summary.json`` (``ea run --iterate`` ``01/``, replays, …), those
+    children are listed as ``parent/01`` instead of the empty parent wrapper
+    unless the parent itself has ``telemetry.jsonl``.
+    """
+    root = results_root or RESULTS_ROOT
+    if not root.exists():
         return []
-    runs = []
-    for entry in RESULTS_ROOT.iterdir():
-        if entry.is_dir() and (entry / "summary.json").exists():
+    runs: List[Path] = []
+    for entry in sorted(root.iterdir(), key=lambda p: p.name):
+        if not entry.is_dir():
+            continue
+        children = [
+            child
+            for child in sorted(entry.iterdir(), key=lambda p: p.name)
+            if _has_summary(child)
+        ]
+        if children:
+            runs.extend(children)
+            if _has_summary(entry) and _has_telemetry(entry):
+                runs.append(entry)
+        elif _has_summary(entry):
             runs.append(entry)
-    return sorted(runs, key=lambda p: p.name)
+    return sorted(runs, key=lambda p: _run_label(p, root))
 
 
 def _select_rows_at_step(rows: List[Dict[str, Any]], step: int) -> List[Dict[str, Any]]:
@@ -1999,7 +2033,7 @@ def main() -> None:
         st.error(f"No run outputs found under {RESULTS_ROOT}")
         return
 
-    run_map = {run.name: run for run in runs}
+    run_map = {_run_label(run): run for run in runs}
     run_names = list(run_map.keys())
     selected_run_name = st.sidebar.selectbox("Run", options=run_names, index=len(run_names) - 1)
     run_dir = run_map[selected_run_name]

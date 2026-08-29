@@ -77,6 +77,21 @@ def run(
         "--apply-proposals",
         help="Apply design_proposals.json before running (ssos_eclss_loop).",
     ),
+    iterate: Optional[int] = typer.Option(
+        None,
+        "--iterate",
+        min=1,
+        max=50,
+        help=(
+            "Chain N design→verify simulations (ssos_eclss_loop). "
+            "Omit the scenario argument to default to ssos_eclss_loop."
+        ),
+    ),
+    paired_replay: bool = typer.Option(
+        True,
+        "--paired-replay/--no-paired-replay",
+        help="With --iterate: re-run baseline vs final design after the chain (default: on).",
+    ),
     approve_provisional: bool = typer.Option(
         False,
         "--approve-provisional",
@@ -134,6 +149,43 @@ def run(
     json_output: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
     quiet: bool = typer.Option(False, "--quiet", help="Print only the output path."),
 ) -> None:
+    if iterate is not None:
+        if apply_proposals is not None:
+            print_error(
+                "--iterate cannot be combined with --apply-proposals.",
+                hint="The chain applies each run's own adopted proposals.",
+            )
+            raise typer.Exit(exit_codes.USER_ERROR)
+        # Circular: iterate.py uses run.py helpers for override building.
+        from scenario.jobs.iterate import ITERATE_SCENARIO
+        from tools.cli.commands.iterate import run_iterate_from_run
+
+        run_iterate_from_run(
+            scenario_name=scenario or ITERATE_SCENARIO,
+            iterations=iterate,
+            actor_mode=actor_mode,
+            design_mode=design_mode,
+            agents_mode=agents_mode,
+            steps=steps,
+            run_id=run_id,
+            output_dir=output_dir,
+            results_root=results_root,
+            backend=backend,
+            llm_provider=llm_provider,
+            llm_model=llm_model,
+            inject_failures=inject_failures,
+            paired_replay=paired_replay,
+            approve_provisional=approve_provisional,
+            seed=seed,
+            set_values=set_values,
+            override_file=override_file,
+            no_recreate=no_recreate,
+            dry_run=dry_run,
+            write_spec=write_spec,
+            json_output=json_output,
+            quiet=quiet,
+        )
+
     scenario_name = scenario or DEFAULT_SCENARIO
     known = scenario_descriptions()
     if scenario_name not in known:

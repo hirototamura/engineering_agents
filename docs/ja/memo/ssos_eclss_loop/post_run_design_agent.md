@@ -97,6 +97,22 @@ llm 時は designer 全員が 1 ラウンド話し合ったあと、**代表 1 �
 
 `summary` に `actor_mode`, `design_mode`, `design_proposed_by`。`agents_mode` は `actor_mode` と同じ（ダッシュボード互換）。
 
+## 連鎖（`ea run --iterate`）
+
+```bash
+python3 -m tools.cli run ssos_eclss_loop --iterate 10 --backend plant_sim \
+  --actor-mode labeled_rule_base --design-mode llm --inject-failures --steps 50 \
+  --run-id design-iter-10
+```
+
+- 設計提案の**生成**は unified の事後 designer（既定は tool-use）。連鎖は生成ロジックを差し替えない
+- ラン k のシミュはラン k-1 で採用した `applied_proposals.json` を unified の `apply_design_proposals` で適用する（`capacity_profile` 含む）
+- `set_parameter`（`thresholds.*`）は連鎖では自動適用しない。provisional は `--approve-provisional` なしでは採用しない
+- 空・不採用の提案でも連鎖は止めず、直前の適用ファイル（まだ無ければ初期 YAML）のまま続ける
+- 最後のランは検証専用。そこで出た提案は未検証
+- 連鎖後に `design.mode=none` の baseline / final replay を回し、その `crew_remaining` で `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE` を決める
+- ターミナルとダッシュボードでイテレーション進捗・子 run（`01/` など）を可視化する
+
 ## やらないこと（プランどおり未着手）
 
 - scrubber の分離
