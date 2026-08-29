@@ -172,11 +172,19 @@ Volume mounts are fixed at container **create** time. If helper scripts are miss
 
 **Windows / Linux**: no bundled runner yet — see manual mount steps in `scripts/ssos/README.md`.
 
-### Mock / plant_sim backends (no Docker)
+### Default and local backends (no Docker)
+
+`ea run ssos_eclss_loop` with no flags is equivalent to:
+
+```bash
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --design-mode llm
+```
+
+That default needs a reachable LLM (lab vLLM or Ollama) for the post-run designer. For a cheap local run without an LLM:
 
 ```bash
 ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8
-ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --steps 72
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --design-mode labeled_rule_base --steps 72
 ea run ssos_eclss_loop --backend mock --actor-mode llm --set agents.actor.max_actions_per_step=8
 ```
 

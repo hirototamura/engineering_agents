@@ -50,8 +50,8 @@ actor:
     api_timeout: 20  # [s] HTTP timeout; Ollama only — vLLM ignores this
 
 design:
-  # design.mode omitted: inherit actor.mode. Endpoints stay independent;
-  # CLI preflight probes every side whose resolved mode is llm.
+  # design.mode omitted: inherit actor.mode for library/tests.
+  # Bare `ea run ssos_eclss_loop` pins design.mode=llm via CLI defaults.
   team:
     # Tool-use design is a single engineer by design (doc §4): the question is
     # whether ONE agent can gather its own evidence and reach a design. Multi

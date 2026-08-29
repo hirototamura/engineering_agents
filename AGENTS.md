@@ -61,6 +61,6 @@ Confirm Run 1 wrote `src/experiments/results/cloud-smoke-run1/design_proposals.j
 
 - Console scripts (`ea`, etc.) land in `~/.local/bin`, which is not on `PATH`. Prefer `python3 -m tools.cli …` or add `~/.local/bin` to `PATH`. See [docs/en/cli.md](docs/en/cli.md).
 - Tests: `python3 -m pytest --ignore=tests/e2e` (matches CI). Full `tests/e2e` needs SSOS Docker + ROS2 (`SSOS_E2E=1`, self-hosted runner) — not required for the minimal loop smoke above.
-- `agents.mode: llm` needs Ollama or the lab vLLM server (LAN or VPN); `ssos_eclss_loop` default `ros2` backend needs SSOS Docker. Both are **out of scope** for minimal loop verification — use `labeled_rule_base` + `--backend mock`.
+- `agents.mode: llm` / ssos `--design-mode llm` needs Ollama or the lab vLLM server (LAN or VPN). `ssos_eclss_loop` bare `ea run` defaults to `plant_sim` + labeled actors + LLM design; `--backend ros2` needs SSOS Docker. Minimal loop smoke is **out of scope** for both — use `labeled_rule_base` + `--backend mock`.
 - Dashboard (optional): `python3 -m streamlit run src/tools/dashboard/app.py --server.headless true` reads `src/experiments/results/<run_id>/`.
 - plant_sim sensitivity (optional, not the dashboard): `python3 -m tools.plant_sim_sensitivity_app` (port 8502).

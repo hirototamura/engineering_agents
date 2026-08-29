@@ -139,11 +139,19 @@ ea results
 
 **Windows / Linux**: 専用ランナーは未整備。`scripts/ssos/README.md` の手動マウント手順を参照。
 
-### Mock / plant_sim（Docker 不要）
+### デフォルトとローカル backend（Docker 不要）
+
+`ea run ssos_eclss_loop` をフラグなしで実行すると、次と同等です:
+
+```bash
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --design-mode llm
+```
+
+このデフォルトは事後 designer 用に LLM（研究室 vLLM または Ollama）が必要です。LLM なしの安価なローカル実行:
 
 ```bash
 ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8
-ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --steps 72
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --design-mode labeled_rule_base --steps 72
 ea run ssos_eclss_loop --backend mock --actor-mode llm --set agents.actor.max_actions_per_step=8
 ```
 

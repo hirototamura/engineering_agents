@@ -11,7 +11,7 @@ simulation:
   initial_product_water_l: 80.0  # [L] starting potable water (above product_water_low_l)
 
 backend:
-  kind: mock  # mock | plant_sim | ros2 — CLI default is ros2 (needs Docker); or SSOS_ECLSS_BACKEND
+  kind: plant_sim  # mock | plant_sim | ros2 — `ea run ssos_eclss_loop` default; or SSOS_ECLSS_BACKEND
   ros2:
     action_timeout_s: 120.0  # [s] wait for a ROS2 action result
     topic_timeout_s: 15.0  # [s] wait for a telemetry topic sample
@@ -196,14 +196,15 @@ evaluation:
 
 agents:
   actor:
-    mode: none  # none | labeled_rule_base | llm (CLI --actor-mode overrides)
+    mode: labeled_rule_base  # none | labeled_rule_base | llm — `ea run` default; CLI --actor-mode overrides
     # Cap on actions per step (llm and labeled). Rotates from eclss_actor_{step % N}.
     # llm: actors allowed to command after deliberation (clamped to actor.team.count).
     # labeled: needed ARS/OGS/WRS repeats to leave warning/critical, then min(needed, this).
     # request_co2 does not count.
     max_actions_per_step: 6 # [-] llm / labeled cap on commands per step
   design: {}
-    # design.mode omitted: inherit actor.mode. Set none to disable post-run design.
+    # design.mode omitted here so library/tests inherit actor.mode.
+    # Bare `ea run ssos_eclss_loop` pins design.mode=llm via CLI defaults.
 
 output:
   run_id: ssos_eclss_loop_baseline  # none/none (or unspecified)

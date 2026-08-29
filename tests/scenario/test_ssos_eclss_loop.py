@@ -26,6 +26,10 @@ def _ssos_agents(
 ) -> dict:
     """Agent overrides for a scenario run.
 
+    Pins ``backend: mock`` so LoopMock dynamics stay independent of the
+    operator YAML default (``plant_sim``). Always sets ``design.mode`` so a
+    later YAML ``design.mode: llm`` cannot leak into these cases.
+
     ``tool_use`` defaults to False so these cases keep exercising the classic
     summary-only post-run designer; agents.yaml ships the tool-use loop enabled
     (design doc §11) and it is covered by test_ssos_tool_use_design.py.
@@ -34,12 +38,20 @@ def _ssos_agents(
         "mode": mode,
         "actor": {"mode": mode, "team": {"count": count, "id_prefix": "eclss_actor"}},
     }
-    design: dict = {"tool_use": {"enabled": tool_use}}
+    design: dict = {
+        "mode": mode if design_mode is None else design_mode,
+        "tool_use": {"enabled": tool_use},
+    }
     if design_mode is not None:
-        design["mode"] = design_mode
         design["team"] = {"count": 4, "id_prefix": "eclss_designer"}
     agents["design"] = design
-    return {"agents": agents}
+    return {"backend": {"kind": "mock"}, "agents": agents}
+
+
+_BASELINE_OVERRIDES = {
+    "backend": {"kind": "mock"},
+    "agents": {"actor": {"mode": "none"}, "design": {"mode": "none"}},
+}
 
 
 def _read_jsonl(path: Path) -> list:
@@ -53,7 +65,7 @@ def test_ssos_eclss_loop_steps_are_zero_based(tmp_path: Path):
     run_dir = run_scenario(
         "ssos_eclss_loop",
         output_dir=tmp_path / "steps",
-        overrides={"simulation": {"steps": 10}},
+        overrides={**_BASELINE_OVERRIDES, "simulation": {"steps": 10}},
         recreate_output=True,
     )
     telemetry = _read_jsonl(run_dir / "telemetry.jsonl")
@@ -66,6 +78,7 @@ def test_ssos_eclss_loop_baseline_runs(tmp_path: Path):
     run_dir = run_scenario(
         "ssos_eclss_loop",
         output_dir=tmp_path / "baseline",
+        overrides=_BASELINE_OVERRIDES,
         recreate_output=True,
     )
 
@@ -99,8 +112,8 @@ def test_ssos_eclss_loop_yaml_schedule_applies_when_inject_enabled(tmp_path: Pat
         "ssos_eclss_loop",
         output_dir=tmp_path / "inject_on",
         overrides={
+            **_BASELINE_OVERRIDES,
             "simulation": {"steps": 21},
-            "agents": {"mode": "none"},
             "inject_failures": True,
         },
         recreate_output=True,
@@ -593,8 +606,8 @@ def test_ssos_eclss_loop_subsystem_failures_schedule_mock(tmp_path: Path):
         "ssos_eclss_loop",
         output_dir=tmp_path / "failures_mock",
         overrides={
+            **_BASELINE_OVERRIDES,
             "simulation": {"steps": 5},
-            "agents": {"mode": "none"},
             "inject_failures": True,
             "subsystem_failures": [
                 {"subsystem": "ars", "start_step": 2, "end_step": 4},
@@ -638,7 +651,7 @@ def test_ssos_eclss_loop_subsystem_failures_schedule_plant_sim(tmp_path: Path):
         overrides={
             "backend": {"kind": "plant_sim"},
             "simulation": {"steps": 4},
-            "agents": {"mode": "none"},
+            "agents": {"actor": {"mode": "none"}, "design": {"mode": "none"}},
             "inject_failures": True,
             "subsystem_failures": [
                 {"subsystem": "ogs", "start_step": 1, "duration_steps": 2},
@@ -681,6 +694,7 @@ def test_ssos_eclss_loop_clears_scheduled_failures_after_exception(
             "ssos_eclss_loop",
             output_dir=tmp_path / "failure_cleanup",
             overrides={
+                **_BASELINE_OVERRIDES,
                 "simulation": {"steps": 1},
                 "inject_failures": True,
                 "subsystem_failures": [{"subsystem": "ars", "start_step": 0}],
@@ -697,8 +711,8 @@ def test_ssos_eclss_loop_plant_sim_writes_thresholds_and_metabolism(tmp_path: Pa
         "ssos_eclss_loop",
         output_dir=tmp_path / "plant_sim",
         overrides={
-            "backend": {"kind": "plant_sim"},
             **_ssos_agents("labeled_rule_base", count=50),
+            "backend": {"kind": "plant_sim"},
             "simulation": {"steps": 3},
         },
         recreate_output=True,
