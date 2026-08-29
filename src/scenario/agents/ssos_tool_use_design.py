@@ -32,8 +32,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from core.agents.types import AgentMessage, DeliberationPhase
-from core.llm.base import LLMClient
-from core.llm.parsing import parse_json_response
+from core.llm.base import LLMClient, LLMGeneration, invoke_llm
+from core.llm.parsing import combine_thinking, extract_thinking_text, parse_json_response
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_eval import (
     STATUS_APPROVED,
@@ -56,6 +56,8 @@ DEFAULT_MAX_CANDIDATE_RUNS = 4
 _RECENT_OBSERVATION_CHARS = 2600
 _OLDER_OBSERVATION_CHARS = 400
 _FULL_OBSERVATIONS = 3
+_RAW_RESPONSE_LOG_CHARS = 12000
+_RESULT_EXCERPT_CHARS = 8000
 
 
 EXPERT_CONTEXT_PACK = """\
@@ -153,7 +155,12 @@ class ToolUseSettings:
 
 @dataclass
 class ToolTrace:
-    """Append-only JSONL record of the whole loop (auditable by a human)."""
+    """Append-only JSONL audit of the design loop.
+
+    ``llm_turn`` rows are the model's message, JSON ``reasoning``, and
+    captured think/reasoning_content. ``tool_call`` rows are the tool
+    name, arguments, and result (``source`` is ``llm`` or ``rule_fallback``).
+    """
 
     path: Path
     records: List[Dict[str, Any]] = field(default_factory=list)
@@ -180,9 +187,13 @@ class ToolUseDesignAgent:
         self.persona = persona
         self.settings = settings
         self.llm_client = llm_client
+        self._turn_messages: List[Dict[str, Any]] = []
+        self._message_step = 0
 
     # ------------------------------------------------------------------ #
     def propose(self, bundle: Any) -> Dict[str, Any]:
+        self._turn_messages = []
+        self._message_step = _post_run_step(getattr(bundle, "summary", {}) or {})
         run_dir = Path(getattr(bundle, "run_dir", None) or ".")
         scenario_config = dict(getattr(bundle, "scenario_config", {}) or {})
         constraints = DesignConstraints.from_scenario_config(scenario_config)
@@ -221,6 +232,120 @@ class ToolUseDesignAgent:
     # ------------------------------------------------------------------ #
     # LLM planning loop
     # ------------------------------------------------------------------ #
+    @staticmethod
+    def _thinking_from(generation: LLMGeneration, parsed: Any) -> str:
+        return combine_thinking(
+            generation.thinking,
+            getattr(parsed, "thinking", "") or "",
+            extract_thinking_text(generation.text),
+        )
+
+    def _append_turn_message(
+        self,
+        *,
+        message: str,
+        reasoning: str,
+        thinking: str,
+        iteration: int,
+        extra: Optional[Mapping[str, Any]] = None,
+    ) -> None:
+        metadata: Dict[str, Any] = {
+            "decision_source": "llm_tool_use",
+            "deliberation_phase": DeliberationPhase.POST_RUN,
+            "tool_iteration": iteration,
+        }
+        if thinking:
+            metadata["thinking"] = thinking
+        if extra:
+            metadata.update(dict(extra))
+        self._turn_messages.append(
+            AgentMessage(
+                step=self._message_step,
+                from_role=self.agent_id,
+                to_role="team",
+                message=message or f"design turn {iteration}",
+                message_type="comment",
+                reasoning=reasoning or "",
+                metadata=metadata,
+            ).to_dict()
+        )
+
+    def _record_llm_turn(
+        self,
+        trace: ToolTrace,
+        *,
+        iteration: int,
+        generation: LLMGeneration,
+        parsed: Any,
+        elapsed_s: float,
+        extra: Optional[Mapping[str, Any]] = None,
+    ) -> str:
+        data = parsed.data if isinstance(getattr(parsed, "data", None), Mapping) else {}
+        thinking = self._thinking_from(generation, parsed)
+        record: Dict[str, Any] = {
+            "event": "llm_turn",
+            "iteration": iteration,
+            "elapsed_s": round(elapsed_s, 2),
+            "parse_status": getattr(parsed, "status", None),
+            "parse_error": getattr(parsed, "error", None),
+            "message": str(data.get("message", "")),
+            "reasoning": str(data.get("reasoning", "")),
+            "thinking": thinking,
+            "raw_excerpt": _clip(generation.text, _RAW_RESPONSE_LOG_CHARS),
+        }
+        if extra:
+            record.update(dict(extra))
+        trace.append(record)
+        self._append_turn_message(
+            message=str(data.get("message", "")),
+            reasoning=str(data.get("reasoning", "")),
+            thinking=thinking,
+            iteration=iteration,
+            extra=extra,
+        )
+        return thinking
+
+    def _traced_tool_call(
+        self,
+        toolkit: DesignToolkit,
+        trace: ToolTrace,
+        name: str,
+        arguments: Mapping[str, Any],
+        *,
+        iteration: int,
+        source: str,
+        llm_message: str = "",
+        llm_reasoning: str = "",
+        thinking: str = "",
+        task_plan: Optional[Sequence[str]] = None,
+        llm_elapsed_s: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        started = time.monotonic()
+        result = toolkit.call(name, arguments)
+        record: Dict[str, Any] = {
+            "event": "tool_call",
+            "source": source,
+            "iteration": iteration,
+            "tool": name,
+            "arguments": dict(arguments),
+            "result": result,
+            "result_excerpt": _clip(_dumps(result), _RESULT_EXCERPT_CHARS),
+            "tool_elapsed_s": round(time.monotonic() - started, 2),
+            "evidence": toolkit.evidence_report(),
+        }
+        if llm_message:
+            record["llm_message"] = llm_message
+        if llm_reasoning:
+            record["llm_reasoning"] = llm_reasoning
+        if thinking:
+            record["thinking"] = thinking
+        if task_plan is not None:
+            record["task_plan"] = list(task_plan)
+        if llm_elapsed_s is not None:
+            record["llm_elapsed_s"] = round(llm_elapsed_s, 2)
+        trace.append(record)
+        return result
+
     def _tool_loop(self, toolkit: DesignToolkit, trace: ToolTrace) -> Dict[str, Any]:
         observations: List[Dict[str, Any]] = []
         task_plan: List[str] = []
@@ -237,9 +362,16 @@ class ToolUseDesignAgent:
                 gate_feedback=gate_feedback,
             )
             started = time.monotonic()
-            raw = self.llm_client.generate(prompt) if self.llm_client else ""
+            generation = invoke_llm(self.llm_client, prompt)
             elapsed = time.monotonic() - started
-            parsed = parse_json_response(raw, required=("message",))
+            parsed = parse_json_response(generation.text, required=("message",))
+            thinking = self._record_llm_turn(
+                trace,
+                iteration=iteration,
+                generation=generation,
+                parsed=parsed,
+                elapsed_s=elapsed,
+            )
             gate_feedback = None
 
             if parsed.status in {"fallback", "empty_response"}:
@@ -252,7 +384,8 @@ class ToolUseDesignAgent:
                         "elapsed_s": round(elapsed, 2),
                         "parse_status": parsed.status,
                         "parse_error": parsed.error,
-                        "raw_excerpt": parsed.raw_excerpt,
+                        "thinking": thinking,
+                        "raw_excerpt": _clip(generation.text, _RAW_RESPONSE_LOG_CHARS),
                     }
                 )
                 if parse_failures >= 3:
@@ -272,6 +405,8 @@ class ToolUseDesignAgent:
 
             final_proposal = data.get("final_proposal")
             tool_call = data.get("tool_call")
+            message = str(data.get("message", ""))
+            reasoning = str(data.get("reasoning", ""))
 
             if isinstance(final_proposal, Mapping):
                 missing = toolkit.missing_evidence()
@@ -285,7 +420,9 @@ class ToolUseDesignAgent:
                             "event": "evidence_gate_reject",
                             "iteration": iteration,
                             "missing_evidence": missing,
-                            "message": str(data.get("message", ""))[:400],
+                            "message": message,
+                            "reasoning": reasoning,
+                            "thinking": thinking,
                         }
                     )
                     gate_feedback = (
@@ -298,15 +435,16 @@ class ToolUseDesignAgent:
                     {
                         "event": "final_proposal",
                         "iteration": iteration,
-                        "message": str(data.get("message", ""))[:800],
-                        "reasoning": str(data.get("reasoning", ""))[:800],
+                        "message": message,
+                        "reasoning": reasoning,
+                        "thinking": thinking,
                         "final_proposal": final_proposal,
                     }
                 )
                 return {
                     "decision_source": "llm_tool_use",
-                    "message": str(data.get("message", "")),
-                    "reasoning": str(data.get("reasoning", "")),
+                    "message": message,
+                    "reasoning": reasoning,
                     "final_proposal": dict(final_proposal),
                     "task_plan": task_plan,
                     "iterations_used": iteration,
@@ -319,7 +457,9 @@ class ToolUseDesignAgent:
                     {
                         "event": "no_action",
                         "iteration": iteration,
-                        "message": str(data.get("message", ""))[:400],
+                        "message": message,
+                        "reasoning": reasoning,
+                        "thinking": thinking,
                     }
                 )
                 gate_feedback = (
@@ -334,7 +474,12 @@ class ToolUseDesignAgent:
             if name not in toolkit.tool_names():
                 notes.append(f"iteration {iteration}: unknown tool {name!r}")
                 trace.append(
-                    {"event": "unknown_tool", "iteration": iteration, "requested": name}
+                    {
+                        "event": "unknown_tool",
+                        "iteration": iteration,
+                        "requested": name,
+                        "thinking": thinking,
+                    }
                 )
                 gate_feedback = (
                     f"{name!r} is not a tool. Available tools: "
@@ -342,30 +487,25 @@ class ToolUseDesignAgent:
                 )
                 continue
 
-            call_started = time.monotonic()
-            result = toolkit.call(name, arguments)
-            call_elapsed = time.monotonic() - call_started
+            result = self._traced_tool_call(
+                toolkit,
+                trace,
+                name,
+                arguments,
+                iteration=iteration,
+                source="llm",
+                llm_message=message,
+                llm_reasoning=reasoning,
+                thinking=thinking,
+                task_plan=task_plan,
+                llm_elapsed_s=elapsed,
+            )
             observations.append(
                 {
                     "iteration": iteration,
                     "tool": name,
                     "arguments": arguments,
                     "result": result,
-                }
-            )
-            trace.append(
-                {
-                    "event": "tool_call",
-                    "iteration": iteration,
-                    "tool": name,
-                    "arguments": arguments,
-                    "llm_message": str(data.get("message", ""))[:400],
-                    "llm_reasoning": str(data.get("reasoning", ""))[:400],
-                    "task_plan": task_plan,
-                    "llm_elapsed_s": round(elapsed, 2),
-                    "tool_elapsed_s": round(call_elapsed, 2),
-                    "result_excerpt": _clip(_dumps(result), 1500),
-                    "evidence": toolkit.evidence_report(),
                 }
             )
 
@@ -455,22 +595,45 @@ class ToolUseDesignAgent:
         """
         notes = list(notes or [])
         trace.append({"event": "rule_fallback_start", "reason": reason})
+        self._append_turn_message(
+            message=(
+                "Deterministic fallback is collecting evidence and verifying "
+                f"capacity candidates ({reason})."
+            ),
+            reasoning=f"Fallback reason: {reason}.",
+            thinking="",
+            iteration=0,
+            extra={"decision_source": f"tool_use_rule_fallback:{reason}"},
+        )
+        fallback_turn = 0
 
-        toolkit.call("load_run_artifacts", {"files": ["summary", "scenario_config", "agents_config"]})
-        toolkit.call("summarize_timeseries", {"source": "telemetry"})
-        toolkit.call("summarize_timeseries", {"source": "health_metrics"})
-        toolkit.call("compute_eclss_features", {})
-        theory = toolkit.call("compute_theoretical_capacity", {})
+        def call(name: str, arguments: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+            nonlocal fallback_turn
+            fallback_turn += 1
+            return self._traced_tool_call(
+                toolkit,
+                trace,
+                name,
+                arguments or {},
+                iteration=fallback_turn,
+                source="rule_fallback",
+            )
+
+        call("load_run_artifacts", {"files": ["summary", "scenario_config", "agents_config"]})
+        call("summarize_timeseries", {"source": "telemetry"})
+        call("summarize_timeseries", {"source": "health_metrics"})
+        call("compute_eclss_features", {})
+        theory = call("compute_theoretical_capacity", {})
 
         remaining = self.settings.max_candidate_runs - len(toolkit.candidates)
         margins = [1.15, 1.0, 1.35][: max(1, min(remaining, 3))]
         for margin in margins:
-            candidate = toolkit.call("propose_capacity_candidate", {"margin": margin})
+            candidate = call("propose_capacity_candidate", {"margin": margin})
             fields = candidate.get("fields")
             if not fields:
                 continue
-            toolkit.call("evaluate_design_constraints", {"fields": fields})
-            run = toolkit.call(
+            call("evaluate_design_constraints", {"fields": fields})
+            run = call(
                 "run_design_candidate",
                 {"fields": fields, "label": f"rule_margin_{margin}"},
             )
@@ -480,7 +643,7 @@ class ToolUseDesignAgent:
                 # interesting comparison, not larger ones.
                 if margin <= 1.0:
                     break
-        comparison = toolkit.call("compare_design_runs", {})
+        comparison = call("compare_design_runs", {})
         trace.append(
             {
                 "event": "rule_fallback_done",
@@ -622,6 +785,18 @@ class ToolUseDesignAgent:
         }
         _write_json(rankings_path, rankings_doc)
 
+        thinking_turns = [
+            {
+                "iteration": rec.get("iteration"),
+                "parse_status": rec.get("parse_status"),
+                "message": rec.get("message"),
+                "reasoning": rec.get("reasoning"),
+                "thinking": rec.get("thinking") or "",
+                "tool": rec.get("tool"),
+            }
+            for rec in trace.records
+            if rec.get("event") == "llm_turn"
+        ]
         report = {
             "design_family": DESIGN_FAMILY,
             "agent_id": self.agent_id,
@@ -630,6 +805,8 @@ class ToolUseDesignAgent:
             "reasoning": result.get("reasoning"),
             "task_plan": result.get("task_plan"),
             "iterations_used": result.get("iterations_used"),
+            "llm_turn_count": len(thinking_turns),
+            "thinking_turns": thinking_turns,
             "evidence": evidence,
             "constraints": toolkit.constraints.describe(),
             "baseline_outcome": toolkit.baseline_outcome,
@@ -649,6 +826,7 @@ class ToolUseDesignAgent:
             "final_status": final_status,
             "plots": toolkit.plot_paths,
             "notes": notes,
+            "tool_trace_path": str(trace.path),
         }
         _write_json(report_path, report)
         trace.append({"event": "done", "final_status": final_status, "selection": selection})
@@ -690,11 +868,27 @@ class ToolUseDesignAgent:
             "tool_trace_path": str(trace.path),
             "candidate_rankings_path": str(rankings_path),
             "design_review_report_path": str(report_path),
+            "llm_turn_count": len(thinking_turns),
             "candidate_run_dirs": [
                 record.get("run_dir") for record in ranked if record.get("run_dir")
             ],
         }
-        proposals["deliberation_messages"] = [
+        final_thinking = ""
+        for rec in reversed(trace.records):
+            if rec.get("event") == "llm_turn" and rec.get("thinking"):
+                final_thinking = str(rec.get("thinking") or "")
+                break
+        final_meta: Dict[str, Any] = {
+            "decision_source": proposals["decision_source"],
+            "deliberation_phase": DeliberationPhase.POST_RUN,
+            "final_status": final_status,
+            "selected_candidate_id": selection.get("selected_candidate_id"),
+            "tool_iterations": result.get("iterations_used"),
+            "llm_turn_count": len(thinking_turns),
+        }
+        if final_thinking:
+            final_meta["thinking"] = final_thinking
+        proposals["deliberation_messages"] = list(self._turn_messages) + [
             AgentMessage(
                 step=_post_run_step(getattr(bundle, "summary", {}) or {}),
                 from_role=self.agent_id,
@@ -702,13 +896,7 @@ class ToolUseDesignAgent:
                 message=message or "Tool-use capacity design complete.",
                 message_type="comment",
                 reasoning=str(result.get("reasoning") or ""),
-                metadata={
-                    "decision_source": proposals["decision_source"],
-                    "deliberation_phase": DeliberationPhase.POST_RUN,
-                    "final_status": final_status,
-                    "selected_candidate_id": selection.get("selected_candidate_id"),
-                    "tool_iterations": result.get("iterations_used"),
-                },
+                metadata=final_meta,
             ).to_dict()
         ]
         return proposals

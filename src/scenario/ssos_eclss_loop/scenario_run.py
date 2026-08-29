@@ -635,6 +635,7 @@ class SsosEclssLoopScenario(Scenario):
                 "candidate_rankings_path",
                 "design_review_report_path",
                 "candidate_run_dirs",
+                "llm_turn_count",
             ):
                 if proposals.get(key) is not None:
                     summary[f"design_{key}" if not key.startswith("design_") else key] = (

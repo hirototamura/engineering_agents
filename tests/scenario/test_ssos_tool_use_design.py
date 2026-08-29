@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import List
 
 import pytest
 import yaml
+
+from core.llm.base import LLMGeneration
 
 from scenario.agents.ssos_post_run_design import DesignReviewBundle, PostRunDesignAgent
 from scenario.agents.ssos_tool_use_design import (
@@ -87,6 +90,29 @@ def baseline(tmp_path_factory) -> Path:
         },
         recreate_output=True,
     )
+
+
+def _load_jsonl(path: Path) -> List[dict]:
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def _fresh_bundle(baseline: Path, tmp_path: Path) -> DesignReviewBundle:
+    dest = tmp_path / "run"
+    shutil.copytree(baseline, dest)
+    for name in (
+        "tool_trace.jsonl",
+        "design_review_report.json",
+        "candidate_rankings.json",
+        "design_proposals.json",
+    ):
+        leftover = dest / name
+        if leftover.exists():
+            leftover.unlink()
+    return _bundle(dest)
 
 
 def _bundle(run_dir: Path) -> DesignReviewBundle:
@@ -353,3 +379,62 @@ def test_unknown_candidate_id_is_reported_not_silently_swapped(baseline: Path):
     proposals = _agent(llm).propose(_bundle(baseline))
     assert proposals["selected_candidate_id"] == "candidate_001"
     assert any("candidate_999" in note for note in proposals["parse_notes"])
+
+
+def test_think_tags_are_logged_on_each_llm_turn(baseline: Path, tmp_path: Path):
+    replies = [
+        f"<think>need the baseline artifacts first</think>\n{_tool('load_run_artifacts')}",
+        *_happy_path_replies()[1:],
+    ]
+    proposals = _agent(_ScriptedLlm(replies)).propose(_fresh_bundle(baseline, tmp_path))
+    trace = _load_jsonl(Path(proposals["tool_trace_path"]))
+    llm_turns = [row for row in trace if row["event"] == "llm_turn"]
+    tool_calls = [row for row in trace if row["event"] == "tool_call"]
+    assert llm_turns
+    assert llm_turns[0]["thinking"] == "need the baseline artifacts first"
+    assert tool_calls
+    assert tool_calls[0]["tool"] == "load_run_artifacts"
+    assert tool_calls[0]["thinking"] == "need the baseline artifacts first"
+    assert "result" in tool_calls[0]
+    report = json.loads(Path(proposals["design_review_report_path"]).read_text(encoding="utf-8"))
+    assert report["thinking_turns"][0]["thinking"] == "need the baseline artifacts first"
+    assert any(
+        row.get("thinking") == "need the baseline artifacts first"
+        for row in proposals["deliberation_messages"]
+    )
+
+
+def test_provider_thinking_is_logged_from_generate_result(baseline: Path, tmp_path: Path):
+    class ThinkingLlm(_ScriptedLlm):
+        def generate_result(self, prompt: str) -> LLMGeneration:
+            return LLMGeneration(
+                text=super().generate(prompt),
+                thinking="inspect the CO2 shortfall before sizing ARS",
+            )
+
+    proposals = _agent(ThinkingLlm(_happy_path_replies())).propose(
+        _fresh_bundle(baseline, tmp_path)
+    )
+    trace = _load_jsonl(Path(proposals["tool_trace_path"]))
+    llm_turns = [row for row in trace if row["event"] == "llm_turn"]
+    assert all(
+        row["thinking"] == "inspect the CO2 shortfall before sizing ARS" for row in llm_turns
+    )
+    assert proposals["llm_turn_count"] == len(llm_turns)
+
+
+def test_rule_fallback_writes_each_tool_call(baseline: Path, tmp_path: Path):
+    proposals = _agent(None).propose(_fresh_bundle(baseline, tmp_path))
+    trace = _load_jsonl(Path(proposals["tool_trace_path"]))
+    tools = [row["tool"] for row in trace if row.get("event") == "tool_call"]
+    assert "load_run_artifacts" in tools
+    assert "compute_theoretical_capacity" in tools
+    assert "run_design_candidate" in tools
+    assert "compare_design_runs" in tools
+    assert all(
+        row.get("source") == "rule_fallback"
+        for row in trace
+        if row.get("event") == "tool_call"
+    )
+    assert Path(proposals["tool_trace_path"]).exists()
+    assert Path(proposals["design_review_report_path"]).exists()

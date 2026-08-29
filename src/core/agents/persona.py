@@ -9,8 +9,8 @@ from typing import Any, Awaitable, Dict, List, Optional, Sequence, Tuple, TypeVa
 from core.agents.base import DeliberationContext, Persona
 from core.agents.memory import AgentMemory
 from core.agents.types import AgentMessage, DeliberationPhase
-from core.llm.base import LLMClient
-from core.llm.parsing import parse_json_response
+from core.llm.base import LLMClient, LLMGeneration, invoke_llm
+from core.llm.parsing import combine_thinking, extract_thinking_text, parse_json_response
 
 TEAM_CHARTER = """You are on a closed-habitat ECLSS resilience team.
 Your Persona is a professional lens — not a script. You may disagree with teammates, wait, or propose alternatives.
@@ -296,6 +296,7 @@ class PersonaAgent:
         self.persona = persona
         self.memory = memory
         self.llm_client = llm_client
+        self.last_generation = LLMGeneration(text="")
 
     def build_context(
         self,
@@ -351,17 +352,36 @@ class PersonaAgent:
         )
 
     def _generate(self, prompt: str) -> str:
-        if self.llm_client is None:
-            return ""
-        return self.llm_client.generate(prompt)
+        generation = invoke_llm(self.llm_client, prompt)
+        self.last_generation = generation
+        return generation.text
 
     async def _generate_async(self, prompt: str) -> str:
         if self.llm_client is None:
+            self.last_generation = LLMGeneration(text="")
             return ""
+        generate_result_async = getattr(self.llm_client, "generate_result_async", None)
+        if callable(generate_result_async):
+            generation = await generate_result_async(prompt)
+            if isinstance(generation, LLMGeneration):
+                text = generation.text or ""
+                self.last_generation = LLMGeneration(
+                    text=text,
+                    thinking=combine_thinking(
+                        generation.thinking, extract_thinking_text(text)
+                    ),
+                )
+                return text
         generate_async = getattr(self.llm_client, "generate_async", None)
         if generate_async is not None:
-            return await generate_async(prompt)
-        return await asyncio.to_thread(self.llm_client.generate, prompt)
+            text = await generate_async(prompt)
+        else:
+            text = await asyncio.to_thread(self.llm_client.generate, prompt)
+        text = text or ""
+        self.last_generation = LLMGeneration(
+            text=text, thinking=extract_thinking_text(text)
+        )
+        return text
 
     @staticmethod
     def _parse_turn(raw: str, required: tuple[str, ...]) -> Optional[ParsedTurn]:

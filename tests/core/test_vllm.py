@@ -272,4 +272,7 @@ def test_vllm_generate_empty_content_with_reasoning_logs_warning(monkeypatch, ca
     monkeypatch.setattr(client._session, "post", lambda *args, **kwargs: FakeResponse())
     with caplog.at_level(logging.WARNING):
         assert client.generate("design review") == ""
+        result = client.generate_result("design review")
+    assert result.text == ""
+    assert result.thinking == "thinking consumed the budget"
     assert "reasoning_content but empty content" in caplog.text

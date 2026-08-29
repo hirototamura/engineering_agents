@@ -178,6 +178,13 @@ class PostRunDesignAgent:
         for agent_id, parsed in zip(self.team_cfg.agent_ids, turns):
             if parsed is None:
                 continue
+            thinking = _last_thinking(self.agents.get(agent_id))
+            metadata: Dict[str, Any] = {
+                "decision_source": "llm",
+                "deliberation_phase": DeliberationPhase.DELIBERATION,
+            }
+            if thinking:
+                metadata["thinking"] = thinking
             step_discourse.append(
                 AgentMessage(
                     step=step,
@@ -186,10 +193,7 @@ class PostRunDesignAgent:
                     message=str(parsed.data.get("message", "")),
                     message_type="comment",
                     reasoning=str(parsed.data.get("reasoning", "")),
-                    metadata={
-                        "decision_source": "llm",
-                        "deliberation_phase": DeliberationPhase.DELIBERATION,
-                    },
+                    metadata=metadata,
                 )
             )
 
@@ -209,6 +213,7 @@ class PostRunDesignAgent:
             PersonaAgent.phase_hint(DeliberationPhase.POST_RUN),
             ("message", "reasoning", "changes"),
         )
+        post_run_thinking = _last_thinking(agent)
         if parsed is None:
             fallback = build_design_proposals_from_run(
                 proposed_by=rep,
@@ -232,11 +237,18 @@ class PostRunDesignAgent:
                     metadata={
                         "decision_source": "llm_parse_fail",
                         "deliberation_phase": DeliberationPhase.POST_RUN,
+                        **({"thinking": post_run_thinking} if post_run_thinking else {}),
                     },
                 ).to_dict()
             ]
             return fallback
 
+        post_run_meta: Dict[str, Any] = {
+            "decision_source": "llm",
+            "deliberation_phase": DeliberationPhase.POST_RUN,
+        }
+        if post_run_thinking:
+            post_run_meta["thinking"] = post_run_thinking
         changes, parse_notes = parse_llm_design_proposals(parsed.data.get("changes", []))
         return {
             "design_domain": DESIGN_DOMAIN,
@@ -259,10 +271,7 @@ class PostRunDesignAgent:
                     message=str(parsed.data.get("message", "")),
                     message_type="comment",
                     reasoning=str(parsed.data.get("reasoning", "")),
-                    metadata={
-                        "decision_source": "llm",
-                        "deliberation_phase": DeliberationPhase.POST_RUN,
-                    },
+                    metadata=post_run_meta,
                 ).to_dict()
             ],
         }
@@ -376,3 +385,8 @@ def actor_snapshot_from_team(team: Any) -> ActorTeamSnapshot:
         discourse=discourse,
         policy=dict(getattr(team, "policy", {}) or {}),
     )
+
+
+def _last_thinking(agent: Optional[PersonaAgent]) -> str:
+    generation = getattr(agent, "last_generation", None)
+    return str(getattr(generation, "thinking", "") or "")
