@@ -11,7 +11,7 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, Optional
 
 from environment.ssos.eclss.plant_sim.stoichiometry import WATER_PER_O2
 from scenario.ssos_eclss_loop.evaluation import (
@@ -22,6 +22,8 @@ from scenario.ssos_eclss_loop.evaluation import (
 )
 from scenario.ssos_eclss_loop.evaluation_browser import write_evaluation_browser
 from scenario.ssos_eclss_loop.evaluation_html import render_evaluation_html
+from scenario.ssos_eclss_loop.integrity_guard import integrity_summary
+from scenario.ssos_eclss_loop.physics_gate import run_physics_gate
 
 _SCHEDULING_REJECTIONS = {"subsystem_busy", "duplicate_command_this_step"}
 _SECONDS_PER_DAY = 86400.0
@@ -182,17 +184,62 @@ def compact_evaluation(payload: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _admissibility(
+    payload: Dict[str, Any],
+    *,
+    integrity: Mapping[str, Any],
+    gate: Mapping[str, Any],
+    backend: str,
+) -> Dict[str, Any]:
+    """Refuse a score the run is not entitled to (spec §14).
+
+    A run that rewrote the yardstick is inadmissible however it scored, and so
+    is one whose physics could not be shown to hold. The physics condition only
+    applies to a backend that simulates physics: on the loop mock there is
+    nothing for the ledgers to close over, and calling that invalid would say
+    the run cheated when it merely was not that kind of run.
+    """
+    reasons: list[str] = []
+    if integrity.get("scoring_bar_modified"):
+        reasons.append("scoring_bar_modified")
+    if backend == "plant_sim" and gate.get("status") != "passed":
+        reasons.append("physics_gate_" + str(gate.get("status")))
+    if reasons:
+        payload["status"] = "invalid"
+        payload["invalid_reasons"] = reasons
+    return payload
+
+
 def finalize_run_evaluation(
     run_dir: Path,
     *,
     scenario_config: Mapping[str, Any],
     summary: Mapping[str, Any],
+    integrity: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Evaluate one completed run before design and return an enriched summary."""
     run_path = Path(run_dir)
     config = capacity_aware_config(scenario_config)
     payload = evaluate_run(run_path, scenario_config=config, summary=summary)
     payload = reconcile_scheduler_semantics(payload, run_path, config.get("evaluation") or {})
+
+    # The audit is telemetry-only and replaces the evaluator's own gate rather
+    # than sitting beside it: two physics verdicts on one run is how the
+    # measurement and the artifact drift apart.
+    gate = run_physics_gate(run_path)
+    payload["physics_gate"] = gate
+    (run_path / "physics_gate.json").write_text(
+        json.dumps(gate, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    integrity = integrity or {}
+    payload["integrity"] = integrity_summary(integrity)
+    payload = _admissibility(
+        payload,
+        integrity=integrity,
+        gate=gate,
+        backend=str(summary.get("backend") or ""),
+    )
 
     json_path = run_path / "evaluation.json"
     html_path = run_path / "evaluation.html"
@@ -209,7 +256,8 @@ def finalize_run_evaluation(
             "evaluation_status": payload.get("status"),
             "evaluation_score": score_block.get("total"),
             "evaluation_max_score": score_block.get("max_score"),
-            "physics_gate_passed": bool((payload.get("physics_gate") or {}).get("passed", False)),
+            "physics_gate_passed": bool(gate.get("passed", False)),
+            "physics_gate_status": gate.get("status"),
             "evaluation_compact": compact_evaluation(payload),
         }
     )

@@ -136,3 +136,69 @@ def test_run_writes_one_evaluation_that_matches_its_summary(tmp_path: Path):
     assert summary["evaluation_score"] == evaluation["scores"]["total"]
     assert summary["evaluation_compact"]["score"] == evaluation["scores"]["total"]
     assert summary["evaluation_status"] == evaluation["status"]
+
+
+def _run(tmp_path: Path, name: str, **overrides) -> Path:
+    from scenario.ssos_eclss_loop.scenario_run import SsosEclssLoopScenario
+
+    config = {
+        "simulation": {"steps": 8},
+        "backend": {"kind": "plant_sim"},
+        "agents": {"actor": {"mode": "labeled_rule_base"}, "design": {"mode": "none"}},
+    }
+    config.update(overrides)
+    return Path(
+        SsosEclssLoopScenario().run(
+            output_dir=tmp_path / name, overrides=config, recreate_output=True
+        )
+    )
+
+
+def test_evaluation_carries_the_integrity_and_physics_summaries(tmp_path: Path):
+    run_dir = _run(tmp_path, "plain")
+    payload = json.loads((run_dir / "evaluation.json").read_text(encoding="utf-8"))
+
+    assert set(payload["integrity"]) == {
+        "scoring_bar_modified",
+        "operating_point_modified",
+        "arm_modified",
+    }
+    assert payload["physics_gate"]["status"] == "passed"
+    assert (run_dir / "run_integrity.json").is_file()
+    assert (run_dir / "physics_gate.json").is_file()
+
+
+def test_resizing_the_hardware_leaves_the_run_admissible(tmp_path: Path):
+    run_dir = _run(tmp_path, "resized", plant_sim={"ars": {"capacity_kg_day": 23.92}})
+    payload = json.loads((run_dir / "evaluation.json").read_text(encoding="utf-8"))
+
+    assert payload["integrity"]["operating_point_modified"] is True
+    assert payload["integrity"]["scoring_bar_modified"] is False
+    assert payload["status"] == "scored"
+
+
+def test_loosening_a_threshold_makes_the_evaluation_invalid(tmp_path: Path):
+    """The cheap route to a better score must not produce a usable score."""
+    run_dir = _run(tmp_path, "tampered", thresholds={"co2_storage_critical_kg": 99.0})
+    payload = json.loads((run_dir / "evaluation.json").read_text(encoding="utf-8"))
+
+    assert payload["status"] == "invalid"
+    assert payload["invalid_reasons"] == ["scoring_bar_modified"]
+
+
+def test_unprovable_physics_makes_the_evaluation_invalid(tmp_path: Path):
+    """A physics-bearing run whose telemetry cannot be audited is not evidence."""
+    from scenario.ssos_eclss_loop.unified_evaluation import finalize_run_evaluation
+
+    run_dir = _run(tmp_path, "unauditable")
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    (run_dir / "telemetry.jsonl").write_text("", encoding="utf-8")
+
+    scenario_config = yaml.safe_load((run_dir / "scenario_config.yaml").read_text(encoding="utf-8"))
+    finalize_run_evaluation(
+        run_dir, scenario_config=scenario_config, summary=summary, integrity={}
+    )
+
+    payload = json.loads((run_dir / "evaluation.json").read_text(encoding="utf-8"))
+    assert payload["status"] == "invalid"
+    assert payload["invalid_reasons"] == ["physics_gate_incomplete"]

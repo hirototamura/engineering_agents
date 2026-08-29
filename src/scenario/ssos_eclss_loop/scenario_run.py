@@ -50,6 +50,7 @@ from scenario.ssos_eclss_loop.survival import (
 )
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
+from scenario.ssos_eclss_loop.integrity_guard import compare_configs, integrity_summary
 from scenario.ssos_eclss_loop.design_proposals import (
     APPROVE_PROVISIONAL_SIM_INFO,
     apply_design_proposals,
@@ -416,6 +417,15 @@ class SsosEclssLoopScenario(Scenario):
             agents_config=agents_config,
         )
 
+        # Before the first step: what does this run differ from the pristine
+        # scenario in, and is any of it the yardstick? Recorded whatever the
+        # answer, so the classification travels with the run rather than being
+        # reconstructed later from the config that produced it.
+        integrity = compare_configs(self.load_config(None), config)
+        (run_dir / "run_integrity.json").write_text(
+            json.dumps(integrity, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
         backend = build_eclss_backend(config, kind=backend_kind)
         team = self.build_team(config, agents_config=agents_config)
         log = EventLog(run_dir)
@@ -594,8 +604,9 @@ class SsosEclssLoopScenario(Scenario):
         # Canonical run measurement precedes design reasoning. The tool-use
         # designer therefore sees the same deterministic diagnosis used by the
         # dashboard, and candidate runs are evaluated identically.
+        summary["run_integrity"] = integrity_summary(integrity)
         summary = finalize_run_evaluation(
-            run_dir, scenario_config=config, summary=summary
+            run_dir, scenario_config=config, summary=summary, integrity=integrity
         )
 
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
