@@ -15,8 +15,10 @@ from typing import Any, Dict, Mapping, Optional
 
 from environment.ssos.eclss.plant_sim.stoichiometry import WATER_PER_O2
 from scenario.ssos_eclss_loop.evaluation import (
+    DECISION_MAX,
     OPERATIONAL_APPLIED,
     OPERATIONAL_REJECTED,
+    RESPONSE_MAX,
     _response_quality,
     evaluate_run,
 )
@@ -124,7 +126,9 @@ def reconcile_scheduler_semantics(
     latency_weight = float(((evaluation_config.get("actor_decision") or {}).get("latency_weight", 0.5)))
     latency_weight = max(0.0, min(1.0, latency_weight))
     metrics["validity_quality"] = round(validity, 6)
-    decision["score"] = round(10.0 * (latency_weight * latency + (1.0 - latency_weight) * validity), 6)
+    decision["score"] = round(
+        DECISION_MAX * (latency_weight * latency + (1.0 - latency_weight) * validity), 6
+    )
 
     response = axes.get("physical_response")
     if isinstance(response, dict):
@@ -139,18 +143,22 @@ def reconcile_scheduler_semantics(
                 {
                     "status": "not_observed",
                     "score": None,
-                    "max_score": 10,
+                    "max_score": RESPONSE_MAX,
                     "metrics": {"valid_operation_count": 0, "operations": []},
                 }
             )
         else:
             operations = [_response_quality(event, evaluation_config) for event in eligible]
-            score = 10.0 * sum(float(item.get("quality") or 0.0) for item in operations) / len(operations)
+            score = (
+                RESPONSE_MAX
+                * sum(float(item.get("quality") or 0.0) for item in operations)
+                / len(operations)
+            )
             response.update(
                 {
                     "status": "scored",
                     "score": round(score, 6),
-                    "max_score": 10,
+                    "max_score": RESPONSE_MAX,
                     "metrics": {"valid_operation_count": len(operations), "operations": operations},
                 }
             )
@@ -170,11 +178,37 @@ def compact_evaluation(payload: Mapping[str, Any]) -> Dict[str, Any]:
     recovery = axes.get("resource_recovery") if isinstance(axes.get("resource_recovery"), Mapping) else {}
     decision = axes.get("actor_decision") if isinstance(axes.get("actor_decision"), Mapping) else {}
     response = axes.get("physical_response") if isinstance(axes.get("physical_response"), Mapping) else {}
+    # Where the marks went, axis by axis. A total on its own tells a designer
+    # that something is wrong; this tells them what, which is the difference
+    # between changing the design and enlarging it at random.
+    breakdown = {
+        name: {
+            "score": axis.get("score"),
+            "max": axis.get("max_score"),
+            "status": axis.get("status"),
+        }
+        for name, axis in axes.items()
+        if isinstance(axis, Mapping)
+    }
+    lost = sorted(
+        (
+            (
+                round(float(a["max"]) - float(a["score"]), 3),
+                name,
+            )
+            for name, a in breakdown.items()
+            if isinstance(a.get("score"), (int, float)) and isinstance(a.get("max"), (int, float))
+        ),
+        reverse=True,
+    )
     return {
         "status": payload.get("status"),
         "physics_gate_passed": bool((payload.get("physics_gate") or {}).get("passed", False)),
         "score": scores.get("total"),
         "max_score": scores.get("max_score"),
+        "axes": breakdown,
+        # Biggest loss first, so the worst axis is the one that is read first.
+        "points_lost": [{"axis": name, "points": points} for points, name in lost if points > 0],
         "survival": survival.get("metrics"),
         "tcl": (axes.get("tcl") or {}).get("metrics") if isinstance(axes.get("tcl"), Mapping) else None,
         "environment": trajectory.get("metrics"),

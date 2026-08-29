@@ -93,7 +93,9 @@ design_constraints:
     # Documents the objective implemented in design_eval; any other value is
     # rejected when the scenario loads, so config and behaviour cannot drift.
     primary: require_full_survival  # clearance line: crew_remaining == crew_initial
-    secondary: minimize_resource_footprint  # then CRITICAL dwell → warning → mass → volume → cost
+    # Then the scorecard, and nothing else. Mass, cost and band dwell are marked
+    # inside it, so they are not compared a second time here.
+    secondary: maximize_evaluation_score
   budgets:
     # Soft caps used for labelling, not a pre-simulation hard stop (§8.1).
     max_total_mass_kg: 4000.0  # [kg] ARS + OGS + WRS installed mass
@@ -190,6 +192,12 @@ evaluation:
     success_weight: 1.0
     conversion_weight: 1.0
     sign_weight: 1.0
+  footprint:
+    # Where the cost and mass axes reach zero. Full marks at the sizing-model
+    # baseline (1800 kg / 259 MUSD); linear between. Exploration coefficients,
+    # not an estimate of a real machine.
+    cost_zero_score_musd: 750.0  # [MUSD] hardware + launch
+    mass_zero_score_kg: 5000.0  # [kg] ARS + OGS + WRS installed
   physics_gate:
     inventory_tolerance: 1.0e-9
     ledger_tolerance: 2.0e-6  # [kg or L] permits documented chemistry residual

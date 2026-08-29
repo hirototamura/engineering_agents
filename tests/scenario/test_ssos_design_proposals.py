@@ -419,15 +419,26 @@ def test_a_document_without_a_status_still_applies():
 # --------------------------------------------------------------------------- #
 # why one design beat another (spec §15, decision C)
 # --------------------------------------------------------------------------- #
-def _candidate(cid: str, *, warn: int, mass: float, crit: int = 0, eligible: bool = True) -> dict:
+def _candidate(
+    cid: str,
+    *,
+    warn: int,
+    mass: float,
+    crit: int = 0,
+    eligible: bool = True,
+    crew: int = 50,
+    score: float = 70.0,
+    max_score: float = 90.0,
+) -> dict:
     return {
         "candidate_id": cid,
         "final_eligible": eligible,
         "outcome": {
-            "crew_remaining": 50,
+            "crew_remaining": crew,
             "crew_initial": 50,
             "critical_step_count": crit,
             "warning_step_count": warn,
+            "evaluation_compact": {"score": score, "max_score": max_score},
         },
         "constraint_evaluation": {
             "total_mass_kg": mass,
@@ -437,33 +448,34 @@ def _candidate(cid: str, *, warn: int, mass: float, crit: int = 0, eligible: boo
     }
 
 
-def test_the_deciding_criterion_is_named_along_with_what_it_skipped():
-    """A heavier design can win on dwell alone, and its mass never be compared."""
+def test_the_scorecard_is_named_as_the_deciding_criterion():
+    """With everyone alive on both sides, the sheet is what is left to say."""
     from scenario.ssos_eclss_loop.design_eval import rank_rationale
 
     rationale = rank_rationale(
-        _candidate("candidate_001", warn=65, mass=4689.9),
-        _candidate("candidate_002", warn=69, mass=4196.2),
+        _candidate("candidate_001", warn=65, mass=4689.9, score=72.0),
+        _candidate("candidate_002", warn=69, mass=4196.2, score=64.8),
     )
 
-    assert rationale["decided_by"] == "warning_step_count"
-    assert rationale["winner_value"] == 65 and rationale["runner_up_value"] == 69
-    assert rationale["not_compared"] == [
-        "total_mass_kg",
-        "total_volume_m3",
-        "total_cost_musd",
-    ]
+    assert rationale["decided_by"] == "evaluation_score_pct"
+    assert rationale["winner_value"] == 80.0  # 72 of 90
+    assert rationale["runner_up_value"] == 72.0  # 64.8 of 90
+    # It is the last criterion, so nothing was skipped over.
+    assert rationale["not_compared"] == []
 
 
-def test_mass_decides_when_the_dwell_is_equal():
-    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+def test_dwell_and_mass_are_no_longer_criteria_at_all():
+    """They are marked inside the score; they are not compared beside it."""
+    from scenario.ssos_eclss_loop.design_eval import RANK_CRITERIA, rank_rationale
 
+    assert RANK_CRITERIA == ("final_eligible", "crew_remaining", "evaluation_score_pct")
+
+    # Wildly different dwell and mass, identical score: nothing decides.
     rationale = rank_rationale(
-        _candidate("candidate_002", warn=65, mass=4196.2),
-        _candidate("candidate_001", warn=65, mass=4689.9),
+        _candidate("candidate_002", warn=1, mass=1900.0, score=70.0),
+        _candidate("candidate_001", warn=67, mass=5800.0, score=70.0),
     )
-    assert rationale["decided_by"] == "total_mass_kg"
-    assert rationale["not_compared"] == ["total_volume_m3", "total_cost_musd"]
+    assert rationale["decided_by"] is None
 
 
 def test_eligibility_decides_before_anything_else():

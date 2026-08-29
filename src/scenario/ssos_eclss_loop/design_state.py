@@ -29,13 +29,25 @@ from scenario.ssos_eclss_loop.design_variables import CAPACITY_KEYS
 # before hashing is what makes "23.92" and "23.920000000000002" one candidate.
 FIELD_PRECISION = 6
 
+# How many people came back, and nothing else raw. Dwell counts, peaks and
+# minima are no longer shown on their own: they are marked inside the score,
+# and shown twice they compete with it. A run where the peak was identical
+# across every design ever built -- because it happened while the machine was
+# switched off -- was read as "still not enough capacity" thirty-eight times in
+# a row, which is what showing an unmoving number as a design metric buys.
 OUTCOME_KEYS = (
     "crew_initial",
     "crew_remaining",
-    "critical_step_count",
-    "warning_step_count",
-    "peak_co2_storage_kg",
-    "min_o2_storage_kg",
+)
+
+
+OBJECTIVE_NOTE = (
+    "Two things decide the ranking, in this order: every occupant must come back "
+    "alive, then the scorecard. Nothing else is compared -- mass, cost and time "
+    "spent in the warning bands are marked inside the score, so a heavier machine "
+    "has to earn its weight back on some other axis. Read 'worst_axes' to see "
+    "where a design lost its marks; a low score is a statement about what to "
+    "change, not a request for more capacity."
 )
 
 
@@ -94,10 +106,9 @@ def _candidate_view(record: Mapping[str, Any]) -> Dict[str, Any]:
         "candidate_id": record.get("candidate_id"),
         "fields": normalize_fields(record.get("fields") or {}),
         "simulated": bool(record.get("simulated")),
+        # Kept because it says whether the machine can be built at all, which is
+        # not a matter of degree and so cannot be a score.
         "constraint_status": constraints.get("constraint_status"),
-        "mass_kg": constraints.get("total_mass_kg"),
-        "volume_m3": constraints.get("total_volume_m3"),
-        "cost_musd": constraints.get("total_cost_musd"),
     }
     for key in OUTCOME_KEYS:
         if outcome.get(key) is not None:
@@ -105,9 +116,44 @@ def _candidate_view(record: Mapping[str, Any]) -> Dict[str, Any]:
     view["physics_gate"] = outcome.get("physics_gate_status") or (
         "passed" if outcome.get("physics_gate_passed") else None
     )
+    view["scorecard"] = _scorecard(outcome)
     if record.get("error"):
         view["error"] = record["error"]
     return view
+
+
+def _scorecard(outcome: Mapping[str, Any]) -> Dict[str, Any]:
+    """The marks, and where they were lost.
+
+    The total says a design is worse; the breakdown says why. Without the
+    second half the only move available is to make the machine bigger, which
+    is what a designer given only a total actually does.
+    """
+    compact = outcome.get("evaluation_compact") if isinstance(outcome, Mapping) else None
+    if not isinstance(compact, Mapping):
+        return {"status": "unscored"}
+    total = compact.get("score")
+    maximum = compact.get("max_score")
+    card: Dict[str, Any] = {
+        "status": compact.get("status"),
+        "score": total,
+        "max_score": maximum,
+    }
+    if isinstance(total, (int, float)) and isinstance(maximum, (int, float)) and maximum:
+        # Runs can be marked out of 100 or out of 90, so the share is the part
+        # that compares between them.
+        card["percent"] = round(100.0 * float(total) / float(maximum), 2)
+    axes = compact.get("axes")
+    if isinstance(axes, Mapping):
+        card["axes"] = {
+            name: {"score": axis.get("score"), "max": axis.get("max")}
+            for name, axis in axes.items()
+            if isinstance(axis, Mapping)
+        }
+    lost = compact.get("points_lost")
+    if isinstance(lost, list) and lost:
+        card["worst_axes"] = lost[:3]
+    return card
 
 
 def current_best(candidates: Sequence[Mapping[str, Any]]) -> Optional[str]:
@@ -179,7 +225,9 @@ def build_design_state(
         baseline["subsystem_stress"] = stress
 
     views = [_candidate_view(record) for record in candidates]
+    baseline["scorecard"] = _scorecard(baseline_outcome)
     return {
+        "objective": OBJECTIVE_NOTE,
         "baseline": baseline,
         "installed_capacity": _installed(scenario_config),
         "theoretical_capacity": _capacity_need(theory),
@@ -193,6 +241,7 @@ def build_design_state(
 
 __all__ = [
     "FIELD_PRECISION",
+    "OBJECTIVE_NOTE",
     "build_design_state",
     "candidate_hash",
     "current_best",

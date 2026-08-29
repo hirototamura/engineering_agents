@@ -199,37 +199,60 @@ def _as_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def evaluation_total(record: Mapping[str, Any]) -> Optional[float]:
+    """The candidate's score out of its own applicable maximum, as a percentage.
+
+    Runs can be marked out of 100 or out of 90 depending on whether anyone was
+    operating the station, so raw totals from different runs are not comparable.
+    The share of what was applicable is.
+    """
+    compact = (record.get("outcome") or {}).get("evaluation_compact") or {}
+    total = compact.get("score")
+    maximum = compact.get("max_score")
+    if not isinstance(total, (int, float)) or not isinstance(maximum, (int, float)):
+        return None
+    if float(maximum) <= 0:
+        return None
+    return 100.0 * float(total) / float(maximum)
+
+
 def candidate_rank_key(record: Mapping[str, Any]) -> tuple:
-    """Ascending sort key implementing the lexicographic objective."""
+    """Ascending sort key: everyone alive, then the scorecard. Nothing else.
+
+    Dwell time, mass, volume and cost used to be separate tie-breaks below
+    survival. That let a design win on a handful of calm steps and never have
+    its mass compared at all -- one observed run adopted a machine 1210 kg and
+    184 MUSD heavier because it spent six fewer steps in the warning band.
+
+    All of those now live inside the score, weighted against each other on one
+    sheet, so there is one question after survival: how did this design do?
+    """
     outcome = record.get("outcome") or {}
-    constraints = record.get("constraint_evaluation") or {}
+    score = evaluation_total(record)
     return (
         not bool(record.get("final_eligible")),
         # Every eligible candidate keeps the whole crew alive, so this key only
         # orders the ineligible ones among themselves (report readability).
         -_as_int(outcome.get("crew_remaining"), -1),
-        _as_int(outcome.get("critical_step_count"), 10**6),
-        _as_int(outcome.get("warning_step_count"), 10**6),
-        _as_float(constraints.get("total_mass_kg"), float("inf")),
-        _as_float(constraints.get("total_volume_m3"), float("inf")),
-        _as_float(constraints.get("total_cost_musd"), float("inf")),
+        # Unscored last: a design whose evaluation could not be produced has not
+        # shown anything, and must not outrank one that has.
+        -(score if score is not None else -1.0),
     )
 
 
 RANK_CRITERIA = (
     "final_eligible",
     "crew_remaining",
-    "critical_step_count",
-    "warning_step_count",
-    "total_mass_kg",
-    "total_volume_m3",
-    "total_cost_musd",
+    "evaluation_score_pct",
 )
 
 
 def _criterion_value(record: Mapping[str, Any], criterion: str) -> Any:
     if criterion == "final_eligible":
         return bool(record.get("final_eligible"))
+    if criterion == "evaluation_score_pct":
+        score = evaluation_total(record)
+        return None if score is None else round(score, 3)
     outcome = record.get("outcome") or {}
     if criterion in outcome:
         return outcome.get(criterion)
@@ -242,10 +265,10 @@ def rank_rationale(
     """Which criterion actually decided the order, and by how much.
 
     The objective is lexicographic, so the winner is settled by the first
-    criterion where two candidates differ -- and the criteria after it are never
-    consulted. That is worth stating: a design can win on four fewer warning
-    steps and never have its mass compared at all, which is the kind of trade a
-    human should see rather than have to reconstruct.
+    criterion where two candidates differ, and later criteria are never
+    consulted. With survival and the scorecard as the only two criteria there
+    is little left to hide, but saying which one decided still tells a reader
+    whether a design won on keeping people alive or on the sheet.
     """
     if runner_up is None:
         return {
@@ -397,13 +420,14 @@ def select_final_candidate(
             "requires_supervisor_approval": True,
         }
 
+    score = evaluation_total(best)
+    score_text = f"{score:.2f}% of the applicable score" if score is not None else "unscored"
     return {
         "final_status": STATUS_APPROVED,
         "selected_candidate_id": best.get("candidate_id"),
         "reason": (
-            f"full survival ({crew}/{crew_initial}) with the least CRITICAL dwell "
-            f"then the smallest footprint among ranked candidates, inside the documented "
-            f"budgets"
+            f"full survival ({crew}/{crew_initial}) and the best scorecard among ranked "
+            f"candidates ({score_text}), inside the documented budgets"
         ),
         "requires_supervisor_approval": False,
     }
@@ -415,6 +439,7 @@ __all__ = [
     "STATUS_REJECTED",
     "band_counts",
     "candidate_rank_key",
+    "evaluation_total",
     "evaluate_run_outcome",
     "mark_final_eligibility",
     "occupant_count",

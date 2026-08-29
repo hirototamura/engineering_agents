@@ -47,12 +47,12 @@ from scenario.ssos_eclss_loop.design_variables import (
 SIZING_MODE = "rack_affine_linear_v1"
 
 # The objective is implemented in :mod:`design_eval` (full survival clears, then
-# less CRITICAL dwell, then the smallest footprint). ``design_constraints.objective``
-# in scenario.yaml documents it; any other value is a config/behaviour mismatch
-# and is rejected at load time rather than silently ignored.
+# the scorecard). ``design_constraints.objective`` in scenario.yaml documents it;
+# any other value is a config/behaviour mismatch and is rejected at load time
+# rather than silently ignored.
 SUPPORTED_OBJECTIVES: Dict[str, Tuple[str, ...]] = {
     "primary": ("require_full_survival",),
-    "secondary": ("minimize_resource_footprint",),
+    "secondary": ("maximize_evaluation_score",),
 }
 
 STATUS_FEASIBLE = "feasible"
@@ -151,7 +151,7 @@ def _merge_affine(
 class DesignConstraints:
     enabled: bool = True
     objective_primary: str = "require_full_survival"
-    objective_secondary: str = "minimize_resource_footprint"
+    objective_secondary: str = "maximize_evaluation_score"
     budgets: Dict[str, float] = field(default_factory=lambda: dict(DEFAULT_BUDGETS))
     bounds: Dict[str, Dict[str, float]] = field(
         default_factory=lambda: {k: dict(v) for k, v in DEFAULT_BOUNDS.items()}

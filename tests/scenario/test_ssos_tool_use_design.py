@@ -464,3 +464,50 @@ def test_the_fallback_records_its_tool_calls_as_its_own(baseline: Path):
     assert sources["propose_capacity_candidate"] == "rule_fallback"
     assert sources["run_design_candidate"] == "rule_fallback"
     assert sources["compare_design_runs"] == "rule_fallback"
+
+
+# --------------------------------------------------------------------------- #
+# what the designer is shown
+# --------------------------------------------------------------------------- #
+def test_the_designer_is_shown_the_scorecard_and_where_it_lost_marks(baseline: Path):
+    """A total alone leaves only one move: make the machine bigger.
+
+    An observed ten-round chain grew the design fifteen-fold and still lost
+    thirteen occupants, because the numbers it was shown said "not enough" and
+    nothing said what was actually wrong.
+    """
+    llm = _ScriptedLlm([_propose(**{ARS: 25.0}), _finish()])
+    _agent(llm).propose(_bundle(baseline))
+
+    states = _events(baseline, "design_state")
+    card = states[0]["state"]["baseline"]["scorecard"]
+    assert card["status"] in {"scored", "incomplete", "invalid", "unscored"}
+    if card.get("axes"):
+        assert "mass" in card["axes"] and "cost" in card["axes"]
+
+
+def test_dwell_and_footprint_are_not_shown_beside_the_score(baseline: Path):
+    """Shown twice, they compete with the sheet that already weighs them."""
+    llm = _ScriptedLlm([_propose(**{ARS: 25.0}), _finish()])
+    _agent(llm).propose(_bundle(baseline))
+
+    state = _events(baseline, "design_state")[-1]["state"]
+    for view in state["candidates"]:
+        assert "mass_kg" not in view
+        assert "cost_musd" not in view
+        assert "volume_m3" not in view
+        assert "warning_step_count" not in view
+        # A peak that was identical across every design ever built was read as
+        # "still not enough capacity" thirty-eight times; it is not shown raw.
+        assert "peak_co2_storage_kg" not in view
+        # Whether it can be built at all is not a matter of degree, so it stays.
+        assert "constraint_status" in view
+
+
+def test_the_designer_is_told_what_the_ranking_asks_of_it(baseline: Path):
+    llm = _ScriptedLlm([_finish()])
+    _agent(llm).propose(_bundle(baseline))
+
+    state = _events(baseline, "design_state")[0]["state"]
+    assert "scorecard" in state["objective"]
+    assert "worst_axes" in state["objective"]

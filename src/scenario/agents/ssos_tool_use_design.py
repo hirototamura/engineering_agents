@@ -70,10 +70,14 @@ _RESULT_EXCERPT_CHARS = 8000
 EXPERT_CONTEXT_PACK = """\
 ### Expert context pack (domain minimum, not a procedure)
 - Objective: every occupant must survive — a design that loses one is never adopted,
-  whatever it saves. Among designs where crew_remaining == crew_initial, less CRITICAL
-  dwell wins before mass, then volume, then cost. A light machine that lives in a
-  dangerous band loses to a heavier calm one. So do not stop at the first design
-  that works; find the calmest, then smallest, that still works.
+  whatever it saves. Among designs where everyone comes back, the scorecard decides,
+  and nothing else is compared. Mass, cost, and time spent in the warning bands are
+  all marked inside that score, so a heavier machine has to earn its weight back
+  somewhere else on the sheet. So do not stop at the first design that works; read
+  where the score was lost and aim at that.
+- A low score is a statement about what to change, not a request for more capacity.
+  Each candidate reports which axes lost the most marks. Growing a subsystem that is
+  already covering its demand costs marks on mass and cost and buys nothing.
 - Capacity is not free and not one-way. Spare throughput is mass, volume and cost the
   station carries for nothing, so sizing a subsystem *down* is a legitimate design
   move — the candidate re-simulation is what tells you whether it was too far.

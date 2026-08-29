@@ -38,6 +38,7 @@ def _candidate(
     status: str = "feasible",
     gate: bool = True,
     rank: int = 1,
+    score: float = 70.0,
 ) -> dict:
     return {
         "rank": rank,
@@ -48,6 +49,7 @@ def _candidate(
         "crew_initial": crew_initial,
         "critical_step_count": critical,
         "warning_step_count": warning,
+        "evaluation_compact": {"score": score, "max_score": 90.0},
         "physics_gate_passed": gate,
         "constraint_status": status,
         "total_mass_kg": mass,
@@ -126,20 +128,20 @@ def test_every_candidate_is_considered_not_only_each_iterations_winner(tmp_path:
         chain,
         1,
         [
-            _candidate("candidate_001", ars=60.0, crew_remaining=50, mass=6000.0, rank=1),
+            _candidate("candidate_001", ars=60.0, crew_remaining=50, score=61.0, rank=1),
             # Ranked second inside its own iteration only because that run
-            # never saw the lighter design below.
-            _candidate("candidate_002", ars=52.0, crew_remaining=50, mass=4200.0, rank=2),
+            # never saw the better-scoring design below.
+            _candidate("candidate_002", ars=52.0, crew_remaining=50, score=78.0, rank=2),
         ],
     )
-    _iteration(chain, 2, [_candidate("candidate_001", ars=55.0, crew_remaining=50, mass=5000.0)])
+    _iteration(chain, 2, [_candidate("candidate_001", ars=55.0, crew_remaining=50, score=70.0)])
 
     answer = select_chain_final_answer([chain / "01", chain / "02"])
 
     assert answer["candidates_considered"] == 3
-    # Same crew, same dwell, so mass decides: the lightest of the three.
+    # Everyone alive in all three, so the scorecard decides.
     assert answer["selected"]["chain_candidate_id"] == "i1/candidate_002"
-    assert answer["decided_by"]["decided_by"] == "total_mass_kg"
+    assert answer["decided_by"]["decided_by"] == "evaluation_score_pct"
 
 
 def test_candidate_ids_are_qualified_by_iteration(tmp_path: Path):
