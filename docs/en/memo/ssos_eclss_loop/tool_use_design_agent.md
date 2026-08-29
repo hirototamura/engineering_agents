@@ -341,6 +341,33 @@ It is now written once. `summary.evaluation_score`, `summary.evaluation_compact.
 
 `tool_trace.jsonl` is no longer the designer's memory — the DesignState is. It stays as the record a person reads afterwards.
 
+### What the record holds
+
+| event | contents |
+| --- | --- |
+| `llm_turn` | One question and its whole answer: `message`, `reasoning`, `thinking`, `raw_excerpt` |
+| `decision` | How that answer was read: `choice` (`propose_candidate` or `finish`) and `rationale` |
+| `tool_call` | Work the code did. `source` says which stage asked for it |
+| `candidate_evaluated` | One candidate's verified result, and the leader at that moment |
+
+**Nothing the model said is clipped.** It used to be cut at 400 characters, which
+made it impossible to read afterwards why a sizing was chosen — the one reason
+the record exists. It is kept whole.
+
+`thinking` lives in a different place depending on the provider (a dedicated
+field, the parsed object, `<think>` tags in the text), so all three are read and
+merged rather than picked between.
+
+`source` names **which stage** made the call, not the model: the model no longer
+chooses tools, so filing these under it would misdescribe the run. Three values:
+`evidence` (the fixed first read), `pipeline` (verifying one candidate),
+`rule_fallback` (the deterministic sizing).
+
+The same turns appear in `design_review_report.json` as `thinking_turns` and in
+`design_proposals.json` as `deliberation_messages`, one row per exchange.
+Previously only the closing statement survived, and the argument that reached it
+was lost.
+
 ## Configuration
 
 ```yaml

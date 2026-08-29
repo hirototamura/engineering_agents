@@ -340,6 +340,28 @@ LLM 設計提案を自動承認する（INFO を出す）。監督ゲートを�
 
 `tool_trace.jsonl` は designer の記憶ではなくなった（記憶は DesignState）。人が後から読む記録として残している。
 
+### 記録に何が残るか
+
+| event | 中身 |
+| --- | --- |
+| `llm_turn` | 1 回の問いと答え。`message` / `reasoning` / `thinking` / `raw_excerpt` |
+| `decision` | その答えの解釈。`choice`（`propose_candidate` か `finish`）と `rationale` |
+| `tool_call` | コードが回した処理。`source` がどの段階のものかを言う |
+| `candidate_evaluated` | 候補 1 本の検証結果と、その時点の暫定 1 位 |
+
+**発話は切り詰めない。** 以前は 400 字で切っていたので、なぜその寸法にしたのかが後から読めなかった。
+記録を残す唯一の理由がそれなので、丸ごと残す。
+
+`thinking` は provider によって置き場所が違う（専用フィールド / パース結果 / 本文中の `<think>` タグ）ので、
+3 つとも見て 1 つにまとめている。
+
+`source` はモデルではなく**どの段階が呼んだか**を言う。モデルはもう道具を選ばないので、
+モデルの呼び出しとして記録すると嘘になる。`evidence`（最初の読み取り）/ `pipeline`（候補 1 本の検証）/
+`rule_fallback`（決定論フォールバックの寸法出し）の 3 つ。
+
+`design_review_report.json` の `thinking_turns` と `design_proposals.json` の `deliberation_messages` にも
+同じものが 1 ターン 1 行で入る。以前は最後の結論しか残らず、そこに至った議論が消えていた。
+
 ## 設定
 
 ```yaml
