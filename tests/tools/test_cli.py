@@ -967,3 +967,68 @@ def test_iterate_exits_nonzero_when_a_chained_run_fails(monkeypatch, tmp_path: P
     )
     assert result.exit_code == 1
     assert "iteration 2 failed" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# the chain's final answer reaches the terminal
+# --------------------------------------------------------------------------- #
+def _chain_summary_with(final_answer: dict) -> dict:
+    return {
+        "verdict": "IMPROVED",
+        "crew_remaining_first": 29,
+        "crew_remaining_last": 50,
+        "crew_remaining_baseline_replay": 29,
+        "crew_remaining_final_replay": 50,
+        "claim": "unified design applied across chained sims",
+        "final_answer": final_answer,
+    }
+
+
+def test_the_terminal_names_the_design_the_chain_answers_with(capsys):
+    from tools.cli.output import print_chain_summary
+
+    print_chain_summary(
+        _chain_summary_with(
+            {
+                "status": "provisional_final",
+                "selected_candidate_id": "i1/candidate_002",
+                "iteration": 1,
+                "fields": {"plant_sim.ars.capacity_kg_day": 52.0},
+                "crew_remaining": 50,
+                "crew_initial": 50,
+                "reason": "over budget",
+                "requires_supervisor_approval": True,
+                "candidates_considered": 7,
+                "path": "chain/chain_final_answer.json",
+            }
+        ),
+        skip_runs_table=True,
+    )
+    out = capsys.readouterr().out
+    assert "Final answer" in out
+    assert "i1/candidate_002" in out
+    assert "50/50" in out
+    assert "needs a human to approve" in out
+
+
+def test_the_terminal_says_when_the_chain_has_no_design_to_hand_over(capsys):
+    """Not silence, and not the verdict standing in for an answer."""
+    from tools.cli.output import print_chain_summary
+
+    print_chain_summary(
+        _chain_summary_with(
+            {
+                "status": "rejected_final",
+                "selected_candidate_id": None,
+                "reason": "no candidate keeps every occupant alive within the bounds",
+                "candidates_considered": 7,
+                "path": "chain/chain_final_answer.json",
+            }
+        ),
+        skip_runs_table=True,
+    )
+    out = capsys.readouterr().out
+    # The chain improved. It still has nothing to build, and says so.
+    assert "IMPROVED" in out
+    assert "rejected_final" in out
+    assert "no candidate keeps every occupant alive" in out
