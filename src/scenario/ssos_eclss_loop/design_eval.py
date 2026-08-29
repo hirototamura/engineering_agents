@@ -216,6 +216,65 @@ def candidate_rank_key(record: Mapping[str, Any]) -> tuple:
     )
 
 
+RANK_CRITERIA = (
+    "final_eligible",
+    "crew_remaining",
+    "critical_step_count",
+    "warning_step_count",
+    "total_mass_kg",
+    "total_volume_m3",
+    "total_cost_musd",
+)
+
+
+def _criterion_value(record: Mapping[str, Any], criterion: str) -> Any:
+    if criterion == "final_eligible":
+        return bool(record.get("final_eligible"))
+    outcome = record.get("outcome") or {}
+    if criterion in outcome:
+        return outcome.get(criterion)
+    return (record.get("constraint_evaluation") or {}).get(criterion)
+
+
+def rank_rationale(
+    winner: Mapping[str, Any], runner_up: Optional[Mapping[str, Any]]
+) -> Dict[str, Any]:
+    """Which criterion actually decided the order, and by how much.
+
+    The objective is lexicographic, so the winner is settled by the first
+    criterion where two candidates differ -- and the criteria after it are never
+    consulted. That is worth stating: a design can win on four fewer warning
+    steps and never have its mass compared at all, which is the kind of trade a
+    human should see rather than have to reconstruct.
+    """
+    if runner_up is None:
+        return {
+            "decided_by": None,
+            "detail": "only one candidate was simulated",
+        }
+    for criterion in RANK_CRITERIA:
+        left = _criterion_value(winner, criterion)
+        right = _criterion_value(runner_up, criterion)
+        if left == right:
+            continue
+        return {
+            "decided_by": criterion,
+            "winner": winner.get("candidate_id"),
+            "winner_value": left,
+            "runner_up": runner_up.get("candidate_id"),
+            "runner_up_value": right,
+            "not_compared": [
+                name
+                for name in RANK_CRITERIA[RANK_CRITERIA.index(criterion) + 1 :]
+                if _criterion_value(winner, name) is not None
+            ],
+        }
+    return {
+        "decided_by": None,
+        "detail": "candidates are equal on every criterion; original order kept",
+    }
+
+
 def rank_candidates(records: Iterable[Mapping[str, Any]]) -> List[Dict[str, Any]]:
     """Sort candidate records best-first and stamp ``rank`` on each."""
     ranked = sorted((dict(r) for r in records), key=candidate_rank_key)
@@ -361,5 +420,7 @@ __all__ = [
     "occupant_count",
     "rank_candidates",
     "read_summary",
+    "RANK_CRITERIA",
+    "rank_rationale",
     "select_final_candidate",
 ]

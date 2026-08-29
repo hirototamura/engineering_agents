@@ -29,6 +29,7 @@ from scenario.ssos_eclss_loop.design_eval import (
     evaluate_run_outcome,
     mark_final_eligibility,
     rank_candidates,
+    rank_rationale,
     select_final_candidate,
 )
 from scenario.ssos_eclss_loop.design_variables import (
@@ -1169,6 +1170,12 @@ class DesignToolkit:
             )
         ranked = rank_candidates(simulated)
         selection = select_final_candidate(ranked, baseline_outcome=self.baseline_outcome)
+        # Say which criterion settled it. The objective is lexicographic, so
+        # the criteria below the deciding one were never consulted, and a
+        # reader should not have to work that out from the numbers.
+        selection["rank_rationale"] = rank_rationale(
+            ranked[0], ranked[1] if len(ranked) > 1 else None
+        )
         self._ranked = ranked
         self._selection = selection
         return {

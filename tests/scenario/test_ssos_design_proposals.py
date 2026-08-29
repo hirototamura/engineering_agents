@@ -414,3 +414,71 @@ def test_a_document_without_a_status_still_applies():
         _capacity_document(),
     )
     assert merged["plant_sim"]["ars"]["capacity_kg_day"] == 30.0
+
+
+# --------------------------------------------------------------------------- #
+# why one design beat another (spec §15, decision C)
+# --------------------------------------------------------------------------- #
+def _candidate(cid: str, *, warn: int, mass: float, crit: int = 0, eligible: bool = True) -> dict:
+    return {
+        "candidate_id": cid,
+        "final_eligible": eligible,
+        "outcome": {
+            "crew_remaining": 50,
+            "crew_initial": 50,
+            "critical_step_count": crit,
+            "warning_step_count": warn,
+        },
+        "constraint_evaluation": {
+            "total_mass_kg": mass,
+            "total_volume_m3": mass / 280.0,
+            "total_cost_musd": mass / 6.7,
+        },
+    }
+
+
+def test_the_deciding_criterion_is_named_along_with_what_it_skipped():
+    """A heavier design can win on dwell alone, and its mass never be compared."""
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(
+        _candidate("candidate_001", warn=65, mass=4689.9),
+        _candidate("candidate_002", warn=69, mass=4196.2),
+    )
+
+    assert rationale["decided_by"] == "warning_step_count"
+    assert rationale["winner_value"] == 65 and rationale["runner_up_value"] == 69
+    assert rationale["not_compared"] == [
+        "total_mass_kg",
+        "total_volume_m3",
+        "total_cost_musd",
+    ]
+
+
+def test_mass_decides_when_the_dwell_is_equal():
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(
+        _candidate("candidate_002", warn=65, mass=4196.2),
+        _candidate("candidate_001", warn=65, mass=4689.9),
+    )
+    assert rationale["decided_by"] == "total_mass_kg"
+    assert rationale["not_compared"] == ["total_volume_m3", "total_cost_musd"]
+
+
+def test_eligibility_decides_before_anything_else():
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(
+        _candidate("candidate_001", warn=99, mass=9999.0),
+        _candidate("candidate_002", warn=1, mass=100.0, eligible=False),
+    )
+    assert rationale["decided_by"] == "final_eligible"
+
+
+def test_a_lone_candidate_has_nothing_to_be_decided_against():
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(_candidate("candidate_001", warn=65, mass=4689.9), None)
+    assert rationale["decided_by"] is None
+    assert "only one candidate" in rationale["detail"]
