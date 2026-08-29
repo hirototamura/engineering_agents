@@ -238,6 +238,47 @@ def print_chain_summary(
     if chain_summary.get("stopped_reason"):
         lines.append(f"stopped: {chain_summary['stopped_reason']}")
     console.print(Panel("\n".join(lines), title="Chain", border_style="cyan"))
+    print_chain_final_answer(chain_summary)
+
+
+def print_chain_final_answer(chain_summary: Dict[str, Any]) -> None:
+    """The design the chain answers with, or why it has none.
+
+    Shown apart from the verdict on purpose. The verdict is about the chain --
+    did it get anywhere -- and a chain can improve without ever reaching a
+    design worth building. Printing the two together invites reading the first
+    as the second.
+    """
+    answer = chain_summary.get("final_answer")
+    if not isinstance(answer, dict):
+        return
+    status = str(answer.get("status") or "")
+    lines = [f"status: {status}"]
+    if answer.get("selected_candidate_id"):
+        crew = answer.get("crew_remaining")
+        crew_initial = answer.get("crew_initial")
+        lines.append(
+            f"design: {answer['selected_candidate_id']} "
+            f"(iteration {answer.get('iteration')}) keeping {crew}/{crew_initial}"
+        )
+        fields = answer.get("fields")
+        if isinstance(fields, dict):
+            lines.append(
+                "sizing: " + ", ".join(f"{key} = {value}" for key, value in fields.items())
+            )
+    if answer.get("reason"):
+        lines.append(f"reason: {answer['reason']}")
+    considered = answer.get("candidates_considered")
+    if considered is not None:
+        lines.append(f"chosen from {considered} candidate(s) across the chain")
+    if answer.get("requires_supervisor_approval"):
+        lines.append("needs a human to approve before it can be applied")
+    if answer.get("path"):
+        lines.append(str(answer["path"]))
+    # Red when the chain has no design to hand over: that is a result to read,
+    # not a detail to skim past.
+    border = "green" if answer.get("selected_candidate_id") else "red"
+    console.print(Panel("\n".join(lines), title="Final answer", border_style=border))
 
 
 def print_error(message: str, *, hint: Optional[str] = None) -> None:

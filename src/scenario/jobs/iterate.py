@@ -13,6 +13,10 @@ from typing import Any, Dict, List, Mapping, Optional
 from scenario.jobs.executor import execute_run
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunResult, RunSpec
+from scenario.ssos_eclss_loop.chain_selection import (
+    select_chain_final_answer,
+    write_chain_final_answer,
+)
 from scenario.ssos_eclss_loop.design_proposals import (
     load_design_proposals,
     supervisor_approval_reasons,
@@ -264,6 +268,11 @@ def run_design_iterate(
     Generation stays on the unified post-run designer. Run N verifies proposal N-1.
     The last run's newly emitted proposals are recorded but not simulated.
     Verdict comes from paired baseline/final replays.
+
+    The verdict says whether the chain moved; it does not say what to build.
+    That comes from :func:`select_chain_final_answer`, which ranks every
+    candidate every iteration simulated -- see ``chain_selection`` for why the
+    last iteration's preference is not allowed to be the answer on its own.
     """
     if iterations < 1:
         raise ValueError("iterations must be >= 1")
@@ -434,6 +443,14 @@ def run_design_iterate(
         final_remaining=final_remaining,
     )
 
+    # Over every iteration that completed, including ones the chain moved on
+    # from. A run that stopped early still had iterations before it, and a
+    # design found in one of those is still a design.
+    final_answer = select_chain_final_answer(
+        [Path(str(row["run_dir"])) for row in runs if row.get("exit_code") == 0]
+    )
+    final_answer_path = write_chain_final_answer(chain_dir, final_answer)
+
     chain_summary = {
         "scenario": ITERATE_SCENARIO,
         "iterations_requested": iterations,
@@ -455,6 +472,20 @@ def run_design_iterate(
         "seed": base_spec.seed,
         "approve_provisional": base_spec.approve_provisional,
         "design_llm": design_llm_provenance(base_spec.overrides),
+        "final_answer": {
+            "status": final_answer.get("status"),
+            "selected_candidate_id": (final_answer.get("selected") or {}).get(
+                "chain_candidate_id"
+            ),
+            "iteration": (final_answer.get("selected") or {}).get("iteration"),
+            "fields": (final_answer.get("selected") or {}).get("fields"),
+            "crew_remaining": (final_answer.get("selected") or {}).get("crew_remaining"),
+            "crew_initial": (final_answer.get("selected") or {}).get("crew_initial"),
+            "reason": final_answer.get("reason"),
+            "requires_supervisor_approval": final_answer.get("requires_supervisor_approval"),
+            "candidates_considered": final_answer.get("candidates_considered"),
+            "path": str(final_answer_path),
+        },
         "runs": runs,
         "replay_runs": replay_runs,
     }
@@ -479,6 +510,11 @@ def run_design_iterate(
                 "crew_remaining_final_replay": final_remaining,
                 "iterations_completed": completed,
                 "chain_summary_path": str(chain_dir / "chain_summary.json"),
+                "final_answer_status": final_answer.get("status"),
+                "final_answer_candidate_id": (final_answer.get("selected") or {}).get(
+                    "chain_candidate_id"
+                ),
+                "final_answer_path": str(final_answer_path),
             },
             ensure_ascii=False,
             indent=2,

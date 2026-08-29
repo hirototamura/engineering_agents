@@ -342,3 +342,40 @@ def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
         approve_provisional=True,
     )
     assert approved is not None
+
+
+def test_the_chain_writes_a_final_answer_beside_its_verdict(tmp_path: Path):
+    """A chain that improved still has to say what to build, or that it cannot.
+
+    The verdict answers "did this get anywhere". It is not an answer to "what
+    do we build", and a run that reports only the verdict leaves the reader to
+    guess which design it meant.
+    """
+    chain_dir = tmp_path / "chain"
+    summary = run_design_iterate(
+        iterations=2,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=_labeled_overrides(backend="mock", steps=4),
+        ),
+        paired_replay=False,
+    )
+
+    answer_path = chain_dir / "chain_final_answer.json"
+    assert answer_path.exists()
+    answer = json.loads(answer_path.read_text(encoding="utf-8"))
+    assert answer["iterations_considered"] == 2
+    assert answer["status"] in {
+        "approved_final",
+        "provisional_final",
+        "rejected_final",
+        "not_comparable",
+    }
+    # Whatever it decided, the chain summary carries it and points at the file.
+    assert summary["final_answer"]["status"] == answer["status"]
+    assert Path(summary["final_answer"]["path"]) == answer_path
+    # A design is only handed over if it kept everyone alive.
+    selected = answer.get("selected")
+    if selected is not None:
+        assert selected["crew_remaining"] == selected["crew_initial"]
