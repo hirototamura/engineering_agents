@@ -6,7 +6,7 @@
 
 用語は **actor**（シミュレーション内の運用エージェント）と **designer**（ラン終了後の設計エージェント）。
 
-> **新しい経路**: `design.mode: llm` かつ `design.tool_use.enabled: true`（現行の既定）では、ここで説明する designer は Tool Use 処理能力 designer に置き換わる → [tool_use_design_agent.md](tool_use_design_agent.md)。以下は `labeled_rule_base` と `tool_use.enabled: false` に引き続き適用される。
+> **新しい経路**: `design.mode: llm` かつ `design.tool_use.enabled: true`（現行の既定）では、ここで説明する designer は設計判断ループの処理能力 designer に置き換わる → [tool_use_design_agent.md](tool_use_design_agent.md)。以下は `labeled_rule_base` と `tool_use.enabled: false` に引き続き適用される。
 
 ## ステータス（プラン todos）
 
