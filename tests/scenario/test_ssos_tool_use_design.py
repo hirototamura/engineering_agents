@@ -102,16 +102,20 @@ def _bundle(run_dir: Path) -> DesignReviewBundle:
 
 
 def _agent(llm, **settings) -> ToolUseDesignAgent:
+    # Roomier than the shipped defaults so a test can exercise several rounds
+    # without restating them; any of these can be overridden per test.
+    defaults = {
+        "max_candidate_runs": 2,
+        "max_decisions": 5,
+        "max_llm_calls": 5,
+        "plots_enabled": False,
+        "candidate_steps": 12,
+    }
+    defaults.update(settings)
     return ToolUseDesignAgent(
         agent_id="eclss_designer_1",
         persona="test designer",
-        settings=ToolUseSettings(
-            enabled=True,
-            max_candidate_runs=2,
-            plots_enabled=False,
-            candidate_steps=12,
-            **settings,
-        ),
+        settings=ToolUseSettings(enabled=True, **defaults),
         llm_client=llm,
     )
 
@@ -288,7 +292,9 @@ def test_the_designer_cannot_overrule_the_ranking(baseline: Path):
             _finish("candidate_002"),
         ]
     )
-    proposals = _agent(llm).propose(_bundle(baseline))
+    # Room to spare, so the loop still gets to ask the finishing question: the
+    # point here is what a named candidate does, not when the round stops.
+    proposals = _agent(llm, max_candidate_runs=3).propose(_bundle(baseline))
 
     ranked = proposals["candidate_rankings_path"]
     assert ranked
@@ -511,3 +517,60 @@ def test_the_designer_is_told_what_the_ranking_asks_of_it(baseline: Path):
     state = _events(baseline, "design_state")[0]["state"]
     assert "scorecard" in state["objective"]
     assert "worst_axes" in state["objective"]
+
+
+# --------------------------------------------------------------------------- #
+# one design per round: the search lives in the chain, not inside a round
+# --------------------------------------------------------------------------- #
+def test_one_verified_design_ends_the_round_without_a_second_question(baseline: Path):
+    """Asking is the only slow step, so never ask what cannot be acted on.
+
+    With room for one candidate, the answer to a second question could not be
+    built. The earlier loop asked anyway and discarded the reply, paying the
+    run's slowest operation for nothing.
+    """
+    llm = _ScriptedLlm([_propose(**{ARS: 25.0}), _propose(**{OGS: 40.0}), _finish()])
+    proposals = _agent(llm, max_candidate_runs=1).propose(_bundle(baseline))
+
+    assert len(llm.prompts) == 1
+    assert len(_events(baseline, "candidate_evaluated")) == 1
+    assert proposals["selected_candidate_id"]
+    reached = _events(baseline, "budget_reached")
+    assert reached and reached[0]["reason"] == "candidate_budget"
+
+
+def test_a_spent_budget_adopts_the_verified_design_instead_of_falling_back(
+    baseline: Path,
+):
+    """Running out of questions is how a round ends, not a failure.
+
+    The deterministic sizing is for a round that produced nothing, not for one
+    that produced a design and ran out of turns to refine it.
+    """
+    llm = _ScriptedLlm([_propose(**{ARS: 25.0}), _propose(**{OGS: 40.0})])
+    proposals = _agent(llm, max_candidate_runs=1).propose(_bundle(baseline))
+
+    assert proposals["decision_source"] == "design_decision_loop:budget_reached"
+    assert "rule_fallback" not in proposals["decision_source"]
+    assert proposals["selected_candidate_id"]
+
+
+def test_repairs_are_charged_to_the_question_budget(baseline: Path):
+    """A reply that had to be asked for twice cost the run twice."""
+    llm = _ScriptedLlm(["not json at all", "still not json", _propose(**{ARS: 25.0})])
+    _agent(llm, max_candidate_runs=2, max_llm_calls=2).propose(_bundle(baseline))
+
+    # Two questions total: the original and one repair. The third scripted
+    # reply is never requested.
+    assert len(llm.prompts) == 2
+
+
+def test_the_question_budget_stops_the_loop_before_the_decision_budget(baseline: Path):
+    llm = _ScriptedLlm([_propose(**{ARS: 25.0}), _propose(**{OGS: 40.0}), _finish()])
+    _agent(llm, max_candidate_runs=5, max_decisions=5, max_llm_calls=2).propose(
+        _bundle(baseline)
+    )
+
+    assert len(llm.prompts) == 2
+    reached = _events(baseline, "budget_reached")
+    assert reached and reached[-1]["reason"] == "llm_call_budget"

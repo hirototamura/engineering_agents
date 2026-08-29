@@ -57,9 +57,15 @@ DESIGN_FAMILY = "capacity_sizing"
 # Named apart from the per-step design_state.jsonl the run already writes.
 DESIGN_STATE_FILENAME = "design_decision_state.json"
 
-DEFAULT_MAX_DECISIONS = 5
+DEFAULT_MAX_DECISIONS = 2
 DEFAULT_MAX_PARSE_RETRIES = 1
-DEFAULT_MAX_CANDIDATE_RUNS = 4
+DEFAULT_MAX_CANDIDATE_RUNS = 1
+
+# Asking the model is the only slow thing in the loop: the nine tools together
+# take about three seconds, one question takes about seventy. So the question
+# is what gets budgeted, and a repair counts against it -- a reply that had to
+# be asked for twice cost the run twice.
+DEFAULT_MAX_LLM_CALLS = 2
 
 # The audit record keeps what the model actually said. Clipping a rationale to
 # a couple of sentences saves nothing and loses the design intent, which is the
@@ -131,6 +137,10 @@ class ToolUseSettings:
     max_decisions: int = DEFAULT_MAX_DECISIONS
     max_parse_retries: int = DEFAULT_MAX_PARSE_RETRIES
     max_candidate_runs: int = DEFAULT_MAX_CANDIDATE_RUNS
+    # Hard ceiling on questions per review, repairs included. Reaching it is
+    # not a failure: the run adopts the best design it has verified and moves
+    # on, which is what the next iteration is for.
+    max_llm_calls: int = DEFAULT_MAX_LLM_CALLS
     candidate_actor_mode: str = "inherit"
     candidate_steps: Optional[int] = None
     plots_enabled: bool = True
@@ -168,6 +178,7 @@ class ToolUseSettings:
             llm_overrides=dict(llm_overrides) if isinstance(llm_overrides, Mapping) else {},
             max_decisions=loop_int("max_decisions", DEFAULT_MAX_DECISIONS),
             max_parse_retries=loop_int("max_parse_retries", DEFAULT_MAX_PARSE_RETRIES),
+            max_llm_calls=loop_int("max_llm_calls", DEFAULT_MAX_LLM_CALLS),
             max_candidate_runs=as_int("max_candidate_runs", DEFAULT_MAX_CANDIDATE_RUNS),
             candidate_actor_mode=str(raw.get("candidate_actor_mode", "inherit")),
             candidate_steps=candidate_steps,
@@ -212,11 +223,13 @@ class ToolUseDesignAgent:
         self.llm_client = llm_client
         self._turn_messages: List[Dict[str, Any]] = []
         self._message_step = 0
+        self._llm_calls = 0
 
     # ------------------------------------------------------------------ #
     def propose(self, bundle: Any) -> Dict[str, Any]:
         self._turn_messages = []
         self._message_step = _post_run_step(getattr(bundle, "summary", {}) or {})
+        self._llm_calls = 0
         run_dir = Path(getattr(bundle, "run_dir", None) or ".")
         scenario_config = dict(getattr(bundle, "scenario_config", {}) or {})
         constraints = DesignConstraints.from_scenario_config(scenario_config)
@@ -498,8 +511,44 @@ class ToolUseDesignAgent:
         run_dir = toolkit.ctx.run_dir
         message = ""
         reasoning = ""
+        self._llm_calls = 0
 
         for decision in range(1, self.settings.max_decisions + 1):
+            # Both budgets are checked before the question, not after. Asking
+            # what to build next and then discarding the answer because there
+            # was no room to build it costs the whole run's slowest operation
+            # and buys nothing.
+            if len(toolkit.candidates) >= self.settings.max_candidate_runs:
+                notes.append(
+                    "decision %d: candidate budget spent; adopting the best verified design"
+                    % decision
+                )
+                trace.append(
+                    {
+                        "event": "budget_reached",
+                        "decision": decision,
+                        "reason": "candidate_budget",
+                        "candidates": len(toolkit.candidates),
+                        "llm_calls": self._llm_calls,
+                    }
+                )
+                break
+            if self._llm_calls >= self.settings.max_llm_calls:
+                notes.append(
+                    "decision %d: question budget spent; adopting the best verified design"
+                    % decision
+                )
+                trace.append(
+                    {
+                        "event": "budget_reached",
+                        "decision": decision,
+                        "reason": "llm_call_budget",
+                        "candidates": len(toolkit.candidates),
+                        "llm_calls": self._llm_calls,
+                    }
+                )
+                break
+
             state = build_design_state(
                 baseline_outcome=toolkit.baseline_outcome,
                 theory=evidence.get("theory") or {},
@@ -521,7 +570,11 @@ class ToolUseDesignAgent:
                 elapsed_s=elapsed,
             )
             retries = 0
-            while parsed is None and retries < self.settings.max_parse_retries:
+            while (
+                parsed is None
+                and retries < self.settings.max_parse_retries
+                and self._llm_calls < self.settings.max_llm_calls
+            ):
                 retries += 1
                 notes.append("decision %d: unusable reply, repaired once" % decision)
                 trace.append(
@@ -604,26 +657,26 @@ class ToolUseDesignAgent:
                 notes.append("decision %d: unknown decision %r" % (decision, choice))
                 return self._rule_fallback(toolkit, trace, reason="unknown_decision", notes=notes)
 
-            if len(toolkit.candidates) >= self.settings.max_candidate_runs:
-                notes.append("decision %d: candidate budget exhausted" % decision)
-                break
-
             self._run_candidate_pipeline(
                 toolkit, trace, parsed.get("fields") or {}, decision=decision
             )
 
-        notes.append(
-            "reached the decision budget (%d) without a finish" % self.settings.max_decisions
-        )
         if not toolkit.candidates:
+            # Nothing was ever built, so there is nothing to adopt. The
+            # deterministic sizing is the only way this run ends with a design.
+            notes.append("no candidate was produced within the budget")
             return self._rule_fallback(toolkit, trace, reason="no_candidate", notes=notes)
+        # A spent budget is how a round is meant to end. The verified design is
+        # adopted by the ranking and handed to the next iteration; the chain,
+        # not this loop, is where the search continues.
         return {
             "final_proposal": None,
             "message": message,
             "reasoning": reasoning,
             "parse_notes": notes,
             "decision_source": "design_decision_loop:budget_reached",
-            "iterations_used": self.settings.max_decisions,
+            "iterations_used": min(self._llm_calls, self.settings.max_decisions),
+            "llm_calls": self._llm_calls,
         }
 
     def _ask(self, state: Mapping[str, Any], *, repair: bool):
@@ -635,6 +688,7 @@ class ToolUseDesignAgent:
         """
         prompt = self._build_prompt(state, repair=repair)
         started = time.monotonic()
+        self._llm_calls += 1
         generation = invoke_llm(self.llm_client, prompt)
         elapsed = round(time.monotonic() - started, 2)
         parsed = parse_json_response(generation.text, required=("decision",))
