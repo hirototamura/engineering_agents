@@ -93,7 +93,11 @@ def crew_remaining_table(rows: List[Dict[str, Any]]) -> Table:
 
 
 class ChainLiveReporter(IterateReporter):
-    """Live table plus iteration/step progress bars for `ea run --iterate`."""
+    """Live table plus iteration/step progress bars for a design→verify chain.
+
+    Used whenever the chain runs — YAML ``iteration.enabled`` or ``--iterate``.
+    A single ssos sim reuses the same step bar with ``iterations=1``.
+    """
 
     def __init__(self, *, iterations: int, console: Console) -> None:
         self.iterations = iterations
@@ -187,6 +191,20 @@ class ChainLiveReporter(IterateReporter):
         if isinstance(label, int):
             self.progress.update(self.iter_task, completed=label)
         self._refresh()
+
+
+def hook_execute_progress(reporter: Optional[IterateReporter]):
+    """Adapt ``execute_run`` positional callbacks to :class:`IterateReporter`."""
+    if reporter is None:
+        return None, None
+
+    def on_step(step: int, steps: int) -> None:
+        reporter.on_step(step=step, steps=steps)
+
+    def on_phase(detail: str) -> None:
+        reporter.on_phase(detail)
+
+    return on_step, on_phase
 
 
 def print_chain_summary(

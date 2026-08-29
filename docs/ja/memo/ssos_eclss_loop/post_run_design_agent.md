@@ -80,7 +80,7 @@ CLI（ssos）:
 
 ```bash
 python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 20 \
-  --run-id cloud-smoke-run1
+  --run-id cloud-smoke-run1 --set iteration.enabled=false
 ```
 
 ## 実装の置き場所
@@ -97,7 +97,9 @@ llm 時は designer 全員が 1 ラウンド話し合ったあと、**代表 1 �
 
 `summary` に `actor_mode`, `design_mode`, `design_proposed_by`。`agents_mode` は `actor_mode` と同じ（ダッシュボード互換）。
 
-## 連鎖（`ea run --iterate`）
+## 連鎖（`scenario.yaml` の `iteration:` / `ea run --iterate`）
+
+連鎖ジョブの正本は `src/scenario/ssos_eclss_loop/scenario.yaml` の `iteration:`（別ファイルにしない）。既定は `enabled: true` なので `ea run ssos_eclss_loop` だけで連鎖し、`--iterate` と同じイテレーション／ステップ進捗をターミナルに出す。回数だけ変えるなら `--iterate N`。CLI が YAML より優先。
 
 ```bash
 python3 -m tools.cli run ssos_eclss_loop --iterate 10 --backend plant_sim \

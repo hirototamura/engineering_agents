@@ -11,6 +11,9 @@ from tools.cli.main import app
 
 runner = CliRunner()
 
+# scenario.yaml ships with iteration.enabled true; pin a single sim when the test is not about chaining.
+NO_CHAIN = ("--set", "iteration.enabled=false")
+
 
 def test_version():
     result = runner.invoke(app, ["--version"])
@@ -65,7 +68,7 @@ def test_run_rejects_invalid_agents_mode():
 def test_run_rejects_invalid_backend():
     result = runner.invoke(
         app,
-        ["run", "ssos_eclss_loop", "--backend", "ros3"],
+        ["run", "ssos_eclss_loop", *NO_CHAIN, "--backend", "ros3"],
     )
     assert result.exit_code == 2
     assert "Unsupported backend kind" in result.output
@@ -77,6 +80,7 @@ def test_run_ssos_rejects_actor_and_agents_mode_together():
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--backend",
             "mock",
             "--actor-mode",
@@ -97,6 +101,7 @@ def test_run_ssos_actor_and_design_mode_dry_run(tmp_path: Path):
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--backend",
             "mock",
             "--actor-mode",
@@ -127,6 +132,7 @@ def test_run_ssos_bare_defaults_plant_sim_labeled_llm(tmp_path: Path):
     assert overrides["agents"]["actor"]["mode"] == "labeled_rule_base"
     assert overrides["agents"]["design"]["mode"] == "llm"
     assert payload["approve_provisional"] is True
+    assert "iterate: 5" in result.stdout
     assert "actor=labeled_rule_base" in result.stdout
     assert "design=llm" in result.stdout
     assert "backend: plant_sim" in result.stdout
@@ -141,6 +147,7 @@ def test_run_ssos_actor_flag_without_design_inherits(tmp_path: Path):
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--backend",
             "mock",
             "--actor-mode",
@@ -160,7 +167,7 @@ def test_run_ssos_actor_flag_without_design_inherits(tmp_path: Path):
 def test_run_rejects_invalid_design_mode():
     result = runner.invoke(
         app,
-        ["run", "ssos_eclss_loop", "--backend", "mock", "--design-mode", "wizard"],
+        ["run", "ssos_eclss_loop", *NO_CHAIN, "--backend", "mock", "--design-mode", "wizard"],
     )
     assert result.exit_code == 2
     assert "Unsupported design mode" in result.output
@@ -204,6 +211,7 @@ def test_run_ssos_mock_env_with_docker(monkeypatch, tmp_path: Path):
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--agents-mode",
             "none",
             "--steps",
@@ -225,6 +233,7 @@ def test_run_ssos_without_docker_blocks(monkeypatch):
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--backend",
             "ros2",
             "--agents-mode",
@@ -246,6 +255,7 @@ def test_run_ssos_mock_without_docker_allowed(monkeypatch, tmp_path: Path):
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--backend",
             "mock",
             "--agents-mode",
@@ -270,6 +280,7 @@ def test_run_ssos_inject_failures_flag(monkeypatch, tmp_path: Path):
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--backend",
             "mock",
             "--agents-mode",
@@ -304,6 +315,7 @@ def test_run_ssos_plant_sim_without_docker_allowed(monkeypatch, tmp_path: Path):
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--backend",
             "plant_sim",
             "--agents-mode",
@@ -447,6 +459,7 @@ def test_run_ssos_plan_shows_actor_and_design_modes():
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--backend",
             "mock",
             "--actor-mode",
@@ -468,6 +481,7 @@ def test_run_ssos_llm_provider_only_patches_llm_side(tmp_path: Path):
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--backend",
             "mock",
             "--actor-mode",
@@ -560,6 +574,200 @@ def test_iterate_dry_run_defaults(tmp_path: Path):
     assert "auto-approves LLM design proposals" in result.output
 
 
+def test_iterate_yaml_enabled_via_set(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--set",
+            "iteration.enabled=true",
+            "--set",
+            "iteration.count=2",
+            "--backend",
+            "mock",
+            "--design-mode",
+            "labeled_rule_base",
+            "--output-dir",
+            str(tmp_path / "chain"),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "iterate: 2" in result.stdout
+
+
+def test_iterate_set_count_wins_over_yaml_count(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--iterate",
+            "2",
+            "--set",
+            "iteration.count=9",
+            "--backend",
+            "mock",
+            "--design-mode",
+            "labeled_rule_base",
+            "--output-dir",
+            str(tmp_path / "chain"),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "iterate: 2" in result.stdout
+
+
+def test_iterate_no_paired_replay_overrides_yaml(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--iterate",
+            "2",
+            "--no-paired-replay",
+            "--backend",
+            "mock",
+            "--design-mode",
+            "labeled_rule_base",
+            "--output-dir",
+            str(tmp_path / "chain"),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "paired_replay: false" in result.stdout
+
+
+def test_iterate_set_paired_replay_false(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--iterate",
+            "2",
+            "--set",
+            "iteration.paired_replay=false",
+            "--backend",
+            "mock",
+            "--design-mode",
+            "labeled_rule_base",
+            "--output-dir",
+            str(tmp_path / "chain"),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "paired_replay: false" in result.stdout
+
+
+def test_ssos_without_iterate_does_not_chain(tmp_path: Path):
+    spec_path = tmp_path / "spec.json"
+    result = runner.invoke(
+        app,
+        ["run", "ssos_eclss_loop", *NO_CHAIN, "--dry-run", "--write-spec", str(spec_path)],
+    )
+    assert result.exit_code == 0
+    assert "iterate:" not in result.stdout
+
+
+def test_ssos_bare_run_chains_from_yaml(tmp_path: Path):
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--design-mode",
+            "labeled_rule_base",
+            "--output-dir",
+            str(tmp_path / "chain"),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "iterate: 5" in result.stdout
+
+
+def test_yaml_chain_without_iterate_flag_uses_live_reporter(monkeypatch, tmp_path: Path):
+    from tools.cli.output import ChainLiveReporter
+
+    captured: dict = {}
+
+    def fake_run_design_iterate(**kwargs):
+        captured["reporter"] = kwargs.get("reporter")
+        return {
+            "iterations_requested": 5,
+            "iterations_completed": 5,
+            "runs": [],
+            "replay_runs": [],
+            "verdict": "INCONCLUSIVE",
+            "chain_summary_path": str(tmp_path / "chain_summary.json"),
+        }
+
+    monkeypatch.setattr("tools.cli.commands.iterate.run_design_iterate", fake_run_design_iterate)
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--design-mode",
+            "labeled_rule_base",
+            "--output-dir",
+            str(tmp_path / "chain"),
+        ],
+    )
+    assert result.exit_code == 0
+    assert isinstance(captured.get("reporter"), ChainLiveReporter)
+    assert captured["reporter"].iterations == 5
+
+
+def test_single_ssos_run_hooks_step_progress(monkeypatch, tmp_path: Path):
+    from scenario.jobs.spec import RunResult
+
+    captured: dict = {}
+
+    def fake_execute(spec, on_step=None, on_phase=None):
+        captured["on_step"] = on_step
+        captured["on_phase"] = on_phase
+        run_dir = tmp_path / "single"
+        run_dir.mkdir()
+        (run_dir / "summary.json").write_text("{}", encoding="utf-8")
+        return RunResult(run_dir=run_dir, summary={}, duration_s=0.1, exit_code=0)
+
+    monkeypatch.setattr("tools.cli.commands.run.execute_run", fake_execute)
+    monkeypatch.delenv("EA_RUN_IN_CONTAINER", raising=False)
+    monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            *NO_CHAIN,
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "none",
+            "--design-mode",
+            "none",
+            "--steps",
+            "3",
+            "--output-dir",
+            str(tmp_path / "single-out"),
+        ],
+    )
+    assert result.exit_code == 0
+    assert captured.get("on_step") is not None
+    assert captured.get("on_phase") is not None
+
+
 def test_iterate_omitted_scenario_defaults_to_ssos(tmp_path: Path):
     result = runner.invoke(
         app,
@@ -577,6 +785,7 @@ def test_run_ssos_no_approve_provisional_skips_info(tmp_path: Path):
         [
             "run",
             "ssos_eclss_loop",
+            *NO_CHAIN,
             "--dry-run",
             "--no-approve-provisional",
             "--write-spec",

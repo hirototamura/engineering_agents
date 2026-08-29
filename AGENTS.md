@@ -47,9 +47,9 @@ Run N+1 → --apply-proposals → config merged → re-simulate → telemetry vs
 
 ```bash
 python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 20 \
- --run-id cloud-smoke-run1
+ --run-id cloud-smoke-run1 --set iteration.enabled=false
 python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 5 \
- --run-id cloud-smoke-run2 \
+ --run-id cloud-smoke-run2 --set iteration.enabled=false \
  --apply-proposals src/experiments/results/cloud-smoke-run1/design_proposals.json
 ```
 

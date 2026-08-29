@@ -80,7 +80,7 @@ Killer combo: `--actor-mode labeled_rule_base --design-mode llm`.
 
 ```bash
 python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 20 \
-  --run-id cloud-smoke-run1
+  --run-id cloud-smoke-run1 --set iteration.enabled=false
 ```
 
 ## Where it lives
@@ -97,7 +97,9 @@ In `llm` mode, all designers deliberate once, then **one representative** emits 
 
 `summary` includes `actor_mode`, `design_mode`, `design_proposed_by`. `agents_mode` stays equal to `actor_mode` for dashboard compatibility.
 
-## Chained runs (`ea run --iterate`)
+## Chained runs (`scenario.yaml` `iteration:` / `ea run --iterate`)
+
+The chain job lives in `src/scenario/ssos_eclss_loop/scenario.yaml` under `iteration:` (not a separate file). The shipped default is `enabled: true`, so a bare `ea run ssos_eclss_loop` chains and shows the same live iteration/step progress as `--iterate`. Pass `--iterate N` to override `count`. CLI flags override YAML.
 
 ```bash
 python3 -m tools.cli run ssos_eclss_loop --iterate 10 --backend plant_sim \

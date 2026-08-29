@@ -6,8 +6,9 @@ import copy
 import hashlib
 import json
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from scenario.jobs.executor import execute_run
 from scenario.jobs.progress import IterateReporter
@@ -25,6 +26,88 @@ VERDICT_NOT_IMPROVED = "NOT_IMPROVED"
 VERDICT_INCONCLUSIVE = "INCONCLUSIVE"
 REPLAY_BASELINE = "baseline-replay"
 REPLAY_FINAL = "final-replay"
+
+ITERATION_COUNT_MIN = 1
+ITERATION_COUNT_MAX = 50
+DEFAULT_ITERATION_RUN_ID = "ssos_eclss_loop_design_iter"
+DEFAULT_ITERATION_DEFAULTS: Dict[str, Any] = {
+    "backend": "plant_sim",
+    "inject_failures": True,
+    "actor_mode": "labeled_rule_base",
+    "design_mode": "llm",
+}
+
+
+@dataclass(frozen=True)
+class IterationSettings:
+    """Resolved chain job from scenario.yaml ``iteration:`` plus CLI overrides."""
+
+    chain: bool
+    count: int
+    paired_replay: bool
+    approve_provisional: bool
+    run_id: str
+    defaults: Dict[str, Any]
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "chain": self.chain,
+            "count": self.count,
+            "paired_replay": self.paired_replay,
+            "approve_provisional": self.approve_provisional,
+            "run_id": self.run_id,
+            "defaults": dict(self.defaults),
+        }
+
+
+def resolve_iteration(
+    config: Optional[Mapping[str, Any]],
+    *,
+    cli_iterate: Optional[int] = None,
+    cli_paired_replay: Optional[bool] = None,
+    cli_approve_provisional: Optional[bool] = None,
+    cli_run_id: Optional[str] = None,
+) -> IterationSettings:
+    """Merge ``iteration:`` from scenario config with explicit CLI flags."""
+    raw = dict((config or {}).get("iteration") or {})
+    yaml_defaults = raw.get("defaults") if isinstance(raw.get("defaults"), dict) else {}
+    defaults = {**DEFAULT_ITERATION_DEFAULTS, **yaml_defaults}
+
+    yaml_enabled = bool(raw.get("enabled", False))
+    try:
+        yaml_count = int(raw["count"]) if raw.get("count") is not None else 5
+    except (TypeError, ValueError) as exc:
+        raise ValueError("iteration.count must be an integer") from exc
+
+    if cli_iterate is not None:
+        chain = True
+        count = int(cli_iterate)
+    else:
+        chain = yaml_enabled
+        count = yaml_count
+
+    if chain and not (ITERATION_COUNT_MIN <= count <= ITERATION_COUNT_MAX):
+        raise ValueError(
+            f"iteration count must be {ITERATION_COUNT_MIN}–{ITERATION_COUNT_MAX}, got {count}"
+        )
+
+    paired = bool(raw.get("paired_replay", True))
+    if cli_paired_replay is not None:
+        paired = bool(cli_paired_replay)
+
+    approve = bool(raw.get("approve_provisional", True))
+    if cli_approve_provisional is not None:
+        approve = bool(cli_approve_provisional)
+
+    run_id = str(cli_run_id or raw.get("run_id") or DEFAULT_ITERATION_RUN_ID)
+    return IterationSettings(
+        chain=chain,
+        count=count,
+        paired_replay=paired,
+        approve_provisional=approve,
+        run_id=run_id,
+        defaults=defaults,
+    )
 
 
 def frozen_requirements_payload(summary: Dict[str, Any]) -> Dict[str, Any]:
@@ -173,6 +256,7 @@ def run_design_iterate(
     recreate: bool = True,
     paired_replay: bool = True,
     reporter: Optional[IterateReporter] = None,
+    iteration_record: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run *iterations* ssos_eclss_loop sims, applying only the previous adopted file.
 
@@ -373,6 +457,8 @@ def run_design_iterate(
         "runs": runs,
         "replay_runs": replay_runs,
     }
+    if iteration_record:
+        chain_summary["iteration"] = iteration_record
     chain_summary["chain_dir"] = str(chain_dir)
     chain_summary["chain_summary_path"] = str(chain_dir / "chain_summary.json")
     (chain_dir / "chain_summary.json").write_text(

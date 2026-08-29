@@ -194,6 +194,20 @@ evaluation:
     inventory_tolerance: 1.0e-9
     ledger_tolerance: 2.0e-6  # [kg or L] permits documented chemistry residual
 
+# Design→verify chain (not simulation.steps). CLI --iterate N overrides count.
+# enabled: true → `ea run ssos_eclss_loop` chains without --iterate.
+iteration:
+  enabled: true  # true → chain without --iterate
+  count: 5  # [-] 1–50 chained sims; --iterate N wins
+  paired_replay: true  # baseline vs final replay after the chain
+  approve_provisional: true  # auto-adopt provisional_final (INFO on ssos). --no-approve-provisional restores the gate
+  run_id: ssos_eclss_loop_design_iter  # default chain directory name
+  defaults:  # applied only to chained child sims; a single run ignores these
+    backend: plant_sim  # mock | plant_sim (ros2 rejected)
+    inject_failures: true  # scenario-level inject_failures stays false for single runs
+    actor_mode: labeled_rule_base
+    design_mode: llm
+
 agents:
   actor:
     mode: labeled_rule_base  # none | labeled_rule_base | llm — `ea run` default; CLI --actor-mode overrides

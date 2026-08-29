@@ -29,7 +29,7 @@ To match the physics-only baseline in `scenario.yaml`, pass `--agents-mode none`
 
 | Command | Purpose |
 | --- | --- |
-| `ea run [SCENARIO]` | Run one simulation. On `ssos_eclss_loop`, `--iterate N` chains design→verify |
+| `ea run [SCENARIO]` | Run one simulation. On `ssos_eclss_loop`, `iteration.enabled` or `--iterate N` chains design→verify |
 | `ea scenarios` | List available scenarios |
 | `ea results [RUN_ID]` | List recent runs or show one `summary.json` |
 | `ea doctor` | Check Python 3.11+, dependencies, Docker/SSOS mounts, Ollama, and vLLM |
@@ -73,9 +73,9 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | `--backend` | `mock`, `plant_sim`, or `ros2` (`ssos_eclss_loop` only) |
 | `--inject-failures` / `--no-inject-failures` | Apply the `ssos_eclss_loop` `subsystem_failures` schedule (default: off) |
 | `--apply-proposals` | Apply prior `design_proposals.json` (`ssos_eclss_loop`) |
-| `--approve-provisional` / `--no-approve-provisional` | Adopt `provisional_final` LLM designs. **Default on** for `ssos_eclss_loop` so the sim can close the loop without a human (prints an INFO note). `--no-approve-provisional` restores the supervisor gate |
-| `--iterate N` | Chain N design→verify sims (`ssos_eclss_loop`; default scenario if omitted) |
-| `--paired-replay` / `--no-paired-replay` | With `--iterate`: baseline vs final replay after the chain (default: on) |
+| `--approve-provisional` / `--no-approve-provisional` | Adopt `provisional_final` LLM designs. Omit to use `scenario.yaml` `iteration.approve_provisional` (`ssos_eclss_loop`). `--no-approve-provisional` restores the supervisor gate |
+| `--iterate N` | Chain N design→verify sims (`ssos_eclss_loop`; default scenario if omitted). Overrides `iteration.count` and forces a chain even when `iteration.enabled` is false |
+| `--paired-replay` / `--no-paired-replay` | With a chain: baseline vs final replay. Omit to use `iteration.paired_replay` |
 | `--seed` | Record a seed in `summary.json` for future sweeps |
 | `--no-recreate` | Keep an existing output directory |
 | `--dry-run` | Resolve the plan without executing |
@@ -85,7 +85,9 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 
 On `ssos_eclss_loop`, in-sim actors and post-run designers are separate. See [post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md). `--agents-mode` is a deprecated alias for `--actor-mode`.
 
-`ea run --iterate N` chains the unified post-run designer (`tool-use` / labeled) across N simulations. Omitting the scenario argument selects `ssos_eclss_loop`. Defaults: `--backend plant_sim`, `--actor-mode labeled_rule_base`, `--design-mode llm`, `--inject-failures`, paired replay on, `--approve-provisional` on (INFO: this sim auto-approves LLM designs so the loop can run without a human; `--no-approve-provisional` restores the gate). Run k applies run k-1's adopted `applied_proposals.json` through unified `apply_design_proposals` (including `capacity_profile`). `set_parameter` (`thresholds.*`) is not auto-applied in the chain, so verification requirements stay frozen. Empty proposals do not stop the chain: the next simulation reuses the last applied file, or the initial YAML if none exist yet, until `--iterate` completes. The last run verifies prior proposals; proposals it emits stay unverified. The verdict compares `crew_remaining` from post-chain baseline vs final replays (`IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`). `--no-paired-replay` is inconclusive. `ros2` is rejected. Cannot be combined with `--apply-proposals`. The terminal shows a crew-remaining table plus progress for the current simulation (step %) and completed iterations (N/M). The dashboard lists iterate children (`01/`, replays) as selectable runs.
+The source of truth for the design→verify chain is `ssos_eclss_loop` `scenario.yaml` `iteration:` (`enabled`, `count`, `paired_replay`, `approve_provisional`, `run_id`, `defaults`). `simulation.steps` is one sim's length, not the chain count. `--set iteration.count=10` uses the same merge as other scenario keys. Explicit `--iterate` / `--paired-replay` / `--approve-provisional` override YAML. `enabled: true` (the shipped default) makes `ea run ssos_eclss_loop` a chain; `--set iteration.enabled=false` is a single sim.
+
+`ea run --iterate N` chains the unified post-run designer (`tool-use` / labeled) across N simulations. Omitting the scenario argument selects `ssos_eclss_loop`. Chain child defaults come from `iteration.defaults` (typically plant_sim, labeled actors, llm design, inject_failures). `--approve-provisional` on prints INFO (this sim auto-approves LLM designs so the loop can run without a human; `--no-approve-provisional` restores the gate). Run k applies run k-1's adopted `applied_proposals.json` through unified `apply_design_proposals` (including `capacity_profile`). `set_parameter` (`thresholds.*`) is not auto-applied in the chain, so verification requirements stay frozen. Empty proposals do not stop the chain: the next simulation reuses the last applied file, or the initial YAML if none exist yet, until the chain completes. The last run verifies prior proposals; proposals it emits stay unverified. The verdict compares `crew_remaining` from post-chain baseline vs final replays (`IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`). `--no-paired-replay` is inconclusive. `ros2` is rejected. Cannot be combined with `--apply-proposals`. The terminal shows a crew-remaining table plus progress for the current simulation (step %) and completed iterations (N/M) on YAML-enabled chains and on `--iterate`. A single ssos sim (`iteration.enabled=false`) uses the same step bar. The dashboard lists iterate children (`01/`, replays) as selectable runs. Effective chain settings are written to `chain_summary.json` under `iteration`.
 
 ## Exit codes
 

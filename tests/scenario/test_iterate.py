@@ -5,9 +5,64 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scenario.jobs.iterate import VERDICT_INCONCLUSIVE, run_design_iterate
+import pytest
+
+from scenario.jobs.iterate import VERDICT_INCONCLUSIVE, resolve_iteration, run_design_iterate
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunSpec
+
+
+def test_resolve_iteration_disabled_without_cli():
+    settings = resolve_iteration(
+        {"iteration": {"enabled": False, "count": 5, "paired_replay": True}}
+    )
+    assert settings.chain is False
+    assert settings.count == 5
+
+
+def test_resolve_iteration_cli_iterate_enables_chain():
+    settings = resolve_iteration(
+        {"iteration": {"enabled": False, "count": 5}},
+        cli_iterate=10,
+    )
+    assert settings.chain is True
+    assert settings.count == 10
+
+
+def test_resolve_iteration_yaml_enabled():
+    settings = resolve_iteration({"iteration": {"enabled": True, "count": 3}})
+    assert settings.chain is True
+    assert settings.count == 3
+
+
+def test_resolve_iteration_cli_flags_override_yaml():
+    settings = resolve_iteration(
+        {
+            "iteration": {
+                "enabled": True,
+                "count": 5,
+                "paired_replay": True,
+                "approve_provisional": True,
+                "run_id": "from-yaml",
+            }
+        },
+        cli_paired_replay=False,
+        cli_approve_provisional=False,
+        cli_run_id="from-cli",
+    )
+    assert settings.paired_replay is False
+    assert settings.approve_provisional is False
+    assert settings.run_id == "from-cli"
+
+
+def test_resolve_iteration_missing_block_does_not_chain():
+    settings = resolve_iteration({})
+    assert settings.chain is False
+
+
+def test_resolve_iteration_count_out_of_range_when_chaining():
+    with pytest.raises(ValueError, match="1–50"):
+        resolve_iteration({"iteration": {"enabled": True, "count": 99}})
 
 
 def _labeled_overrides(*, backend: str, steps: int, inject_failures: bool = True) -> dict:
@@ -40,6 +95,7 @@ def test_design_iterate_mock_applies_only_previous_applied_file(tmp_path: Path):
             scenario="ssos_eclss_loop",
             overrides=_labeled_overrides(backend="mock", steps=4),
         ),
+        iteration_record={"chain": True, "count": 3},
     )
     assert summary["iterations_completed"] == 3
     assert (chain_dir / "01" / "summary.json").exists()
@@ -56,6 +112,7 @@ def test_design_iterate_mock_applies_only_previous_applied_file(tmp_path: Path):
     assert all(c["change_kind"] != "set_parameter" for c in applied.get("changes") or [])
     assert applied.get("changes")
     assert summary["verdict"] == VERDICT_INCONCLUSIVE
+    assert summary["iteration"]["count"] == 3
     assert (chain_dir / "baseline-replay" / "summary.json").exists()
     assert (chain_dir / "final-replay" / "summary.json").exists()
 

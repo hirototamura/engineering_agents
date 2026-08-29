@@ -39,6 +39,8 @@ def run_iterate_from_run(
     inject_failures: Optional[bool],
     paired_replay: bool,
     approve_provisional: bool,
+    iteration_defaults: Optional[Dict[str, Any]] = None,
+    iteration_record: Optional[Dict[str, Any]] = None,
     seed: Optional[int],
     set_values: List[str],
     override_file: Optional[Path],
@@ -71,6 +73,7 @@ def run_iterate_from_run(
         )
         overrides = _apply_iterate_defaults(
             overrides,
+            defaults=iteration_defaults or {},
             actor_mode=actor_mode,
             agents_mode=agents_mode,
             design_mode=design_mode,
@@ -145,6 +148,7 @@ def run_iterate_from_run(
             recreate=not no_recreate,
             paired_replay=paired_replay,
             reporter=live,
+            iteration_record=iteration_record,
         )
     finally:
         if live is not None:
@@ -177,6 +181,7 @@ def chain_exit_code(chain_summary: Dict[str, Any]) -> int:
 def _apply_iterate_defaults(
     overrides: dict | None,
     *,
+    defaults: Dict[str, Any],
     actor_mode: Optional[str],
     agents_mode: Optional[str],
     design_mode: Optional[str],
@@ -184,18 +189,22 @@ def _apply_iterate_defaults(
     inject_failures: Optional[bool],
 ) -> dict:
     merged = dict(overrides or {})
+    backend_kind = str(defaults.get("backend") or "plant_sim")
+    actor = str(defaults.get("actor_mode") or "labeled_rule_base")
+    design = str(defaults.get("design_mode") or "llm")
+    inj = bool(defaults.get("inject_failures", True))
     if backend is None and not ((merged.get("backend") or {}).get("kind")):
-        merged = merge_overrides(merged, {"backend": {"kind": "plant_sim"}}) or {}
+        merged = merge_overrides(merged, {"backend": {"kind": backend_kind}}) or {}
     if actor_mode is None and agents_mode is None:
         existing = ((merged.get("agents") or {}).get("actor") or {}).get("mode")
         if existing is None:
-            merged = merge_overrides(merged, {"agents": {"actor": {"mode": "labeled_rule_base"}}}) or {}
+            merged = merge_overrides(merged, {"agents": {"actor": {"mode": actor}}}) or {}
     if design_mode is None:
         existing = ((merged.get("agents") or {}).get("design") or {}).get("mode")
         if existing is None:
-            merged = merge_overrides(merged, {"agents": {"design": {"mode": "llm"}}}) or {}
+            merged = merge_overrides(merged, {"agents": {"design": {"mode": design}}}) or {}
     if inject_failures is None and "inject_failures" not in merged:
-        merged = merge_overrides(merged, {"inject_failures": True}) or {}
+        merged = merge_overrides(merged, {"inject_failures": inj}) or {}
     return merged
 
 
