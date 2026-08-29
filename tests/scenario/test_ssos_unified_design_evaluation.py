@@ -93,3 +93,46 @@ def test_physics_gate_is_hard_design_eligibility_not_score():
     )
     assert marked["final_eligible"] is False
     assert "physics_gate_not_passed" in marked["final_ineligible_reasons"]
+
+
+def test_run_writes_one_evaluation_that_matches_its_summary(tmp_path: Path):
+    """summary.json and evaluation.json must describe the same measurement.
+
+    The evaluator ran twice per run: once through the unified entry before the
+    design pass, then again afterwards with a differently prepared config. The
+    second write replaced the first, so the score a human opened was not the
+    score the designer reasoned from.
+    """
+    from scenario.ssos_eclss_loop.scenario_run import SsosEclssLoopScenario
+
+    run_dir = SsosEclssLoopScenario().run(
+        output_dir=tmp_path / "run",
+        overrides={
+            "simulation": {"steps": 6},
+            "backend": {"kind": "plant_sim"},
+            "agents": {"actor": {"mode": "labeled_rule_base"}, "design": {"mode": "none"}},
+        },
+        recreate_output=True,
+    )
+
+    # Guard against a vacuous assertion: the two evaluators only disagree when
+    # the run contains execution-gate rejections, so require some.
+    events = [
+        json.loads(line)
+        for line in (Path(run_dir) / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    scheduling = [
+        event
+        for event in events
+        if ((event.get("result") or {}).get("details") or {}).get("reason")
+        in {"subsystem_busy", "duplicate_command_this_step"}
+    ]
+    assert scheduling, "run produced no scheduling rejection; the assertion below proves nothing"
+
+    summary = json.loads((Path(run_dir) / "summary.json").read_text(encoding="utf-8"))
+    evaluation = json.loads((Path(run_dir) / "evaluation.json").read_text(encoding="utf-8"))
+
+    assert summary["evaluation_score"] == evaluation["scores"]["total"]
+    assert summary["evaluation_compact"]["score"] == evaluation["scores"]["total"]
+    assert summary["evaluation_status"] == evaluation["status"]

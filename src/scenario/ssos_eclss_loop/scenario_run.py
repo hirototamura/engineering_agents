@@ -57,7 +57,6 @@ from scenario.ssos_eclss_loop.design_proposals import (
     write_design_proposals,
 )
 from scenario.ssos_eclss_loop.unified_evaluation import finalize_run_evaluation
-from scenario.ssos_eclss_loop.evaluation import write_evaluation
 from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
 from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
 
@@ -652,25 +651,11 @@ class SsosEclssLoopScenario(Scenario):
                 write_design_proposals(proposals_path, proposals)
                 summary["design_proposals_path"] = str(proposals_path)
 
-        evaluation_path, evaluation_html_path, evaluation = write_evaluation(
-            run_dir,
-            scenario_config=config,
-            summary=summary,
-        )
-        evaluation_scores = evaluation.get("scores") or {}
-        summary.update(
-            {
-                "evaluation_path": str(evaluation_path),
-                "evaluation_html_path": str(evaluation_html_path),
-                "evaluation_status": evaluation.get("status"),
-                "evaluation_score": evaluation_scores.get("total"),
-                "evaluation_max_score": evaluation_scores.get("max_score"),
-                "physics_gate_passed": bool(
-                    (evaluation.get("physics_gate") or {}).get("passed", False)
-                ),
-            }
-        )
-
+        # The evaluation is written once, by ``finalize_run_evaluation`` above.
+        # Re-running the evaluator here would overwrite that measurement with a
+        # differently-configured one, so summary.json and evaluation.json would
+        # disagree about the same run and the designer's evidence would not be
+        # what a human opens afterwards.
         log.write_summary(summary)
 
         provenance_path = run_dir / "provenance.jsonl"
