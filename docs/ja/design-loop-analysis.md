@@ -227,3 +227,4 @@ ARS 軸に沿った容量増加のうち 16 % は結果を**悪化**させ、最
 - [ssos_eclss_loop シナリオ](scenario-ssos-eclss-loop.md) — 解析対象のシミュレーション
 - [CLI ガイド](cli.md) — ハーネスが駆動するコマンド
 - [Tool-use 設計エージェント](memo/ssos_eclss_loop/tool_use_design_agent.md) — capacity 部分空間で行動できる設計器
+- [技術説明 ver.03](eclss_ai_agent_technical_report_03.md) — ハッカソン報告に、LLM 連鎖の創発解析を足したもの
