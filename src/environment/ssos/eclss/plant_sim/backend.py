@@ -16,7 +16,7 @@ Design reference: SSOS_MOCK_ECLSS_DESIGN_PLAN.md v2 §3.3, §6, §8, §9.
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from environment.ssos.eclss.plant_sim.config import PlantSimConfig
 from environment.ssos.eclss.plant_sim.model import PlantModel
@@ -61,6 +61,14 @@ class PlantSimEclssBackend:
         self.last_ogs_goal: Optional[OgsGoal] = None
         self.last_wrs_goal: Optional[WrsGoal] = None
         self._last_metabolism: Optional[Dict[str, float]] = None
+        # What each subsystem actually processed during the current step.
+        # The physics gate audits a run from telemetry alone, so the
+        # quantities it checks against installed capacity have to be in the
+        # telemetry rather than only in the action results. Cleared at the
+        # step boundary, not on poll: a step is polled more than once and
+        # clearing on the first poll would drop the operations before the
+        # post-ops row is written.
+        self._operations_this_step: List[Dict[str, Any]] = []
         self._last_survival: Dict[str, Any] = {"lost_this_step": 0, "limiting": []}
         # Operation duration guard (design doc §7.1): a subsystem accepted now
         # stays busy for ceil(operation_seconds / step_seconds) steps.
@@ -76,6 +84,7 @@ class PlantSimEclssBackend:
     # ------------------------------------------------------------------ #
     def advance_step(self) -> None:
         self._last_survival = {"lost_this_step": 0, "limiting": []}
+        self._operations_this_step = []
         self._step_index += 1
         for sub, remaining in self._busy_remaining.items():
             if remaining > 0:
@@ -159,6 +168,21 @@ class PlantSimEclssBackend:
             "limiting": prev_lim + extra,
         }
 
+    _OPERATION_FIELDS = {
+        "ars": ("co2_removed_kg", "captured_co2_kg", "vented_co2_kg", "goal_scale"),
+        "ogs": ("processed_water_kg", "o2_generated_kg", "sabatier_co2_used_kg"),
+        "wrs": ("urine_feed_l", "grey_feed_l", "recovered_water_l", "brine_loss_l"),
+    }
+
+    def _record_operation(self, subsystem: str, result: Mapping[str, Any]) -> None:
+        """Remember what one operation processed, for the next telemetry poll."""
+        entry: Dict[str, Any] = {"subsystem": subsystem}
+        for field in self._OPERATION_FIELDS[subsystem]:
+            value = result.get(field)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                entry[field] = float(value)
+        self._operations_this_step.append(entry)
+
     def poll_telemetry(self) -> EclssTelemetrySnapshot:
         s = self.model.state
         plant_sim_topic: Dict[str, Any] = {
@@ -203,6 +227,21 @@ class PlantSimEclssBackend:
                 "limiting": list(self._last_survival.get("limiting") or []),
             },
         }
+        # The gate must not read scenario config, so the operating envelope it
+        # checks against travels with the measurement it checks.
+        plant_sim_topic["installed_capacity"] = {
+            "ars_capacity_kg_day": self.config.ars_capacity_kg_day,
+            "ogs_max_o2_kg_day": self.config.ogs_max_o2_kg_day,
+            "wrs_max_feed_l_per_operation": self.config.wrs_max_feed_l_per_operation,
+            "step_seconds": self.config.step_seconds,
+            "ars_operation_seconds": self.config.ars_operation_seconds,
+            "ogs_operation_seconds": self.config.ogs_operation_seconds,
+            "wrs_operation_seconds": self.config.wrs_operation_seconds,
+        }
+        plant_sim_topic["failure_state"] = {
+            name: bool(flag) for name, flag in self._failure_flags.items()
+        }
+        plant_sim_topic["operations_this_step"] = list(self._operations_this_step)
         if self._last_metabolism is not None:
             plant_sim_topic["last_metabolism"] = dict(self._last_metabolism)
             self._last_metabolism = None
@@ -245,6 +284,7 @@ class PlantSimEclssBackend:
 
         self._mark_busy("ars")
         result = self.model.run_ars(mass)
+        self._record_operation("ars", result)
         result["ignored_inputs"] = ["initial_moisture_content", "initial_contaminants"]
         return ActionResult(True, "air_revitalisation complete", result)
 
@@ -270,6 +310,7 @@ class PlantSimEclssBackend:
             result["reason"] = "no_water"
             return ActionResult(False, "oxygen_generation no-op: no water available", result)
         self._mark_busy("ogs")
+        self._record_operation("ogs", result)
         return ActionResult(True, "oxygen_generation complete", result)
 
     def send_water_recovery_goal(self, goal: WrsGoal) -> ActionResult:
@@ -293,6 +334,7 @@ class PlantSimEclssBackend:
             result["reason"] = "no_feed"
             return ActionResult(False, "water_recovery no-op: no feed available", result)
         self._mark_busy("wrs")
+        self._record_operation("wrs", result)
         return ActionResult(True, "water_recovery complete", result)
 
     # ------------------------------------------------------------------ #

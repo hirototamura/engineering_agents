@@ -11,17 +11,21 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, Optional
 
 from environment.ssos.eclss.plant_sim.stoichiometry import WATER_PER_O2
 from scenario.ssos_eclss_loop.evaluation import (
+    DECISION_MAX,
     OPERATIONAL_APPLIED,
     OPERATIONAL_REJECTED,
+    RESPONSE_MAX,
     _response_quality,
     evaluate_run,
 )
 from scenario.ssos_eclss_loop.evaluation_browser import write_evaluation_browser
 from scenario.ssos_eclss_loop.evaluation_html import render_evaluation_html
+from scenario.ssos_eclss_loop.integrity_guard import integrity_summary
+from scenario.ssos_eclss_loop.physics_gate import run_physics_gate
 
 _SCHEDULING_REJECTIONS = {"subsystem_busy", "duplicate_command_this_step"}
 _SECONDS_PER_DAY = 86400.0
@@ -122,7 +126,9 @@ def reconcile_scheduler_semantics(
     latency_weight = float(((evaluation_config.get("actor_decision") or {}).get("latency_weight", 0.5)))
     latency_weight = max(0.0, min(1.0, latency_weight))
     metrics["validity_quality"] = round(validity, 6)
-    decision["score"] = round(10.0 * (latency_weight * latency + (1.0 - latency_weight) * validity), 6)
+    decision["score"] = round(
+        DECISION_MAX * (latency_weight * latency + (1.0 - latency_weight) * validity), 6
+    )
 
     response = axes.get("physical_response")
     if isinstance(response, dict):
@@ -137,18 +143,22 @@ def reconcile_scheduler_semantics(
                 {
                     "status": "not_observed",
                     "score": None,
-                    "max_score": 10,
+                    "max_score": RESPONSE_MAX,
                     "metrics": {"valid_operation_count": 0, "operations": []},
                 }
             )
         else:
             operations = [_response_quality(event, evaluation_config) for event in eligible]
-            score = 10.0 * sum(float(item.get("quality") or 0.0) for item in operations) / len(operations)
+            score = (
+                RESPONSE_MAX
+                * sum(float(item.get("quality") or 0.0) for item in operations)
+                / len(operations)
+            )
             response.update(
                 {
                     "status": "scored",
                     "score": round(score, 6),
-                    "max_score": 10,
+                    "max_score": RESPONSE_MAX,
                     "metrics": {"valid_operation_count": len(operations), "operations": operations},
                 }
             )
@@ -168,11 +178,37 @@ def compact_evaluation(payload: Mapping[str, Any]) -> Dict[str, Any]:
     recovery = axes.get("resource_recovery") if isinstance(axes.get("resource_recovery"), Mapping) else {}
     decision = axes.get("actor_decision") if isinstance(axes.get("actor_decision"), Mapping) else {}
     response = axes.get("physical_response") if isinstance(axes.get("physical_response"), Mapping) else {}
+    # Where the marks went, axis by axis. A total on its own tells a designer
+    # that something is wrong; this tells them what, which is the difference
+    # between changing the design and enlarging it at random.
+    breakdown = {
+        name: {
+            "score": axis.get("score"),
+            "max": axis.get("max_score"),
+            "status": axis.get("status"),
+        }
+        for name, axis in axes.items()
+        if isinstance(axis, Mapping)
+    }
+    lost = sorted(
+        (
+            (
+                round(float(a["max"]) - float(a["score"]), 3),
+                name,
+            )
+            for name, a in breakdown.items()
+            if isinstance(a.get("score"), (int, float)) and isinstance(a.get("max"), (int, float))
+        ),
+        reverse=True,
+    )
     return {
         "status": payload.get("status"),
         "physics_gate_passed": bool((payload.get("physics_gate") or {}).get("passed", False)),
         "score": scores.get("total"),
         "max_score": scores.get("max_score"),
+        "axes": breakdown,
+        # Biggest loss first, so the worst axis is the one that is read first.
+        "points_lost": [{"axis": name, "points": points} for points, name in lost if points > 0],
         "survival": survival.get("metrics"),
         "tcl": (axes.get("tcl") or {}).get("metrics") if isinstance(axes.get("tcl"), Mapping) else None,
         "environment": trajectory.get("metrics"),
@@ -182,17 +218,62 @@ def compact_evaluation(payload: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _admissibility(
+    payload: Dict[str, Any],
+    *,
+    integrity: Mapping[str, Any],
+    gate: Mapping[str, Any],
+    backend: str,
+) -> Dict[str, Any]:
+    """Refuse a score the run is not entitled to (spec §14).
+
+    A run that rewrote the yardstick is inadmissible however it scored, and so
+    is one whose physics could not be shown to hold. The physics condition only
+    applies to a backend that simulates physics: on the loop mock there is
+    nothing for the ledgers to close over, and calling that invalid would say
+    the run cheated when it merely was not that kind of run.
+    """
+    reasons: list[str] = []
+    if integrity.get("scoring_bar_modified"):
+        reasons.append("scoring_bar_modified")
+    if backend == "plant_sim" and gate.get("status") != "passed":
+        reasons.append("physics_gate_" + str(gate.get("status")))
+    if reasons:
+        payload["status"] = "invalid"
+        payload["invalid_reasons"] = reasons
+    return payload
+
+
 def finalize_run_evaluation(
     run_dir: Path,
     *,
     scenario_config: Mapping[str, Any],
     summary: Mapping[str, Any],
+    integrity: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Evaluate one completed run before design and return an enriched summary."""
     run_path = Path(run_dir)
     config = capacity_aware_config(scenario_config)
     payload = evaluate_run(run_path, scenario_config=config, summary=summary)
     payload = reconcile_scheduler_semantics(payload, run_path, config.get("evaluation") or {})
+
+    # The audit is telemetry-only and replaces the evaluator's own gate rather
+    # than sitting beside it: two physics verdicts on one run is how the
+    # measurement and the artifact drift apart.
+    gate = run_physics_gate(run_path)
+    payload["physics_gate"] = gate
+    (run_path / "physics_gate.json").write_text(
+        json.dumps(gate, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    integrity = integrity or {}
+    payload["integrity"] = integrity_summary(integrity)
+    payload = _admissibility(
+        payload,
+        integrity=integrity,
+        gate=gate,
+        backend=str(summary.get("backend") or ""),
+    )
 
     json_path = run_path / "evaluation.json"
     html_path = run_path / "evaluation.html"
@@ -209,7 +290,8 @@ def finalize_run_evaluation(
             "evaluation_status": payload.get("status"),
             "evaluation_score": score_block.get("total"),
             "evaluation_max_score": score_block.get("max_score"),
-            "physics_gate_passed": bool((payload.get("physics_gate") or {}).get("passed", False)),
+            "physics_gate_passed": bool(gate.get("passed", False)),
+            "physics_gate_status": gate.get("status"),
             "evaluation_compact": compact_evaluation(payload),
         }
     )

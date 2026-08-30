@@ -23,12 +23,14 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from environment.ssos.eclss.plant_sim.stoichiometry import WATER_PER_O2
+from scenario.ssos_eclss_loop.chain_memory import load_chain_memory
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_eval import (
     band_counts,
     evaluate_run_outcome,
     mark_final_eligibility,
     rank_candidates,
+    rank_rationale,
     select_final_candidate,
 )
 from scenario.ssos_eclss_loop.design_variables import (
@@ -166,6 +168,48 @@ def _bound_note(need: float, clamped: float) -> str:
     return f", {direction} buildable machine ({round(clamped, 3)})"
 
 
+# Volume is not on the scorecard. It is still computed, still written to the
+# rankings and still shown on the dashboard -- but showing the designer a
+# quantity nothing marks it on is one more number to reason about for no
+# change in what gets built. Cost and mass answer "what does this cost" on the
+# score sheet instead, so the budget violations that repeat them come off too;
+# what stays is the one thing a score cannot express, which is whether the
+# machine can be built at all.
+_INTERNAL_CONSTRAINT_KEYS = (
+    "total_volume_m3",
+    "added_volume_m3",
+    "delta_installed_volume_m3",
+    "baseline_total_volume_m3",
+    "installed_total_volume_m3",
+    "budget_violations",
+    "budgets",
+    "design_penalty",
+    "by_subsystem",
+)
+
+
+def _designer_facing_constraints(evaluation: Dict[str, Any]) -> Dict[str, Any]:
+    """The constraint labels a design decision can act on, and nothing else."""
+    for key in _INTERNAL_CONSTRAINT_KEYS:
+        evaluation.pop(key, None)
+    bounds = evaluation.get("bound_violations")
+    if isinstance(bounds, list):
+        # ``violations`` carried bound and budget breaches together; with the
+        # budget half gone it would otherwise still name volume.
+        evaluation["violations"] = list(bounds)
+    return evaluation
+
+
+def _designer_facing_environment(described: Dict[str, Any]) -> Dict[str, Any]:
+    """The constraint environment minus what the scorecard already answers."""
+    described.pop("budgets", None)
+    for key in ("baseline_footprint", "installed_footprint", "max_footprint"):
+        block = described.get(key)
+        if isinstance(block, dict):
+            block.pop("total_volume_m3", None)
+    return described
+
+
 @dataclass
 class ToolSpec:
     name: str
@@ -187,6 +231,9 @@ class DesignToolContext:
     candidate_actor_mode: str = "inherit"
     candidate_steps: Optional[int] = None
     plots_enabled: bool = True
+    # Writes (candidate runs, plots) go here. Baseline reads stay on run_dir.
+    # Omit to keep the single-designer layout (everything under run_dir).
+    work_dir: Optional[Path] = None
 
 
 class DesignToolkit:
@@ -195,6 +242,7 @@ class DesignToolkit:
     def __init__(self, ctx: DesignToolContext):
         self.ctx = ctx
         self.run_dir = Path(ctx.run_dir)
+        self.work_dir = Path(ctx.work_dir) if ctx.work_dir is not None else self.run_dir
         self.constraints = ctx.constraints
         self.evidence: Dict[str, bool] = {}
         self.candidates: List[Dict[str, Any]] = []
@@ -222,7 +270,8 @@ class DesignToolkit:
             ToolSpec(
                 "load_run_artifacts",
                 "Read the baseline run's artifacts (summary, configs, and the head/tail "
-                "of the JSONL streams).",
+                "of the JSONL streams), plus what earlier iterations of this chain left "
+                "in chain_memory_compact.",
                 {"files": f"optional list of {sorted(ARTIFACT_FILES)}; default all"},
                 evidence="read_baseline_artifacts",
             ),
@@ -269,8 +318,9 @@ class DesignToolkit:
             ),
             ToolSpec(
                 "evaluate_design_constraints",
-                "Mass / volume / cost / bounds / budget labels for a capacity field set. "
-                "Does not simulate.",
+                "Mass / cost / bounds labels for a capacity field set. Cost and mass are "
+                "scored in the evaluation; subsystem bounds are what a machine can be "
+                "built in. Does not simulate.",
                 {"fields": f"object with keys from {list(CAPACITY_KEYS)}"},
                 evidence="evaluated_constraints",
             ),
@@ -371,6 +421,10 @@ class DesignToolkit:
         head = max(0, min(int(head), 10))
         tail = max(0, min(int(tail), 10))
         out: Dict[str, Any] = {"run_dir": str(self.run_dir)}
+        # Whatever the earlier rounds of this chain left behind. ``None`` on a
+        # standalone run, and on the first iteration, which have no earlier
+        # rounds to have left anything.
+        out["chain_memory_compact"] = load_chain_memory(self.run_dir)
         for name in wanted:
             path = self.run_dir / ARTIFACT_FILES[name]
             if not path.exists():
@@ -384,7 +438,9 @@ class DesignToolkit:
                     "thresholds": self.ctx.scenario_config.get("thresholds"),
                     "simulation": self.ctx.scenario_config.get("simulation"),
                     "backend": self.ctx.scenario_config.get("backend"),
-                    "design_constraints": self.constraints.describe(),
+                    "design_constraints": _designer_facing_environment(
+                        self.constraints.describe()
+                    ),
                 }
             elif name == "agents_config":
                 agents = self.ctx.agents_config or {}
@@ -839,7 +895,7 @@ class DesignToolkit:
         except Exception as exc:
             return {**summary, "plot_path": None, "plot_error": f"matplotlib unavailable: {exc}"}
 
-        plots_dir = self.run_dir / "design_plots"
+        plots_dir = self.work_dir / "design_plots"
         plots_dir.mkdir(parents=True, exist_ok=True)
         name = filename or f"timeseries_{len(self._plot_paths) + 1:02d}.png"
         path = plots_dir / name
@@ -1024,9 +1080,7 @@ class DesignToolkit:
             return {"error": "fields is required", "allowed_keys": list(CAPACITY_KEYS)}
         if not isinstance(fields, Mapping):
             return {"error": "fields must be an object", "allowed_keys": list(CAPACITY_KEYS)}
-        evaluation = self.constraints.evaluate(fields)
-        evaluation.pop("by_subsystem", None)
-        return evaluation
+        return _designer_facing_constraints(self.constraints.evaluate(fields))
 
     # ------------------------------------------------------------------ #
     # 8. candidate re-simulation
@@ -1130,7 +1184,7 @@ class DesignToolkit:
         if candidate_steps is not None:
             config.setdefault("simulation", {})["steps"] = int(candidate_steps)
 
-        out_dir = self.run_dir / "candidate_runs" / candidate_id
+        out_dir = self.work_dir / "candidate_runs" / candidate_id
         SsosEclssLoopScenario().run(
             output_dir=out_dir,
             overrides=config,
@@ -1169,6 +1223,12 @@ class DesignToolkit:
             )
         ranked = rank_candidates(simulated)
         selection = select_final_candidate(ranked, baseline_outcome=self.baseline_outcome)
+        # Say which criterion settled it. The objective is lexicographic, so
+        # the criteria below the deciding one were never consulted, and a
+        # reader should not have to work that out from the numbers.
+        selection["rank_rationale"] = rank_rationale(
+            ranked[0], ranked[1] if len(ranked) > 1 else None
+        )
         self._ranked = ranked
         self._selection = selection
         return {

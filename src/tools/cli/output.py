@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from rich.console import Console, Group
 from rich.live import Live
@@ -72,20 +72,125 @@ def print_run_result(result: RunResult, *, quiet: bool = False, as_json: bool = 
     )
 
 
-def crew_remaining_table(rows: List[Dict[str, Any]]) -> Table:
-    table = Table(title="Design iterate — crew remaining")
-    table.add_column("Iter")
-    table.add_column("Crew remaining")
-    table.add_column("Lost")
-    table.add_column("Proposals")
-    table.add_column("Apply")
+_CAPACITY_ORDER = (
+    "plant_sim.ars.capacity_kg_day",
+    "plant_sim.ogs.max_o2_kg_day",
+    "plant_sim.wrs.max_feed_l_per_operation",
+)
+
+
+def _crew_cell(row: Dict[str, Any]) -> str:
+    """How many came back, out of how many set out."""
+    remaining, initial = row.get("crew_remaining"), row.get("crew_initial")
+    if not isinstance(remaining, int):
+        return "—"
+    if not isinstance(initial, int):
+        return str(remaining)
+    if remaining == initial:
+        return f"[green]{remaining}/{initial}[/green]"
+    return f"[red]{remaining}/{initial}[/red]"
+
+
+def _sizing_cell(row: Dict[str, Any]) -> str:
+    """ARS / OGS / WRS as one column, so the score beside it can be read."""
+    installed = row.get("installed_capacity")
+    if not isinstance(installed, dict) or not installed:
+        return "—"
+    parts = []
+    for key in _CAPACITY_ORDER:
+        value = installed.get(key)
+        parts.append(
+            "—" if not isinstance(value, (int, float)) else f"{round(float(value), 3):g}"
+        )
+    return " / ".join(parts)
+
+
+def _score_cells(rows: List[Dict[str, Any]]) -> List[Tuple[str, str]]:
+    """Each round's score and its move, coloured by which way it went.
+
+    The score is the whole point of an iterating run and it was the one number
+    the live table did not show: a chain could spend ten rounds getting worse
+    and read, from here, exactly like one getting better.
+    """
+    cells: List[Tuple[str, str]] = []
+    previous: Optional[float] = None
     for row in rows:
-        apply_path = row.get("apply_proposals_path") or "—"
-        apply_name = Path(str(apply_path)).name if apply_path not in {None, "—"} else "—"
+        score = row.get("evaluation_score")
+        if not isinstance(score, (int, float)):
+            # Scored is the normal case; say which of the other two it was.
+            status = str(row.get("evaluation_status") or "—")
+            cells.append((f"[dim]{status}[/dim]", "—"))
+            continue
+        score = float(score)
+        shown = f"{score:.2f}"
+        if row.get("paired_replay"):
+            # The two replays sit outside the sequence -- they re-run the first
+            # and last designs with the designer switched off. Subtracting the
+            # last iteration from them would read as another round of movement.
+            cells.append((shown, ""))
+            continue
+        if previous is None:
+            delta = "—"
+        elif score > previous:
+            delta = f"[green]+{score - previous:.2f}[/green]"
+        elif score < previous:
+            delta = f"[red]{score - previous:.2f}[/red]"
+        else:
+            delta = "[dim]0.00[/dim]"
+        cells.append((shown, delta))
+        previous = score
+    return cells
+
+
+def _score_header(rows: List[Dict[str, Any]]) -> str:
+    """"Score /100" when every round was marked out of the same total."""
+    totals = {
+        float(row["evaluation_max_score"])
+        for row in rows
+        if isinstance(row.get("evaluation_max_score"), (int, float))
+    }
+    return f"Score /{totals.pop():g}" if len(totals) == 1 else "Score"
+
+
+def crew_remaining_table(rows: List[Dict[str, Any]]) -> Table:
+    table = Table(title="Design iterate — crew remaining and score")
+    table.add_column("Iter")
+    # Remaining out of the crew that started, so the column carries what "Lost"
+    # used to and leaves the width to the two things the run is judged on.
+    table.add_column("Crew", justify="right")
+    table.add_column("ARS / OGS / WRS", no_wrap=True)
+    table.add_column(_score_header(rows), justify="right")
+    table.add_column("Δ", justify="right")
+    table.add_column("Best", justify="right")
+    table.add_column("Props", justify="right")
+    # Which round's design this one flew. The filename is always
+    # applied_proposals.json, so printing it says nothing.
+    table.add_column("Applied from")
+
+    scores = _score_cells(rows)
+    # Best so far means best among rounds that brought everyone back. A high
+    # score on a round that lost occupants is not a design to steer towards.
+    best: Optional[float] = None
+    for row, (score_cell, delta_cell) in zip(rows, scores):
+        apply_path = row.get("apply_proposals_path")
+        apply_name = Path(str(apply_path)).parent.name if apply_path else "—"
+        score = row.get("evaluation_score")
+        remaining, initial = row.get("crew_remaining"), row.get("crew_initial")
+        full_survival = (
+            isinstance(remaining, int) and isinstance(initial, int) and remaining == initial
+        )
+        marker = ""
+        if full_survival and isinstance(score, (int, float)) and not row.get("paired_replay"):
+            if best is None or float(score) > best:
+                best = float(score)
+                marker = "[bold green]★[/bold green]"
         table.add_row(
             str(row.get("iteration", "")),
-            str(row.get("crew_remaining", "—")),
-            str(row.get("crew_lost", "—")),
+            _crew_cell(row),
+            _sizing_cell(row),
+            score_cell,
+            delta_cell,
+            marker or ("[dim]·[/dim]" if best is not None else ""),
             str(row.get("design_proposal_count", "—")),
             apply_name,
         )
@@ -238,6 +343,47 @@ def print_chain_summary(
     if chain_summary.get("stopped_reason"):
         lines.append(f"stopped: {chain_summary['stopped_reason']}")
     console.print(Panel("\n".join(lines), title="Chain", border_style="cyan"))
+    print_chain_final_answer(chain_summary)
+
+
+def print_chain_final_answer(chain_summary: Dict[str, Any]) -> None:
+    """The design the chain answers with, or why it has none.
+
+    Shown apart from the verdict on purpose. The verdict is about the chain --
+    did it get anywhere -- and a chain can improve without ever reaching a
+    design worth building. Printing the two together invites reading the first
+    as the second.
+    """
+    answer = chain_summary.get("final_answer")
+    if not isinstance(answer, dict):
+        return
+    status = str(answer.get("status") or "")
+    lines = [f"status: {status}"]
+    if answer.get("selected_candidate_id"):
+        crew = answer.get("crew_remaining")
+        crew_initial = answer.get("crew_initial")
+        lines.append(
+            f"design: {answer['selected_candidate_id']} "
+            f"(iteration {answer.get('iteration')}) keeping {crew}/{crew_initial}"
+        )
+        fields = answer.get("fields")
+        if isinstance(fields, dict):
+            lines.append(
+                "sizing: " + ", ".join(f"{key} = {value}" for key, value in fields.items())
+            )
+    if answer.get("reason"):
+        lines.append(f"reason: {answer['reason']}")
+    considered = answer.get("candidates_considered")
+    if considered is not None:
+        lines.append(f"chosen from {considered} candidate(s) across the chain")
+    if answer.get("requires_supervisor_approval"):
+        lines.append("needs a human to approve before it can be applied")
+    if answer.get("path"):
+        lines.append(str(answer["path"]))
+    # Red when the chain has no design to hand over: that is a result to read,
+    # not a detail to skim past.
+    border = "green" if answer.get("selected_candidate_id") else "red"
+    console.print(Panel("\n".join(lines), title="Final answer", border_style=border))
 
 
 def print_error(message: str, *, hint: Optional[str] = None) -> None:

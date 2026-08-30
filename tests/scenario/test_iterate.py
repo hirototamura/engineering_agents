@@ -7,9 +7,21 @@ from pathlib import Path
 
 import pytest
 
-from scenario.jobs.iterate import VERDICT_INCONCLUSIVE, resolve_iteration, run_design_iterate
+from scenario.jobs.iterate import (
+    VERDICT_INCONCLUSIVE,
+    accumulate_applied_document,
+    iterate_apply_document,
+    resolve_iteration,
+    run_design_iterate,
+)
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunSpec
+from scenario.ssos_eclss_loop.chain_memory import (
+    CHAIN_MEMORY_FILENAME,
+    MAX_MEMORY_BYTES,
+    load_chain_memory,
+)
+from scenario.ssos_eclss_loop.design_proposals import apply_design_proposals
 
 
 def test_resolve_iteration_disabled_without_cli():
@@ -33,6 +45,7 @@ def test_resolve_iteration_yaml_enabled():
     settings = resolve_iteration({"iteration": {"enabled": True, "count": 3}})
     assert settings.chain is True
     assert settings.count == 3
+    assert "defaults" not in settings.as_dict()
 
 
 def test_resolve_iteration_cli_flags_override_yaml():
@@ -58,6 +71,11 @@ def test_resolve_iteration_cli_flags_override_yaml():
 def test_resolve_iteration_missing_block_does_not_chain():
     settings = resolve_iteration({})
     assert settings.chain is False
+
+
+def test_resolve_iteration_rejects_defaults_block():
+    with pytest.raises(ValueError, match="iteration.defaults was removed"):
+        resolve_iteration({"iteration": {"defaults": {"inject_failures": True}}})
 
 
 def test_resolve_iteration_count_out_of_range_when_chaining():
@@ -96,6 +114,7 @@ def test_design_iterate_mock_applies_only_previous_applied_file(tmp_path: Path):
             overrides=_labeled_overrides(backend="mock", steps=4),
         ),
         iteration_record={"chain": True, "count": 3},
+        measure_limits=False,
     )
     assert summary["iterations_completed"] == 3
     assert (chain_dir / "01" / "summary.json").exists()
@@ -266,8 +285,6 @@ def test_design_llm_provenance_from_overrides():
 
 
 def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
-    from scenario.jobs.iterate import iterate_apply_document
-
     adopted = iterate_apply_document(
         {
             "design_domain": "ssos_graph",
@@ -336,3 +353,305 @@ def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
         approve_provisional=True,
     )
     assert approved is not None
+
+
+def test_iterate_apply_document_keeps_omitted_keys_at_installed():
+    ars = "plant_sim.ars.capacity_kg_day"
+    ogs = "plant_sim.ogs.max_o2_kg_day"
+    wrs = "plant_sim.wrs.max_feed_l_per_operation"
+    adopted = iterate_apply_document(
+        {
+            "design_domain": "ssos_graph",
+            "changes": [
+                {
+                    "change_kind": "capacity_profile",
+                    "payload": {"backend": "plant_sim", "fields": {ogs: 48.0, wrs: 10.0}},
+                }
+            ],
+        },
+        installed={ars: 4.5, ogs: 50.0, wrs: 10.0},
+    )
+    assert adopted is not None
+    fields = adopted["changes"][0]["payload"]["fields"]
+    assert fields[ars] == 4.5
+    assert fields[ogs] == 48.0
+    assert fields[wrs] == 10.0
+
+
+def test_accumulate_applied_document_keeps_earlier_kinds():
+    previous = {
+        "design_domain": "ssos_graph",
+        "changes": [
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ars",
+                    "action": "air_revitalisation",
+                    "fields": {"initial_co2_mass": 2.25, "initial_moisture_content": 0.4},
+                },
+            },
+            {
+                "change_kind": "graph_rewire",
+                "payload": {"source": "cabin", "target": "ars"},
+            },
+            {
+                "change_kind": "capacity_profile",
+                "payload": {
+                    "backend": "plant_sim",
+                    "fields": {"plant_sim.ars.capacity_kg_day": 4.5},
+                },
+            },
+            {
+                "change_kind": "service_config",
+                "payload": {"service": "request_co2", "amount": 0.03, "before_ogs": True},
+            },
+        ],
+    }
+    new = {
+        "design_domain": "ssos_graph",
+        "proposed_by": "round-2",
+        "changes": [
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ogs",
+                    "action": "oxygen_generation",
+                    "fields": {"input_water_mass": 0.02},
+                },
+            },
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ars",
+                    "action": "air_revitalisation",
+                    "fields": {"initial_co2_mass": 2.8},
+                },
+            },
+            {
+                "change_kind": "capacity_profile",
+                "payload": {
+                    "backend": "plant_sim",
+                    "fields": {"plant_sim.ogs.max_o2_kg_day": 48.0},
+                },
+            },
+            {
+                "change_kind": "set_parameter",
+                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1.0},
+            },
+        ],
+    }
+    merged = accumulate_applied_document(previous, new)
+    assert merged["proposed_by"] == "round-2"
+    kinds = [(c["change_kind"], (c.get("payload") or {}).get("subsystem") or (c.get("payload") or {}).get("service")) for c in merged["changes"]]
+    assert ("action_profile", "ars") in kinds
+    assert ("action_profile", "ogs") in kinds
+    assert ("graph_rewire", None) in kinds
+    assert ("service_config", "request_co2") in kinds
+    assert ("capacity_profile", None) in kinds
+    assert all(c["change_kind"] != "set_parameter" for c in merged["changes"])
+
+    by_kind = {}
+    for change in merged["changes"]:
+        payload = change.get("payload") or {}
+        if change["change_kind"] == "action_profile":
+            by_kind[("action", payload["subsystem"])] = payload["fields"]
+        elif change["change_kind"] == "capacity_profile":
+            by_kind["capacity"] = payload["fields"]
+        elif change["change_kind"] == "graph_rewire":
+            by_kind["rewire"] = payload
+        elif change["change_kind"] == "service_config":
+            by_kind["service"] = payload
+    assert by_kind[("action", "ars")] == {"initial_co2_mass": 2.8, "initial_moisture_content": 0.4}
+    assert by_kind[("action", "ogs")] == {"input_water_mass": 0.02}
+    assert by_kind["capacity"] == {
+        "plant_sim.ars.capacity_kg_day": 4.5,
+        "plant_sim.ogs.max_o2_kg_day": 48.0,
+    }
+    assert by_kind["rewire"] == {"source": "cabin", "target": "ars"}
+    assert by_kind["service"]["amount"] == 0.03
+
+
+def test_iterate_apply_document_folds_previous_partial_into_applied_file():
+    previous = {
+        "design_domain": "ssos_graph",
+        "changes": [
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ars",
+                    "action": "air_revitalisation",
+                    "fields": {"initial_co2_mass": 2.25},
+                },
+            },
+            {
+                "change_kind": "graph_rewire",
+                "payload": {"source": "cabin", "target": "ars"},
+            },
+        ],
+    }
+    adopted = iterate_apply_document(
+        {
+            "design_domain": "ssos_graph",
+            "changes": [
+                {
+                    "change_kind": "action_profile",
+                    "payload": {
+                        "subsystem": "ogs",
+                        "action": "oxygen_generation",
+                        "fields": {"input_water_mass": 0.02},
+                    },
+                }
+            ],
+        },
+        previous=previous,
+    )
+    assert adopted is not None
+    config = apply_design_proposals({"agents": {"actor": {"policy": {}}}}, adopted)
+    policy = config["agents"]["actor"]["policy"]
+    assert policy["ars_goal"]["initial_co2_mass"] == 2.25
+    assert policy["ogs_goal"]["input_water_mass"] == 0.02
+    assert config["ssos_graph"]["rewires"] == [{"source": "cabin", "target": "ars"}]
+
+
+def test_the_chain_leaves_each_round_a_note_from_the_ones_before_it(tmp_path: Path):
+    """Iterations read only their own run, so what carries over has to be written.
+
+    Without this a design that kept the whole crew alive is gone the moment the
+    next iteration proposes something else, and nothing in the chain can tell
+    the designer that it ever existed.
+    """
+    chain_dir = tmp_path / "chain"
+    run_design_iterate(
+        iterations=3,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=_labeled_overrides(backend="mock", steps=4),
+        ),
+        paired_replay=False,
+    )
+
+    note = chain_dir / CHAIN_MEMORY_FILENAME
+    assert note.exists()
+    # One file at the root, updated in place -- not a copy under each iteration.
+    assert not (chain_dir / "01" / CHAIN_MEMORY_FILENAME).exists()
+    assert note.stat().st_size <= MAX_MEMORY_BYTES
+
+    memory = json.loads(note.read_text(encoding="utf-8"))
+    assert memory["schema_version"] == "1.0"
+    assert memory["updated_after_iteration"] == 3
+    assert memory["objective"]["primary"] == "maximize_crew_remaining"
+    assert memory["proposal_guidance"]["prefer_complete_capacity_profile"] is True
+    # What was installed for the last round, read off its config.
+    last = memory["last_effective_design"]
+    assert last["iteration"] == 3
+    assert set(last["fields"]) == {
+        "plant_sim.ars.capacity_kg_day",
+        "plant_sim.ogs.max_o2_kg_day",
+        "plant_sim.wrs.max_feed_l_per_operation",
+    }
+    # Every iteration after the first can see it from its own run directory.
+    for index in (1, 2, 3):
+        assert load_chain_memory(chain_dir / f"{index:02d}") == memory
+
+
+def test_the_chain_measures_its_own_limits_before_designing_against_them(tmp_path: Path):
+    """Where each subsystem stops working is found by trying it, once, up front.
+
+    It used to be calculated and asserted. The calculation was wrong for the
+    water recycler, and because it arrived as a rule rather than a result, no
+    round of an observed fifty-iteration chain ever tested any of the three.
+    """
+    from scenario.ssos_eclss_loop.floor_probe import MEASURED_LIMITS_FILENAME
+
+    chain_dir = tmp_path / "chain"
+    summary = run_design_iterate(
+        iterations=2,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=_labeled_overrides(backend="plant_sim", steps=8, inject_failures=False),
+        ),
+        paired_replay=False,
+    )
+
+    path = chain_dir / MEASURED_LIMITS_FILENAME
+    assert path.exists()
+    measured = json.loads(path.read_text(encoding="utf-8"))
+    assert measured["simulations"] > 0
+    assert set(measured["smallest_surviving_machine"]) == {
+        "plant_sim.ars.capacity_kg_day",
+        "plant_sim.ogs.max_o2_kg_day",
+        "plant_sim.wrs.max_feed_l_per_operation",
+    }
+    assert summary["survival_limits"]["status"] == measured["status"]
+
+    # And what was measured reaches the round that has to design against it.
+    memory = load_chain_memory(chain_dir / "02")
+    limits = memory["measured_limits"]
+    assert limits["by_subsystem"]
+    for row in limits["by_subsystem"].values():
+        assert "smallest_that_kept_everyone" in row
+    # Observations, not instructions.
+    assert "do_not_reduce_below_best_without_reason" not in memory["proposal_guidance"]
+
+
+def test_the_chain_hands_on_a_whole_machine_not_just_what_changed(tmp_path: Path):
+    chain_dir = tmp_path / "chain"
+    run_design_iterate(
+        iterations=2,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=_labeled_overrides(backend="mock", steps=4),
+        ),
+        paired_replay=False,
+        measure_limits=False,
+    )
+    applied = json.loads(
+        (chain_dir / "01" / "applied_proposals.json").read_text(encoding="utf-8")
+    )
+    capacity = [c for c in applied["changes"] if c["change_kind"] == "capacity_profile"]
+    for change in capacity:
+        assert set(change["payload"]["fields"]) == {
+            "plant_sim.ars.capacity_kg_day",
+            "plant_sim.ogs.max_o2_kg_day",
+            "plant_sim.wrs.max_feed_l_per_operation",
+        }
+
+
+def test_the_chain_writes_a_final_answer_beside_its_verdict(tmp_path: Path):
+    """A chain that improved still has to say what to build, or that it cannot.
+
+    The verdict answers "did this get anywhere". It is not an answer to "what
+    do we build", and a run that reports only the verdict leaves the reader to
+    guess which design it meant.
+    """
+    chain_dir = tmp_path / "chain"
+    summary = run_design_iterate(
+        iterations=2,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=_labeled_overrides(backend="mock", steps=4),
+        ),
+        paired_replay=False,
+    )
+
+    answer_path = chain_dir / "chain_final_answer.json"
+    assert answer_path.exists()
+    answer = json.loads(answer_path.read_text(encoding="utf-8"))
+    assert answer["iterations_considered"] == 2
+    assert answer["status"] in {
+        "approved_final",
+        "provisional_final",
+        "rejected_final",
+        "not_comparable",
+    }
+    # Whatever it decided, the chain summary carries it and points at the file.
+    assert summary["final_answer"]["status"] == answer["status"]
+    assert Path(summary["final_answer"]["path"]) == answer_path
+    # A design is only handed over if it kept everyone alive.
+    selected = answer.get("selected")
+    if selected is not None:
+        assert selected["crew_remaining"] == selected["crew_initial"]

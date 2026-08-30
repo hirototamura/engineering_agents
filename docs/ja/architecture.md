@@ -131,7 +131,7 @@ src/integrations/   （scenario から呼び出し）
 
 | 概念           | 説明                                       |
 | ------------ | ---------------------------------------- |
-| `team.count` | オペレータ数（scrubber デフォルト 4）。ssos actor: `actor.team.count`（既定 50、`plant_sim.crew.size` とロックステップ）。designer: `design.team.count`（既定 4。乗員ではない） |
+| `team.count` | オペレータ数（scrubber デフォルト 4）。ssos actor: `actor.team.count`（既定 50、`plant_sim.crew.size` とロックステップ）。designer: `design.team.count`（既定 1。レンズなし。乗員ではない）。採用は別枠の `design.audit` パネル（独立レンズ 3 本） |
 | `team.archetypes` | 任意。思考レンズ名のリスト（scrubber デフォルト 4 種）。`agent_id` へ round-robin 割当。省略または `[]` で従来の同種チーム |
 | deliberation | llm: 全員 1 ラウンドを同時（並列）実行。labeled: ルールが定型メッセージ      |
 | action rep   | step ごとに `(step-1) % N` で代表がコマンド発行（ssos actor は 0-based の `step % N`） |
@@ -148,13 +148,17 @@ src/integrations/   （scenario から呼び出し）
 | `failure_mode` | FMEA 的 — 二次故障・最悪相互作用 |
 | `improviser` | 手元資源の最小介入 |
 | `systems_integrator` | サブシステム間結合と局所修正の副作用 |
+| `rederive_numbers` | 数値を自分で再導出する。再構成していない数字を受け取るな |
+| `break_conclusion` | 出てきた案を壊す。成立しない条件を探す |
+| `avoid_local_optima` | 同じ手（WRS だけ微調整など）の繰り返しを局所解と見て拒否する |
+| `design_validity` | サイズした機械が作れて回るかを見る |
 
 | モード | persona への効果 |
 | --- | --- |
 | `llm` | レンズ文 + `team.persona` を各エージェントに合成 |
 | `labeled_rule_base` | ルールは persona を無視。`summary.json["archetypes"]` には記録（構成→成果研究用） |
 
-`ssos_eclss_loop` のデフォルト `agents.yaml` には archetype 行なし。未知のレンズ名は `load_team` 時に `ValueError`。
+`ssos_eclss_loop` の tool-use 既定は designer 1 人（レンズなし）と、採用ゲートの監査 3 人（`rederive_numbers` / `avoid_local_optima` / `design_validity`）。未知のレンズ名は `load_team` / `resolve_audit_config` 時に `ValueError`。詳細: [設計チーム・監査パネル・Storage](memo/ssos_eclss_loop/design_audit_storage.md)。
 
 詳細: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md)。実装: `src/core/agents/persona.py`。
 

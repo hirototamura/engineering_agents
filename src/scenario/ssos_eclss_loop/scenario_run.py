@@ -50,6 +50,7 @@ from scenario.ssos_eclss_loop.survival import (
 )
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
+from scenario.ssos_eclss_loop.integrity_guard import compare_configs, integrity_summary
 from scenario.ssos_eclss_loop.design_proposals import (
     APPROVE_PROVISIONAL_SIM_INFO,
     apply_design_proposals,
@@ -57,7 +58,6 @@ from scenario.ssos_eclss_loop.design_proposals import (
     write_design_proposals,
 )
 from scenario.ssos_eclss_loop.unified_evaluation import finalize_run_evaluation
-from scenario.ssos_eclss_loop.evaluation import write_evaluation
 from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
 from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
 
@@ -417,6 +417,15 @@ class SsosEclssLoopScenario(Scenario):
             agents_config=agents_config,
         )
 
+        # Before the first step: what does this run differ from the pristine
+        # scenario in, and is any of it the yardstick? Recorded whatever the
+        # answer, so the classification travels with the run rather than being
+        # reconstructed later from the config that produced it.
+        integrity = compare_configs(self.load_config(None), config)
+        (run_dir / "run_integrity.json").write_text(
+            json.dumps(integrity, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
         backend = build_eclss_backend(config, kind=backend_kind)
         team = self.build_team(config, agents_config=agents_config)
         log = EventLog(run_dir)
@@ -595,8 +604,9 @@ class SsosEclssLoopScenario(Scenario):
         # Canonical run measurement precedes design reasoning. The tool-use
         # designer therefore sees the same deterministic diagnosis used by the
         # dashboard, and candidate runs are evaluated identically.
+        summary["run_integrity"] = integrity_summary(integrity)
         summary = finalize_run_evaluation(
-            run_dir, scenario_config=config, summary=summary
+            run_dir, scenario_config=config, summary=summary, integrity=integrity
         )
 
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
@@ -652,25 +662,11 @@ class SsosEclssLoopScenario(Scenario):
                 write_design_proposals(proposals_path, proposals)
                 summary["design_proposals_path"] = str(proposals_path)
 
-        evaluation_path, evaluation_html_path, evaluation = write_evaluation(
-            run_dir,
-            scenario_config=config,
-            summary=summary,
-        )
-        evaluation_scores = evaluation.get("scores") or {}
-        summary.update(
-            {
-                "evaluation_path": str(evaluation_path),
-                "evaluation_html_path": str(evaluation_html_path),
-                "evaluation_status": evaluation.get("status"),
-                "evaluation_score": evaluation_scores.get("total"),
-                "evaluation_max_score": evaluation_scores.get("max_score"),
-                "physics_gate_passed": bool(
-                    (evaluation.get("physics_gate") or {}).get("passed", False)
-                ),
-            }
-        )
-
+        # The evaluation is written once, by ``finalize_run_evaluation`` above.
+        # Re-running the evaluator here would overwrite that measurement with a
+        # differently-configured one, so summary.json and evaluation.json would
+        # disagree about the same run and the designer's evidence would not be
+        # what a human opens afterwards.
         log.write_summary(summary)
 
         provenance_path = run_dir / "provenance.jsonl"

@@ -136,7 +136,13 @@ def test_plant_run_writes_scored_evaluation_and_summary_index(tmp_path: Path):
 
     assert evaluation["status"] == "scored"
     assert evaluation["physics_gate"]["passed"] is True
-    assert evaluation["scores"]["max_score"] == 80
+    # 90 with nobody operating: every axis but the two operating ones.
+    assert evaluation["scores"]["max_score"] == 90
+    axes = evaluation["scores"]["axes"]
+    # Cost and mass are marked here, not compared separately below survival.
+    assert axes["cost"]["max_score"] == 20
+    assert axes["mass"]["max_score"] == 20
+    assert axes["actor_survival"]["max_score"] == 20
     assert "actor_decision" not in evaluation["scores"]["axes"]
     assert "physical_response" not in evaluation["scores"]["axes"]
     assert summary["evaluation_path"] == str(run_dir / "evaluation.json")
@@ -276,3 +282,193 @@ def test_non_finite_telemetry_invalidates_physics_gate(tmp_path: Path):
     evaluation = evaluate_run(run_dir, scenario_config=_config(), summary=summary)
     assert evaluation["status"] == "invalid"
     assert evaluation["physics_gate"]["passed"] is False
+
+
+# --------------------------------------------------------------------------- #
+# the scorecard: what a design costs is marked, not compared separately
+# --------------------------------------------------------------------------- #
+def test_the_sheet_adds_up_to_what_it_claims():
+    from scenario.ssos_eclss_loop import evaluation as ev
+
+    performance = ev.TCL_MAX + ev.TRAJECTORY_MAX + ev.RECOVERY_MAX
+    assert performance + ev.CREW_MAX + ev.COST_MAX + ev.MASS_MAX == ev.NO_ACTOR_MAX
+    assert (
+        performance + ev.CREW_MAX + ev.COST_MAX + ev.MASS_MAX + ev.DECISION_MAX + ev.RESPONSE_MAX
+        == ev.FULL_MAX
+    )
+
+
+def _capacity_config(ars: float, ogs: float, wrs: float) -> dict:
+    import yaml
+
+    from scenario.runner import scenario_config_path
+
+    config = yaml.safe_load(scenario_config_path("ssos_eclss_loop").read_text(encoding="utf-8"))
+    config["plant_sim"]["ars"]["capacity_kg_day"] = ars
+    config["plant_sim"]["ogs"]["max_o2_kg_day"] = ogs
+    config["plant_sim"]["wrs"]["max_feed_l_per_operation"] = wrs
+    return config
+
+
+def test_the_baseline_machine_scores_full_marks_on_what_it_costs():
+    """Full marks at the machine the station already has, not below it.
+
+    The baseline is the reference point, not a target to undercut: a design
+    cannot earn credit for being smaller than the thing being replaced.
+    """
+    from scenario.ssos_eclss_loop.evaluation import COST_MAX, MASS_MAX, _footprint_axis
+
+    config = _capacity_config(4.5, 9.25, 10.0)
+    cost = _footprint_axis(config, quantity="total_cost_musd", max_score=COST_MAX, zero_at=750.0)
+    mass = _footprint_axis(config, quantity="total_mass_kg", max_score=MASS_MAX, zero_at=5000.0)
+    assert cost["score"] == COST_MAX
+    assert mass["score"] == MASS_MAX
+    # The sizing model's baseline is the scorecard's reference: 1800 kg / 259 MUSD.
+    assert round(mass["metrics"]["baseline_value"]) == 1800
+    assert round(cost["metrics"]["baseline_value"]) == 259
+
+
+def test_a_bigger_machine_gives_up_marks_for_being_bigger():
+    from scenario.ssos_eclss_loop.evaluation import MASS_MAX, _footprint_axis
+
+    small = _footprint_axis(
+        _capacity_config(25.0, 50.0, 10.0),
+        quantity="total_mass_kg",
+        max_score=MASS_MAX,
+        zero_at=5000.0,
+    )
+    large = _footprint_axis(
+        _capacity_config(80.0, 80.0, 20.0),
+        quantity="total_mass_kg",
+        max_score=MASS_MAX,
+        zero_at=5000.0,
+    )
+    assert large["score"] <= small["score"]
+    # Past the zero point the axis stops, it does not go negative and eat the
+    # rest of the sheet.
+    assert large["score"] == 0.0
+
+
+def test_full_marks_move_to_the_configured_line_not_the_baseline():
+    """Marking against a machine that kills everyone cannot rank the survivors.
+
+    The baseline loses all fifty occupants, so every design that keeps them
+    alive is larger than it and all of them scored near the floor. Two very
+    different survivable designs came out at 11.57 and 4.08 out of 40 — the
+    sheet could not tell a lean machine from a bloated one.
+    """
+    from scenario.ssos_eclss_loop.evaluation import COST_MAX, MASS_MAX, _footprint_axis
+
+    config = _capacity_config(20.8, 42.0, 2.0)
+    # At or under the line is full marks, whatever the baseline was.
+    under_line = _footprint_axis(
+        config, quantity="total_cost_musd", max_score=COST_MAX, zero_at=900.0, full_at=700.0
+    )
+    assert under_line["score"] == COST_MAX
+
+    cost = _footprint_axis(
+        config, quantity="total_cost_musd", max_score=COST_MAX, zero_at=900.0, full_at=500.0
+    )
+    mass = _footprint_axis(
+        config, quantity="total_mass_kg", max_score=MASS_MAX, zero_at=6000.0, full_at=3400.0
+    )
+    # The design that kept 50 of 50 on the smallest machine observed: E ~ 29/40,
+    # room above it and room below.
+    assert 28.0 < cost["score"] + mass["score"] < 32.0
+    assert cost["metrics"]["full_score_value"] == 500.0
+    assert cost["metrics"]["zero_score_value"] == 900.0
+    assert cost["metrics"]["over_full_score_value"] == pytest.approx(
+        cost["metrics"]["value"] - 500.0
+    )
+    assert 0.0 < cost["metrics"]["fraction_of_headroom_used"] < 1.0
+    # The shipped machine is still named, it is just no longer where full marks sit.
+    assert round(cost["metrics"]["baseline_value"]) == 259
+
+
+def test_an_oversized_survivor_scores_clearly_below_a_lean_one():
+    from scenario.ssos_eclss_loop.evaluation import COST_MAX, MASS_MAX, _footprint_axis
+
+    def footprint_score(ars: float, ogs: float, wrs: float) -> float:
+        config = _capacity_config(ars, ogs, wrs)
+        cost = _footprint_axis(
+            config, quantity="total_cost_musd", max_score=COST_MAX, zero_at=900.0, full_at=500.0
+        )
+        mass = _footprint_axis(
+            config, quantity="total_mass_kg", max_score=MASS_MAX, zero_at=6000.0, full_at=3400.0
+        )
+        return cost["score"] + mass["score"]
+
+    lean = footprint_score(20.8, 42.0, 2.0)
+    bloated = footprint_score(23.92, 48.3, 5.0)
+    # Both keep every occupant alive. Before the line moved these sat at 11.57
+    # and 4.08; what matters is that the gap is now readable either way.
+    assert lean - bloated > 5.0
+
+
+def test_omitting_the_full_score_line_keeps_the_old_baseline_behaviour():
+    from scenario.ssos_eclss_loop.evaluation import MASS_MAX, _footprint_axis
+
+    config = _capacity_config(20.8, 42.0, 2.0)
+    without = _footprint_axis(
+        config, quantity="total_mass_kg", max_score=MASS_MAX, zero_at=5000.0
+    )
+    explicit = _footprint_axis(
+        config, quantity="total_mass_kg", max_score=MASS_MAX, zero_at=5000.0, full_at=1800.0
+    )
+    assert without["score"] == explicit["score"]
+    assert without["metrics"]["full_score_value"] == pytest.approx(1800.0)
+
+
+def test_a_zero_line_at_or_under_the_full_line_is_not_scored():
+    """Everything would be worth all the marks or none; the sheet says so."""
+    from scenario.ssos_eclss_loop.evaluation import MASS_MAX, _footprint_axis
+
+    for zero_at in (3400.0, 3000.0):
+        axis = _footprint_axis(
+            _capacity_config(20.8, 42.0, 2.0),
+            quantity="total_mass_kg",
+            max_score=MASS_MAX,
+            zero_at=zero_at,
+            full_at=3400.0,
+        )
+        assert axis["status"] == "incomplete"
+        assert axis["score"] is None
+
+
+def test_the_shipped_scenario_marks_cost_and_mass_against_a_survivable_machine():
+    import yaml
+
+    from scenario.runner import scenario_config_path
+
+    config = yaml.safe_load(
+        scenario_config_path("ssos_eclss_loop").read_text(encoding="utf-8")
+    )
+    footprint = config["evaluation"]["footprint"]
+    assert footprint["cost_full_score_musd"] < footprint["cost_zero_score_musd"]
+    assert footprint["mass_full_score_kg"] < footprint["mass_zero_score_kg"]
+
+
+def test_where_the_marks_went_is_reported_worst_first():
+    """A total says a design is worse; the breakdown says what to change."""
+    from scenario.ssos_eclss_loop.unified_evaluation import compact_evaluation
+
+    compact = compact_evaluation(
+        {
+            "status": "scored",
+            "physics_gate": {"passed": True},
+            "scores": {
+                "total": 55.0,
+                "max_score": 90,
+                "axes": {
+                    "actor_survival": {"score": 20.0, "max_score": 20, "status": "scored"},
+                    "mass": {"score": 0.0, "max_score": 20, "status": "scored"},
+                    "cost": {"score": 5.0, "max_score": 20, "status": "scored"},
+                    "tcl": {"score": 10.0, "max_score": 10, "status": "scored"},
+                },
+            },
+        }
+    )
+    assert [row["axis"] for row in compact["points_lost"]] == ["mass", "cost"]
+    assert compact["points_lost"][0]["points"] == 20.0
+    # A perfect axis is not listed: nothing was lost there.
+    assert compact["axes"]["actor_survival"]["score"] == 20.0

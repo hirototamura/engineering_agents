@@ -19,7 +19,28 @@ from scenario.ssos_eclss_loop.evaluation_browser import write_evaluation_browser
 from scenario.ssos_eclss_loop.evaluation_html import render_evaluation_html
 from scenario.ssos_eclss_loop.health import build_effective_thresholds
 
-SCHEMA_VERSION = "1.0"
+# 2.0 moved cost and mass inside the score. A 1.0 total is not comparable with
+# a 2.0 total, so the version has to say so.
+SCHEMA_VERSION = "2.0"
+
+# The scorecard, in points. Survival still leads every ranking on its own, so it
+# does not also need to dominate the sheet: what the score is for is telling a
+# designer which of the remaining things went wrong.
+CREW_MAX = 20.0
+TCL_MAX = 10.0
+TRAJECTORY_MAX = 10.0
+RECOVERY_MAX = 10.0
+COST_MAX = 20.0
+MASS_MAX = 20.0
+DECISION_MAX = 5.0
+RESPONSE_MAX = 5.0
+
+FULL_MAX = 100  # with an operator: every axis applies
+NO_ACTOR_MAX = 90  # nobody operating: the two operating axes are not marked
+
+# Where the footprint axes reach zero. Exploration coefficients, not estimates.
+COST_ZERO_MUSD = 750.0
+MASS_ZERO_KG = 5000.0
 CREW_LOST_EVENT = "/eclss/events/crew_lost"
 OPERATIONAL_APPLIED = "/eclss/events/operational_applied"
 OPERATIONAL_REJECTED = "/eclss/events/operational_rejected"
@@ -66,6 +87,11 @@ def _finite_number(value: Any) -> bool:
 
 def _number(value: Any, default: float = 0.0) -> float:
     return float(value) if _finite_number(value) else default
+
+
+def _optional_number(value: Any) -> Optional[float]:
+    """A configured number, or ``None`` when the key was simply not set."""
+    return float(value) if _finite_number(value) else None
 
 
 def _clip(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -402,15 +428,15 @@ def _crew_axis(summary: Mapping[str, Any]) -> Dict[str, Any]:
     initial = summary.get("crew_initial")
     remaining = summary.get("crew_remaining")
     if not _finite_number(initial) or float(initial) <= 0 or not _finite_number(remaining):
-        return {"status": "incomplete", "score": None, "max_score": 50}
+        return {"status": "incomplete", "score": None, "max_score": CREW_MAX}
     ratio = _clip(float(remaining) / float(initial))
     causes = dict(summary.get("crew_lost_by_cause") or {})
     physics = {key: int(value or 0) for key, value in causes.items() if key.endswith("_physics")}
     dwell = {key: int(value or 0) for key, value in causes.items() if not key.endswith("_physics")}
     return {
         "status": "scored",
-        "score": _round(50.0 * ratio),
-        "max_score": 50,
+        "score": _round(CREW_MAX * ratio),
+        "max_score": CREW_MAX,
         "metrics": {
             "crew_initial": int(initial),
             "crew_remaining": int(remaining),
@@ -432,7 +458,7 @@ def _tcl_axis(
     tcl_cfg = dict(config.get("tcl") or {})
     reference = float(tcl_cfg.get("reference_seconds", 0.0))
     if reference <= 0.0 or not canonical:
-        return {"status": "incomplete", "score": None, "max_score": 10}
+        return {"status": "incomplete", "score": None, "max_score": TCL_MAX}
     first_loss = next((event for event in events if event.get("kind") == CREW_LOST_EVENT), None)
     end_time = _time_s(canonical[-1], step_seconds)
     if first_loss is None:
@@ -445,7 +471,7 @@ def _tcl_axis(
         return {
             "status": status,
             "score": score,
-            "max_score": 10,
+            "max_score": TCL_MAX,
             "metrics": {
                 "event_observed": False,
                 "tcl_seconds": None,
@@ -460,8 +486,8 @@ def _tcl_axis(
     causes = dict(first_loss.get("crew_lost_by_cause") or {})
     return {
         "status": "scored",
-        "score": _round(10.0 * _clip(tcl / reference)),
-        "max_score": 10,
+        "score": _round(TCL_MAX * _clip(tcl / reference)),
+        "max_score": TCL_MAX,
         "metrics": {
             "event_observed": True,
             "tcl_seconds": _round(tcl),
@@ -481,7 +507,7 @@ def _trajectory_axis(
     trajectory_cfg = dict(config.get("trajectory") or {})
     weights = _normalized_weights(dict(trajectory_cfg.get("resource_weights") or {}), RESOURCE_KEYS)
     if len(canonical) < 2:
-        return {"status": "incomplete", "score": None, "max_score": 10}
+        return {"status": "incomplete", "score": None, "max_score": TRAJECTORY_MAX}
     auc = {key: 0.0 for key in RESOURCE_KEYS}
     band_steps = {key: {"safe": 0, "warning": 0, "critical": 0} for key in RESOURCE_KEYS}
     longest_critical = {key: 0 for key in RESOURCE_KEYS}
@@ -508,15 +534,15 @@ def _trajectory_axis(
 
     duration = _time_s(canonical[-1], step_seconds) - _time_s(canonical[0], step_seconds)
     if duration <= 0.0:
-        return {"status": "incomplete", "score": None, "max_score": 10}
+        return {"status": "incomplete", "score": None, "max_score": TRAJECTORY_MAX}
     mean_severity = {key: auc[key] / duration for key in RESOURCE_KEYS}
     weighted = sum(weights[key] * mean_severity[key] for key in RESOURCE_KEYS)
     zero_score = max(1e-12, float(trajectory_cfg.get("zero_score_mean_severity", 1.0)))
-    score = 10.0 * _clip(1.0 - weighted / zero_score)
+    score = TRAJECTORY_MAX * _clip(1.0 - weighted / zero_score)
     return {
         "status": "scored",
         "score": _round(score),
-        "max_score": 10,
+        "max_score": TRAJECTORY_MAX,
         "metrics": {
             "duration_seconds": _round(duration),
             "severity_auc_seconds": {key: _round(value) for key, value in auc.items()},
@@ -541,7 +567,7 @@ def _resource_recovery_axis(
     weights = _normalized_weights(dict(recovery_cfg.get("resource_weights") or {}), RESOURCE_KEYS)
     terminal_weight = _clip(float(recovery_cfg.get("terminal_weight", 0.5)))
     if not canonical:
-        return {"status": "incomplete", "score": None, "max_score": 10}
+        return {"status": "incomplete", "score": None, "max_score": RECOVERY_MAX}
     first_step = min(pre_by_step) if pre_by_step else int(canonical[0].get("step") or 0)
     initial = pre_by_step.get(first_step, canonical[0])
     final = canonical[-1]
@@ -608,11 +634,11 @@ def _resource_recovery_axis(
             "terminal_quality": _round(terminal_quality),
             "recovery_quality": _round(recovery_quality),
         }
-    score = 10.0 * sum(weights[key] * qualities[key] for key in RESOURCE_KEYS)
+    score = RECOVERY_MAX * sum(weights[key] * qualities[key] for key in RESOURCE_KEYS)
     return {
         "status": "scored",
         "score": _round(score),
-        "max_score": 10,
+        "max_score": RECOVERY_MAX,
         "metrics": {
             "failure_event_step": event_step,
             "failure_subsystem": failure.get("subsystem") if failure else None,
@@ -756,14 +782,14 @@ def _decision_axis(
     validity_quality = (
         sum(1 for item in attempts if item["valid"]) / len(attempts) if attempts else 1.0
     )
-    score = 10.0 * (
+    score = DECISION_MAX * (
         latency_weight * latency_quality + (1.0 - latency_weight) * validity_quality
     )
     return (
         {
             "status": "scored",
             "score": _round(score),
-            "max_score": 10,
+            "max_score": DECISION_MAX,
             "metrics": {
                 "latency_quality": _round(latency_quality),
                 "validity_quality": _round(validity_quality),
@@ -842,16 +868,87 @@ def _response_axis(
         return {
             "status": "not_observed",
             "score": None,
-            "max_score": 10,
+            "max_score": RESPONSE_MAX,
             "metrics": {"valid_operation_count": 0, "operations": []},
         }
     operations = [_response_quality(event, config) for event in valid_events]
-    score = 10.0 * sum(float(item["quality"] or 0.0) for item in operations) / len(operations)
+    score = RESPONSE_MAX * sum(float(item["quality"] or 0.0) for item in operations) / len(operations)
     return {
         "status": "scored",
         "score": _round(score),
-        "max_score": 10,
+        "max_score": RESPONSE_MAX,
         "metrics": {"valid_operation_count": len(operations), "operations": operations},
+    }
+
+
+def _footprint_axis(
+    scenario_config: Mapping[str, Any],
+    *,
+    quantity: str,
+    max_score: float,
+    zero_at: float,
+    full_at: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Score what the design costs, on the same sheet as how well it works.
+
+    Mass and cost used to sit outside the score, as a separate ranking step
+    below dwell time. That let a design win on a few calm steps and never have
+    its mass looked at -- the run that produced this change adopted a machine
+    1210 kg heavier for six fewer warning steps. Here they are simply two more
+    axes, so a heavier design has to earn the weight back somewhere.
+
+    Full marks at or below *full_at*, zero at *zero_at*, linear between.
+
+    Where full marks sit is a judgement, not a fact, and the default was the
+    wrong one. It was the shipped baseline machine -- which loses the whole
+    crew. Every design that actually keeps people alive is necessarily larger,
+    so all of them scored near the bottom of these two axes and the sheet could
+    not tell a lean survivable machine from a bloated one: 11.57 and 4.08 out
+    of 40 for two designs that both brought back 50 of 50. Setting *full_at*
+    near the smallest machine that survives puts those two an axis apart again.
+    Omit it and the baseline is used, which is what older configs get.
+    """
+    from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
+    from scenario.ssos_eclss_loop.design_variables import read_capacity_fields
+
+    constraints = DesignConstraints.from_scenario_config(scenario_config)
+    installed = read_capacity_fields(scenario_config)
+    if not installed:
+        return {"status": "incomplete", "score": None, "max_score": max_score}
+
+    footprint = constraints.footprint(installed)
+    baseline = constraints.baseline_footprint()
+    value = footprint.get(quantity)
+    base_value = baseline.get(quantity)
+    if not _finite_number(value) or not _finite_number(base_value):
+        return {"status": "incomplete", "score": None, "max_score": max_score}
+
+    value = float(value)
+    base_value = float(base_value)
+    full_value = float(full_at) if _finite_number(full_at) else base_value
+    span = zero_at - full_value
+    if span <= 0:
+        # A zero line at or under the full-marks line cannot be scored -- it
+        # would make every design worth either everything or nothing. The sheet
+        # says the axis is incomplete rather than inventing an order.
+        return {"status": "incomplete", "score": None, "max_score": max_score}
+    fraction = _clip(1.0 - (value - full_value) / span)
+    return {
+        "status": "scored",
+        "score": _round(max_score * fraction),
+        "max_score": max_score,
+        "metrics": {
+            "value": _round(value),
+            "full_score_value": _round(full_value),
+            "zero_score_value": _round(zero_at),
+            "over_full_score_value": _round(value - full_value),
+            "fraction_of_headroom_used": _round(_clip((value - full_value) / span)),
+            # The machine the station shipped with, kept for continuity with
+            # earlier evaluations. It is no longer where full marks sit.
+            "baseline_value": _round(base_value),
+            "installed_capacity": dict(installed),
+            "by_subsystem": footprint.get("by_subsystem"),
+        },
     }
 
 
@@ -865,7 +962,10 @@ def evaluate_run(
 
     evaluation_cfg = dict(scenario_config.get("evaluation") or {})
     actor_mode = str(summary.get("actor_mode") or "none")
-    max_score = 80 if actor_mode == "none" else 100
+    # A run with nobody operating the station cannot be marked on how it was
+    # operated, so those two axes are dropped rather than redistributed: the
+    # sheet says what was applicable instead of quietly rescaling.
+    max_score = NO_ACTOR_MAX if actor_mode == "none" else FULL_MAX
     backend = str(summary.get("backend") or "")
     survival_enabled = bool(
         ((scenario_config.get("plant_sim") or {}).get("survival") or {}).get("enabled", False)
@@ -925,6 +1025,7 @@ def evaluate_run(
         base["status"] = "invalid"
         return base
 
+    footprint_cfg = dict(evaluation_cfg.get("footprint") or {})
     axes: Dict[str, Dict[str, Any]] = {
         "actor_survival": _crew_axis(summary),
         "tcl": _tcl_axis(canonical, events, evaluation_cfg, step_seconds),
@@ -933,6 +1034,20 @@ def evaluate_run(
         ),
         "resource_recovery": _resource_recovery_axis(
             canonical, pre_by_step, events, thresholds, evaluation_cfg
+        ),
+        "cost": _footprint_axis(
+            scenario_config,
+            quantity="total_cost_musd",
+            max_score=COST_MAX,
+            zero_at=_number(footprint_cfg.get("cost_zero_score_musd"), COST_ZERO_MUSD),
+            full_at=_optional_number(footprint_cfg.get("cost_full_score_musd")),
+        ),
+        "mass": _footprint_axis(
+            scenario_config,
+            quantity="total_mass_kg",
+            max_score=MASS_MAX,
+            zero_at=_number(footprint_cfg.get("mass_zero_score_kg"), MASS_ZERO_KG),
+            full_at=_optional_number(footprint_cfg.get("mass_full_score_kg")),
         ),
     }
     if actor_mode != "none":

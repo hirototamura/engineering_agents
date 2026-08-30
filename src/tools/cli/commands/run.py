@@ -237,7 +237,6 @@ def run(
             inject_failures=inject_failures,
             paired_replay=settings.paired_replay,
             approve_provisional=settings.approve_provisional,
-            iteration_defaults=settings.defaults,
             iteration_record=settings.as_dict(),
             seed=seed,
             set_values=set_values,
@@ -468,9 +467,13 @@ def _build_overrides(
 def _apply_cli_defaults(scenario_name: str, overrides: dict | None) -> dict | None:
     """Pin `ea run ssos_eclss_loop` with no mode/backend flags.
 
-    A bare invocation is equivalent to::
+    Used for both a single sim and chained child sims. A bare invocation is
+    equivalent to::
 
         --backend plant_sim --actor-mode labeled_rule_base --design-mode llm
+
+    ``inject_failures`` is not pinned here; it stays the scenario.yaml value
+    unless ``--inject-failures`` / ``--no-inject-failures`` / ``--set`` is given.
 
     Explicit ``--backend`` / ``--actor-mode`` / ``--design-mode`` / ``--agents-mode``
     / ``--set`` / ``--override-file`` and ``SSOS_ECLSS_BACKEND`` still win. If actor

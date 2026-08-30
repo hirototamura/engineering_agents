@@ -50,10 +50,16 @@ src/experiments/results/*
 # Design-loop analysis: the run directories are regenerable and large, the
 # datasets and the report are the deliverable and are small.
 src/experiments/analysis/*
+!src/experiments/analysis/.gitkeep
 !src/experiments/analysis/datasets/
 !src/experiments/analysis/design_loop_analysis.html
 !src/experiments/analysis/design_loop_analysis.ja.html
 !src/experiments/analysis/design_loop_analysis.findings.json
+
+# Archived chains: the .tar.gz under experiments/runs/ is what is tracked.
+# Extracting one, and re-running the analysis over it, produces these.
+experiments/runs/*/
+experiments/outputs/
 artifacts/ssos-regression/
 output/
 041922_output/

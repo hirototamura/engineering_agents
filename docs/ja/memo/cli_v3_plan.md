@@ -63,7 +63,7 @@ ea run ssos_eclss_loop
 
 ## ボリュームマウント（初回設定）
 
-**コマンド一式**: [CLI ガイド](../../cli.md#ssos-docker-ssos_eclss_loop--ros2) / [quickstart](../ssos/quickstart.md#ssos_eclss_loop--コマンド一式mac)
+**コマンド一式**: [CLI ガイド](../cli.md#ssos-docker-ssos_eclss_loop--ros2) / [quickstart](../ssos/quickstart.md#ssos_eclss_loop--コマンド一式mac)
 
 ```bash
 ./scripts/ssos/mac/ssos-run-detached.sh

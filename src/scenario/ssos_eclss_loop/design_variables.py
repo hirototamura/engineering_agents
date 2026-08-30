@@ -139,11 +139,35 @@ def normalize_capacity_fields(fields: Mapping[str, Any]) -> Dict[str, float]:
     return {key: float(value) for key, value in fields.items()}
 
 
+def complete_capacity_fields(
+    fields: Mapping[str, Any],
+    installed: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Overlay named keys onto the installed machine. Omitted keys stay.
+
+    Iterate applies one document onto fresh YAML. A partial profile would
+    otherwise reset unnamed subsystems to the baseline. Filling from the
+    machine that just flew keeps those values.
+    """
+    complete: Dict[str, Any] = {}
+    for key in CAPACITY_KEYS:
+        if key in fields:
+            complete[key] = fields[key]
+        elif key in installed:
+            complete[key] = installed[key]
+    return complete or dict(fields)
+
+
 def apply_capacity_fields(
     config: Dict[str, Any],
     fields: Mapping[str, Any],
 ) -> Dict[str, float]:
-    """Write validated capacity fields into a scenario config (in place)."""
+    """Write validated capacity fields into a scenario config (in place).
+
+    Keys not listed are left as they already are in *config*. Callers that
+    start from fresh YAML must first complete the profile from the machine
+    that was actually installed (see ``complete_capacity_fields``).
+    """
     normalized = normalize_capacity_fields(fields)
     for key, value in normalized.items():
         _write(config, CAPACITY_VARIABLES[key].path, value)
@@ -270,6 +294,7 @@ __all__ = [
     "CAPACITY_VARIABLES",
     "CapacityVariable",
     "apply_capacity_fields",
+    "complete_capacity_fields",
     "expected_urine_l_per_step",
     "normalize_capacity_fields",
     "policy_sinks",

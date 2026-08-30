@@ -47,6 +47,8 @@ def _record(
     cost: float = 259.0,
     status: str = STATUS_FEASIBLE,
     simulated: bool = True,
+    score: float | None = 70.0,
+    max_score: float = 90.0,
 ) -> dict:
     return {
         "candidate_id": candidate_id,
@@ -57,6 +59,7 @@ def _record(
             "crew_remaining": crew,
             "critical_step_count": critical,
             "warning_step_count": warning,
+            "evaluation_compact": {"score": score, "max_score": max_score},
         },
         "constraint_evaluation": {
             "constraint_status": status,
@@ -113,40 +116,66 @@ def test_a_design_that_loses_an_occupant_is_never_eligible():
     assert [r["candidate_id"] for r in ranked] == ["heavy_but_safe", "light_but_lethal"]
 
 
-def test_among_full_survival_designs_critical_dwell_beats_mass():
+def test_among_full_survival_designs_the_scorecard_decides():
+    """One question after survival, not four tie-breaks.
+
+    Dwell, mass, volume and cost are all marked inside the score now, so a
+    design that is heavier or tenser has already paid for it there. Comparing
+    them again here would count the same fact twice.
+    """
     baseline = {"crew_remaining": 0, "crew_initial": 50}
     records = [
-        _record("heavy", crew=50, mass=5000.0),
-        _record("light", crew=50, mass=2000.0),
-        _record("lighter_but_critical", crew=50, critical=3, mass=1900.0),
+        _record("heavy_but_scored_well", crew=50, mass=5000.0, score=80.0),
+        _record("light_but_scored_badly", crew=50, mass=2000.0, score=55.0),
     ]
     for record in records:
         mark_final_eligibility(record, baseline_outcome=baseline)
     ranked = rank_candidates(records)
-    # A light machine that lives in CRITICAL loses to a heavier calm one.
-    assert [r["candidate_id"] for r in ranked] == ["light", "heavy", "lighter_but_critical"]
-
-
-def test_dwell_time_beats_a_footprint_advantage():
-    baseline = {"crew_remaining": 0, "crew_initial": 50}
-    calm = _record("calm", crew=50, mass=2000.0)
-    tense = _record("tense", crew=50, critical=3, mass=2000.0)
-    for record in (calm, tense):
-        mark_final_eligibility(record, baseline_outcome=baseline)
-    ranked = rank_candidates([tense, calm])
-    assert [r["candidate_id"] for r in ranked] == ["calm", "tense"]
-
-
-def test_equal_critical_dwell_then_smaller_mass_wins():
-    baseline = {"crew_remaining": 0, "crew_initial": 50}
-    records = [
-        _record("heavy_calm", crew=50, mass=5000.0),
-        _record("light_calm", crew=50, mass=2000.0),
+    assert [r["candidate_id"] for r in ranked] == [
+        "heavy_but_scored_well",
+        "light_but_scored_badly",
     ]
-    for record in records:
+
+
+def test_a_lower_mass_no_longer_wins_on_its_own():
+    """The defect this change exists for.
+
+    An observed run adopted a machine 1210 kg and 184 MUSD heavier because it
+    spent six fewer steps in the warning band -- mass was never compared,
+    because the objective had already been settled a criterion earlier.
+    """
+    baseline = {"crew_remaining": 0, "crew_initial": 50}
+    heavy = _record("heavy", crew=50, mass=5000.0, warning=61, score=70.0)
+    light = _record("light", crew=50, mass=2000.0, warning=67, score=70.0)
+    for record in (heavy, light):
         mark_final_eligibility(record, baseline_outcome=baseline)
-    ranked = rank_candidates(records)
-    assert [r["candidate_id"] for r in ranked] == ["light_calm", "heavy_calm"]
+    ranked = rank_candidates([heavy, light])
+    # Same score, so neither the mass nor the dwell breaks the tie: input order
+    # stands. Nothing below the score is consulted at all.
+    assert [r["candidate_id"] for r in ranked] == ["heavy", "light"]
+
+
+def test_a_score_is_compared_as_a_share_of_what_was_applicable():
+    """Runs marked out of 90 and out of 100 are not comparable raw."""
+    baseline = {"crew_remaining": 0, "crew_initial": 50}
+    # 63/90 = 70%, which beats 65/100 = 65% despite the smaller raw total.
+    without_actor = _record("no_actor", crew=50, score=63.0, max_score=90.0)
+    with_actor = _record("with_actor", crew=50, score=65.0, max_score=100.0)
+    for record in (without_actor, with_actor):
+        mark_final_eligibility(record, baseline_outcome=baseline)
+    ranked = rank_candidates([with_actor, without_actor])
+    assert [r["candidate_id"] for r in ranked] == ["no_actor", "with_actor"]
+
+
+def test_an_unscored_candidate_never_outranks_a_scored_one():
+    """A design that showed nothing has not shown it is better."""
+    baseline = {"crew_remaining": 0, "crew_initial": 50}
+    unscored = _record("unscored", crew=50, score=None)
+    scored = _record("scored", crew=50, score=1.0)
+    for record in (unscored, scored):
+        mark_final_eligibility(record, baseline_outcome=baseline)
+    ranked = rank_candidates([unscored, scored])
+    assert [r["candidate_id"] for r in ranked] == ["scored", "unscored"]
 
 
 def test_over_budget_is_eligible_but_out_of_bounds_is_not():
@@ -329,4 +358,4 @@ def test_an_objective_the_ranking_does_not_implement_is_rejected():
 def test_the_shipped_scenario_objective_is_the_implemented_one():
     constraints = _constraints()
     assert constraints.objective_primary == "require_full_survival"
-    assert constraints.objective_secondary == "minimize_resource_footprint"
+    assert constraints.objective_secondary == "maximize_evaluation_score"

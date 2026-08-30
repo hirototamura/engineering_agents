@@ -4,6 +4,7 @@ docs_dir: docs
 exclude_docs: |
   ja/memo/ssos_eclss_loop/e2e_records/
   en/memo/ssos_eclss_loop/e2e_records/
+  data/
 theme:
   name: material
   palette:
@@ -57,6 +58,11 @@ plugins:
             - Quick start: index.md
             - Overview: overview.md
             - Architecture: architecture.md
+            - Agent design: agent-design.md
+            - Experiment record: results.md
+            - Extending: extending.md
+            - Roadmap: roadmap.md
+            - Implementation specs: specs/index.md
             - API contracts: api-contracts.md
             - Engineering guide: AGENTS.md
             - Scenarios:
@@ -117,6 +123,16 @@ plugins:
             - クイックスタート: index.md
             - 概要: overview.md
             - アーキテクチャ: architecture.md
+            - エージェント設計: agent-design.md
+            - 実験記録: results.md
+            - 拡張ガイド: extending.md
+            - ロードマップ: roadmap.md
+            - 実装仕様書:
+              - 索引: specs/index.md
+              - Tool Use 設計エージェント再設計 (2026-08-28): specs/2026-08-28-tool-use-design-agent-redesign.md
+              - Design Decision Loop 改良 (2026-08-29): specs/2026-08-29-design-decision-loop.md
+              - Chain Memory 最小実装 (2026-08-30): specs/2026-08-30-chain-memory.md
+              - Scoring / 停滞探索 (2026-08-30): specs/2026-08-30-scoring-and-stagnation-exploration.md
             - API 契約: api-contracts.md
             - エージェントガイド: AGENTS.md
             - シナリオ:
