@@ -78,6 +78,7 @@ plugins:
               - API reference: ssos/api-reference.md
             - More:
               - CLI guide: cli.md
+              - Design-loop analysis: design-loop-analysis.md
               - Development plan: development-plan.md
               - One Piece integration: one-piece-integration.md
               - Document catalog: catalog.md
@@ -147,6 +148,8 @@ plugins:
               - API リファレンス: ssos/api-reference.md
             - その他:
               - CLI ガイド: cli.md
+              - 設計ループ解析: design-loop-analysis.md
+              - 技術説明 ver.03: eclss_ai_agent_technical_report_03.md
               - 開発プラン: development-plan.md
               - One Piece 連携: one-piece-integration.md
               - ドキュメント索引: catalog.md

@@ -1,0 +1,2014 @@
+{
+  "generated_utc": "2026-08-29T12:59:55+00:00",
+  "dataset_sizes": {
+    "seed_replicates": 6,
+    "response_surface": 121,
+    "one_at_a_time": 88,
+    "one_at_a_time_relieved": 88,
+    "crew_scaling": 11,
+    "iso_ray": 11,
+    "chains": 16
+  },
+  "determinism": {
+    "n_seeds": 6,
+    "spreads": {
+      "evaluation_score": 0.0,
+      "crew_remaining": 0.0,
+      "mean_normalized_severity": null
+    },
+    "deterministic": true
+  },
+  "physics": {
+    "residuals": {
+      "residual_o2_kg": {
+        "n": 341,
+        "max": 0.0
+      },
+      "residual_co2_kg": {
+        "n": 341,
+        "max": 0.0
+      },
+      "residual_water_l": {
+        "n": 341,
+        "max": 1e-12
+      }
+    },
+    "gate_passed": 341,
+    "gate_total": 341
+  },
+  "surface": {
+    "n": 121,
+    "n_full_survival": 18,
+    "n_full_survival_within_budget": 0,
+    "budgets": {
+      "max_total_mass_kg": 4000.0,
+      "max_total_cost_musd": 500.0,
+      "max_total_volume_m3": 14.0
+    },
+    "bounds": {
+      "ars": {
+        "min": 4.5,
+        "max": 80.0
+      },
+      "ogs": {
+        "min": 9.25,
+        "max": 80.0
+      },
+      "wrs": {
+        "min": 1.0,
+        "max": 20.0
+      }
+    },
+    "lightest_full_survival": {
+      "run_id": "grid-a05-o08",
+      "ars": 26.0,
+      "ogs": 42.0,
+      "rho_ars": 0.5,
+      "rho_ogs": 1.0,
+      "total_mass_kg": 4683.243243243243,
+      "total_cost_musd": 696.3471471471471,
+      "total_volume_m3": 17.136036036036035,
+      "evaluation_score": 90.333962
+    },
+    "best_score": {
+      "run_id": "grid-a05-o08",
+      "ars": 26.0,
+      "ogs": 42.0,
+      "rho_ars": 0.5,
+      "rho_ogs": 1.0,
+      "evaluation_score": 90.333962,
+      "total_mass_kg": 4683.243243243243
+    },
+    "mass_overrun_ratio": 1.1708108108108108,
+    "cost_overrun_ratio": 1.3926942942942941
+  },
+  "criticality": {
+    "profiles": {
+      "ARS (CO2 removal)": {
+        "x": [
+          0.08653846153846154,
+          0.15384615384615385,
+          0.23076923076923078,
+          0.3076923076923077,
+          0.38461538461538464,
+          0.5,
+          0.6153846153846154,
+          0.7692307692307693,
+          1.0,
+          1.25,
+          1.5384615384615385
+        ],
+        "y": [
+          0.38,
+          0.24,
+          0.76,
+          0.58,
+          0.76,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "OGS (O2 generation)": {
+        "x": [
+          0.22023809523809523,
+          0.3333333333333333,
+          0.42857142857142855,
+          0.5238095238095238,
+          0.6190476190476191,
+          0.7142857142857143,
+          0.8095238095238095,
+          0.9047619047619048,
+          1.0,
+          1.3095238095238095,
+          1.9047619047619047
+        ],
+        "y": [
+          0.0,
+          0.0,
+          0.0,
+          0.06,
+          0.34,
+          0.42,
+          0.62,
+          0.8,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "crew scaling": {
+        "x": [
+          0.08653846153846154,
+          0.09615384615384615,
+          0.10817307692307691,
+          0.12362637362637363,
+          0.14423076923076922,
+          0.17307692307692307,
+          0.21634615384615383,
+          0.2704326923076923,
+          0.3605769230769231,
+          0.5408653846153846,
+          1.0817307692307692
+        ],
+        "y": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.12,
+          0.3,
+          0.4375,
+          0.75,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    "fits": {
+      "ARS (CO2 removal)": {
+        "x0": 0.1987735673076923,
+        "width": 0.12826660612459367,
+        "max_slope": 1.9490653690264386,
+        "r_squared": 0.8685028967590183,
+        "rmse": 0.09662562641811731,
+        "n": 11.0
+      },
+      "OGS (O2 generation)": {
+        "x0": 0.7410726428571429,
+        "width": 0.10444042957662292,
+        "max_slope": 2.3937090359877065,
+        "r_squared": 0.9866349864069629,
+        "rmse": 0.04707425545370025,
+        "n": 11.0
+      },
+      "crew scaling": {
+        "x0": 0.28645567788461535,
+        "width": 0.05512400407585812,
+        "max_slope": 4.535229328696189,
+        "r_squared": 0.9885738801252333,
+        "rmse": 0.04171456348289519,
+        "n": 11.0
+      }
+    }
+  },
+  "collapse": {
+    "n_paired": 11,
+    "max_abs_difference": 0.08,
+    "mean_abs_difference": 0.024318181818181826,
+    "correlation": 0.9950313295025126,
+    "crew_profile": {
+      "x": [
+        0.08653846153846154,
+        0.09615384615384615,
+        0.10817307692307691,
+        0.12362637362637363,
+        0.14423076923076922,
+        0.17307692307692307,
+        0.21634615384615383,
+        0.2704326923076923,
+        0.3605769230769231,
+        0.5408653846153846,
+        1.0817307692307692
+      ],
+      "y": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.12,
+        0.3,
+        0.4375,
+        0.75,
+        1.0,
+        1.0
+      ]
+    },
+    "iso_ray_profile": {
+      "x": [
+        0.08653846153846154,
+        0.09615384615384616,
+        0.10817307692307693,
+        0.12362637362637363,
+        0.14423076923076922,
+        0.17307692307692307,
+        0.21634615384615385,
+        0.2704326923076923,
+        0.3605769230769231,
+        0.5408653846153846,
+        1.0817307692307692
+      ],
+      "y": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.08,
+        0.12,
+        0.24,
+        0.36,
+        0.7,
+        1.0,
+        1.0
+      ]
+    }
+  },
+  "controllability": {
+    "shipped_operating_point": [
+      {
+        "axis": "ogs_max_o2_kg_day",
+        "subspace": "capacity",
+        "gain": 1.1651692306083832,
+        "outcome_range": 0.38,
+        "n_points": 11
+      },
+      {
+        "axis": "ars_action_co2_mass",
+        "subspace": "action",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      },
+      {
+        "axis": "ars_capacity_kg_day",
+        "subspace": "capacity",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      },
+      {
+        "axis": "co2_threshold_high",
+        "subspace": "policy",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      },
+      {
+        "axis": "o2_threshold_low",
+        "subspace": "policy",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      },
+      {
+        "axis": "ogs_action_water_mass",
+        "subspace": "action",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      },
+      {
+        "axis": "request_co2_amount",
+        "subspace": "action",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      },
+      {
+        "axis": "wrs_max_feed_l",
+        "subspace": "capacity",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      }
+    ],
+    "relieved_operating_point": [
+      {
+        "axis": "ogs_max_o2_kg_day",
+        "subspace": "capacity",
+        "gain": 1.1651692306083832,
+        "outcome_range": 0.38,
+        "n_points": 11
+      },
+      {
+        "axis": "o2_threshold_low",
+        "subspace": "policy",
+        "gain": 1.0758494034506605,
+        "outcome_range": 0.38,
+        "n_points": 11
+      },
+      {
+        "axis": "ars_action_co2_mass",
+        "subspace": "action",
+        "gain": 1.0755408282538919,
+        "outcome_range": 0.84,
+        "n_points": 11
+      },
+      {
+        "axis": "ars_capacity_kg_day",
+        "subspace": "capacity",
+        "gain": 1.0755408282538919,
+        "outcome_range": 0.84,
+        "n_points": 11
+      },
+      {
+        "axis": "co2_threshold_high",
+        "subspace": "policy",
+        "gain": 0.537770414126946,
+        "outcome_range": 0.12,
+        "n_points": 11
+      },
+      {
+        "axis": "ogs_action_water_mass",
+        "subspace": "action",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      },
+      {
+        "axis": "request_co2_amount",
+        "subspace": "action",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      },
+      {
+        "axis": "wrs_max_feed_l",
+        "subspace": "capacity",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      }
+    ],
+    "score_outcome": [
+      {
+        "axis": "ogs_max_o2_kg_day",
+        "subspace": "capacity",
+        "gain": 57.226126073520234,
+        "outcome_range": 21.220733999999997,
+        "n_points": 11
+      },
+      {
+        "axis": "ars_capacity_kg_day",
+        "subspace": "capacity",
+        "gain": 8.903447049714435,
+        "outcome_range": 4.527726999999999,
+        "n_points": 11
+      },
+      {
+        "axis": "ars_action_co2_mass",
+        "subspace": "action",
+        "gain": 8.144928251795534,
+        "outcome_range": 4.114595000000001,
+        "n_points": 11
+      },
+      {
+        "axis": "co2_threshold_high",
+        "subspace": "policy",
+        "gain": 7.254231594264855,
+        "outcome_range": 5.682095,
+        "n_points": 11
+      },
+      {
+        "axis": "o2_threshold_low",
+        "subspace": "policy",
+        "gain": 4.108046119196211,
+        "outcome_range": 1.961468,
+        "n_points": 11
+      },
+      {
+        "axis": "ogs_action_water_mass",
+        "subspace": "action",
+        "gain": 3.7586250780551143,
+        "outcome_range": 2.356107999999999,
+        "n_points": 11
+      },
+      {
+        "axis": "request_co2_amount",
+        "subspace": "action",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      },
+      {
+        "axis": "wrs_max_feed_l",
+        "subspace": "capacity",
+        "gain": 0.0,
+        "outcome_range": 0.0,
+        "n_points": 11
+      }
+    ],
+    "designer_magnitude_share": {
+      "capacity": 0.0,
+      "action": 1.0,
+      "policy": 0.0
+    },
+    "effective_gain": {
+      "capacity": 0.0,
+      "action": 0.0,
+      "policy": 0.0
+    },
+    "zero_gain_axes": [
+      "ars_action_co2_mass",
+      "ars_capacity_kg_day",
+      "co2_threshold_high",
+      "o2_threshold_low",
+      "ogs_action_water_mass",
+      "request_co2_amount",
+      "wrs_max_feed_l"
+    ],
+    "action_axis_span": {
+      "multipliers": [
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5625,
+        1.953,
+        2.441,
+        3.052,
+        3.815,
+        6.0,
+        10.0
+      ],
+      "distinct_outcomes": [
+        0.0
+      ]
+    }
+  },
+  "loop": {
+    "n_chains": 3,
+    "archetypes": {
+      "frozen": 0.0,
+      "saturating": 1.0,
+      "converging": 0.0,
+      "overshooting": 0.0,
+      "oscillating": 0.0
+    },
+    "archetype_descriptions": {
+      "frozen": "no design change is proposed after the first run",
+      "saturating": "the loop keeps moving but the outcome never changes",
+      "converging": "the outcome improves and the step size decays",
+      "overshooting": "the outcome improves after at least one reversal in direction",
+      "oscillating": "direction reverses repeatedly without a sustained improvement"
+    },
+    "chains": [
+      {
+        "chain_id": "chain-labeled_rule_base-n03",
+        "design_mode": "labeled_rule_base",
+        "length": 3,
+        "archetype": "saturating",
+        "total_displacement": 0.7729845464550393,
+        "displacement_by_subspace": {
+          "capacity": 0.0,
+          "action": 0.7729845464550393,
+          "policy": 0.0
+        },
+        "outcome_change": 0.0,
+        "proposed_share": {
+          "action": 0.6000000000000001,
+          "policy": 0.4
+        },
+        "applied_share": {
+          "action": 1.0
+        },
+        "magnitude_share": {
+          "capacity": 0.0,
+          "action": 1.0,
+          "policy": 0.0
+        },
+        "discarded_fraction": 0.4,
+        "verdict": "NOT_IMPROVED",
+        "states": [
+          {
+            "iteration": 1,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.0,
+              "ogs_action_water_mass": 0.0,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.0,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 21.530845,
+            "rho_min": 0.08653846153846154,
+            "displacement": 0.0,
+            "step_norm": 0.0,
+            "turning_cosine": null,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.0,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.0,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 2,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.22314355131420976,
+              "ogs_action_water_mass": 0.22314355131420976,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.22314355131420976,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 21.703687,
+            "rho_min": 0.08653846153846154,
+            "displacement": 0.38649596825756427,
+            "step_norm": 0.38649596825756427,
+            "turning_cosine": null,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649596825756427,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649596825756427,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 3,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.44628710262841953,
+              "ogs_action_water_mass": 0.44628710262841953,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.44627430254649875,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 22.023978,
+            "rho_min": 0.08653846153846154,
+            "displacement": 0.7729845464550393,
+            "step_norm": 0.3864885782681299,
+            "turning_cosine": 0.9999999996343791,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.3864885782681299,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.7729845464550393,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          }
+        ]
+      },
+      {
+        "chain_id": "chain-labeled_rule_base-n05",
+        "design_mode": "labeled_rule_base",
+        "length": 5,
+        "archetype": "saturating",
+        "total_displacement": 1.5459729750945959,
+        "displacement_by_subspace": {
+          "capacity": 0.0,
+          "action": 1.5459729750945959,
+          "policy": 0.0
+        },
+        "outcome_change": 0.0,
+        "proposed_share": {
+          "action": 0.6000000000000001,
+          "policy": 0.4
+        },
+        "applied_share": {
+          "action": 1.0
+        },
+        "magnitude_share": {
+          "capacity": 0.0,
+          "action": 1.0,
+          "policy": 0.0
+        },
+        "discarded_fraction": 0.4,
+        "verdict": "NOT_IMPROVED",
+        "states": [
+          {
+            "iteration": 1,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.0,
+              "ogs_action_water_mass": 0.0,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.0,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 21.530845,
+            "rho_min": 0.08653846153846154,
+            "displacement": 0.0,
+            "step_norm": 0.0,
+            "turning_cosine": null,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.0,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.0,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 2,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.22314355131420976,
+              "ogs_action_water_mass": 0.22314355131420976,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.22314355131420976,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 21.703687,
+            "rho_min": 0.08653846153846154,
+            "displacement": 0.38649596825756427,
+            "step_norm": 0.38649596825756427,
+            "turning_cosine": null,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649596825756427,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649596825756427,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 3,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.44628710262841953,
+              "ogs_action_water_mass": 0.44628710262841953,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.44627430254649875,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 22.023978,
+            "rho_min": 0.08653846153846154,
+            "displacement": 0.7729845464550393,
+            "step_norm": 0.3864885782681299,
+            "turning_cosine": 0.9999999996343791,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.3864885782681299,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.7729845464550393,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 4,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.6694305970537388,
+              "ogs_action_water_mass": 0.6694315072755985,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.6694076136772044,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 21.64528,
+            "rho_min": 0.08653846153846154,
+            "displacement": 1.1594750624545636,
+            "step_norm": 0.3864905160102104,
+            "turning_cosine": 0.9999999999881853,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.3864905160102104,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 1.1594750624545636,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 5,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.8925741028568337,
+              "ogs_action_water_mass": 0.8925743759234912,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.8925552610773991,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 22.04461,
+            "rho_min": 0.08653846153846154,
+            "displacement": 1.5459729750945959,
+            "step_norm": 0.38649791273789336,
+            "turning_cosine": 0.9999999994872849,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649791273789336,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 1.5459729750945959,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          }
+        ]
+      },
+      {
+        "chain_id": "chain-labeled_rule_base-n08",
+        "design_mode": "labeled_rule_base",
+        "length": 8,
+        "archetype": "saturating",
+        "total_displacement": 2.705456000867876,
+        "displacement_by_subspace": {
+          "capacity": 0.0,
+          "action": 2.7054560008678763,
+          "policy": 0.0
+        },
+        "outcome_change": 0.0,
+        "proposed_share": {
+          "action": 0.6000000000000001,
+          "policy": 0.4
+        },
+        "applied_share": {
+          "action": 1.0
+        },
+        "magnitude_share": {
+          "capacity": 0.0,
+          "action": 1.0,
+          "policy": 0.0
+        },
+        "discarded_fraction": 0.4,
+        "verdict": "NOT_IMPROVED",
+        "states": [
+          {
+            "iteration": 1,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.0,
+              "ogs_action_water_mass": 0.0,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.0,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 21.530845,
+            "rho_min": 0.08653846153846154,
+            "displacement": 0.0,
+            "step_norm": 0.0,
+            "turning_cosine": null,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.0,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.0,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 2,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.22314355131420976,
+              "ogs_action_water_mass": 0.22314355131420976,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.22314355131420976,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 21.703687,
+            "rho_min": 0.08653846153846154,
+            "displacement": 0.38649596825756427,
+            "step_norm": 0.38649596825756427,
+            "turning_cosine": null,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649596825756427,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649596825756427,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 3,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.44628710262841953,
+              "ogs_action_water_mass": 0.44628710262841953,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.44627430254649875,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 22.023978,
+            "rho_min": 0.08653846153846154,
+            "displacement": 0.7729845464550393,
+            "step_norm": 0.3864885782681299,
+            "turning_cosine": 0.9999999996343791,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.3864885782681299,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.7729845464550393,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 4,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.6694305970537388,
+              "ogs_action_water_mass": 0.6694315072755985,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.6694076136772044,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 21.64528,
+            "rho_min": 0.08653846153846154,
+            "displacement": 1.1594750624545636,
+            "step_norm": 0.3864905160102104,
+            "turning_cosine": 0.9999999999881853,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.3864905160102104,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 1.1594750624545636,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 5,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 0.8925741028568337,
+              "ogs_action_water_mass": 0.8925743759234912,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 0.8925552610773991,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 22.04461,
+            "rho_min": 0.08653846153846154,
+            "displacement": 1.5459729750945959,
+            "step_norm": 0.38649791273789336,
+            "turning_cosine": 0.9999999994872849,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649791273789336,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 1.5459729750945959,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 6,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 1.1157176723754898,
+              "ogs_action_water_mass": 1.1157184733707919,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 1.1156922586459794,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 24.588705,
+            "rho_min": 0.08653846153846154,
+            "displacement": 1.9324654854031411,
+            "step_norm": 0.3864925103116726,
+            "turning_cosine": 0.9999999997129885,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.3864925103116726,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 1.9324654854031411,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 7,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 1.3388612091261427,
+              "ogs_action_water_mass": 1.3388620246850016,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 1.3388358099601891,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 22.939402,
+            "rho_min": 0.08653846153846154,
+            "displacement": 2.3189614452332092,
+            "step_norm": 0.38649595984929086,
+            "turning_cosine": 0.9999999998950594,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649595984929086,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 2.3189614452332092,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          },
+          {
+            "iteration": 8,
+            "vector": {
+              "ars_capacity_kg_day": 0.0,
+              "ogs_max_o2_kg_day": 0.0,
+              "wrs_max_feed_l": 0.0,
+              "ars_action_co2_mass": 1.5620047604403524,
+              "ogs_action_water_mass": 1.5620052264740676,
+              "wrs_action_urine_volume": 0.0,
+              "request_co2_amount": 1.561977264066726,
+              "co2_threshold_high": 0.0,
+              "o2_threshold_low": 0.0,
+              "water_threshold_low": 0.0
+            },
+            "survival_fraction": 0.0,
+            "evaluation_score": 24.081943,
+            "rho_min": 0.08653846153846154,
+            "displacement": 2.705456000867876,
+            "step_norm": 0.38649455563898033,
+            "turning_cosine": 0.9999999999914687,
+            "step_by_subspace": {
+              "capacity": 0.0,
+              "action": 0.38649455563898033,
+              "policy": 0.0
+            },
+            "displacement_by_subspace": {
+              "capacity": 0.0,
+              "action": 2.7054560008678763,
+              "policy": 0.0
+            },
+            "proposed_kinds": {
+              "action_profile": 2,
+              "set_parameter": 2,
+              "service_config": 1
+            },
+            "applied_kinds": {
+              "action_profile": 2,
+              "service_config": 1
+            }
+          }
+        ]
+      }
+    ],
+    "discarded_fraction": {
+      "n": 3.0,
+      "mean": 0.4000000000000001,
+      "sd": 6.798699777552591e-17,
+      "median": 0.4,
+      "min": 0.4,
+      "max": 0.4
+    },
+    "turning_cosine": {
+      "n": 10.0,
+      "mean": 0.9999999997453595,
+      "sd": 2.033364419654915e-10,
+      "median": 0.9999999996736838,
+      "min": 0.9999999994872849,
+      "max": 0.9999999999914687
+    },
+    "step_norm": {
+      "n": 13.0,
+      "mean": 0.38649334791332557,
+      "sd": 3.6002794117963885e-06,
+      "median": 0.38649455563898033,
+      "min": 0.3864885782681299,
+      "max": 0.38649791273789336
+    },
+    "outcome_change": {
+      "n": 3.0,
+      "mean": 0.0,
+      "sd": 0.0,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    }
+  },
+  "survival": {
+    "curves": {
+      "rho_min < 0.5": {
+        "times": [
+          0.0,
+          3600.0,
+          4800.0,
+          6000.0,
+          7200.0,
+          8400.0,
+          9600.0,
+          10800.0,
+          28800.0
+        ],
+        "survival": [
+          1.0,
+          0.8493150684931507,
+          0.6986301369863014,
+          0.2876712328767123,
+          0.2054794520547945,
+          0.1095890410958904,
+          0.0547945205479452,
+          0.0410958904109589,
+          0.0
+        ],
+        "at_risk": [
+          73,
+          73,
+          62,
+          51,
+          21,
+          15,
+          8,
+          4,
+          3
+        ],
+        "events": [
+          0,
+          11,
+          11,
+          30,
+          6,
+          7,
+          4,
+          1,
+          3
+        ],
+        "n": 73,
+        "n_events": 73,
+        "median": 6000.0
+      },
+      "rho_min >= 0.5": {
+        "times": [
+          0.0,
+          6000.0,
+          7200.0,
+          8400.0,
+          10800.0
+        ],
+        "survival": [
+          1.0,
+          0.875,
+          0.625,
+          0.5,
+          0.375
+        ],
+        "at_risk": [
+          48,
+          48,
+          42,
+          30,
+          24
+        ],
+        "events": [
+          0,
+          6,
+          12,
+          6,
+          6
+        ],
+        "n": 48,
+        "n_events": 30,
+        "median": 8400.0
+      }
+    },
+    "log_rank": {
+      "statistic": 48.04928021264377,
+      "p_value": 4.156401762560237e-12,
+      "observed_a": 73.0,
+      "expected_a": 44.14372294372295
+    }
+  },
+  "ruggedness": {
+    "surface_descents": 18,
+    "surface_transitions": 110,
+    "surface_descent_rate": 0.16363636363636364,
+    "surface_worst_descent": 0.24,
+    "ars_axis_descents": 2,
+    "ars_axis_transitions": 10,
+    "ars_axis_worst_descent": 0.23999999999999994,
+    "monotone": false
+  },
+  "saturation": {
+    "ogs_payload_sweep": [
+      {
+        "multiplier": 0.5,
+        "clipped_by_capacity": 0.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 0.75,
+        "clipped_by_capacity": 0.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 1.0,
+        "clipped_by_capacity": 1.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 1.25,
+        "clipped_by_capacity": 1.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 1.5625,
+        "clipped_by_capacity": 1.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 1.953,
+        "clipped_by_capacity": 1.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 2.441,
+        "clipped_by_capacity": 1.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 3.052,
+        "clipped_by_capacity": 1.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 3.815,
+        "clipped_by_capacity": 1.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 6.0,
+        "clipped_by_capacity": 1.0,
+        "survival_fraction": 0.0
+      },
+      {
+        "multiplier": 10.0,
+        "clipped_by_capacity": 1.0,
+        "survival_fraction": 0.0
+      }
+    ]
+  },
+  "predictive": {
+    "n": 121,
+    "n_train": 60,
+    "n_test": 61,
+    "models": {
+      "constant": {
+        "r_squared": -0.012219300046208303,
+        "rmse": 0.3630662777511468,
+        "balanced_accuracy": 0.5,
+        "r_squared_in_sample": 0.0,
+        "note": "the training mean; the floor any real model must clear"
+      },
+      "ARS only": {
+        "r_squared": -1.384377419894335,
+        "rmse": 0.5572320737467811,
+        "balanced_accuracy": 0.6274509803921569,
+        "r_squared_in_sample": -1.3236354029038955,
+        "note": "one logistic in the CO2 coverage, O2 ignored"
+      },
+      "OGS only": {
+        "r_squared": 0.632787470546829,
+        "rmse": 0.21867913704267813,
+        "balanced_accuracy": 0.8333333333333333,
+        "r_squared_in_sample": 0.7717947335230096,
+        "note": "one logistic in the O2 coverage, CO2 ignored"
+      },
+      "Liebig on coverage": {
+        "r_squared": 0.39649141490786977,
+        "rmse": 0.28034339736567215,
+        "balanced_accuracy": 0.8813725490196078,
+        "r_squared_in_sample": 0.37564118177551065,
+        "note": "logistic in min(rho_ARS, rho_OGS): the law of the minimum as usually stated"
+      },
+      "Liebig on margin": {
+        "r_squared": 0.8857726456428193,
+        "rmse": 0.1219645632443952,
+        "balanced_accuracy": 0.9019607843137255,
+        "r_squared_in_sample": 0.8924041470841868,
+        "note": "the same law after dividing each coverage by its own critical value"
+      },
+      "series (product)": {
+        "r_squared": 0.9020175024835166,
+        "rmse": 0.11295952524751694,
+        "balanced_accuracy": 0.9117647058823529,
+        "r_squared_in_sample": 0.9297349647522231,
+        "note": "the two subsystems in series, survival as the product of their responses"
+      },
+      "Liebig on response": {
+        "r_squared": 0.9361645052923604,
+        "rmse": 0.09117582885234335,
+        "balanced_accuracy": 0.9019607843137255,
+        "r_squared_in_sample": 0.9473970047514169,
+        "note": "the binding subsystem sets the outcome: min of the two responses"
+      }
+    },
+    "critical_coverage": {
+      "ARS": 0.17251481250000003,
+      "OGS": 0.7415942023809524
+    },
+    "marginal_slice_levels": 3,
+    "fits": {
+      "ARS only": {
+        "x0": 0.17251481250000003,
+        "width": 0.12033587041474626,
+        "max_slope": 2.0775185249282444,
+        "r_squared": 0.8010659552308602,
+        "rmse": 0.10993953824437724,
+        "n": 15.0
+      },
+      "OGS only": {
+        "x0": 0.7415942023809524,
+        "width": 0.10945820040754234,
+        "max_slope": 2.2839768886130294,
+        "r_squared": 0.9856984972820648,
+        "rmse": 0.04335038171085996,
+        "n": 15.0
+      },
+      "Liebig on coverage": {
+        "x0": 0.5431220721153843,
+        "width": 0.27943643156921966,
+        "max_slope": 0.8946578604517861,
+        "r_squared": 0.37564118177551065,
+        "rmse": 0.27737137748091834,
+        "n": 60.0
+      },
+      "Liebig on margin": {
+        "x0": 1.004401878719675,
+        "width": 0.2031171403390215,
+        "max_slope": 1.2308168556465822,
+        "r_squared": 0.8924041470841868,
+        "rmse": 0.11514425777337693,
+        "n": 60.0
+      }
+    },
+    "_observed": [
+      0.0,
+      0.02,
+      0.12,
+      0.38,
+      0.38,
+      0.38,
+      0.0,
+      0.1,
+      0.48,
+      0.24,
+      0.24,
+      0.24,
+      0.24,
+      0.0,
+      0.06,
+      0.2,
+      0.32,
+      0.6,
+      0.7,
+      0.76,
+      0.16,
+      0.58,
+      0.0,
+      0.34,
+      0.62,
+      0.76,
+      0.76,
+      0.76,
+      0.0,
+      0.0,
+      0.42,
+      0.8,
+      1.0,
+      0.0,
+      0.06,
+      0.62,
+      1.0,
+      0.0,
+      0.34,
+      0.42,
+      1.0,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.06,
+      0.34,
+      0.62,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.06,
+      0.42,
+      1.0,
+      0.0,
+      0.0,
+      0.06,
+      0.34,
+      1.0,
+      1.0
+    ],
+    "_predictions": {
+      "constant": [
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335,
+        0.43333333333333335
+      ],
+      "ARS only": [
+        0.32861192067870915,
+        0.32861192067870915,
+        0.32861192067870915,
+        0.32861192067870915,
+        0.32861192067870915,
+        0.32861192067870915,
+        0.4612931170815971,
+        0.4612931170815971,
+        0.4612931170815971,
+        0.4612931170815971,
+        0.4612931170815971,
+        0.4612931170815971,
+        0.4612931170815971,
+        0.6187152153387686,
+        0.6187152153387686,
+        0.6187152153387686,
+        0.6187152153387686,
+        0.6187152153387686,
+        0.6187152153387686,
+        0.6187152153387686,
+        0.7546068008900885,
+        0.7546068008900885,
+        0.85353142633281,
+        0.85353142633281,
+        0.85353142633281,
+        0.85353142633281,
+        0.85353142633281,
+        0.85353142633281,
+        0.9382791770993635,
+        0.9382791770993635,
+        0.9382791770993635,
+        0.9382791770993635,
+        0.9382791770993635,
+        0.9754043109804207,
+        0.9754043109804207,
+        0.9754043109804207,
+        0.9754043109804207,
+        0.9930272874329451,
+        0.9930272874329451,
+        0.9930272874329451,
+        0.9930272874329451,
+        0.9930272874329451,
+        0.9930272874329451,
+        0.9989692766888997,
+        0.9989692766888997,
+        0.9989692766888997,
+        0.9989692766888997,
+        0.9989692766888997,
+        0.9989692766888997,
+        0.9989692766888997,
+        0.9998707950898043,
+        0.9998707950898043,
+        0.9998707950898043,
+        0.9998707950898043,
+        0.9998707950898043,
+        0.9999882438055056,
+        0.9999882438055056,
+        0.9999882438055056,
+        0.9999882438055056,
+        0.9999882438055056,
+        0.9999882438055056
+      ],
+      "OGS only": [
+        0.023434476453366496,
+        0.054179657456307394,
+        0.24609026314769952,
+        0.6503546810699511,
+        0.9137866024914431,
+        0.9944508857363059,
+        0.008467124065484399,
+        0.054179657456307394,
+        0.24609026314769952,
+        0.6503546810699511,
+        0.8161810717955746,
+        0.9944508857363059,
+        0.9999757384280635,
+        0.008467124065484399,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.24609026314769952,
+        0.4379495674185484,
+        0.6503546810699511,
+        0.8161810717955746,
+        0.054179657456307394,
+        0.9999757384280635,
+        0.054179657456307394,
+        0.24609026314769952,
+        0.6503546810699511,
+        0.9137866024914431,
+        0.9944508857363059,
+        0.9999757384280635,
+        0.008467124065484399,
+        0.023434476453366496,
+        0.4379495674185484,
+        0.8161810717955746,
+        0.9944508857363059,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.6503546810699511,
+        0.9137866024914431,
+        0.008467124065484399,
+        0.24609026314769952,
+        0.4379495674185484,
+        0.9137866024914431,
+        0.9944508857363059,
+        0.9999757384280635,
+        0.023434476453366496,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.24609026314769952,
+        0.6503546810699511,
+        0.9137866024914431,
+        0.9999757384280635,
+        0.008467124065484399,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.4379495674185484,
+        0.9999757384280635,
+        0.008467124065484399,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.24609026314769952,
+        0.9944508857363059,
+        0.9999757384280635
+      ],
+      "Liebig on coverage": [
+        0.16329072537895062,
+        0.16329072537895062,
+        0.16329072537895062,
+        0.16329072537895062,
+        0.16329072537895062,
+        0.16329072537895062,
+        0.19891729785933407,
+        0.19891729785933407,
+        0.19891729785933407,
+        0.19891729785933407,
+        0.19891729785933407,
+        0.19891729785933407,
+        0.19891729785933407,
+        0.23948906142959245,
+        0.24642038763493923,
+        0.24642038763493923,
+        0.24642038763493923,
+        0.24642038763493923,
+        0.24642038763493923,
+        0.24642038763493923,
+        0.30100507488679723,
+        0.30100507488679723,
+        0.3618746131990917,
+        0.3618746131990917,
+        0.3618746131990917,
+        0.3618746131990917,
+        0.3618746131990917,
+        0.3618746131990917,
+        0.23948906142959245,
+        0.32065646889289756,
+        0.4614968785056299,
+        0.4614968785056299,
+        0.4614968785056299,
+        0.39892781861460486,
+        0.482728751035026,
+        0.5642923578839092,
+        0.5642923578839092,
+        0.23948906142959245,
+        0.5675125486376743,
+        0.6485180758292509,
+        0.6919304110225912,
+        0.6919304110225912,
+        0.6919304110225912,
+        0.32065646889289756,
+        0.39892781861460486,
+        0.482728751035026,
+        0.5675125486376743,
+        0.7217891204526087,
+        0.8368531262703668,
+        0.8368531262703668,
+        0.23948906142959245,
+        0.39892781861460486,
+        0.482728751035026,
+        0.6485180758292509,
+        0.926194812877512,
+        0.23948906142959245,
+        0.39892781861460486,
+        0.482728751035026,
+        0.5675125486376743,
+        0.9394980049354176,
+        0.9724000440098225
+      ],
+      "Liebig on margin": [
+        0.06111025423704641,
+        0.077609092705164,
+        0.077609092705164,
+        0.077609092705164,
+        0.077609092705164,
+        0.077609092705164,
+        0.02980471575531752,
+        0.10912060436748904,
+        0.30254051390047576,
+        0.3648344224848305,
+        0.3648344224848305,
+        0.3648344224848305,
+        0.3648344224848305,
+        0.02980471575531752,
+        0.10912060436748904,
+        0.1873240746231725,
+        0.30254051390047576,
+        0.4494319331248802,
+        0.605705754894498,
+        0.7429885349438954,
+        0.10912060436748904,
+        0.9788772344765292,
+        0.10912060436748904,
+        0.30254051390047576,
+        0.605705754894498,
+        0.84472625601281,
+        0.9769929305033177,
+        0.9976033966016149,
+        0.02980471575531752,
+        0.06111025423704641,
+        0.4494319331248802,
+        0.7429885349438954,
+        0.9769929305033177,
+        0.10912060436748904,
+        0.1873240746231725,
+        0.605705754894498,
+        0.84472625601281,
+        0.02980471575531752,
+        0.30254051390047576,
+        0.4494319331248802,
+        0.84472625601281,
+        0.9769929305033177,
+        0.9995475234025657,
+        0.06111025423704641,
+        0.10912060436748904,
+        0.1873240746231725,
+        0.30254051390047576,
+        0.605705754894498,
+        0.84472625601281,
+        0.9995475234025657,
+        0.02980471575531752,
+        0.10912060436748904,
+        0.1873240746231725,
+        0.4494319331248802,
+        0.9995475234025657,
+        0.02980471575531752,
+        0.10912060436748904,
+        0.1873240746231725,
+        0.30254051390047576,
+        0.9769929305033177,
+        0.9995475234025657
+      ],
+      "series (product)": [
+        0.007700848317440749,
+        0.017804081298431716,
+        0.0808681940332945,
+        0.21371430086878596,
+        0.3002811705351852,
+        0.32678841558245103,
+        0.0039058260528839032,
+        0.02499270307043323,
+        0.11351974457083279,
+        0.3000041380393657,
+        0.3764987107115794,
+        0.4587333488658557,
+        0.4612819253854532,
+        0.00523873848947625,
+        0.03352177843005995,
+        0.07442696364424119,
+        0.15225979015620314,
+        0.2709660609128877,
+        0.40238433654477096,
+        0.5049836475914259,
+        0.04088433798642495,
+        0.754588492942905,
+        0.04624404030690511,
+        0.21004577331107252,
+        0.5550981585558551,
+        0.7799455821883339,
+        0.8487950829204354,
+        0.85351071831871,
+        0.007944526200560919,
+        0.021988081282419126,
+        0.4109189597284978,
+        0.7658057044084283,
+        0.9330725587343942,
+        0.052847071450324724,
+        0.11733408099884338,
+        0.6343587595819269,
+        0.8913113913863056,
+        0.008408085243106182,
+        0.2443743464772197,
+        0.43489587096607285,
+        0.9074150311646446,
+        0.9875168655480135,
+        0.9930031950299761,
+        0.02341032199220258,
+        0.05412381322037975,
+        0.12016877586747118,
+        0.2458366121768384,
+        0.6496843453396891,
+        0.9128447413388839,
+        0.9989450401239309,
+        0.008466030071479901,
+        0.054172657178531314,
+        0.12027722200809503,
+        0.43789298218401984,
+        0.999846536652582,
+        0.008467024524327077,
+        0.054179020509716694,
+        0.12029135023878477,
+        0.24608737006270276,
+        0.994439194778278,
+        0.9999639825187928
+      ],
+      "Liebig on response": [
+        0.023434476453366496,
+        0.054179657456307394,
+        0.24609026314769952,
+        0.32861192067870915,
+        0.32861192067870915,
+        0.32861192067870915,
+        0.008467124065484399,
+        0.054179657456307394,
+        0.24609026314769952,
+        0.4612931170815971,
+        0.4612931170815971,
+        0.4612931170815971,
+        0.4612931170815971,
+        0.008467124065484399,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.24609026314769952,
+        0.4379495674185484,
+        0.6187152153387686,
+        0.6187152153387686,
+        0.054179657456307394,
+        0.7546068008900885,
+        0.054179657456307394,
+        0.24609026314769952,
+        0.6503546810699511,
+        0.85353142633281,
+        0.85353142633281,
+        0.85353142633281,
+        0.008467124065484399,
+        0.023434476453366496,
+        0.4379495674185484,
+        0.8161810717955746,
+        0.9382791770993635,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.6503546810699511,
+        0.9137866024914431,
+        0.008467124065484399,
+        0.24609026314769952,
+        0.4379495674185484,
+        0.9137866024914431,
+        0.9930272874329451,
+        0.9930272874329451,
+        0.023434476453366496,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.24609026314769952,
+        0.6503546810699511,
+        0.9137866024914431,
+        0.9989692766888997,
+        0.008467124065484399,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.4379495674185484,
+        0.9998707950898043,
+        0.008467124065484399,
+        0.054179657456307394,
+        0.12029276442391962,
+        0.24609026314769952,
+        0.9944508857363059,
+        0.9999757384280635
+      ]
+    }
+  }
+}
