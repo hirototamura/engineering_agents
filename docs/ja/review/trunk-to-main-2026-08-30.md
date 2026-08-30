@@ -8,6 +8,11 @@
 指摘はすべて実際にコードを走らせて再現を確認した。未再現の推測は載せていない。
 主要な再現スクリプトは `trunk-to-main-2026-08-30-evidence.sh`（同ディレクトリ）。
 
+スコープ注記: コード検証は `34775aa` で実施した。マージ先の tip は `7c42dfc` だが、
+`git diff --name-only 34775aa 7c42dfc` は `src/` と `tests/` を**一切含まない**（docs と
+生成物のみ）ので、コードに関する指摘はすべて tip でも有効。
+リポジトリ成果物に関する指摘（C-10, H-12）は `origin/trunk` の tip に対して計測した。
+
 ---
 
 ## 総評
@@ -28,7 +33,17 @@
 > 不正を検出する関数は存在し、正しく動き、JSON に結果も書く。
 > しかしそれを読んで拒否する側が存在しない。（C-1）
 
-`main` に入れる前に C 系の解消を必須としたい。
+> **通底する構造的欠陥 3: 記録が現実と一致しない。**
+> 「何を適用したか」を指すパスの中身が別物になり（C-6）、
+> 「どの設計値でこの結果が出たか」の対応がシミュレートしていない値とすり替わる（C-9）。
+> 監査可能性を価値の中心に置くプロジェクトとして、ここは C-1 と同じ重さがある。
+
+`main` に入れる前に C 系の解消を必須としたい。とくに **C-10（41.7 MiB のバイナリ）だけは
+マージ後に修正できない**ので、これは順序として最初に決める必要がある。
+
+内訳は CRITICAL 10 件・HIGH 17 件・MEDIUM 31 件。
+サブシステム別の網羅は 5 系統に分けて実施した（設計ループ中核 / LLM・tool use /
+CLI・ジョブ・iterate / 解析・レポート / アーキテクチャ・テスト・CI）。
 
 ---
 
@@ -310,6 +325,63 @@ a and b collide: True
 修正方針: `normalize_fields` は数値化できない値を捨てずに拒否（エラー）する。
 `candidate_hash` は正規化前のキー集合も含める。
 
+### C-9. 監査で却下された設計値が、別の機体で測った結果と対にして記録される
+
+`src/scenario/ssos_eclss_loop/design_ensemble.py:425-431`
+
+```python
+    if selected is not None:
+        selected = dict(selected)
+        selected["fields"] = dict(kept_fields)
+        for index, row in enumerate(ranked):
+            if row.get("candidate_id") == selected_id:
+                ranked[index] = selected
+```
+
+`kept_fields` は、監査エージェントが却下したキーを **installed 値に差し替えた**ハイブリッドである。
+それを **ranked 行そのものに書き戻す**。ranked 行は `design_tools.py:1247` 経由で
+`candidate_rankings.json` / `design_review_report.json` に直列化され、`_ranking_row`（:1255-1279）は
+`fields` を `crew_remaining` / `physics_gate_passed` / `evaluation_compact` の**隣に並べる**。
+
+しかしそれらの数値は**差し替え前の fields で走らせたシミュレーション**の結果である。
+差し替え後の値で再シミュレーションは行われない。
+
+```
+実際にシミュレートされた値 : wrs.max_feed_l_per_operation = 12.0
+candidate_rankings.json の記録: wrs.max_feed_l_per_operation = 10.0
+同じ行の crew_remaining     : 50/50 physics_gate_passed: true final_eligible: true
+```
+
+`chain_selection.collect_chain_candidates` はこの `candidate_rankings.json` を読むため、
+`chain_final_answer.json` が**存在しない機体の性能**をチェーンの答えとして提示する。
+`--apply-proposals` はその fields を、別の機体の `expected_outcome` を添えて出荷する。
+
+既存テスト（`test_rejected_items_are_pinned_to_installed`）は
+`merged["changes"][0]["payload"]["fields"]` しか見ておらず、ranking 行を検証していない。
+
+修正方針: 差し替えた fields で再シミュレーションするか、
+ranked 行には**シミュレートした fields のみ**を残し、監査後の値は
+`changes` 側だけに置いて「未検証」と明示する。
+
+### C-10. 41.7 MiB のバイナリ run アーカイブが履歴に永久追加される
+
+```text
+experiments/runs/phase1-no-chain-memory.tar.gz  11209899
+experiments/runs/phase2-chain-memory.tar.gz     10632031
+experiments/runs/phase3-rescored.tar.gz         10868504
+experiments/runs/phase4-multiagent.tar.gz       11053652
+TOTAL: 43764086 bytes = 41.74 MiB   （4 件すべて本 diff で A = 追加）
+.git 全体: 46M
+```
+
+**リポジトリ履歴の約 9 割がこの 4 ファイル**になる。diff もレビューもできず、
+git 履歴は追記専用なので、**マージ後に消すには履歴の書き換えが必要**になる。
+以後すべての `git clone` が恒久的にこのコストを払う。
+
+他の指摘は後から直せるが、これだけは直せない。**マージ前に決着させる必要がある唯一の項目。**
+
+修正方針: Git LFS、リリースアセット、または外部ストレージ（run の再生成手順を添えて）。
+
 ---
 
 ## HIGH
@@ -496,6 +568,128 @@ adoption ranking           -> [('A', True), ('B', False)]
 設計エージェントに見せる「現在の最良」が、採用側が拒否する候補を指す。
 エージェントは採用され得ない設計を基準に次を考える。
 
+### H-12. 公開データセットに開発者のローカル絶対パスが 306 箇所埋まっている
+
+```text
+docs/data/phase{1,2,3}_iteration_findings.json / _metrics.csv, docs/data/report03_emergence.json
+experiments/outputs/ 同名 7 件
+files: 14 | occurrences: 306
+
+"apply_proposals_path": "/home/one-piece/hiroto/engineering_agents/src/experiments/results/..."
+```
+
+これは**公開した解析データセットの provenance 列**である。
+つまり「どの設計文書を適用した run か」を辿る列が、
+**元の 1 台のマシン以外では解決できない**。再現性を売りにする論文データとして成立しない。
+
+なお `docs/data/` と `experiments/outputs/` は大半が互いのコピーで、
+バイト一致の重複が 27 グループ・648 KiB ある（同一 SVG が最大 3 箇所）。
+再生成時にどれかが更新漏れになれば静かに乖離する。
+
+### H-13. 回答本文に `<think` という文字列があるだけで、応答全体が破棄される
+
+`src/core/llm/parsing.py:55-58, 79`
+
+```python
+_UNCLOSED_THINKING_RE = re.compile(
+    r"<(?:think|thinking|thought)>.*$",
+    re.DOTALL | re.IGNORECASE,
+)
+```
+
+閉じタグ処理の**後に無条件で**走り、`re.DOTALL` なので
+最初に残った `<think>` から**末尾まで全部消す**。JSON 文字列リテラルの内側でも消す。
+
+```text
+raw      : {"decision": "propose_candidate", "rationale": "before I <think> harder, size ARS to 25", "fields": {...}}
+stripped : '{"decision": "propose_candidate", "rationale": "before I '
+status   : fallback | error: no balanced JSON object found
+```
+
+モデルが誤動作する必要はない。設計プロンプトは根拠を散文で書かせるので、
+自分の思考について言及した瞬間に応答が消え、決定論フォールバックに落ちる。
+
+### H-14. `max_tokens` で切られた応答が、修復パスを完全に迂回する
+
+`src/core/llm/parsing.py:122-179`、`src/scenario/agents/ssos_tool_use_design.py:750`
+
+```python
+        if parsed.status in {"fallback", "empty_response"}:
+            return None, elapsed, generation, parsed
+```
+
+完成前に切られると最上位オブジェクトが不均衡になるため、`extract_json_block` は
+**入れ子の `fields` オブジェクト**を「最後の均衡ブロック」として返す。
+それは JSON として妥当なので `parse_json_response` は `partial` を返す。
+`_ask` は `fallback` / `empty_response` だけを使用不能とみなすので、`partial` は正常回答として扱われる。
+
+```text
+extract_json_block   -> {"plant_sim.ars.capacity_kg_day": 25.0}
+status               : partial   error: missing required: decision
+llm calls made       : 1
+repair prompt issued : False
+decision_source      : tool_use_rule_fallback:unknown_decision
+```
+
+**`max_parse_retries` が存在する理由そのものである最頻の失敗モードで、一度も発火しない。**
+
+### H-15. アクター計画部と実行ゲートが 1 step あたりの上限で矛盾している
+
+`src/scenario/agents/ssos_eclss_loop_team.py:110-123`（計画）vs `:256-274`（ゲート）
+
+`interleave_labeled_actions` は不足量から `max_actions_per_step` まで同一 subsystem を繰り返すが、
+`apply_outcome` は **1 step 1 subsystem 1 コマンドしか通さない**。繰り返しは構造上すべて捨てられる。
+出荷既定は `max_actions_per_step: 6`（`scenario.yaml:243`）。実測（`plant_sim` 60 step）:
+
+| `max_actions_per_step` | duplicate 却下 | `validity_quality` | `operational_command` メッセージ |
+| --- | --- | --- | --- |
+| **6（出荷既定）** | **89** | **0.349** | **172** |
+| 1 | 0 | 0.263 | 19 |
+
+**計画したコマンドの 65% が「無効な判断」として採点される。**
+メッセージログも約 9 倍に膨らみ、これは設計エージェントと人間が読む記録そのものである。
+
+正確に書くと、軸の合計点は `=6` の方が高い（3.372 vs 1.908 / 5.0）。
+`=1` では o2 のエピソードに応答できず `latency_quality` が 1.0 → 0.5 に落ちるためで、
+**「6 が悪い」ではなく「計画部とゲートの契約が食い違っており、
+どちらの設定でも `actor_decision` 軸が測りたいものを測れていない」**が結論。
+`scenario.yaml:239` が記述している計画部の契約を、ゲートが満たしていない。
+
+### H-16. LLM が返した `fields` の型が違うと、シミュレーション完了後に run が落ちる
+
+`ssos_tool_use_design.py:496, 706-708`、`design_state.py:57,60`
+
+```python
+            toolkit, trace, parsed.get("fields") or {}, decision=decision
+```
+
+`or {}` は falsy は防ぐが**型は見ない**。`"fields": ["plant_sim.ars.capacity_kg_day"]`（配列）で
+`fields[key]` が `TypeError`、数値なら `sorted(fields)` が落ちる。
+`_run_candidate_pipeline` / `_decision_loop` / `propose` のいずれも捕捉せず、
+呼び出し側 `scenario_run.py:622` にも `try` が無い。
+
+```text
+fields=['plant_sim.ars.capacity_kg_day'] -> UNCAUGHT TypeError
+```
+
+その時点でシミュレーション・評価・物理ゲートは**すべて完了して代金を払い終えている**。
+LLM の書式ミス 1 つで run 全体が生トレースバックで失われる。
+
+### H-17. CI が `push` で走らないため、`trunk` と `main` は一度もテストされていない
+
+`ssos-e2e.yml:3-20` のトリガは `pull_request` / `workflow_dispatch` / 週次 `schedule` のみ。
+`docs.yml` は `push: branches: [main]` を持つが docs ビルドだけ。
+
+```text
+$ gh run list --branch trunk --limit 10
+completed  success  Graph Update: pip in /.  Dependency Graph  trunk  ...
+```
+
+`trunk` で走った実績があるのは Dependabot のグラフ更新のみ。
+PR では 993 テストが走るので feature ブランチは守られているが、
+**統合ブランチ自体と、マージ後の `main` は検証されない。**
+マージ解決を誤っても誰も気付かない。
+
 ---
 
 ## MEDIUM
@@ -522,6 +716,17 @@ adoption ranking           -> [('A', True), ('B', False)]
 | M-18 | 不正な `--set` 値がクリーンなエラーにならずトレースバック（`ValueError: invalid literal for int()`）で exit 1 | CLI |
 | M-19 | `--quiet` が run 失敗時にも stdout に `.` を出す（run ディレクトリ名のように見える） | `tools/cli/output.py` |
 | M-20 | `SSOS_ECLSS_BACKEND` 未設定時の `--iterate` エラーが `Got None` と表示され原因が分からない | `tools/cli/commands/iterate.py` |
+| M-21 | CI が Python 3.11 のみをテストする一方 AGENTS.md は 3.12 を宣言。**開発する版はテストされず、テストする版は使われない**。matrix 無し、上限も無し | `.github/workflows/*` |
+| M-22 | 5 つのテストが `tmp_path` を受け取りながら**実リポジトリ配下に書き込む**（`src/experiments/results/...`）。`.gitignore` が隠すので気付かれない。順序依存で並列実行不可 | `tests/tools/test_ssos_host.py:132,162,180,203,226` |
+| M-23 | `figures.py` は 324 文・**行カバレッジ 99%** だが `tests/` からの参照が 1 件も無い。`test_analysis_report.py` が副作用で図を描くだけで何も検証していない。**空のグラフを出す退行でも 99% のまま緑**。`campaign.py`(54%)・`copy.py`・`core/storage/{artifacts,session}.py`・`evaluation_html.py` も同様。`preflight_remote_llm.py`(214 文) と `analysis/__main__.py`(93 文) は 0% | `tools/analysis/` |
+| M-24 | `--no-recreate` のチェーンが**別チェーンの記憶**を設計 LLM のプロンプトに持ち込む。`update_compact_chain_memory` が既存 `chain_dir` の内容にマージするため、チェーン B の round 1 がチェーン A の停滞履歴を根拠に推論する | `chain_memory.py:669`, `iterate.py:531` |
+| M-25 | 出荷既定の予算では `max_decisions` / `max_llm_calls` に到達不能。`max_candidate_runs: 1` が最初の提案で埋まり decision 2 が尋ねられない。ペルソナは「毎回検証してからまた聞く」と約束している | `agents.yaml:89,101-103` |
+| M-26 | `VLLM_MAX_MODEL_LEN` の `int()` が例外ハンドラの**外**で走るため `generate()` が例外を投げる。`LLMClient.generate` は「エラー時は空文字列」と文書化されており全呼び出し元がそれに依存 | `core/llm/vllm.py:128-132` |
+| M-27 | labeled モードの YAML goal payload が dataclass コンストラクタに無検査で渡る（LLM 経路は `_normalize_numeric_fields` で防御済み）。キー 1 つの綴り間違いが設定エラーではなくシミュレーション中の `TypeError` になる | `ssos_eclss_loop_team.py:938-943` |
+| M-28 | `chain_memory._fit` の削除順序が docstring と逆。`known_bad_patterns` より先に `recent_points` を全消しし、`recent_field_sets`（最大ブロック）には触らない。窓退避経路（:774-783）が `best_score_before_window` に畳み込む処理も飛ばすので、停滞検出が `warming_up` に張り付き探索脱出が発火しなくなる | `chain_memory.py:622-640` |
+| M-29 | `--write-spec` の出力先ディレクトリが無いと `parent.mkdir` 無しで `FileNotFoundError` トレースバック | `jobs/spec.py:51-52` |
+| M-30 | `executor._read_summary` に JSON ガードが無く、しかも `execute_run` の `try` の**外**で呼ばれるため、壊れた `summary.json` が未捕捉例外としてチェーン全体を落とす。`ssos_host._read_summary:268-277` は同じケースを正しく処理しているので、両者を揃えるべき | `jobs/executor.py:69,103-107` |
+| M-31 | `.cursor/plans/` にエージェントの作業メモ 15 KB がコミットされている（`skills/`・`agents/` は共有設定として妥当だが `plans/` は一時物） | `.cursor/plans/` |
 
 ---
 
@@ -565,6 +770,47 @@ adoption ranking           -> [('A', True), ('B', False)]
 「弱い assert のみ」40 件はほとんどが protocol 適合や `is None` の妥当な確認。
 **この規模のハッカソンコードでこの結果は例外的に良い。**
 
+### 秘密情報・デバッグ残骸は無い
+
+機械的に掃いて**すべてゼロ**だった。
+
+| 検査 | 結果 |
+| --- | --- |
+| `sk-…` / `ghp_…` / `AKIA…` / `xox[bap]-` / `(api_key\|secret\|token\|password)\s*[:=]\s*"…"` | テストの固定文字列 1 件のみ（`test_ssos_tool_use_design.py:629`） |
+| `TODO` / `FIXME` / `HACK` / `XXX` / `WIP` in `src/` | 0 |
+| `breakpoint()` / `import pdb` / `pdb.set_trace()` | 0 |
+| コメントアウトされたコードブロック（3 行以上連続） | 0 |
+| ライブラリコード内の `print()` ロギング | 0（CLI エントリポイントに限定） |
+| Windows / macOS 絶対パス（`/Users/…`, `C:\Users\…`） | docs 以外に 0 |
+| `.gitignore` と追跡ファイルの矛盾 | 0（negation ルールのみ） |
+| CI の暗黙成功（`continue-on-error` / `\|\| true`） | 0。`run_ssos_regression.sh:122` のパイプも `set -euo pipefail` で正しく伝播 |
+
+### 設計エージェント経路は決定的
+
+同一のフェイク LLM で designer + 3 auditor を 2 回走らせ、
+`candidate_rankings.json` / `changes` / `audit` / `message` / `selection` が**バイト一致**。
+`design_ensemble.py:341` の `pool.map` はスレッド完了順に関わらず roster 順を保つ。
+設計経路に `random` / `time` / `uuid` 由来の値は無い。`SessionStore.append` はロックを持ち、
+`VllmClient._session` は `threading.local`。**並列 LLM ラウンドの再現性は保たれている。**
+
+### `docs/en/cli.md` は正確
+
+Click/Typer のパラメータツリーを introspect して照合（help テキストの scrape ではない）。
+
+- コマンド: 実装 `{doctor, job, results, run, scenarios}` = 文書と完全一致
+- `ea run` のフラグ: 文書化された 26 個すべて実在（`--no-approve-provisional` 等の否定形も含む）
+- 環境変数: 表の 9 個すべてが実際に `src/` または `scripts/` から読まれている
+
+未文書のものが少数ある（`ea results --limit`、`--install-completion`、
+`SSOS_CONTAINER_NAME` など 6 個の環境変数）が、誤りではなく欠落。
+
+### AGENTS.md の正典スモークはそのまま動く
+
+`AGENTS.md:49-53` のコマンドを一字も変えずに実行して両方 exit 0。
+Run 1 が `design_domain: ssos_graph` / `changes: 3` を出力し、
+Run 2 が `Applied from: cloud-smoke-run1` を表示し、Run 1 の 14 ファイルは無傷。
+**`--run-id` を分ける注意書きも正しく、実際に必要。**
+
 ### その他
 
 - **`--run-id` のパストラバーサル対策は正しい。** `sanitize_run_id`
@@ -588,9 +834,14 @@ adoption ranking           -> [('A', True), ('B', False)]
 
 ## マージ前チェックリスト
 
+**最優先（マージ後には直せない）:**
+
+- [ ] C-10 41.7 MiB の `experiments/runs/*.tar.gz` を LFS / リリースアセット / 外部ストレージへ。**履歴に入ったら書き換えなしには除去できない**
+
 必須:
 
 - [ ] C-1 `thresholds.*` を適用可能 target から除外／採用パスで `invalid` を拒否／`evidence_status` を配線か削除／CLI で可視化
+- [ ] C-9 監査で差し替えた fields を、再シミュレーションせずに outcome と対で記録しない
 - [ ] C-2 ledger・capacity の欠損データ時 `SKIPPED` 化
 - [ ] C-3 `final_status` 欠落を fail-closed に
 - [ ] C-4 `integrity` 必須化と `unknown` 導入、`schema_version` 更新
@@ -609,7 +860,12 @@ adoption ranking           -> [('A', True), ('B', False)]
 - [ ] H-6 / H-7 フラグ優先順位の是正、環境変数依存の除去、テストの hermetic 化
 - [ ] H-8 最終イテレーション中断時の終了コード
 - [ ] H-9 / H-10 / H-11 制約チェックの穴、帯定義の一元化、`current_best` の整合
-- [ ] M-2 CI に lint ジョブ追加
+- [ ] H-12 公開データの provenance 列から絶対パスを除去（相対パス化）、`docs/data` と `experiments/outputs` の重複解消
+- [ ] H-13 / H-14 / H-16 LLM 応答処理: 未閉タグ除去を JSON 文字列に踏み込ませない、`partial` を修復対象に含める、`fields` の型検証
+- [ ] H-15 計画部と実行ゲートの 1 step 上限契約を一致させる
+- [ ] H-17 テストワークフローに `push` トリガを追加（`trunk` / `main` を守る）
+- [ ] M-2 CI に lint ジョブ追加（層規則も機械的に強制できる）
+- [ ] M-21 / M-22 Python 3.12 を CI matrix に追加、`EA_RESULTS_ROOT` の `monkeypatch.delenv` と `tmp_path` 未使用 5 件の修正
 
 回帰テストとして追加したいもの:
 

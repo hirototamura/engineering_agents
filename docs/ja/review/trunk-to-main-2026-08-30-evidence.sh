@@ -251,6 +251,72 @@ hr "M9  core imports environment, against the documented layering rule"
 rg -n "^from environment" src/core/agents/types.py src/core/scenario.py | sed 's/^/  /'
 rg -n "Do not import upward" AGENTS.md | sed 's/^/  AGENTS.md /'
 
+hr "C10 41.7 MiB of binary run archives added permanently to history"
+git ls-tree -r -l HEAD -- experiments/runs 2>/dev/null \
+  | awk '{s+=$4; printf "  %10d  %s\n", $4, $5} END {printf "  TOTAL %d bytes = %.2f MiB\n", s, s/1048576}'
+printf '  .git size: '; du -sh .git | cut -f1
+
+hr "H12 the maintainer's absolute path is baked into the published dataset"
+REF=$(git rev-parse --verify -q origin/trunk >/dev/null 2>&1 && echo origin/trunk || echo HEAD)
+printf '  (measured at %s)  files: %s   occurrences: %s\n' "$REF" \
+  "$(git grep -l '/home/one-piece' "$REF" -- . 2>/dev/null | wc -l | tr -d ' ')" \
+  "$(git grep -o '/home/one-piece' "$REF" -- . 2>/dev/null | wc -l | tr -d ' ')"
+git grep -m1 -n '/home/one-piece' "$REF" -- 'docs/data/*.json' 2>/dev/null \
+  | head -1 | cut -c1-170 | sed 's/^/  /'
+
+hr "H13 a literal '<think' in the answer destroys the whole response"
+python3 - <<'PY'
+from core.llm.parsing import strip_thinking_tags, parse_json_response
+raw = ('{"decision": "propose_candidate", "rationale": '
+       '"before I <think> harder, size ARS to 25", "fields": {"plant_sim.ars.capacity_kg_day": 25.0}}')
+print("  raw     :", raw[:88], "...")
+print("  stripped:", repr(strip_thinking_tags(raw)))
+p = parse_json_response(raw, required=("decision",))
+print(f"  status  : {p.status} | error: {p.error} | data: {p.data}")
+PY
+
+hr "H14 a reply truncated at max_tokens bypasses the parse-repair path"
+python3 - <<'PY'
+from core.llm.parsing import extract_json_block, parse_json_response
+# the completion budget cuts the final closing brace
+truncated = ('{"decision": "propose_candidate", "rationale": "size ARS up", '
+             '"fields": {"plant_sim.ars.capacity_kg_day": 25.0}')
+print("  extract_json_block ->", extract_json_block(truncated))
+# ssos_tool_use_design._ask asks for the keys the decision loop needs
+p = parse_json_response(truncated, required=("decision",))
+print(f"  status: {p.status} | error: {p.error}")
+print("  _ask (ssos_tool_use_design.py:750) treats only {'fallback','empty_response'} as")
+print("  unusable, so 'partial' is returned as a real answer: the nested fields object is")
+print("  mistaken for the reply and max_parse_retries never fires.")
+PY
+
+hr "H15 the labeled planner plans repeats the execution gate always rejects"
+for n in 6 1; do
+  python3 -m tools.cli run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base \
+    --steps 60 --run-id h15-$n --results-root "$R" --set iteration.enabled=false \
+    --set agents.design.mode=none --set agents.actor.max_actions_per_step=$n >/dev/null 2>&1
+done
+python3 - <<PY
+import json
+for n in (6, 1):
+    ev = json.load(open(f"$R/h15-{n}/evaluation.json"))
+    ax = ev["scores"]["axes"]["actor_decision"]; m = ax.get("metrics") or {}
+    dup = sum(1 for l in open(f"$R/h15-{n}/events.jsonl") if 'duplicate_command_this_step' in l)
+    msg = sum(1 for l in open(f"$R/h15-{n}/messages.jsonl") if 'operational_command' in l)
+    tag = " (shipped default)" if n == 6 else ""
+    print(f"  max_actions_per_step={n}{tag}: duplicate rejections={dup:3d}"
+          f"  validity_quality={m.get('validity_quality')}  messages={msg}"
+          f"  actor_decision={ax['score']}/{ax['max_score']}")
+print("  -> 65% of planned commands are scored invalid at the shipped default; the message")
+print("     log the design agent reads is inflated ~9x. Neither setting measures what the")
+print("     actor_decision axis intends, because planner and gate disagree by contract.")
+PY
+
+hr "H17 CI never runs on push, so trunk and main are never tested"
+rg -n "^on:|pull_request|workflow_dispatch|schedule|push" .github/workflows/ssos-e2e.yml \
+  | head -6 | sed 's/^/  /'
+echo "  (docs.yml has push:[main] but only builds docs)"
+
 hr "verified NON-issues (checked and sound)"
 echo "  - run id sanitisation blocks path traversal:"
 python3 -c "
