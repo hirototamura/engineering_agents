@@ -1,0 +1,256 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="640" viewBox="0 0 1260 640">
+<rect width="100%" height="100%" fill="white"/>
+<text x="630.0" y="34" font-size="22" text-anchor="middle" font-family="Arial">段階④ 監査パネル: 点数内訳 集約版</text>
+<line x1="84" y1="558" x2="1030" y2="558" stroke="#333"/>
+<line x1="84" y1="558" x2="84" y2="62" stroke="#333"/>
+<line x1="84" y1="558.0" x2="1030" y2="558.0" stroke="#e7e7e7"/>
+<text x="74" y="563.0" font-size="12" text-anchor="end" font-family="Arial">0</text>
+<line x1="84" y1="508.4" x2="1030" y2="508.4" stroke="#e7e7e7"/>
+<text x="74" y="513.4" font-size="12" text-anchor="end" font-family="Arial">10</text>
+<line x1="84" y1="458.8" x2="1030" y2="458.8" stroke="#e7e7e7"/>
+<text x="74" y="463.8" font-size="12" text-anchor="end" font-family="Arial">20</text>
+<line x1="84" y1="409.2" x2="1030" y2="409.2" stroke="#e7e7e7"/>
+<text x="74" y="414.2" font-size="12" text-anchor="end" font-family="Arial">30</text>
+<line x1="84" y1="359.6" x2="1030" y2="359.6" stroke="#e7e7e7"/>
+<text x="74" y="364.6" font-size="12" text-anchor="end" font-family="Arial">40</text>
+<line x1="84" y1="310.0" x2="1030" y2="310.0" stroke="#e7e7e7"/>
+<text x="74" y="315.0" font-size="12" text-anchor="end" font-family="Arial">50</text>
+<line x1="84" y1="260.4" x2="1030" y2="260.4" stroke="#e7e7e7"/>
+<text x="74" y="265.4" font-size="12" text-anchor="end" font-family="Arial">60</text>
+<line x1="84" y1="210.8" x2="1030" y2="210.8" stroke="#e7e7e7"/>
+<text x="74" y="215.8" font-size="12" text-anchor="end" font-family="Arial">70</text>
+<line x1="84" y1="161.2" x2="1030" y2="161.2" stroke="#e7e7e7"/>
+<text x="74" y="166.2" font-size="12" text-anchor="end" font-family="Arial">80</text>
+<line x1="84" y1="111.6" x2="1030" y2="111.6" stroke="#e7e7e7"/>
+<text x="74" y="116.6" font-size="12" text-anchor="end" font-family="Arial">90</text>
+<line x1="84" y1="62.0" x2="1030" y2="62.0" stroke="#e7e7e7"/>
+<text x="74" y="67.0" font-size="12" text-anchor="end" font-family="Arial">100</text>
+<rect x="84.0" y="508.7" width="13.9" height="49.3" fill="#277da1"><title>Iteration 1: B-D System 9.93 points</title></rect>
+<rect x="84.0" y="310.3" width="13.9" height="198.4" fill="#f3722c"><title>Iteration 1: E-F Footprint 40.00 points</title></rect>
+<rect x="84.0" y="269.0" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 1: G Ops/Physics 8.34 points</title></rect>
+<text x="91.0" y="581" font-size="12" text-anchor="middle" font-family="Arial">1</text>
+<rect x="103.0" y="520.3" width="13.9" height="37.7" fill="#2d6a4f"><title>Iteration 2: A Survival 7.60 points</title></rect>
+<rect x="103.0" y="458.8" width="13.9" height="61.5" fill="#277da1"><title>Iteration 2: B-D System 12.40 points</title></rect>
+<rect x="103.0" y="284.0" width="13.9" height="174.8" fill="#f3722c"><title>Iteration 2: E-F Footprint 35.25 points</title></rect>
+<rect x="103.0" y="244.6" width="13.9" height="39.4" fill="#9d4edd"><title>Iteration 2: G Ops/Physics 7.95 points</title></rect>
+<rect x="122.0" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 3: A Survival 20.00 points</title></rect>
+<rect x="122.0" y="330.1" width="13.9" height="128.7" fill="#277da1"><title>Iteration 3: B-D System 25.95 points</title></rect>
+<rect x="122.0" y="247.2" width="13.9" height="82.9" fill="#f3722c"><title>Iteration 3: E-F Footprint 16.71 points</title></rect>
+<rect x="122.0" y="204.2" width="13.9" height="43.0" fill="#9d4edd"><title>Iteration 3: G Ops/Physics 8.68 points</title></rect>
+<rect x="141.1" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 4: A Survival 20.00 points</title></rect>
+<rect x="141.1" y="330.2" width="13.9" height="128.6" fill="#277da1"><title>Iteration 4: B-D System 25.93 points</title></rect>
+<rect x="141.1" y="196.2" width="13.9" height="134.0" fill="#f3722c"><title>Iteration 4: E-F Footprint 27.02 points</title></rect>
+<rect x="141.1" y="152.8" width="13.9" height="43.4" fill="#9d4edd"><title>Iteration 4: G Ops/Physics 8.74 points</title></rect>
+<rect x="160.1" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 5: A Survival 20.00 points</title></rect>
+<rect x="160.1" y="330.2" width="13.9" height="128.6" fill="#277da1"><title>Iteration 5: B-D System 25.93 points</title></rect>
+<rect x="160.1" y="196.2" width="13.9" height="134.0" fill="#f3722c"><title>Iteration 5: E-F Footprint 27.02 points</title></rect>
+<rect x="160.1" y="152.8" width="13.9" height="43.4" fill="#9d4edd"><title>Iteration 5: G Ops/Physics 8.74 points</title></rect>
+<text x="167.0" y="581" font-size="12" text-anchor="middle" font-family="Arial">5</text>
+<rect x="179.1" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 6: A Survival 20.00 points</title></rect>
+<rect x="179.1" y="330.2" width="13.9" height="128.6" fill="#277da1"><title>Iteration 6: B-D System 25.93 points</title></rect>
+<rect x="179.1" y="196.2" width="13.9" height="134.0" fill="#f3722c"><title>Iteration 6: E-F Footprint 27.02 points</title></rect>
+<rect x="179.1" y="152.8" width="13.9" height="43.4" fill="#9d4edd"><title>Iteration 6: G Ops/Physics 8.74 points</title></rect>
+<rect x="198.1" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 7: A Survival 20.00 points</title></rect>
+<rect x="198.1" y="330.1" width="13.9" height="128.7" fill="#277da1"><title>Iteration 7: B-D System 25.95 points</title></rect>
+<rect x="198.1" y="193.3" width="13.9" height="136.7" fill="#f3722c"><title>Iteration 7: E-F Footprint 27.57 points</title></rect>
+<rect x="198.1" y="150.5" width="13.9" height="42.8" fill="#9d4edd"><title>Iteration 7: G Ops/Physics 8.64 points</title></rect>
+<rect x="217.2" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 8: A Survival 20.00 points</title></rect>
+<rect x="217.2" y="330.1" width="13.9" height="128.7" fill="#277da1"><title>Iteration 8: B-D System 25.95 points</title></rect>
+<rect x="217.2" y="193.3" width="13.9" height="136.7" fill="#f3722c"><title>Iteration 8: E-F Footprint 27.57 points</title></rect>
+<rect x="217.2" y="150.5" width="13.9" height="42.8" fill="#9d4edd"><title>Iteration 8: G Ops/Physics 8.64 points</title></rect>
+<rect x="236.2" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 9: A Survival 20.00 points</title></rect>
+<rect x="236.2" y="329.2" width="13.9" height="129.6" fill="#277da1"><title>Iteration 9: B-D System 26.12 points</title></rect>
+<rect x="236.2" y="185.0" width="13.9" height="144.2" fill="#f3722c"><title>Iteration 9: E-F Footprint 29.08 points</title></rect>
+<rect x="236.2" y="143.7" width="13.9" height="41.3" fill="#9d4edd"><title>Iteration 9: G Ops/Physics 8.32 points</title></rect>
+<rect x="255.2" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 10: A Survival 20.00 points</title></rect>
+<rect x="255.2" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 10: B-D System 26.06 points</title></rect>
+<rect x="255.2" y="184.7" width="13.9" height="144.8" fill="#f3722c"><title>Iteration 10: E-F Footprint 29.20 points</title></rect>
+<rect x="255.2" y="142.6" width="13.9" height="42.1" fill="#9d4edd"><title>Iteration 10: G Ops/Physics 8.48 points</title></rect>
+<text x="262.2" y="581" font-size="12" text-anchor="middle" font-family="Arial">10</text>
+<rect x="274.2" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 11: A Survival 20.00 points</title></rect>
+<rect x="274.2" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 11: B-D System 26.06 points</title></rect>
+<rect x="274.2" y="184.7" width="13.9" height="144.8" fill="#f3722c"><title>Iteration 11: E-F Footprint 29.20 points</title></rect>
+<rect x="274.2" y="142.6" width="13.9" height="42.1" fill="#9d4edd"><title>Iteration 11: G Ops/Physics 8.48 points</title></rect>
+<rect x="293.2" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 12: A Survival 20.00 points</title></rect>
+<rect x="293.2" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 12: B-D System 26.06 points</title></rect>
+<rect x="293.2" y="184.7" width="13.9" height="144.8" fill="#f3722c"><title>Iteration 12: E-F Footprint 29.20 points</title></rect>
+<rect x="293.2" y="142.6" width="13.9" height="42.1" fill="#9d4edd"><title>Iteration 12: G Ops/Physics 8.48 points</title></rect>
+<rect x="312.3" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 13: A Survival 20.00 points</title></rect>
+<rect x="312.3" y="329.6" width="13.9" height="129.2" fill="#277da1"><title>Iteration 13: B-D System 26.05 points</title></rect>
+<rect x="312.3" y="184.0" width="13.9" height="145.6" fill="#f3722c"><title>Iteration 13: E-F Footprint 29.36 points</title></rect>
+<rect x="312.3" y="141.9" width="13.9" height="42.1" fill="#9d4edd"><title>Iteration 13: G Ops/Physics 8.48 points</title></rect>
+<rect x="331.3" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 14: A Survival 20.00 points</title></rect>
+<rect x="331.3" y="329.6" width="13.9" height="129.2" fill="#277da1"><title>Iteration 14: B-D System 26.05 points</title></rect>
+<rect x="331.3" y="184.0" width="13.9" height="145.6" fill="#f3722c"><title>Iteration 14: E-F Footprint 29.36 points</title></rect>
+<rect x="331.3" y="141.9" width="13.9" height="42.1" fill="#9d4edd"><title>Iteration 14: G Ops/Physics 8.48 points</title></rect>
+<rect x="350.3" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 15: A Survival 20.00 points</title></rect>
+<rect x="350.3" y="329.6" width="13.9" height="129.2" fill="#277da1"><title>Iteration 15: B-D System 26.05 points</title></rect>
+<rect x="350.3" y="184.0" width="13.9" height="145.6" fill="#f3722c"><title>Iteration 15: E-F Footprint 29.36 points</title></rect>
+<rect x="350.3" y="141.9" width="13.9" height="42.1" fill="#9d4edd"><title>Iteration 15: G Ops/Physics 8.48 points</title></rect>
+<text x="357.3" y="581" font-size="12" text-anchor="middle" font-family="Arial">15</text>
+<rect x="369.3" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 16: A Survival 20.00 points</title></rect>
+<rect x="369.3" y="329.6" width="13.9" height="129.2" fill="#277da1"><title>Iteration 16: B-D System 26.05 points</title></rect>
+<rect x="369.3" y="184.0" width="13.9" height="145.6" fill="#f3722c"><title>Iteration 16: E-F Footprint 29.36 points</title></rect>
+<rect x="369.3" y="141.9" width="13.9" height="42.1" fill="#9d4edd"><title>Iteration 16: G Ops/Physics 8.48 points</title></rect>
+<rect x="388.4" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 17: A Survival 20.00 points</title></rect>
+<rect x="388.4" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 17: B-D System 26.07 points</title></rect>
+<rect x="388.4" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 17: E-F Footprint 29.61 points</title></rect>
+<rect x="388.4" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 17: G Ops/Physics 8.35 points</title></rect>
+<rect x="407.4" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 18: A Survival 20.00 points</title></rect>
+<rect x="407.4" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 18: B-D System 26.07 points</title></rect>
+<rect x="407.4" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 18: E-F Footprint 29.61 points</title></rect>
+<rect x="407.4" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 18: G Ops/Physics 8.35 points</title></rect>
+<rect x="426.4" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 19: A Survival 20.00 points</title></rect>
+<rect x="426.4" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 19: B-D System 26.07 points</title></rect>
+<rect x="426.4" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 19: E-F Footprint 29.61 points</title></rect>
+<rect x="426.4" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 19: G Ops/Physics 8.35 points</title></rect>
+<rect x="445.4" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 20: A Survival 20.00 points</title></rect>
+<rect x="445.4" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 20: B-D System 26.07 points</title></rect>
+<rect x="445.4" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 20: E-F Footprint 29.61 points</title></rect>
+<rect x="445.4" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 20: G Ops/Physics 8.35 points</title></rect>
+<text x="452.4" y="581" font-size="12" text-anchor="middle" font-family="Arial">20</text>
+<rect x="464.4" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 21: A Survival 20.00 points</title></rect>
+<rect x="464.4" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 21: B-D System 26.07 points</title></rect>
+<rect x="464.4" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 21: E-F Footprint 29.61 points</title></rect>
+<rect x="464.4" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 21: G Ops/Physics 8.35 points</title></rect>
+<rect x="483.5" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 22: A Survival 20.00 points</title></rect>
+<rect x="483.5" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 22: B-D System 26.07 points</title></rect>
+<rect x="483.5" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 22: E-F Footprint 29.61 points</title></rect>
+<rect x="483.5" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 22: G Ops/Physics 8.35 points</title></rect>
+<rect x="502.5" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 23: A Survival 20.00 points</title></rect>
+<rect x="502.5" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 23: B-D System 26.07 points</title></rect>
+<rect x="502.5" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 23: E-F Footprint 29.61 points</title></rect>
+<rect x="502.5" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 23: G Ops/Physics 8.35 points</title></rect>
+<rect x="521.5" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 24: A Survival 20.00 points</title></rect>
+<rect x="521.5" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 24: B-D System 26.07 points</title></rect>
+<rect x="521.5" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 24: E-F Footprint 29.61 points</title></rect>
+<rect x="521.5" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 24: G Ops/Physics 8.35 points</title></rect>
+<rect x="540.5" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 25: A Survival 20.00 points</title></rect>
+<rect x="540.5" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 25: B-D System 26.07 points</title></rect>
+<rect x="540.5" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 25: E-F Footprint 29.61 points</title></rect>
+<rect x="540.5" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 25: G Ops/Physics 8.35 points</title></rect>
+<text x="547.5" y="581" font-size="12" text-anchor="middle" font-family="Arial">25</text>
+<rect x="559.6" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 26: A Survival 20.00 points</title></rect>
+<rect x="559.6" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 26: B-D System 26.07 points</title></rect>
+<rect x="559.6" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 26: E-F Footprint 29.61 points</title></rect>
+<rect x="559.6" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 26: G Ops/Physics 8.35 points</title></rect>
+<rect x="578.6" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 27: A Survival 20.00 points</title></rect>
+<rect x="578.6" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 27: B-D System 26.07 points</title></rect>
+<rect x="578.6" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 27: E-F Footprint 29.61 points</title></rect>
+<rect x="578.6" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 27: G Ops/Physics 8.35 points</title></rect>
+<rect x="597.6" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 28: A Survival 20.00 points</title></rect>
+<rect x="597.6" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 28: B-D System 26.07 points</title></rect>
+<rect x="597.6" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 28: E-F Footprint 29.61 points</title></rect>
+<rect x="597.6" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 28: G Ops/Physics 8.35 points</title></rect>
+<rect x="616.6" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 29: A Survival 20.00 points</title></rect>
+<rect x="616.6" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 29: B-D System 26.07 points</title></rect>
+<rect x="616.6" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 29: E-F Footprint 29.61 points</title></rect>
+<rect x="616.6" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 29: G Ops/Physics 8.35 points</title></rect>
+<rect x="635.6" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 30: A Survival 20.00 points</title></rect>
+<rect x="635.6" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 30: B-D System 26.07 points</title></rect>
+<rect x="635.6" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 30: E-F Footprint 29.61 points</title></rect>
+<rect x="635.6" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 30: G Ops/Physics 8.35 points</title></rect>
+<text x="642.6" y="581" font-size="12" text-anchor="middle" font-family="Arial">30</text>
+<rect x="654.7" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 31: A Survival 20.00 points</title></rect>
+<rect x="654.7" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 31: B-D System 26.07 points</title></rect>
+<rect x="654.7" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 31: E-F Footprint 29.61 points</title></rect>
+<rect x="654.7" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 31: G Ops/Physics 8.35 points</title></rect>
+<rect x="673.7" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 32: A Survival 20.00 points</title></rect>
+<rect x="673.7" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 32: B-D System 26.07 points</title></rect>
+<rect x="673.7" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 32: E-F Footprint 29.61 points</title></rect>
+<rect x="673.7" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 32: G Ops/Physics 8.35 points</title></rect>
+<rect x="692.7" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 33: A Survival 20.00 points</title></rect>
+<rect x="692.7" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 33: B-D System 26.07 points</title></rect>
+<rect x="692.7" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 33: E-F Footprint 29.61 points</title></rect>
+<rect x="692.7" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 33: G Ops/Physics 8.35 points</title></rect>
+<rect x="711.7" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 34: A Survival 20.00 points</title></rect>
+<rect x="711.7" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 34: B-D System 26.07 points</title></rect>
+<rect x="711.7" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 34: E-F Footprint 29.61 points</title></rect>
+<rect x="711.7" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 34: G Ops/Physics 8.35 points</title></rect>
+<rect x="730.7" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 35: A Survival 20.00 points</title></rect>
+<rect x="730.7" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 35: B-D System 26.07 points</title></rect>
+<rect x="730.7" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 35: E-F Footprint 29.61 points</title></rect>
+<rect x="730.7" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 35: G Ops/Physics 8.35 points</title></rect>
+<text x="737.7" y="581" font-size="12" text-anchor="middle" font-family="Arial">35</text>
+<rect x="749.8" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 36: A Survival 20.00 points</title></rect>
+<rect x="749.8" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 36: B-D System 26.07 points</title></rect>
+<rect x="749.8" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 36: E-F Footprint 29.61 points</title></rect>
+<rect x="749.8" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 36: G Ops/Physics 8.35 points</title></rect>
+<rect x="768.8" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 37: A Survival 20.00 points</title></rect>
+<rect x="768.8" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 37: B-D System 26.07 points</title></rect>
+<rect x="768.8" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 37: E-F Footprint 29.61 points</title></rect>
+<rect x="768.8" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 37: G Ops/Physics 8.35 points</title></rect>
+<rect x="787.8" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 38: A Survival 20.00 points</title></rect>
+<rect x="787.8" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 38: B-D System 26.07 points</title></rect>
+<rect x="787.8" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 38: E-F Footprint 29.61 points</title></rect>
+<rect x="787.8" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 38: G Ops/Physics 8.35 points</title></rect>
+<rect x="806.8" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 39: A Survival 20.00 points</title></rect>
+<rect x="806.8" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 39: B-D System 26.07 points</title></rect>
+<rect x="806.8" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 39: E-F Footprint 29.61 points</title></rect>
+<rect x="806.8" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 39: G Ops/Physics 8.35 points</title></rect>
+<rect x="825.9" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 40: A Survival 20.00 points</title></rect>
+<rect x="825.9" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 40: B-D System 26.07 points</title></rect>
+<rect x="825.9" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 40: E-F Footprint 29.61 points</title></rect>
+<rect x="825.9" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 40: G Ops/Physics 8.35 points</title></rect>
+<text x="832.8" y="581" font-size="12" text-anchor="middle" font-family="Arial">40</text>
+<rect x="844.9" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 41: A Survival 20.00 points</title></rect>
+<rect x="844.9" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 41: B-D System 26.07 points</title></rect>
+<rect x="844.9" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 41: E-F Footprint 29.61 points</title></rect>
+<rect x="844.9" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 41: G Ops/Physics 8.35 points</title></rect>
+<rect x="863.9" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 42: A Survival 20.00 points</title></rect>
+<rect x="863.9" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 42: B-D System 26.07 points</title></rect>
+<rect x="863.9" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 42: E-F Footprint 29.61 points</title></rect>
+<rect x="863.9" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 42: G Ops/Physics 8.35 points</title></rect>
+<rect x="882.9" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 43: A Survival 20.00 points</title></rect>
+<rect x="882.9" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 43: B-D System 26.07 points</title></rect>
+<rect x="882.9" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 43: E-F Footprint 29.61 points</title></rect>
+<rect x="882.9" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 43: G Ops/Physics 8.35 points</title></rect>
+<rect x="901.9" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 44: A Survival 20.00 points</title></rect>
+<rect x="901.9" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 44: B-D System 26.07 points</title></rect>
+<rect x="901.9" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 44: E-F Footprint 29.61 points</title></rect>
+<rect x="901.9" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 44: G Ops/Physics 8.35 points</title></rect>
+<rect x="921.0" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 45: A Survival 20.00 points</title></rect>
+<rect x="921.0" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 45: B-D System 26.07 points</title></rect>
+<rect x="921.0" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 45: E-F Footprint 29.61 points</title></rect>
+<rect x="921.0" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 45: G Ops/Physics 8.35 points</title></rect>
+<text x="927.9" y="581" font-size="12" text-anchor="middle" font-family="Arial">45</text>
+<rect x="940.0" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 46: A Survival 20.00 points</title></rect>
+<rect x="940.0" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 46: B-D System 26.07 points</title></rect>
+<rect x="940.0" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 46: E-F Footprint 29.61 points</title></rect>
+<rect x="940.0" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 46: G Ops/Physics 8.35 points</title></rect>
+<rect x="959.0" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 47: A Survival 20.00 points</title></rect>
+<rect x="959.0" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 47: B-D System 26.07 points</title></rect>
+<rect x="959.0" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 47: E-F Footprint 29.61 points</title></rect>
+<rect x="959.0" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 47: G Ops/Physics 8.35 points</title></rect>
+<rect x="978.0" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 48: A Survival 20.00 points</title></rect>
+<rect x="978.0" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 48: B-D System 26.07 points</title></rect>
+<rect x="978.0" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 48: E-F Footprint 29.61 points</title></rect>
+<rect x="978.0" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 48: G Ops/Physics 8.35 points</title></rect>
+<rect x="997.1" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 49: A Survival 20.00 points</title></rect>
+<rect x="997.1" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 49: B-D System 26.07 points</title></rect>
+<rect x="997.1" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 49: E-F Footprint 29.61 points</title></rect>
+<rect x="997.1" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 49: G Ops/Physics 8.35 points</title></rect>
+<rect x="1016.1" y="458.8" width="13.9" height="99.2" fill="#2d6a4f"><title>Iteration 50: A Survival 20.00 points</title></rect>
+<rect x="1016.1" y="329.5" width="13.9" height="129.3" fill="#277da1"><title>Iteration 50: B-D System 26.07 points</title></rect>
+<rect x="1016.1" y="182.6" width="13.9" height="146.9" fill="#f3722c"><title>Iteration 50: E-F Footprint 29.61 points</title></rect>
+<rect x="1016.1" y="141.2" width="13.9" height="41.4" fill="#9d4edd"><title>Iteration 50: G Ops/Physics 8.35 points</title></rect>
+<text x="1023.0" y="581" font-size="12" text-anchor="middle" font-family="Arial">50</text>
+<text x="91.0" y="263.0" font-size="10" text-anchor="middle" font-family="Arial">58.3</text>
+<text x="262.2" y="136.6" font-size="10" text-anchor="middle" font-family="Arial">83.7</text>
+<text x="452.4" y="135.2" font-size="10" text-anchor="middle" font-family="Arial">84.0</text>
+<text x="642.6" y="135.2" font-size="10" text-anchor="middle" font-family="Arial">84.0</text>
+<text x="832.8" y="135.2" font-size="10" text-anchor="middle" font-family="Arial">84.0</text>
+<text x="1023.0" y="135.2" font-size="10" text-anchor="middle" font-family="Arial">84.0</text>
+<text x="557.0" y="620" font-size="15" text-anchor="middle" font-family="Arial">Iteration</text>
+<text x="24" y="310.0" font-size="15" text-anchor="middle" transform="rotate(-90,24,310.0)" font-family="Arial">Score contribution / 100</text>
+<rect x="1054" y="74" width="14" height="14" fill="#2d6a4f"/>
+<text x="1076" y="86" font-size="13" font-family="Arial">A: Survival</text>
+<rect x="1054" y="102" width="14" height="14" fill="#277da1"/>
+<text x="1076" y="114" font-size="13" font-family="Arial">B-D: System</text>
+<rect x="1054" y="130" width="14" height="14" fill="#f3722c"/>
+<text x="1076" y="142" font-size="13" font-family="Arial">E-F: Footprint</text>
+<rect x="1054" y="158" width="14" height="14" fill="#9d4edd"/>
+<text x="1076" y="170" font-size="13" font-family="Arial">G: Ops/Physics</text>
+<text x="1054" y="208" font-size="12" font-family="Arial" fill="#555">B-D = TCL + environment + recovery</text>
+<text x="1054" y="228" font-size="12" font-family="Arial" fill="#555">E-F = cost + mass</text>
+</svg>

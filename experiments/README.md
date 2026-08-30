@@ -1,6 +1,6 @@
 # Experiments — raw logs, analysis, and how to get from one to the other
 
-Three fifty-round design→verify chains, archived whole. Every number and every figure in [the experiment record](../docs/en/results.md) / [実験記録](../docs/ja/results.md) is derived from what is in this directory, by the scripts in this directory, and the derivation can be re-run and diffed.
+Four fifty-round design→verify chains, archived whole. Every number and every figure in [the experiment record](../docs/en/results.md) / [実験記録](../docs/ja/results.md) is derived from what is in this directory, by the scripts in this directory, and the derivation can be re-run and diffed.
 
 ```
 experiments/
@@ -16,13 +16,14 @@ experiments/
 
 ---
 
-## 1. The three chains
+## 1. The four chains
 
 | Archive | Rounds | Code | What was different | Result |
 | --- | ---: | --- | --- | ---: |
 | `runs/phase1-no-chain-memory.tar.gz` | 50 | `b828332` | the loop as first built. No memory between rounds | 34/50 |
 | `runs/phase2-chain-memory.tar.gz` | 50 | `c0dcb4f` | `compact_chain_memory.json` carried between rounds | 50/50 |
 | `runs/phase3-rescored.tar.gz` | 50 | `46b3f19` | ＋ cost/mass full-marks line moved off the non-surviving baseline; stagnation detector | 50/50 |
+| `runs/phase4-multiagent.tar.gz` | 50 | current | ＋ one unlensed designer, three independent auditors, item-veto merge | 50/50 |
 
 11 MB each, ~115 MB extracted. Same world, same fifty-person crew, same non-survivable baseline, `inject_failures: false` throughout.
 
@@ -38,7 +39,7 @@ grep -A4 'footprint:' runs/phase1-no-chain-memory/01/scenario_config.yaml
 grep -A6 'footprint:' runs/phase3-rescored/01/scenario_config.yaml
 ```
 
-**Phase 3 scores are not comparable to phases 1–2** — the scoring function changed between them. Comparable across all three: survivors, ARS/OGS/WRS sizing, proposal completeness, physics-gate results.
+**Phase 3 and 4 scores are not comparable to phases 1–2** — the scoring function changed before phase 3. Phase 4 uses the same scorecard as phase 3, so those two *are* comparable. Comparable across all four: survivors, ARS/OGS/WRS sizing, proposal completeness, physics-gate results.
 
 ## 2. What is inside one chain
 
@@ -79,17 +80,20 @@ for f in runs/*.tar.gz; do tar -xzf "$f" -C runs/; done
 python3 analysis/analyze_ssos_iter.py --root runs/phase1-no-chain-memory --prefix phase1
 python3 analysis/analyze_ssos_iter.py --root runs/phase2-chain-memory    --prefix phase2
 python3 analysis/analyze_ssos_iter.py --root runs/phase3-rescored        --prefix phase3
+python3 analysis/analyze_ssos_iter.py --root runs/phase4-multiagent      --prefix phase4
 
 python3 analysis/make_comparison_trend.py
 python3 analysis/make_parameter_comparison.py
 python3 analysis/make_score_group_components.py --prefix phase1 --title "段階① 初期: 点数内訳 集約版" --output phase1_score_components_grouped
 python3 analysis/make_score_group_components.py --prefix phase2 --title "段階② 記憶あり改善: 点数内訳 集約版" --output phase2_score_components_grouped
 python3 analysis/make_score_group_components.py --prefix phase3 --title "段階③ 記憶+評価変更: 点数内訳 集約版" --output phase3_score_components_grouped
+python3 analysis/make_score_group_components.py --prefix phase4 --title "段階④ 監査パネル: 点数内訳 集約版" --output phase4_score_components_grouped
 
 # the same score, split into all seven axes -- this is the one that shows cost and mass apart
 python3 analysis/make_score_components_split.py --prefix phase1 --title "段階① 初期: 点数内訳 詳細版"
 python3 analysis/make_score_components_split.py --prefix phase2 --title "段階② 記憶あり改善: 点数内訳 詳細版"
 python3 analysis/make_score_components_split.py --prefix phase3 --title "段階③ 記憶+評価変更: 点数内訳 詳細版"
+python3 analysis/make_score_components_split.py --prefix phase4 --title "段階④ 監査パネル: 点数内訳 詳細版"
 
 python3 analysis/summarize_three_way_inputs.py
 ```
@@ -128,9 +132,9 @@ for f in outputs/*; do
 done
 ```
 
-33 files: 3 phases × (metrics CSV, findings JSON, chain key summary, grouped CSV +
+43 files: 4 phases × (metrics CSV, findings JSON, chain key summary, grouped CSV +
 SVG, split CSV + stacked SVG, design-space, design-variables, survival-score) plus
-the two cross-phase trends and the three-way comparison summary.
+the two cross-phase trends and the comparison summary.
 
 ## 4. What each script does
 
@@ -141,7 +145,7 @@ the two cross-phase trends and the three-way comparison summary.
 | `make_parameter_comparison.py` | the three metrics CSVs | ARS / OGS / WRS across all three phases |
 | `make_score_group_components.py` | one metrics CSV | the scorecard in four blocks — survival, system behaviour, footprint, ops/physics |
 | `make_score_components_split.py` | one metrics CSV | `<prefix>_score_components_split.csv` and `<prefix>_score_components_stacked_split.svg` — the same score split into all seven axes, cost and mass apart |
-| `summarize_three_way_inputs.py` | all three, metrics **and** chain roots | the cross-phase totals the comparison table is built from |
+| `summarize_three_way_inputs.py` | all four, metrics **and** chain roots | the cross-phase totals the comparison table is built from |
 
 Column meanings: [`docs/data/README.md`](../docs/data/README.md).
 
@@ -162,7 +166,7 @@ Windows: `.\scripts\windows\run_design_chain.ps1 -Rounds 50`.
 
 The design side needs an LLM (`ea doctor` says whether one is reachable). The operators are the deterministic rule base by default, so the difference between two chains is attributable to the design rather than to a different crew improvising.
 
-Phase 3 is what the current code does: `iteration.count: 50`, the four `evaluation.footprint` keys, and `iteration.exploration` are all in the shipped `scenario.yaml`, so `./scripts/run_design_chain.sh` reproduces its conditions. Phases 1 and 2 need their commits checked out — the difference is that `chain_memory.py` did not exist yet, which is not a setting.
+Phase 4 is what the current code does: `iteration.count: 50`, the four `evaluation.footprint` keys, `iteration.exploration`, and `design.audit` (three auditors, item-veto) are all in the shipped configs, so `./scripts/run_design_chain.sh` reproduces its conditions. Phases 1 and 2 need their commits checked out — the difference is that `chain_memory.py` did not exist yet, which is not a setting. Phase 3 is the same as 4 without the audit panel.
 
 The chain will not come out identical. The simulator is deterministic and the LLM is not (temperature 0.45), so a re-run explores a different path through the same world. That is why the whole per-round decision state is archived rather than a summary of it.
 

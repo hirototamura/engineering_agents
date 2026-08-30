@@ -1036,7 +1036,7 @@
     "zero_survival_count": 1,
     "score_min": 58.275751,
     "score_max": 84.233482,
-    "score_mean": 83.3443875,
+    "score_mean": 83.34438750000001,
     "best_iteration": 41,
     "best_score": 84.233482,
     "best_survivors": 50,
@@ -1505,6 +1505,261 @@
       ],
       "file_exists": true,
       "file_size_bytes": 4035
+    }
+  },
+  "multiagent": {
+    "label": "Memory + rescored + audit panel",
+    "prefix": "phase4",
+    "iterations_requested": 50,
+    "iterations_completed": 50,
+    "baseline_replay_survivors": 0,
+    "final_replay_survivors": 50,
+    "verdict": "IMPROVED",
+    "final_answer_iteration": 18,
+    "first_survivors": 0,
+    "final_survivors": 50,
+    "full_survival_count": 48,
+    "zero_survival_count": 1,
+    "score_min": 58.275751,
+    "score_max": 84.029815,
+    "score_mean": 82.59043215999996,
+    "best_iteration": 17,
+    "best_score": 84.029815,
+    "best_survivors": 50,
+    "best_config": {
+      "ars": 20.8,
+      "ogs": 42.0,
+      "wrs": 1.65
+    },
+    "best_components": {
+      "survival": 20.0,
+      "tcl": 10.0,
+      "environment": 9.977324,
+      "recovery": 6.087722,
+      "cost": 14.833525,
+      "mass": 14.776975,
+      "ops_physics": 8.354269
+    },
+    "final_iteration": 50,
+    "final_score": 84.029815,
+    "final_config": {
+      "ars": 20.8,
+      "ogs": 42.0,
+      "wrs": 1.65
+    },
+    "final_components": {
+      "survival": 20.0,
+      "tcl": 10.0,
+      "environment": 9.977324,
+      "recovery": 6.087722,
+      "cost": 14.833525,
+      "mass": 14.776975,
+      "ops_physics": 8.354269
+    },
+    "complete_proposal_count": 50,
+    "incomplete_proposal_iterations": [],
+    "config_drop_transition_count": 6,
+    "config_drop_transitions": [
+      {
+        "from": 3,
+        "to": 4,
+        "fields": [
+          "ARS",
+          "OGS",
+          "WRS"
+        ],
+        "prev": {
+          "config_ars": 25.0,
+          "config_ogs": 48.0,
+          "config_wrs": 10.0
+        },
+        "cur": {
+          "config_ars": 21.6,
+          "config_ogs": 43.5,
+          "config_wrs": 3.0
+        }
+      },
+      {
+        "from": 6,
+        "to": 7,
+        "fields": [
+          "WRS"
+        ],
+        "prev": {
+          "config_ars": 21.6,
+          "config_ogs": 43.5,
+          "config_wrs": 3.0
+        },
+        "cur": {
+          "config_ars": 21.6,
+          "config_ogs": 43.5,
+          "config_wrs": 2.0
+        }
+      },
+      {
+        "from": 8,
+        "to": 9,
+        "fields": [
+          "ARS",
+          "OGS",
+          "WRS"
+        ],
+        "prev": {
+          "config_ars": 21.6,
+          "config_ogs": 43.5,
+          "config_wrs": 2.0
+        },
+        "cur": {
+          "config_ars": 21.0,
+          "config_ogs": 42.5,
+          "config_wrs": 1.6
+        }
+      },
+      {
+        "from": 9,
+        "to": 10,
+        "fields": [
+          "OGS"
+        ],
+        "prev": {
+          "config_ars": 21.0,
+          "config_ogs": 42.5,
+          "config_wrs": 1.6
+        },
+        "cur": {
+          "config_ars": 21.0,
+          "config_ogs": 42.2,
+          "config_wrs": 1.8
+        }
+      },
+      {
+        "from": 12,
+        "to": 13,
+        "fields": [
+          "ARS",
+          "OGS"
+        ],
+        "prev": {
+          "config_ars": 21.0,
+          "config_ogs": 42.2,
+          "config_wrs": 1.8
+        },
+        "cur": {
+          "config_ars": 20.9,
+          "config_ogs": 42.1,
+          "config_wrs": 1.8
+        }
+      },
+      {
+        "from": 16,
+        "to": 17,
+        "fields": [
+          "ARS",
+          "OGS",
+          "WRS"
+        ],
+        "prev": {
+          "config_ars": 20.9,
+          "config_ogs": 42.1,
+          "config_wrs": 1.8
+        },
+        "cur": {
+          "config_ars": 20.8,
+          "config_ogs": 42.0,
+          "config_wrs": 1.65
+        }
+      }
+    ],
+    "unique_config_count": 9,
+    "most_common_configs": [
+      {
+        "ars": 20.8,
+        "ogs": 42.0,
+        "wrs": 1.65,
+        "count": 34
+      },
+      {
+        "ars": 20.9,
+        "ogs": 42.1,
+        "wrs": 1.8,
+        "count": 4
+      },
+      {
+        "ars": 21.6,
+        "ogs": 43.5,
+        "wrs": 3.0,
+        "count": 3
+      },
+      {
+        "ars": 21.0,
+        "ogs": 42.2,
+        "wrs": 1.8,
+        "count": 3
+      },
+      {
+        "ars": 21.6,
+        "ogs": 43.5,
+        "wrs": 2.0,
+        "count": 2
+      }
+    ],
+    "memory": {
+      "present_iterations": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50
+      ],
+      "absent_iterations": [
+        1
+      ],
+      "file_exists": true,
+      "file_size_bytes": 3660
     }
   }
 }

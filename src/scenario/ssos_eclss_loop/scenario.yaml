@@ -5,7 +5,7 @@ description: >
   Mass storage values are kilograms (ROS bridge converts SSOS grams ↔ kg).
 
 simulation:
-  steps: 50  # [-] default observation steps (CLI --steps overrides)
+  steps: 20  # [-] default observation steps (CLI --steps overrides)
   initial_co2_storage_kg: 1.3  # [kg] starting CO2 tank/cabin; plant_sim uses cabin
   initial_o2_storage_kg: 8.0  # [kg] starting O2 tank (above o2_storage_low_kg)
   initial_product_water_l: 80.0  # [L] starting potable water (above product_water_low_l)
@@ -151,15 +151,9 @@ design_constraints:
 # or --set inject_failures=true.
 inject_failures: false  # if true, apply the schedule below
 subsystem_failures:
-  - subsystem: ars  # ars | ogs | wrs
-    start_step: 10  # [-] inclusive, 0-based
-    end_step: 20  # [-] exclusive
   - subsystem: ogs
-    start_step: 20  # [-] inclusive, 0-based
-    end_step: 30  # [-] exclusive
-  - subsystem: wrs
-    start_step: 30  # [-] inclusive, 0-based
-    end_step: 40  # [-] exclusive
+    start_step: 10  # [-] inclusive, 0-based
+    end_step: 12  # [-] exclusive
 
 # Deterministic post-run scorecard. These are verification requirements, not
 # plant physics and not labeled actor policy. Full scoring requires plant_sim
@@ -217,10 +211,10 @@ evaluation:
 # single `ea run` (CLI pins plant_sim + labeled actors + llm design).
 iteration:
   enabled: true  # true → chain without --iterate
-  count: 50  # [-] 1–50 chained sims; --iterate N wins
+  count: 10  # [-] 1–50 chained sims; --iterate N wins
   paired_replay: true  # baseline vs final replay after the chain
   approve_provisional: true  # auto-adopt provisional_final (INFO on ssos). --no-approve-provisional restores the gate
-  run_id: ssos_eclss_loop_design_iter  # default chain directory name
+  run_id: ssos_eclss_loop_design_iter_database_evals_multiagent_revert  # default chain directory name
   exploration:
     # When to tell the designer it is going round in circles. Compared only
     # inside one survival tier: a round that saved four more people moved, even

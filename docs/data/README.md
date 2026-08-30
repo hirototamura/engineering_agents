@@ -1,14 +1,15 @@
-# Measured data — three fifty-round chains
+# Measured data — four fifty-round chains
 
-Per-round metrics behind [the experiment record](../en/results.md) / [実験記録](../ja/results.md). Extracted from the run artifacts of three `ea run ssos_eclss_loop --iterate 50` chains against the same world, the same fifty-person crew, and the same non-survivable baseline.
+Per-round metrics behind [the experiment record](../en/results.md) / [実験記録](../ja/results.md). Extracted from the run artifacts of four `ea run ssos_eclss_loop --iterate 50` chains against the same world, the same fifty-person crew, and the same non-survivable baseline.
 
 | Phase | What changed | Files |
 | --- | --- | --- |
 | 1 — as built | nothing; the loop as it first shipped | `phase1_*` |
 | 2 — chain memory | `compact_chain_memory.json` carried between rounds | `phase2_*` |
 | 3 — re-anchored scorecard | `evaluation.footprint` full-marks line moved off the non-surviving baseline | `phase3_*` |
+| 4 — audit panel | one unlensed designer, three independent auditors, item-veto merge | `phase4_*` |
 
-**Phase 3 scores are not comparable to phases 1–2** — the scoring function itself changed. Comparable across all three: `crew_remaining`, `config_ars` / `config_ogs` / `config_wrs`, `proposal_*`, `physics_gate_passed`, `constraint_status`.
+**Phase 3 and 4 scores are not comparable to phases 1–2** — the scoring function itself changed before phase 3. Phase 4 uses the same scorecard as phase 3. Comparable across all four: `crew_remaining`, `config_ars` / `config_ogs` / `config_wrs`, `proposal_*`, `physics_gate_passed`, `constraint_status`.
 
 ## Files
 
@@ -18,7 +19,7 @@ Per-round metrics behind [the experiment record](../en/results.md) / [実験記�
 | `phaseN_iteration_findings.json` | derived findings for that chain (resets, best round, stagnation) |
 | `phaseN_score_components_grouped.csv` | the scorecard rolled up into four blocks per round: survival, system behaviour (B–D), footprint (cost + mass), ops/physics |
 | `phaseN_chain_key_summary.csv` | the chain's own headline figures: rounds requested and completed, survivors first / last / baseline replay / final replay, verdict |
-| `ssos_three_way_comparison_summary.json` | the three phases side by side — the source of the comparison table in the experiment record |
+| `ssos_three_way_comparison_summary.json` | the four phases side by side — the source of the comparison table in the experiment record |
 | `phaseN_score_components_split.csv` | the same score with all seven axes separate — A survival, B TCL, C environment, D recovery, **E cost, F mass**, G ops/physics. Use this one when the question is cost *against* mass; the grouped file adds them together |
 
 ## Columns worth knowing
