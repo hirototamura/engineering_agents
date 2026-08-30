@@ -10,6 +10,11 @@ import pytest
 from scenario.jobs.iterate import VERDICT_INCONCLUSIVE, resolve_iteration, run_design_iterate
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunSpec
+from scenario.ssos_eclss_loop.chain_memory import (
+    CHAIN_MEMORY_FILENAME,
+    MAX_MEMORY_BYTES,
+    load_chain_memory,
+)
 
 
 def test_resolve_iteration_disabled_without_cli():
@@ -342,6 +347,48 @@ def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
         approve_provisional=True,
     )
     assert approved is not None
+
+
+def test_the_chain_leaves_each_round_a_note_from_the_ones_before_it(tmp_path: Path):
+    """Iterations read only their own run, so what carries over has to be written.
+
+    Without this a design that kept the whole crew alive is gone the moment the
+    next iteration proposes something else, and nothing in the chain can tell
+    the designer that it ever existed.
+    """
+    chain_dir = tmp_path / "chain"
+    run_design_iterate(
+        iterations=3,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=_labeled_overrides(backend="mock", steps=4),
+        ),
+        paired_replay=False,
+    )
+
+    note = chain_dir / CHAIN_MEMORY_FILENAME
+    assert note.exists()
+    # One file at the root, updated in place -- not a copy under each iteration.
+    assert not (chain_dir / "01" / CHAIN_MEMORY_FILENAME).exists()
+    assert note.stat().st_size <= MAX_MEMORY_BYTES
+
+    memory = json.loads(note.read_text(encoding="utf-8"))
+    assert memory["schema_version"] == "1.0"
+    assert memory["updated_after_iteration"] == 3
+    assert memory["objective"]["primary"] == "maximize_crew_remaining"
+    assert memory["proposal_guidance"]["prefer_complete_capacity_profile"] is True
+    # What was installed for the last round, read off its config.
+    last = memory["last_effective_design"]
+    assert last["iteration"] == 3
+    assert set(last["fields"]) == {
+        "plant_sim.ars.capacity_kg_day",
+        "plant_sim.ogs.max_o2_kg_day",
+        "plant_sim.wrs.max_feed_l_per_operation",
+    }
+    # Every iteration after the first can see it from its own run directory.
+    for index in (1, 2, 3):
+        assert load_chain_memory(chain_dir / f"{index:02d}") == memory
 
 
 def test_the_chain_writes_a_final_answer_beside_its_verdict(tmp_path: Path):

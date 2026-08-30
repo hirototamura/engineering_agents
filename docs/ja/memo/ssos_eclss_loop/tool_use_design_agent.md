@@ -126,6 +126,65 @@ LLM が返す JSON は 2 種類だけ。
 
 ランごとに `design_decision_state.json` として最後の状態を残す（既存の step ごとの `design_state.jsonl` とは別物なので名前を分けてある）。
 
+## ラウンドをまたいで引き継ぐもの
+
+DesignState は 1 ランだけから組み立てる。だから伸びないのだが、同時に chain 実行では
+**ラウンド間の記憶が無い**。実測 50 iteration の chain ではこれが乗員全員のコストになった。
+iteration 24 は ARS 20.8 / OGS 42.0 で 50/50 を維持し、iteration 25 が WRS だけの提案を出し、
+ARS と OGS が baseline に巻き戻り、次のランは 0/50 で返ってきた。うまくいった設計は
+却下されたのではない。**忘れられた。**
+
+そこで chain のルート直下に小さなファイルを 1 本だけ置き、iteration ごとに更新する
+（各 iteration dir 配下にはコピーしない）。実装は
+`src/scenario/ssos_eclss_loop/chain_memory.py`。
+
+```text
+<chain_dir>/compact_chain_memory.json
+```
+
+```json
+{
+  "schema_version": "1.0",
+  "updated_after_iteration": 24,
+  "objective": {"primary": "maximize_crew_remaining",
+                "secondary": "maximize_evaluation_score"},
+  "theoretical_floor": {"plant_sim.ars.capacity_kg_day": 20.8,
+                        "plant_sim.ogs.max_o2_kg_day": 42.0,
+                        "plant_sim.wrs.max_feed_l_per_operation": 1.5625},
+  "best_full_survival": {"iteration": 24, "crew_remaining": 50, "score": 66.18,
+                         "fields": {"…": 0}, "constraint_status": "over_budget"},
+  "last_effective_design": {"iteration": 24, "fields": {"…": 0}},
+  "known_bad_patterns": [{"id": "dropped_ars_ogs_to_baseline", "observed_count": 12}],
+  "proposal_guidance": {"prefer_complete_capacity_profile": true}
+}
+```
+
+中身を決めるルールは 4 つ。
+
+- **`last_effective_design`** は `scenario_config.yaml` から読む。提案値ではなく
+  **実際に建った機械**である。両者は食い違うし、横に並ぶ数値を出したのは前者だけだ。
+- **`best_full_survival`** に入れるのは `crew_remaining == crew_initial` かつ
+  physics gate 通過かつ evaluation が `scored` の iteration だけ。その中で score 最大、
+  同点なら制約違反が軽い（払える）方を採る。
+- **`theoretical_floor`** は `tool_trace.jsonl` にある designer 自身の
+  `compute_theoretical_capacity` 結果から取る。memory に載る数字は designer が見た数字と
+  同じになる。取得できないラウンドは既存値を維持する。
+- **`known_bad_patterns`** は 2 つの形を数える。partial proposal で ARS/OGS が baseline に
+  戻った回数と、理論床未満の ARS/OGS で乗員を失った回数。
+
+上限は **4 KB**。読み手は有限のコンテキストを持つ LLM だけだからだ。これは履歴ではなく
+**メモ**である。pattern は最大 5 件、best は 1 件、last は 1 件、iteration ごとのログは
+持たない。だから iteration 数が増えてもファイルは伸びない。実測 3 ラウンドの chain で
+883 バイトだった。
+
+`load_run_artifacts` は `chain_memory_compact` として返す（chain 外なら `null`、
+壊れていれば `{"error": …}` オブジェクト。読めないメモは「メモ無しで設計する」理由であって
+「設計をやめる」理由ではない）。`build_design_state` はこれを `chain_memory` として判断ページに載せる。
+
+**これがやらないこと。** 適用は一切しない。partial proposal は依然として省いたフィールドを
+落とす。そこを直すには iteration をまたいで適用済み設計を merge する必要があり、それは
+「提案の運び方」の変更になる。ここでやったのは、次の提案を書く者にその損失を**見せる**ことだけだ。
+
 ## 候補パイプライン（全自動）
 
 LLM が `fields` を返した瞬間に、コード側が必ずこの順で実行する。
@@ -336,6 +395,9 @@ LLM 設計提案を自動承認する（INFO を出す）。監督ゲートを�
   tool_trace.jsonl             # 人間向け監査ログ（LLM への入力ではない）
   design_plots/*.png
   candidate_runs/candidate_001/…   # 候補ごとの独立したラン（同じ成果物一式）
+
+<chain_dir>/
+  compact_chain_memory.json    # 4 KB 以内、chain に 1 本、次ラウンドが読む
 ```
 
 `tool_trace.jsonl` は designer の記憶ではなくなった（記憶は DesignState）。人が後から読む記録として残している。

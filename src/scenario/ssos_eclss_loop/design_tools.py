@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from environment.ssos.eclss.plant_sim.stoichiometry import WATER_PER_O2
+from scenario.ssos_eclss_loop.chain_memory import load_chain_memory
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_eval import (
     band_counts,
@@ -223,7 +224,8 @@ class DesignToolkit:
             ToolSpec(
                 "load_run_artifacts",
                 "Read the baseline run's artifacts (summary, configs, and the head/tail "
-                "of the JSONL streams).",
+                "of the JSONL streams), plus what earlier iterations of this chain left "
+                "in chain_memory_compact.",
                 {"files": f"optional list of {sorted(ARTIFACT_FILES)}; default all"},
                 evidence="read_baseline_artifacts",
             ),
@@ -372,6 +374,10 @@ class DesignToolkit:
         head = max(0, min(int(head), 10))
         tail = max(0, min(int(tail), 10))
         out: Dict[str, Any] = {"run_dir": str(self.run_dir)}
+        # Whatever the earlier rounds of this chain left behind. ``None`` on a
+        # standalone run, and on the first iteration, which have no earlier
+        # rounds to have left anything.
+        out["chain_memory_compact"] = load_chain_memory(self.run_dir)
         for name in wanted:
             path = self.run_dir / ARTIFACT_FILES[name]
             if not path.exists():

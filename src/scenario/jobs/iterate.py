@@ -13,6 +13,10 @@ from typing import Any, Dict, List, Mapping, Optional
 from scenario.jobs.executor import execute_run
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunResult, RunSpec
+from scenario.ssos_eclss_loop.chain_memory import (
+    capacity_keys_in_document,
+    update_compact_chain_memory,
+)
 from scenario.ssos_eclss_loop.chain_selection import (
     select_chain_final_answer,
     write_chain_final_answer,
@@ -253,6 +257,38 @@ def _summary_row(
     return row
 
 
+def _record_chain_memory(
+    chain_dir: Path,
+    iteration_dir: Path,
+    *,
+    iteration: int,
+    applied_path: Optional[Path],
+) -> None:
+    """Fold this round into the note the next round's designer is handed.
+
+    Bookkeeping, not a step of the chain: a memory that cannot be written is
+    worth strictly less than the iterations that would be cancelled to report
+    it, so the failure is recorded on the iteration and the chain continues.
+    """
+    applied_keys: Optional[List[str]] = None
+    if applied_path is not None and Path(applied_path).exists():
+        try:
+            applied_keys = capacity_keys_in_document(load_design_proposals(Path(applied_path)))
+        except Exception:
+            applied_keys = None
+    try:
+        update_compact_chain_memory(
+            chain_dir,
+            iteration_dir,
+            iteration=iteration,
+            applied_capacity_keys=applied_keys,
+        )
+    except Exception as exc:  # never let the note stop the chain
+        (Path(iteration_dir) / "chain_memory_error.txt").write_text(
+            f"{type(exc).__name__}: {exc}", encoding="utf-8"
+        )
+
+
 def run_design_iterate(
     *,
     iterations: int,
@@ -364,6 +400,12 @@ def run_design_iterate(
                 )
         else:
             accumulated_history.append({"iteration": index, "changes": []})
+        _record_chain_memory(
+            chain_dir,
+            output_dir,
+            iteration=index,
+            applied_path=apply_this_run,
+        )
         if index == iterations:
             verified_apply_path = apply_this_run
 

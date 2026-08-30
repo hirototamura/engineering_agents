@@ -99,6 +99,11 @@ EXPERT_CONTEXT_PACK = """\
 - summary.json alone is not enough evidence. Look at the time series, the dwell in
   warning / critical bands, the shortfall ledgers and the crew loss causes.
 - Only a candidate that has been re-simulated may become the final proposal.
+- When the state carries `chain_memory`, it is bounded evidence from earlier rounds
+  of this chain, not a replacement for what this run shows. Prefer a design that
+  keeps or improves on `best_full_survival`; name all three design variables in a
+  proposal so a later round cannot silently drop one; and if you size ARS or OGS
+  below `theoretical_floor`, say why the crew still survives on less.
 - One verified candidate is the minimum, not the goal. While candidate runs remain,
   size another one and compare: a candidate that still loses occupants has to grow,
   and one that saves everyone is worth testing smaller. The comparison tool picks the
@@ -416,7 +421,7 @@ class ToolUseDesignAgent:
                 toolkit, trace, name, arguments, decision=0, source="evidence"
             )
 
-        call("load_run_artifacts", {})
+        artifacts = call("load_run_artifacts", {})
         call("summarize_timeseries", {"source": "telemetry"})
         call("summarize_timeseries", {"source": "health_metrics"})
         features = call("compute_eclss_features", {})
@@ -430,7 +435,11 @@ class ToolUseDesignAgent:
                 "evidence": toolkit.evidence_report(),
             }
         )
-        return {"features": features, "theory": theory}
+        return {
+            "features": features,
+            "theory": theory,
+            "chain_memory": artifacts.get("chain_memory_compact"),
+        }
 
     def _run_candidate_pipeline(
         self,
@@ -557,6 +566,7 @@ class ToolUseDesignAgent:
                 scenario_config=toolkit.ctx.scenario_config,
                 decisions_left=self.settings.max_decisions - decision + 1,
                 candidate_budget_left=self.settings.max_candidate_runs - len(toolkit.candidates),
+                chain_memory=evidence.get("chain_memory"),
             )
             _write_json(run_dir / DESIGN_STATE_FILENAME, state)
             trace.append({"event": "design_state", "decision": decision, "state": state})

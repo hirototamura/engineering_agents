@@ -9,6 +9,7 @@ import pytest
 import yaml
 
 from scenario.runner import run_scenario
+from scenario.ssos_eclss_loop.chain_memory import CHAIN_MEMORY_FILENAME
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_tools import DesignToolContext, DesignToolkit
 
@@ -88,6 +89,40 @@ def test_load_run_artifacts_reports_every_stream(baseline: Path):
     assert result["health_metrics"]["row_count"] > 0
     assert result["scenario_config"]["plant_sim"]["crew"]["size"] == 50
     assert toolkit.evidence["read_baseline_artifacts"] is True
+
+
+def test_a_run_outside_a_chain_reports_no_chain_memory(baseline: Path):
+    """The first iteration, and every standalone run, has no earlier round."""
+    assert _toolkit(baseline).call("load_run_artifacts", {})["chain_memory_compact"] is None
+
+
+def test_the_artifacts_carry_what_earlier_iterations_of_the_chain_left(baseline: Path):
+    """The note lives at the chain root, one level above the iteration."""
+    chain_dir = baseline.parent
+    note = chain_dir / CHAIN_MEMORY_FILENAME
+    note.write_text(
+        json.dumps({"schema_version": "1.0", "best_full_survival": {"iteration": 4}}),
+        encoding="utf-8",
+    )
+    try:
+        memory = _toolkit(baseline).call("load_run_artifacts", {})["chain_memory_compact"]
+        assert memory["best_full_survival"]["iteration"] == 4
+    finally:
+        note.unlink()
+
+
+def test_an_unreadable_chain_memory_does_not_break_the_design_loop(baseline: Path):
+    """A corrupt note is a reason to design without one, not to stop designing."""
+    note = baseline.parent / CHAIN_MEMORY_FILENAME
+    note.write_text("{ truncated", encoding="utf-8")
+    try:
+        result = _toolkit(baseline).call("load_run_artifacts", {})
+        assert result["chain_memory_compact"]["error"] == "failed_to_load_chain_memory"
+        # the rest of the artifacts still came back, and the tool still counts
+        assert result["telemetry"]["row_count"] > 0
+        assert result.get("error") is None
+    finally:
+        note.unlink()
 
 
 def test_summarize_timeseries_finds_the_co2_band_crossings(baseline: Path):

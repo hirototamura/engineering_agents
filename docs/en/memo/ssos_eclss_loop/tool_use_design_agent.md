@@ -126,6 +126,68 @@ No transcript of earlier turns. **There is no past to re-read, so there is nothi
 
 Each run keeps its last state as `design_decision_state.json` — named apart from the per-step `design_state.jsonl` the run already writes.
 
+## What carries between rounds
+
+The DesignState is built from one run, which is what keeps it from growing. It also
+means a chained run has no memory *between* rounds. In an observed fifty-iteration
+chain that cost the whole crew: iteration 24 kept 50/50 with ARS 20.8 / OGS 42.0,
+iteration 25 proposed a WRS-only change, ARS and OGS fell back to their baseline
+sizes, and the next run came back 0/50. The design that worked was not rejected. It
+was forgotten.
+
+So the chain keeps one small file at its root, updated after every iteration and
+never copied under them, in `src/scenario/ssos_eclss_loop/chain_memory.py`:
+
+```text
+<chain_dir>/compact_chain_memory.json
+```
+
+```json
+{
+  "schema_version": "1.0",
+  "updated_after_iteration": 24,
+  "objective": {"primary": "maximize_crew_remaining",
+                "secondary": "maximize_evaluation_score"},
+  "theoretical_floor": {"plant_sim.ars.capacity_kg_day": 20.8,
+                        "plant_sim.ogs.max_o2_kg_day": 42.0,
+                        "plant_sim.wrs.max_feed_l_per_operation": 1.5625},
+  "best_full_survival": {"iteration": 24, "crew_remaining": 50, "score": 66.18,
+                         "fields": {"…": 0}, "constraint_status": "over_budget"},
+  "last_effective_design": {"iteration": 24, "fields": {"…": 0}},
+  "known_bad_patterns": [{"id": "dropped_ars_ogs_to_baseline", "observed_count": 12}],
+  "proposal_guidance": {"prefer_complete_capacity_profile": true}
+}
+```
+
+Four rules decide what goes in it.
+
+- **`last_effective_design`** is read off `scenario_config.yaml` — the machine that was
+  built, not the one that was proposed. Those differ, and only the first one produced
+  the numbers beside it.
+- **`best_full_survival`** admits an iteration only if `crew_remaining == crew_initial`,
+  the physics gate passed and the evaluation was `scored`. Among those, the highest
+  score wins; a tie goes to the design that can be paid for.
+- **`theoretical_floor`** comes from the designer's own `compute_theoretical_capacity`
+  call in `tool_trace.jsonl`, so the number in the memory is the number it was shown.
+  A round that did not produce one keeps the floor the chain already had.
+- **`known_bad_patterns`** counts two shapes: a partial proposal that let ARS/OGS fall
+  back to baseline, and ARS/OGS installed below the floor in a round that lost occupants.
+
+It is capped at **4 KB** — its only reader is a model with a finite context window. It
+is a note, not a history: at most five patterns, one best design, one installed design,
+and no per-iteration log, so it does not grow with the iteration count. Measured over a
+real three-round chain it was 883 bytes.
+
+`load_run_artifacts` returns it as `chain_memory_compact` (`null` outside a chain, an
+`{"error": …}` object if the file will not parse — a corrupt note is a reason to design
+without one, never a reason to stop designing), and `build_design_state` puts it on the
+decision page as `chain_memory`.
+
+**What this does not do:** it does not apply anything. A partial proposal still drops
+the fields it omits — fixing *that* means merging applied designs across iterations,
+which is a change to how proposals are carried. This only makes the loss visible to
+whoever writes the next proposal.
+
 ## The candidate pipeline runs itself
 
 The moment the model returns `fields`, the code runs all of this, in this order.
@@ -337,6 +399,9 @@ It is now written once. `summary.evaluation_score`, `summary.evaluation_compact.
   tool_trace.jsonl             # human audit log, not model input
   design_plots/*.png
   candidate_runs/candidate_001/…   # one independent run per candidate, same artifacts
+
+<chain_dir>/
+  compact_chain_memory.json    # <= 4 KB, one file per chain, read by the next round
 ```
 
 `tool_trace.jsonl` is no longer the designer's memory — the DesignState is. It stays as the record a person reads afterwards.

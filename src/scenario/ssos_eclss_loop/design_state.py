@@ -200,6 +200,42 @@ def _capacity_need(theory: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
     return out
 
 
+CHAIN_MEMORY_NOTE = (
+    "Bounded evidence from earlier iterations of this chain, not a substitute for "
+    "the current run. Keep or improve on 'best_full_survival' unless the evidence "
+    "above gives a reason to explore elsewhere, name all three design variables so "
+    "a later iteration cannot silently drop one, and if you size ARS or OGS below "
+    "'theoretical_floor', say why the crew still survives on less."
+)
+
+
+def _chain_memory_view(chain_memory: Optional[Mapping[str, Any]]) -> Optional[Dict[str, Any]]:
+    """The memory as the decision should read it, or nothing.
+
+    A memory that could not be loaded is left out rather than shown: an error
+    object on the page is one more thing to reason about and says nothing about
+    what to build.
+    """
+    if not isinstance(chain_memory, Mapping) or chain_memory.get("error"):
+        return None
+    view = {
+        key: chain_memory.get(key)
+        for key in (
+            "updated_after_iteration",
+            "theoretical_floor",
+            "best_full_survival",
+            "last_effective_design",
+            "known_bad_patterns",
+            "proposal_guidance",
+        )
+        if chain_memory.get(key) is not None
+    }
+    if not view:
+        return None
+    view["note"] = CHAIN_MEMORY_NOTE
+    return view
+
+
 def build_design_state(
     *,
     baseline_outcome: Mapping[str, Any],
@@ -209,6 +245,7 @@ def build_design_state(
     scenario_config: Mapping[str, Any],
     decisions_left: int,
     candidate_budget_left: int,
+    chain_memory: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Assemble the state a single design decision is taken from."""
     baseline: Dict[str, Any] = {
@@ -226,7 +263,8 @@ def build_design_state(
 
     views = [_candidate_view(record) for record in candidates]
     baseline["scorecard"] = _scorecard(baseline_outcome)
-    return {
+    memory = _chain_memory_view(chain_memory)
+    state: Dict[str, Any] = {
         "objective": OBJECTIVE_NOTE,
         "baseline": baseline,
         "installed_capacity": _installed(scenario_config),
@@ -237,9 +275,13 @@ def build_design_state(
         "remaining_candidate_budget": max(0, int(candidate_budget_left)),
         "decision_needed": "refine_or_finish" if views else "first_candidate",
     }
+    if memory is not None:
+        state["chain_memory"] = memory
+    return state
 
 
 __all__ = [
+    "CHAIN_MEMORY_NOTE",
     "FIELD_PRECISION",
     "OBJECTIVE_NOTE",
     "build_design_state",
