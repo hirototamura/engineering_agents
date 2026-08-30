@@ -32,6 +32,13 @@ def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def test_c_axis_weights_favour_the_lethal_resource():
+    weights = _config()["evaluation"]["resource_recovery"]["resource_weights"]
+    assert weights["co2"] == pytest.approx(2.0)
+    assert weights["o2"] == pytest.approx(1.0)
+    assert weights["water"] == pytest.approx(1.0)
+
+
 def test_select_telemetry_rows_prefers_post_ops_and_preserves_pre():
     rows = [
         {"step": 0, "co2_storage_kg": 1.0},

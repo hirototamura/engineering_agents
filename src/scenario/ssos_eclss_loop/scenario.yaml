@@ -172,7 +172,12 @@ evaluation:
     resource_weights: {co2: 1.0, o2: 1.0, water: 1.0}
     zero_score_mean_severity: 1.0  # [-] weighted mean severity that maps to 0/10
   resource_recovery:
-    resource_weights: {co2: 1.0, o2: 1.0, water: 1.0}
+    # C-axis. CO2 is the only resource that reaches a lethal band at the
+    # shipped operating point (≈50 h vs O2/water still unreached at 133 h),
+    # so it carries twice the weight of the other two. Fixed ratio, not
+    # recomputed from the operating point (that would let a design move
+    # the yardstick by changing initial inventories).
+    resource_weights: {co2: 2.0, o2: 1.0, water: 1.0}
     terminal_weight: 0.5  # [-] remaining 0.5 is worst-to-final recovery
   actor_decision:
     max_latency_steps: 2  # [steps] zero latency gets full response quality
