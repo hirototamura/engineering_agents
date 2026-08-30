@@ -20,7 +20,8 @@ MkDocs サイトの全ページ一覧です。ヘッダーの言語切替で Eng
 | | [ロードマップ](ssos/roadmap.md) | Phase 0–8 状態 |
 | その他 | [CLI ガイド](cli.md) | `ea` コマンド |
 | | [設計ループの学術解析](design-loop-analysis.md) | 順序変数・臨界性・可制御性（キャンペーン HTML） |
-| | [技術説明 ver.03](eclss_ai_agent_technical_report_03.md) | ハッカソン報告＋創発の定量可視化 |
+| | [技術説明 ver.04](eclss_ai_agent_technical_report_04.md) | ハッカソン報告。第8章を創発の可視化に差し替え |
+| | [技術説明 ver.03](eclss_ai_agent_technical_report_03.md) | ハッカソン報告＋定量解析（第11–14章） |
 | | [開発プラン](development-plan.md) | ロードマップ索引 |
 | | [保守ガイド](MAINTENANCE.md) | ドキュメント編集・プレビュー |
 | メモ | [バックログ](memo/backlog.md) | BL-001–BL-007 |
