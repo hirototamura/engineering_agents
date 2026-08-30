@@ -6,10 +6,10 @@ Four fifty-round design→verify chains, archived whole. Every number and every 
 experiments/
 ├── runs/          raw logs, one .tar.gz per chain      <- what the simulator wrote
 ├── analysis/      the scripts that read them           <- how the numbers were made
-└── outputs/       where re-running writes              (gitignored)
+└── outputs/       analysed figures, CSVs, JSON summaries
                                                         |
-../docs/data/      the committed analysed data          <- diff against outputs/
-../docs/images/results/  the committed figures
+../docs/data/      the same tables, also cited by the docs
+../docs/images/results/  the same figures, also cited by the docs
 ```
 
 `src/experiments/results/` is somewhere else and is not this: that is where *your* local runs land, and it is gitignored. This directory holds the chains the docs cite.

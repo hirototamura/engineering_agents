@@ -2,6 +2,8 @@
 
 [English README](README.md) · [ドキュメント](docs/ja/index.md) · [実験記録](docs/ja/results.md) · [解析データ](docs/data) · [エージェント設計](docs/ja/agent-design.md)
 
+**詳細な成果報告:** [技術説明](docs/ja/eclss_ai_agent_technical_report_04.md)（50人サバイバルの4段階実験、創発の可視化）
+
 Engineering Agents は、宇宙機の環境制御・生命維持システム（ECLSS）を題材に、AIエージェントが設計を改善できるかを検証するシミュレーション環境です。
 
 このシミュレーションの特徴は、次の4点です。
@@ -87,6 +89,7 @@ README本文には結果の要点だけを置き、詳細はデータと実験�
 
 | リンク | 内容 |
 | --- | --- |
+| [docs/ja/eclss_ai_agent_technical_report_04.md](docs/ja/eclss_ai_agent_technical_report_04.md) | 技術説明（成果報告） |
 | [docs/ja/results.md](docs/ja/results.md) | 実験結果の説明 |
 | [docs/data/](docs/data) | 周回ごとの解析済みCSV / JSON |
 | [docs/data/README.md](docs/data/README.md) | データ列の説明 |
@@ -209,6 +212,7 @@ environment/     ECLSS backend: mock / plant_sim
 
 | 内容 | 日本語 |
 | --- | --- |
+| 技術説明 | [docs/ja/eclss_ai_agent_technical_report_04.md](docs/ja/eclss_ai_agent_technical_report_04.md) |
 | 概要 | [docs/ja/overview.md](docs/ja/overview.md) |
 | 実験記録 | [docs/ja/results.md](docs/ja/results.md) |
 | エージェント設計 | [docs/ja/agent-design.md](docs/ja/agent-design.md) |

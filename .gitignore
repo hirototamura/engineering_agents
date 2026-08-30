@@ -57,9 +57,9 @@ src/experiments/analysis/*
 !src/experiments/analysis/design_loop_analysis.findings.json
 
 # Archived chains: the .tar.gz under experiments/runs/ is what is tracked.
-# Extracting one, and re-running the analysis over it, produces these.
+# Extracted round directories stay local. Analysed figures/CSVs live in
+# experiments/outputs/ and are tracked for the hackathon record.
 experiments/runs/*/
-experiments/outputs/
 artifacts/ssos-regression/
 output/
 041922_output/
