@@ -46,6 +46,11 @@ simulation.log
 src/experiments/results/*
 !src/experiments/results/.gitkeep
 !src/experiments/results/evaluation.html
+
+# Archived chains: the .tar.gz under experiments/runs/ is what is tracked.
+# Extracting one, and re-running the analysis over it, produces these.
+experiments/runs/*/
+experiments/outputs/
 artifacts/ssos-regression/
 output/
 041922_output/

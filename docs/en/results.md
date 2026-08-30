@@ -148,10 +148,15 @@ Stated plainly, because a result page that only lists wins is not a result page.
 | `<chain>/compact_chain_memory.json` | the note the next round read |
 | `<chain>/chain_summary.json` | the chain's single answer and how it was selected |
 
-Reproduce a chain with:
+All three chains are archived whole — [`experiments/runs/`](https://github.com/hirototamura/engineering_agents/tree/main/experiments/runs), 11 MB compressed each — together
+with the scripts that turn them into the tables on this page. Re-running the analysis reproduces
+every figure and every CSV byte for byte, and the last step of the instructions is a `diff` that
+proves it: [`experiments/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/README.md).
+
+Run a new chain with:
 
 ```bash
-ea run ssos_eclss_loop --iterate 50
+./scripts/run_design_chain.sh --rounds 50
 ```
 
 The simulator is deterministic, so a chain re-run with the same LLM replies reproduces exactly. The LLM replies themselves are not — temperature is 0.45 — which is why the per-round design_decision_state is written whole.

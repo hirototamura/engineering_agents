@@ -148,10 +148,14 @@ evaluation:
 | `<chain>/compact_chain_memory.json` | 次の周が読んだメモ |
 | `<chain>/chain_summary.json` | 連鎖の唯一の答えと、その選び方 |
 
-連鎖の再現:
+3本とも生ログを丸ごと保存してある（[`experiments/runs/`](https://github.com/hirototamura/engineering_agents/tree/main/experiments/runs)、圧縮して各11 MB）。
+このページの表を作った解析スクリプトも同梱してあり、走らせ直せば図もCSVもバイト単位で再現する。
+手順の最後の工程がそれを証明する `diff` になっている: [`experiments/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/README.md)。
+
+新しい連鎖を走らせる:
 
 ```bash
-ea run ssos_eclss_loop --iterate 50
+./scripts/run_design_chain.sh --rounds 50
 ```
 
 シミュレータは決定論なので、同じ LLM 応答なら連鎖は完全に再現する。LLM 応答のほうは決定論ではない（温度 0.45）。だから周ごとの `design_decision_state` を要約せず丸ごと書いている。

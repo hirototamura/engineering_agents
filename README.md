@@ -148,7 +148,28 @@ Three findings worth the run time:
 
 And what is still wrong, stated in the same place: total mass and cost did **not** improve much between phases 2 and 3 — the score moved because the scoring moved. The search is still WRS-only. Chain memory shows but does not apply. One model, one seed, three chains — not a statistical study.
 
-→ **[Full experiment record](docs/en/results.md)** · [raw data](docs/data)
+→ **[Full experiment record](docs/en/results.md)**
+
+### Every claim above is re-derivable
+
+The whole chain is in the repository, and the last step is a `diff`:
+
+| | Where | Size |
+| --- | --- | --- |
+| **Run a chain** | [`scripts/run_design_chain.sh`](scripts/run_design_chain.sh) · [`.ps1`](scripts/windows/run_design_chain.ps1) | |
+| **Raw logs** — all three chains, whole | [`experiments/runs/*.tar.gz`](experiments/runs) | 32 MB (115 MB each extracted) |
+| **Analysis scripts** — stdlib only, no numpy | [`experiments/analysis/`](experiments/analysis) | 6 scripts |
+| **Analysed data** — 50 rows × 54 columns per phase | [`docs/data/`](docs/data) | |
+| **Figures** | [`docs/images/results/`](docs/images/results) | |
+
+```bash
+cd experiments
+for f in runs/*.tar.gz; do tar -xzf "$f" -C runs/; done
+python3 analysis/analyze_ssos_iter.py --root runs/phase3-rescored --prefix phase3
+diff outputs/phase3_iteration_metrics.csv ../docs/data/phase3_iteration_metrics.csv   # empty
+```
+
+The raw logs keep everything: `tool_trace.jsonl` has the real arguments and return values of all nine tools, `design_decision_state.json` has the model's reply verbatim, and `candidate_runs/` has the re-simulation of every candidate it named. A design can be walked back from the telemetry it was based on to the sentence that proposed it. → [`experiments/README.md`](experiments/README.md)
 
 ---
 

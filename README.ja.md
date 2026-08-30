@@ -148,7 +148,28 @@ Python  = 調査・検証・シミュレーション・評価・比較・ワー�
 
 そして、まだ駄目なところも同じ場所に書く。段階②から③で総質量・総費用は**ほとんど改善していない**——点数が動いたのは採点が動いたからである。探索はいまだ WRS のみ。連鎖の記憶は見せるだけで適用しない。モデル1つ・シード1つ・連鎖3本であり、統計的な研究ではない。
 
-→ **[実験記録の全文](docs/ja/results.md)** · [生データ](docs/data)
+→ **[実験記録の全文](docs/ja/results.md)**
+
+### 上の主張はすべて再導出できる
+
+一連の流れがリポジトリに入っており、最後の工程は `diff` である。
+
+| | 場所 | 容量 |
+| --- | --- | --- |
+| **連鎖を走らせる** | [`scripts/run_design_chain.sh`](scripts/run_design_chain.sh) · [`.ps1`](scripts/windows/run_design_chain.ps1) | |
+| **生ログ** — 3本とも丸ごと | [`experiments/runs/*.tar.gz`](experiments/runs) | 32 MB（展開後は各115 MB） |
+| **解析スクリプト** — 標準ライブラリのみ。numpy 不要 | [`experiments/analysis/`](experiments/analysis) | 6本 |
+| **解析後データ** — 1段階につき 50行 × 54列 | [`docs/data/`](docs/data) | |
+| **図** | [`docs/images/results/`](docs/images/results) | |
+
+```bash
+cd experiments
+for f in runs/*.tar.gz; do tar -xzf "$f" -C runs/; done
+python3 analysis/analyze_ssos_iter.py --root runs/phase3-rescored --prefix phase3
+diff outputs/phase3_iteration_metrics.csv ../docs/data/phase3_iteration_metrics.csv   # 差分なし
+```
+
+生ログは何も要約していない。`tool_trace.jsonl` には9つのツールの実際の引数と返り値が、`design_decision_state.json` にはモデルの応答が原文のまま、`candidate_runs/` にはモデルが名指しした全候補の再シミュレーションが入っている。**ある設計を、その根拠になったテレメトリから、それを提案した一文まで遡れる。** → [`experiments/README.md`](experiments/README.md)
 
 ---
 

@@ -36,10 +36,28 @@ Per-round metrics behind [the experiment record](../en/results.md) / [実験記�
 | `llm_turn_count` / `tool_call_count` | how much of the round was model vs. deterministic code |
 | `total_mass_kg` / `total_cost_musd` / `total_volume_m3` | what the design would cost to build and launch |
 
-## Reproducing
+## Where this came from
+
+These files are not hand-maintained. They are the output of
+[`experiments/analysis/analyze_ssos_iter.py`](../../experiments/analysis/analyze_ssos_iter.py)
+run over the raw chain logs archived in
+[`experiments/runs/`](../../experiments/runs), and re-running it reproduces them
+byte for byte:
 
 ```bash
-ea run ssos_eclss_loop --iterate 50
+cd experiments
+for f in runs/*.tar.gz; do tar -xzf "$f" -C runs/; done
+python3 analysis/analyze_ssos_iter.py --root runs/phase1-no-chain-memory --prefix phase1
+diff outputs/phase1_iteration_metrics.csv ../docs/data/phase1_iteration_metrics.csv   # empty
+```
+
+Full instructions, and what is inside a chain archive:
+[`experiments/README.md`](../../experiments/README.md).
+
+## Running a new chain
+
+```bash
+./scripts/run_design_chain.sh --rounds 50
 ```
 
 The simulator is deterministic. The LLM is not (temperature 0.45), so a re-run explores a different path — which is why each round's `design_decision_state.json` is written whole rather than summarised.
