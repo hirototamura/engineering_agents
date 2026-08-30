@@ -15,7 +15,7 @@
 | 12 | 設計改善の分析を2本。① なぜ LLM は全員生存でき、ルール設計器は 0 人のまま飽和したか ② グリッドが凍らせた WRS が、実は残差の自由度だった |
 | 13 | 創発の可視化。予想外の変数操作、段階ごとの意思決定クラス、シングル設計者 vs 監査パネルの思想の切れ目 |
 
-数値の正本: 段階①–③は [`docs/data/`](../data/README.md) の周回 CSV（再現手順は [`experiments/README.md`](../../experiments/README.md)）。段階④の集計は ver.02 の監査パネル連鎖。プラント側のアンサンブルは [`design-loop-analysis.md`](design-loop-analysis.md) / `src/experiments/analysis/design_loop_analysis.findings.json`。
+数値の正本: 段階①–③は [実験記録](results.md) と同梱の [`docs/data/`](https://github.com/hirototamura/engineering_agents/tree/main/docs/data) 周回 CSV。再現手順は [`experiments/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/README.md)。段階④の集計は ver.02 の監査パネル連鎖。プラント側のアンサンブルは [設計ループの学術解析](design-loop-analysis.md)。
 
 ---
 
@@ -80,18 +80,9 @@
 
 これらは互いに独立ではなく、装置容量・在庫・質量・コストを通じて連動する。したがって「どれか一つを最大化する」ことはできず、**系全体として成立する均衡点**を探すことになる。
 
-```mermaid
-flowchart LR
-  crew[Crew 50] -->|CO2| ARS[ARS]
-  ARS -->|scrubbed air| cabin[Cabin]
-  OGS[OGS] -->|O2| cabin
-  cabin --> crew
-  crew -->|urine / condensate| WRS[WRS]
-  WRS -->|potable / feed water| OGS
-  WRS --> cabin
-```
+![ECLSS の閉ループ模式図](../images/results/report02_00_eclss_loop_schematic.png)
 
-*図1. ECLSS の閉ループ生命維持 ― 大気再生（CO₂除去）・酸素生成・水再生と居住区。*
+*図1. ECLSS の閉ループ生命維持 ― 大気再生ループ（CO₂除去→O₂生成）、水再生ループ（排水↔供給水）、温度・湿度・圧力の制御と居住区の関係。本デッキ用のオリジナル概念図。*
 
 ### 4.2 世界設計：「50人サバイバル」
 
@@ -189,6 +180,8 @@ flowchart LR
 | actor有効時のみ | **H. 物理応答**                   | 5   |
 
 
+![評価スコアカードの配点構成](../images/results/report02_01_scorecard_pie.png)
+
 *図2. 定量評価スコアカードの配点構成（100点満点）。性能(A+B+C) 30／D残存 20／Eコスト 20／F質量 20／G+H crew 10。*
 
 ### 6.3 各指標の定義
@@ -244,9 +237,9 @@ flowchart LR
 
 段階①では、途中で50/50生存に到達したものの、最終iterationでは34/50まで落ちた。原因は、部分的な設計提案によってARS/OGSがベースライン相当へ戻ることだった。段階②ではこの巻き戻りがほぼ解消され、iteration 2以降すべて50/50生存を維持した。段階③でもほぼ同じ安定性を維持し、iteration 34の一度だけ45/50に落ちた。段階④は iteration 2 で19/50（OGSだけ上げてARSは出荷寸法のまま）のあと、iteration 3以降は50/50を維持した。
 
-![3段階の生存者数とスコア](../images/results/ssos_phase1_phase2_phase3_survival_score_trend.svg)
+![段階①-④の生存者数・スコア推移](../images/results/report02_02_phases_survival_score.svg)
 
-*図 7-1. 段階①–③の生存者数と総合スコア。段階③の点数は採点関数が違うため、①②と縦軸を直接比較しない。*
+*図 7-1. 段階①–④の生存者数と総合スコア。段階③④の点数は採点関数が違うため、①②と縦軸を直接比較しない。*
 
 
 | 指標                  | 段階① 初期 | 段階② 記憶あり改善 | 段階③ 記憶+評価変更 | 段階④ 監査パネル |
@@ -268,21 +261,29 @@ flowchart LR
 
 段階①では、iteration 24で最高スコア66.18、50/50生存に到達している。しかし最終iteration 50では34/50生存、スコア55.41まで落ちた。これは「探索で良い点を一度見つけたが、最終的にそれを保持できなかった」ことを意味する。つまり段階①の問題は、探索能力そのものだけでなく、iteration間の状態継承にあった。
 
+![段階① 初期の生存者数・スコア推移](../images/results/report02_03_phase1_survival_score.svg)
+
 段階②では、iteration 2以降すべて50/50生存で安定している。`chain_memory_compact` がiteration 2-50で投入され、設計提案も50/50回すべてでARS/OGS/WRSを含んでいた。スコアはiteration 4で66.10に到達した後、最高でも66.36であり、改善幅は約0.26点に留まる。これは、記憶によって破綻は防げた一方で、探索が局所的になったことを示している。
 
+![段階② 記憶あり改善の生存者数・スコア推移](../images/results/report02_04_phase2_survival_score.svg)
+
 段階③では、最高スコア84.23、最終スコア84.08となった。iteration 34でWRS=1.25まで下げたケースのみ45/50生存に落ちたが、それ以外は50/50を維持している。初回を除いたスコア範囲は78.67-84.23であり、段階②よりスコアレンジが広がった。これは、Cost/Massの採点レンジが緩和され、同じ50/50生存の中でも設計差が点数に出やすくなったためである。
+
+![段階③ 記憶+評価変更の生存者数・スコア推移](../images/results/report02_05_phase3_survival_score.svg)
 
 以上から、記憶機構は「生存設計の保持」に明確に効いている。一方で、段階②は安定しすぎており、より良い設計への探索幅は狭い。段階③ではWRS探索が少し広がったが、ARS/OGSはほぼ固定されたままである。段階④は、その停滞に対して監査パネルを足した答えである。危険な下げは止まったが、探索幅はさらに狭くなった。
 
 段階④では、最高スコアと最終スコアはともに84.03である。iteration 2だけ19/50で、iteration 3以降はすべて50/50を維持した。設計者は iteration 17 で `ARS=20.8, OGS=42.0, WRS=1.65` に到達し、最終回答もそこ（iteration 18）である。以後34周は同じ機体を飛ばし続けた。設計者はWRSを1.58まで下げようとしたが、監査2と3が veto した——計算下限1.5625に0.0175しか余裕がない、と。段階③ iteration 34のWRS=1.25（45/50）は起きていない。代償はユニーク設計数が17から9へ、最高点が84.23から84.03へ落ちたことである。段階③が踏んだWRS 1.8-2.2の有望レンジにも、1.25の失敗境界にも行っていない。監査は壊れない機体を守った。探索はより狭くなった。どちらも事実である。
 
+![段階④ 監査パネルの生存者数・スコア推移](../images/results/report02_06_phase4_survival_score.svg)
+
 ### 7.3 設計パラメータの変化
 
 3つの設計変数は、ARS（CO₂除去能力）、OGS（O₂生成能力）、WRS（水再生能力）である。段階①では、良い設計に到達してもARS/OGSが戻るため、生存者数が不安定になった。段階②/③/④では、ARS=20.8 kg/day、OGS=42.0 kg/dayをほぼ維持し、主にWRSを探索する挙動へ変わった。段階④はWRSすら1.65で固定し、以後動かない。
 
-![3段階の ARS / OGS / WRS 推移](../images/results/ssos_phase1_phase2_phase3_parameter_trends.svg)
+![段階①-④の3パラメータ推移](../images/results/report02_07_phases_ars_ogs_wrs.svg)
 
-*図 7-2. 設置された ARS / OGS / WRS。段階②③ではガス系が理論下限に張り付き、探索は WRS に潰れる。*
+*図 7-2. 設置された ARS / OGS / WRS。段階②③ではガス系が理論下限に張り付き、探索は WRS に潰れる。段階④は WRS も 1.65 で凍る。*
 
 段階①では、tool-useで理論必要容量を得ていても、それを安定的に次iterationへ引き継げていなかった。最高点付近ではARS=20.8、OGS=42.0、WRS=1.8のような有効設計に到達しているが、その後にARS=4.5、OGS=9.25へ戻るiterationが複数回ある。このため、段階①は「探索の失敗」というより、**良い設計状態を保持する仕組みが弱い**ことが主要因だった。
 
@@ -347,17 +348,27 @@ flowchart LR
 
 段階①では、生存者数が崩れるiterationでA SurvivalとB TCLが大きく落ちる。ARS/OGSがベースライン寄りに戻るiterationでは、コスト・重量点は相対的に高くなる一方、生存・TCLが悪化して総合点が下がる。最高スコアiteration 24の内訳は、A Survival 20.00、B TCL 10.00、C Environment 9.98、D Recovery 6.05、E Cost 5.94、F Mass 5.72、G Ops/Physics 8.49、合計66.18である。
 
-![段階① 7軸内訳](../images/results/phase1_score_components_stacked_split.svg)
+![段階① 初期の点数内訳 集約版](../images/results/report02_08_phase1_components_grouped.svg)
+
+![段階① 初期の点数内訳 詳細版](../images/results/report02_09_phase1_components_split.svg)
 
 段階②では、A Survival、B TCL、C Environmentがほぼ満点近くで固定され、総合点の差は主にD Recovery、E Cost、F Mass、G Ops/Physicsの小さな差で決まっている。最高スコアiteration 33の内訳は、A Survival 20.00、B TCL 10.00、C Environment 9.98、D Recovery 6.06、E Cost 5.85、F Mass 5.64、G Ops/Physics 8.84、合計66.36である。旧評価では、50/50生存できる最小設計でもCostとMassがそれぞれ5-6点程度しか取れていない。これが評価指標変更の主な動機だった。
 
-![段階② 7軸内訳](../images/results/phase2_score_components_stacked_split.svg)
+![段階② 記憶あり改善の点数内訳 集約版](../images/results/report02_10_phase2_components_grouped.svg)
+
+![段階② 記憶あり改善の点数内訳 詳細版](../images/results/report02_11_phase2_components_split.svg)
 
 段階③では、CostとMassがそれぞれ14点台まで上がり、E-F Footprintが総合点を押し上げている。最高スコアiteration 41の内訳は、A Survival 20.00、B TCL 10.00、C Environment 9.98、D Recovery 6.14、E Cost 14.71、F Mass 14.66、G Ops/Physics 8.75、合計84.23である。最終iteration 50では、A Survival 20.00、B TCL 10.00、C Environment 9.98、D Recovery 6.06、E Cost 14.76、F Mass 14.71、G Ops/Physics 8.57、合計84.08であり、bestからの劣化は0.15点程度に収まっている。
 
-![段階③ 7軸内訳](../images/results/phase3_score_components_stacked_split.svg)
+![段階③ 記憶+評価変更の点数内訳 集約版](../images/results/report02_12_phase3_components_grouped.svg)
+
+![段階③ 記憶+評価変更の点数内訳 詳細版](../images/results/report02_13_phase3_components_split.svg)
 
 段階④は段階③と同じ採点表である。最高=最終の内訳は、A Survival 20.00、B TCL 10.00、C Environment 9.98、D Recovery 6.09、E Cost 14.83、F Mass 14.78、G Ops/Physics 8.35、合計84.03である。E/Fは段階③と同じ14点台であり、監査を足しても足跡軸の点数はほとんど動かない。総合点が段階③の最良84.23より0.20低いのは、WRSを1.8-2.2へ振らなかったためである。
+
+![段階④ 監査パネルの点数内訳 集約版](../images/results/report02_14_phase4_components_grouped.svg)
+
+![段階④ 監査パネルの点数内訳 詳細版](../images/results/report02_15_phase4_components_split.svg)
 
 この結果から、段階③の評価指標変更は意図通りに効いている。ただし、この変化は採点レンジの補正であり、物理的な総重量・総コストが大幅に下がったことを直接意味しない。次回以降は、新評価スコア、旧評価スコアでの再計算、総コスト、総重量、生存者数を並べることで、**採点上の改善**と**物理設計そのものの改善**を分離して評価する必要がある。段階④を加えると、その分離はよりはっきりする。監査は生存を守ったが、総質量・総費用は段階③からほとんど改善していない。
 
@@ -384,6 +395,8 @@ flowchart LR
 > "Keep ARS and OGS at their theoretical floors ... prior evidence links below-floor ARS/OGS to occupant loss."
 
 つまり、エージェントは「ARS/OGSを下げると乗員損失につながる」という過去結果を使い、以後の探索でARS/OGSを固定する方針を取った。その結果、段階②では49/50 iterationで全員生存を維持できた。
+
+![エージェント判断が結果へつながった流れ](../images/results/report02_16_agent_judgment_flow.svg)
 
 ### 8.2 なぜWRS中心の探索になったか
 
@@ -420,7 +433,9 @@ flowchart LR
 
 この対比の第一歩が本 ver.03 の第11–13章である。プラント側の応答曲面・可制御性（`tools.analysis`）と、LLM 連鎖の設置軌跡を同じ ρ / log-capacity 座標に載せた。人間設計との突き合わせは、まだ走らせていない。
 
-*図4. 概念としては arXiv:2608.16578 の意見軌道。本作品では軸を ρ と生存率に読み替える。実測は第11章。*
+![位相空間上の実測 vs 予測の軌道](../images/results/report02_17_phase_space_measured_vs_predicted.png)
+
+*図4. 設計改善の軌道を位相空間上で表した概念イメージ（実測 vs 予測）。軸は本プロジェクトの設計指標に読み替えている。本デッキ用のオリジナル作図。参考：arXiv:2608.16578。実測の読み替えは第11章。*
 
 ### 9.2 開発の継続性
 
@@ -440,6 +455,8 @@ flowchart LR
 ### 9.5 他分野への応用：月面ローバー
 
 開発中の基盤を**月面ローバーの最適化**へ応用し、**汎用的なアーキテクチャとしての価値を証明する**ことを目指している。
+
+![月面ローバー：設計変数による機体バリエーションと評価地形](../images/results/report02_18_lunar_rover.png)
 
 *図5. 設計変数を変えた月面ローバーと、評価に使う4地形（12°坂、岩場、深さ0.45mのクレーター、複合）。12mの走行経路を赤破線で示す。*
 
