@@ -6,10 +6,12 @@ process. Going through the CLI costs a subprocess per run (~1 s) and buys the
 guarantee that the analysed runs are the same runs a reader reproduces from the
 command line.
 
-A design is imposed on a run by writing a one-change ``capacity_profile``
+A design is imposed on a single run by writing a one-change ``capacity_profile``
 proposal document and passing it to ``--apply-proposals``. That is the same
 path the tool-use designer uses to adopt a candidate, so the experiment grid and
-the agent's own proposals move through identical code.
+the agent's own proposals move through identical code. ``--iterate`` chains
+cannot take ``--apply-proposals`` (the CLI rejects the combination), so a
+starting capacity on a chain is baked in as ``--set`` overrides instead.
 
 Results are cached by run directory: an experiment re-run skips any point whose
 ``summary.json`` already exists, so a report can be regenerated without
@@ -91,6 +93,24 @@ def capacity_proposal(capacity: Mapping[str, float], *, note: str = "experiment 
     }
 
 
+def capacity_set_flags(capacity: Mapping[str, float]) -> List[str]:
+    """``--set`` flags that bake starting capacity without ``--apply-proposals``.
+
+    Used by ``--iterate`` chains: the CLI rejects combining a chain with a
+    proposal file, but the same nameplate numbers can land in the first
+    iteration's config as ordinary overrides.
+    """
+
+    unknown = [key for key in capacity if key not in CAPACITY_AXES]
+    if unknown:
+        raise ValueError(f"not design variables: {', '.join(sorted(unknown))}")
+    flags: List[str] = []
+    for key in CAPACITY_AXES:
+        if key in capacity:
+            flags += ["--set", f"{key}={float(capacity[key])}"]
+    return flags
+
+
 def _command(spec: RunSpec, run_dir: Path, proposal_path: Optional[Path]) -> List[str]:
     cmd = [
         sys.executable, "-m", "tools.cli", "run", DEFAULT_SCENARIO,
@@ -104,14 +124,16 @@ def _command(spec: RunSpec, run_dir: Path, proposal_path: Optional[Path]) -> Lis
     if spec.iterate:
         cmd += ["--iterate", str(spec.iterate), "--run-id", run_dir.name,
                 "--results-root", str(run_dir.parent)]
+        if spec.capacity:
+            cmd += capacity_set_flags(spec.capacity)
     else:
         cmd += ["--set", "iteration.enabled=false", "--output-dir", str(run_dir)]
+        if proposal_path is not None:
+            cmd += ["--apply-proposals", str(proposal_path)]
     if spec.inject_failures is not None:
         cmd.append("--inject-failures" if spec.inject_failures else "--no-inject-failures")
     for key, value in sorted(spec.overrides.items()):
         cmd += ["--set", f"{key}={value}"]
-    if proposal_path is not None:
-        cmd += ["--apply-proposals", str(proposal_path)]
     return cmd
 
 
@@ -130,7 +152,7 @@ def execute(
         return RunOutcome(spec, run_dir, 0, cached=True)
 
     proposal_path: Optional[Path] = None
-    if spec.capacity:
+    if spec.capacity and not spec.iterate:
         proposal_dir = Path(root) / "_proposals"
         proposal_dir.mkdir(parents=True, exist_ok=True)
         proposal_path = proposal_dir / f"{spec.run_id}.json"
@@ -486,6 +508,7 @@ __all__ = [
     "RunOutcome",
     "RunSpec",
     "capacity_proposal",
+    "capacity_set_flags",
     "chain_specs",
     "collect_chain_rows",
     "collect_rows",

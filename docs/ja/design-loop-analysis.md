@@ -38,6 +38,8 @@ python3 -m tools.analysis all
 
 `run` は実行ディレクトリ単位でキャッシュするため、中断したキャンペーンは最初からではなく途中から再開します。`report` はシミュレータに触れずに何度でも再実行できます。新規チェックアウトでは git 管理外の `chains/` は不要です。ループの原型・ステップノルム・図は `datasets/chain_dynamics.json` から復元します。
 
+`--iterate` 連鎖は `--apply-proposals` と両立しません。出荷設計以外から連鎖を始めるキャンペーンは、初期定格を `--set plant_sim.ars.capacity_kg_day=…`（および OGS / WRS 相当）で焼き込みます。
+
 主なフラット: `--quick` は各グリッドを 3 点に間引いてスモークテストにし、`--workers N` は並列数、`--steps N` はミッション長、`--no-cache` は再シミュレーションの強制、`--root DIR` はツリー全体の移動です。
 
 ---

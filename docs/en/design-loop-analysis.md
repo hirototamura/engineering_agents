@@ -38,6 +38,8 @@ Outputs land under `src/experiments/analysis/`:
 
 `run` caches by run directory, so an interrupted campaign resumes instead of restarting, and `report` can be re-run as often as needed without touching the simulator. A fresh checkout does not need the git-ignored `chains/` directories: loop archetypes, step norms and figures come from `datasets/chain_dynamics.json`.
 
+`--iterate` chains cannot take `--apply-proposals`. A campaign that starts a chain from a non-shipped design bakes the starting nameplate into `--set plant_sim.ars.capacity_kg_day=…` (and the OGS / WRS equivalents) instead.
+
 Useful flags: `--quick` thins every grid to three points for a smoke test, `--workers N` sets parallelism, `--steps N` changes the mission length, `--no-cache` forces re-simulation, and `--root DIR` moves the whole tree.
 
 ---
