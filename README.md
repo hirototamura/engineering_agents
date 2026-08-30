@@ -2,6 +2,8 @@
 
 [日本語 README](README.ja.md) · [Docs](docs/en/index.md) · [Experiment record](docs/en/results.md) · [Agent design](docs/en/agent-design.md) · [Implementation specs](docs/en/specs/index.md)
 
+**Full results write-up (Japanese):** [technical report](docs/ja/eclss_ai_agent_technical_report_04.md) — the four fifty-round chains and the emergence chapter.
+
 Fifty agents live in a space habitat whose air, oxygen and water plant **is not big enough to keep them alive**. They operate it anyway, step by step, from raw telemetry. When the run ends — usually with a body count — a design agent reads the wreckage, sizes a bigger plant, verifies it by re-simulating, and hands its design to the next run as actual hardware.
 
 Then it happens again. Fifty times.
@@ -356,6 +358,7 @@ Every non-trivial change was specified first, implemented against the spec, then
 | Overview | [docs/en/overview.md](docs/en/overview.md) | [docs/ja/overview.md](docs/ja/overview.md) |
 | **Agent design** | [agent-design.md](docs/en/agent-design.md) | [agent-design.md](docs/ja/agent-design.md) |
 | **Experiment record** | [results.md](docs/en/results.md) | [results.md](docs/ja/results.md) |
+| **Technical report** | — | [eclss_ai_agent_technical_report_04.md](docs/ja/eclss_ai_agent_technical_report_04.md) |
 | **Extending** | [extending.md](docs/en/extending.md) | [extending.md](docs/ja/extending.md) |
 | **Roadmap** | [roadmap.md](docs/en/roadmap.md) | [roadmap.md](docs/ja/roadmap.md) |
 | **Implementation specs** | [specs/index.md](docs/en/specs/index.md) | [specs/index.md](docs/ja/specs/index.md) |

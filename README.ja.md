@@ -2,6 +2,8 @@
 
 [English README](README.md) · [ドキュメント](docs/ja/index.md) · [実験記録](docs/ja/results.md) · [エージェント設計](docs/ja/agent-design.md) · [実装仕様書](docs/ja/specs/index.md)
 
+**詳細な成果報告:** [技術説明](docs/ja/eclss_ai_agent_technical_report_04.md)（50人サバイバルの4段階実験、創発の可視化）
+
 50人のエージェントが宇宙居住区にいる。空気・酸素・水のプラントは、**その50人を生かすには小さすぎる**。それでも彼らは生のテレメトリだけを見て、1 step ずつ運用する。ランが終わると——たいてい死者を出して終わる——設計エージェントがその残骸を読み、もっと大きなプラントの寸法を決め、再シミュレーションで検証し、その設計を次のランへ**実際のハードウェアとして**渡す。
 
 そしてまた起きる。50回。
@@ -352,6 +354,7 @@ pytest tests --ignore=tests/e2e
 | 概要 | [docs/ja/overview.md](docs/ja/overview.md) | [docs/en/overview.md](docs/en/overview.md) |
 | **エージェント設計** | [agent-design.md](docs/ja/agent-design.md) | [agent-design.md](docs/en/agent-design.md) |
 | **実験記録** | [results.md](docs/ja/results.md) | [results.md](docs/en/results.md) |
+| **技術説明（成果報告）** | [eclss_ai_agent_technical_report_04.md](docs/ja/eclss_ai_agent_technical_report_04.md) | — |
 | **拡張ガイド** | [extending.md](docs/ja/extending.md) | [extending.md](docs/en/extending.md) |
 | **ロードマップ** | [roadmap.md](docs/ja/roadmap.md) | [roadmap.md](docs/en/roadmap.md) |
 | **実装仕様書** | [specs/index.md](docs/ja/specs/index.md) | [specs/index.md](docs/en/specs/index.md) |
