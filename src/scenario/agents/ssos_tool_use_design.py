@@ -104,6 +104,11 @@ EXPERT_CONTEXT_PACK = """\
   keeps or improves on `best_full_survival`; name all three design variables in a
   proposal so a later round cannot silently drop one; and if you size ARS or OGS
   below `theoretical_floor`, say why the crew still survives on less.
+- If `chain_memory.exploration_directive.mode` is "diversify", the chain has stopped
+  making progress in the same neighbourhood. Do not repeat the best or the most
+  recent capacity set: propose a complete three-variable profile at a materially
+  different point, none of which matches `recent_field_sets` exactly. Once full
+  survival has already been reached, prefer testing a smaller footprint.
 - One verified candidate is the minimum, not the goal. While candidate runs remain,
   size another one and compare: a candidate that still loses occupants has to grow,
   and one that saves everyone is worth testing smaller. The comparison tool picks the

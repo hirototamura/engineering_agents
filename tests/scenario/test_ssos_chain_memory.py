@@ -10,19 +10,33 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import List, Optional, Sequence
 
 import yaml
 
 from scenario.ssos_eclss_loop.chain_memory import (
     ARS_KEY,
     CHAIN_MEMORY_FILENAME,
+    DEFAULT_MIN_SCORE_DELTA,
+    DEFAULT_STAGNATION_WINDOW,
     MAX_MEMORY_BYTES,
+    MODE_DIVERSIFY,
     OGS_KEY,
     PATTERN_BELOW_FLOOR,
     PATTERN_DROPPED_TO_BASELINE,
+    STAGNATION_ACTIVE,
+    STAGNATION_COOLDOWN,
+    STAGNATION_IMPROVING,
+    STAGNATION_NOT_COMPARABLE,
+    STAGNATION_WARMING_UP,
+    TIER_FULL,
+    TIER_PARTIAL,
+    TIER_ZERO,
     WRS_KEY,
     capacity_keys_in_document,
+    exploration_settings,
     load_chain_memory,
+    survival_tier,
     theoretical_floor_from_trace,
     update_compact_chain_memory,
 )
@@ -462,3 +476,176 @@ def test_the_round_after_a_partial_proposal_is_told_what_it_lost(tmp_path: Path)
     shown = _state(memory)["chain_memory"]
     assert shown["best_full_survival"]["fields"] == _survivor_fields()
     assert "theoretical_floor" in shown["note"]
+
+# --------------------------------------------------------------------------- #
+# noticing that the chain has stopped getting anywhere
+# --------------------------------------------------------------------------- #
+EXPLORATION = {
+    "stagnation_window": 4,
+    "min_score_delta": 0.25,
+    "require_same_survival_tier": True,
+    "cooldown_iterations": 2,
+}
+
+
+def _one_round(
+    chain_dir: Path,
+    index: int,
+    *,
+    score: float,
+    crew_remaining: int = 50,
+    wrs: float = 2.0,
+    exploration: Optional[dict] = None,
+) -> dict:
+    """Run one iteration through the memory and hand back what it now says."""
+    run_dir = _write_iteration(
+        chain_dir,
+        index,
+        fields=_survivor_fields(wrs),
+        crew_remaining=crew_remaining,
+        score=score,
+    )
+    config = yaml.safe_load((run_dir / "scenario_config.yaml").read_text(encoding="utf-8"))
+    config["iteration"] = {
+        "exploration": dict(EXPLORATION if exploration is None else exploration)
+    }
+    (run_dir / "scenario_config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+    update_compact_chain_memory(chain_dir, run_dir, iteration=index)
+    return load_chain_memory(chain_dir)
+
+
+def _stall(chain_dir: Path, scores: Sequence[float]) -> dict:
+    memory: dict = {}
+    for index, score in enumerate(scores, start=1):
+        memory = _one_round(chain_dir, index, score=score, wrs=2.0 + index / 100.0)
+    return memory
+
+
+# Climbs, then flattens: each round after the third buys well under a quarter
+# of a point, which is what "the same neighbourhood again" looks like on paper.
+STALLING = [60.0, 64.0, 65.0, 65.05, 65.10, 65.12, 65.15, 65.18, 65.20, 65.22]
+
+
+def test_a_chain_that_stops_improving_is_told_to_look_elsewhere(tmp_path: Path):
+    memory = _stall(tmp_path, STALLING[:7])
+
+    stagnation = memory["stagnation"]
+    assert stagnation["status"] == STAGNATION_ACTIVE
+    assert stagnation["survival_tier"] == TIER_FULL
+    assert stagnation["window"] == 4
+    assert stagnation["iterations"] == [4, 5, 6, 7]
+    # Best inside the window against the best reached before it opened.
+    assert stagnation["best_score_in_window"] == 65.15
+    assert stagnation["best_score_before_window"] == 65.0
+    assert stagnation["score_delta"] < 0.25
+
+    directive = memory["exploration_directive"]
+    assert directive["mode"] == MODE_DIVERSIFY
+    assert directive["avoid_repeating_recent_fields"] is True
+    assert directive["preferred_strategies"]
+    # Named in full, so a proposal can be checked against them.
+    assert all(
+        set(fields) == set(_survivor_fields()) for fields in directive["recent_field_sets"]
+    )
+    assert directive["recent_field_sets"][0][WRS_KEY] == 2.07
+
+
+def test_a_chain_still_gaining_ground_is_left_alone(tmp_path: Path):
+    memory = _stall(tmp_path, [60.0, 62.0, 64.0, 66.0, 68.0, 70.0])
+    assert memory["stagnation"]["status"] == STAGNATION_IMPROVING
+    assert memory["exploration_directive"] is None
+
+
+def test_a_round_that_lost_people_is_information_not_a_stall(tmp_path: Path):
+    """Scores from different survival tiers were never the same question."""
+    memory = _stall(tmp_path, STALLING[:7])
+    assert memory["stagnation"]["status"] == STAGNATION_ACTIVE
+
+    # One exploratory round costs four occupants: the window is no longer
+    # comparable, and the chain is not told it is going round in circles.
+    memory = _one_round(tmp_path, 8, score=62.0, crew_remaining=46, wrs=1.6)
+    assert memory["stagnation"]["status"] == STAGNATION_NOT_COMPARABLE
+    assert memory["stagnation"]["survival_tier"] is None
+
+
+def test_the_detector_does_not_fire_again_while_it_is_cooling_down(tmp_path: Path):
+    statuses: List[str] = []
+    for index, score in enumerate(STALLING, start=1):
+        memory = _one_round(tmp_path, index, score=score, wrs=2.0 + index / 100.0)
+        statuses.append(memory["stagnation"]["status"])
+
+    fired = [i for i, status in enumerate(statuses, start=1) if status == STAGNATION_ACTIVE]
+    # Fires, holds for the two cooldown rounds, then may fire again.
+    assert fired == [7, 10]
+    assert statuses[7:9] == [STAGNATION_COOLDOWN, STAGNATION_COOLDOWN]
+
+
+def test_the_directive_stays_up_through_the_cooldown(tmp_path: Path):
+    """The cooldown stops the detector re-firing, not the exploring."""
+    memory = _stall(tmp_path, STALLING[:8])
+    assert memory["stagnation"]["status"] == STAGNATION_COOLDOWN
+    assert memory["exploration_directive"]["mode"] == MODE_DIVERSIFY
+
+
+def test_a_short_chain_says_it_is_still_collecting(tmp_path: Path):
+    memory = _one_round(tmp_path, 1, score=60.0)
+    assert memory["stagnation"]["status"] == STAGNATION_WARMING_UP
+    assert memory["exploration_directive"] is None
+
+
+def test_the_window_and_the_bar_come_from_the_runs_own_config(tmp_path: Path):
+    memory: dict = {}
+    for index, score in enumerate([60.0, 65.0, 65.05, 65.1], start=1):
+        memory = _one_round(
+            tmp_path,
+            index,
+            score=score,
+            wrs=2.0 + index / 100.0,
+            exploration={**EXPLORATION, "stagnation_window": 2, "min_score_delta": 1.0},
+        )
+    assert memory["stagnation"]["window"] == 2
+    assert memory["stagnation"]["min_score_delta"] == 1.0
+    assert memory["stagnation"]["status"] == STAGNATION_ACTIVE
+
+
+def test_a_missing_exploration_block_falls_back_to_the_defaults():
+    assert exploration_settings(None)["stagnation_window"] == DEFAULT_STAGNATION_WINDOW
+    assert exploration_settings({})["min_score_delta"] == DEFAULT_MIN_SCORE_DELTA
+    # A nonsense window is not honoured; an explicit zero cooldown is.
+    nonsense = {"iteration": {"exploration": {"stagnation_window": 0}}}
+    assert exploration_settings(nonsense)["stagnation_window"] == DEFAULT_STAGNATION_WINDOW
+    eager = {"iteration": {"exploration": {"cooldown_iterations": 0}}}
+    assert exploration_settings(eager)["cooldown_iterations"] == 0
+
+
+def test_survival_tier_names_the_three_answers():
+    assert survival_tier(50, 50) == TIER_FULL
+    assert survival_tier(46, 50) == TIER_PARTIAL
+    assert survival_tier(0, 50) == TIER_ZERO
+    assert survival_tier(None, 50) is None
+    assert survival_tier(0, 0) is None
+
+
+def test_a_stalled_chain_still_fits_the_context_budget(tmp_path: Path):
+    """Directive, failures and bookkeeping all at once, over a long chain."""
+    for index in range(1, 41):
+        crew = 50 if index % 7 else 0
+        _one_round(tmp_path, index, score=65.0 + index / 100.0, crew_remaining=crew, wrs=2.0)
+    path = tmp_path / CHAIN_MEMORY_FILENAME
+    assert path.stat().st_size <= MAX_MEMORY_BYTES
+    memory = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(memory["best_full_survival"], dict)
+    assert isinstance(memory["last_effective_design"], dict)
+
+
+def test_the_decision_page_carries_the_directive_but_not_the_bookkeeping(tmp_path: Path):
+    memory = _stall(tmp_path, STALLING[:7])
+
+    shown = _state(memory)["chain_memory"]
+    assert shown["exploration_directive"]["mode"] == MODE_DIVERSIFY
+    assert shown["exploration_directive"]["recent_field_sets"]
+    # The detector's own ledger is not advice and does not go in front of the model.
+    assert "recent_points" not in shown
+    assert "best_score_before_window" not in shown
+    assert "cooldown_until" not in shown
+    assert "exploration_directive" in shown["note"]

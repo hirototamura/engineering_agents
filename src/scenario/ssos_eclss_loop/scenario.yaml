@@ -193,11 +193,20 @@ evaluation:
     conversion_weight: 1.0
     sign_weight: 1.0
   footprint:
-    # Where the cost and mass axes reach zero. Full marks at the sizing-model
-    # baseline (1800 kg / 259 MUSD); linear between. Exploration coefficients,
-    # not an estimate of a real machine.
-    cost_zero_score_musd: 750.0  # [MUSD] hardware + launch
-    mass_zero_score_kg: 5000.0  # [kg] ARS + OGS + WRS installed
+    # Where the cost and mass axes start and stop paying. Full marks at or under
+    # the *_full_score_* line, zero at or over the *_zero_score_* line, linear
+    # between. Exploration coefficients, not an estimate of a real machine.
+    #
+    # Full marks sit near the smallest machine observed to keep the whole crew
+    # alive (~605 MUSD / 4091 kg), NOT at the shipped baseline. The baseline
+    # loses all fifty occupants, so every survivable design is larger than it;
+    # marking against it put two very different survivable designs at 11.6 and
+    # 4.1 out of 40 and the sheet could no longer tell them apart. Remove these
+    # two keys and the baseline is used again.
+    cost_full_score_musd: 500.0  # [MUSD] at or under this earns all 20 marks
+    cost_zero_score_musd: 900.0  # [MUSD] hardware + launch
+    mass_full_score_kg: 3400.0  # [kg] at or under this earns all 20 marks
+    mass_zero_score_kg: 6000.0  # [kg] ARS + OGS + WRS installed
   physics_gate:
     inventory_tolerance: 1.0e-9
     ledger_tolerance: 2.0e-6  # [kg or L] permits documented chemistry residual
@@ -212,6 +221,17 @@ iteration:
   paired_replay: true  # baseline vs final replay after the chain
   approve_provisional: true  # auto-adopt provisional_final (INFO on ssos). --no-approve-provisional restores the gate
   run_id: ssos_eclss_loop_design_iter  # default chain directory name
+  exploration:
+    # When to tell the designer it is going round in circles. Compared only
+    # inside one survival tier: a round that saved four more people moved, even
+    # if it scored lower. Window 4 rather than 3 -- three fires during ordinary
+    # fine-tuning. The sims are deterministic, so 0.25 points is well clear of
+    # the noise. After firing, the directive stays up for the cooldown rounds;
+    # the cooldown stops the detector re-firing, not the exploring.
+    stagnation_window: 4  # [iterations] compared against the best before them
+    min_score_delta: 0.25  # [points] improvement that counts as progress
+    require_same_survival_tier: true  # do not compare 50/50 against 46/50
+    cooldown_iterations: 2  # [iterations] before the detector may fire again
 
 agents:
   actor:

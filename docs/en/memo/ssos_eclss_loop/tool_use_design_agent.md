@@ -188,6 +188,55 @@ the fields it omits — fixing *that* means merging applied designs across itera
 which is a change to how proposals are carried. This only makes the loss visible to
 whoever writes the next proposal.
 
+## When the chain stops getting anywhere
+
+The memory also watches the score. A chain that has found a workable design
+tends to keep nudging the same subsystem: rounds 6, 8 and 9 of an observed run
+all sat at `20.8 / 42.0 / WRS 2.0-2.5` and bought 0.06 points between them.
+That is not refinement, it is a local optimum with a budget still to spend.
+
+After each round the detector looks at the last `stagnation_window` iterations
+and compares the best score inside that window against the best reached before
+it opened. Under `min_score_delta` and the chain is told to look elsewhere.
+
+```yaml
+iteration:
+  exploration:
+    stagnation_window: 4      # three fires during ordinary fine-tuning
+    min_score_delta: 0.25     # the sims are deterministic; this is clear of the noise
+    require_same_survival_tier: true
+    cooldown_iterations: 2
+```
+
+**Only one survival tier at a time.** `full_survival`, `partial_survival` and
+`zero_survival` are three different questions, and survival is the primary
+objective — a round that saved four more people and scored two points lower
+moved, in the direction that counts. A window straddling two tiers reports
+`not_comparable`, not stagnation: a round that lost occupants is information,
+and the chain should not be told to abandon a neighbourhood it has just
+learned something about.
+
+When it fires, the memory carries a directive:
+
+```json
+{
+  "stagnation": {"status": "stagnated", "window": 4, "iterations": [4, 5, 6, 7],
+                 "best_score_before_window": 65.0, "best_score_in_window": 65.15,
+                 "score_delta": 0.15, "survival_tier": "full_survival"},
+  "exploration_directive": {
+    "mode": "diversify",
+    "avoid_repeating_recent_fields": true,
+    "preferred_strategies": ["…"],
+    "recent_field_sets": [{"plant_sim.wrs.max_feed_l_per_operation": 2.0}]
+  }
+}
+```
+
+The directive stays up for the cooldown rounds that follow. The cooldown stops
+the *detector* re-firing every round; it is not a reason to stop exploring one
+round after being told to start. The candidate budget does not change — this
+steers what gets proposed, it does not buy more simulations.
+
 ## The candidate pipeline runs itself
 
 The moment the model returns `fields`, the code runs all of this, in this order.
@@ -291,6 +340,48 @@ To keep the gate config-free, what it checks against travels with the measuremen
 - `operations_this_step` — what each subsystem actually processed during the step
 
 `operations_this_step` is cleared at the **step boundary**, not on poll. A step is polled more than once, so clearing on the first poll dropped the operations before the post-ops row was written (found by measurement while implementing). Rejected commands record nothing, so an audit cannot credit an operation the hardware never performed.
+
+### Where full marks sit on cost and mass
+
+Full marks used to sit at the shipped baseline machine. That machine loses all
+fifty occupants, so every design that keeps them alive is necessarily larger,
+and all of them scored near the floor of both axes: two very different
+survivable designs came out at 11.57 and 4.08 out of 40. The sheet could not
+tell a lean machine from a bloated one, which is exactly the distinction those
+axes exist to make.
+
+The lines are configuration now, and they sit near the smallest machine
+observed to bring everyone back:
+
+```yaml
+evaluation:
+  footprint:
+    cost_full_score_musd: 500.0   # at or under this earns all 20 marks
+    cost_zero_score_musd: 900.0
+    mass_full_score_kg: 3400.0
+    mass_zero_score_kg: 6000.0
+```
+
+```text
+value <= full  ->  max_score
+value >= zero  ->  0
+otherwise      ->  max_score * (zero - value) / (zero - full)
+```
+
+The lean survivable design now scores about 29/40 and the oversized one about
+20/40 — an axis apart, with room left below the first to reward going smaller.
+Omit the two `*_full_score_*` keys and the baseline is used again, so older
+configs keep their old numbers. A zero line at or under the full line cannot be
+scored and the axis reports `incomplete` rather than inventing an order.
+
+### What the designer is not shown
+
+Volume is computed, ranked and written to the dashboard, but nothing marks a
+design on it — so it is left out of the designer's context, along with the
+budget violations that repeat what cost and mass already say on the scorecard.
+`evaluate_design_constraints` returns mass, cost, the subsystem bounds and the
+status; the bounds stay because whether a machine can be built at all is the
+one thing a score cannot express.
 
 ## Constraint model (`rack_affine_linear_v1`)
 

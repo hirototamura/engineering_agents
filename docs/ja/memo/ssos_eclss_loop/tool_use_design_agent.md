@@ -185,6 +185,53 @@ ARS と OGS が baseline に巻き戻り、次のランは 0/50 で返ってき�
 落とす。そこを直すには iteration をまたいで適用済み設計を merge する必要があり、それは
 「提案の運び方」の変更になる。ここでやったのは、次の提案を書く者にその損失を**見せる**ことだけだ。
 
+## 同じ場所を回り始めたとき
+
+memory は score も見ている。一度うまくいく設計を見つけた chain は、同じ subsystem を
+微調整し続ける傾向がある。実測ランの周回 6・8・9 はいずれも
+`20.8 / 42.0 / WRS 2.0-2.5` 付近に留まり、3周で 0.06 点しか動かなかった。
+これは refinement ではなく、予算を残したままの局所最適である。
+
+各周回のあと、直近 `stagnation_window` 回を見て、**その窓の中の最高点**と
+**窓が開く前に到達していた最高点**を比べる。差が `min_score_delta` 未満なら、
+「別のところを見ろ」と伝える。
+
+```yaml
+iteration:
+  exploration:
+    stagnation_window: 4      # 3 だと通常の微調整でも発火する
+    min_score_delta: 0.25     # 決定論的なランなのでノイズより十分大きい
+    require_same_survival_tier: true
+    cooldown_iterations: 2
+```
+
+**比較は同じ survival tier の中だけ。** `full_survival` / `partial_survival` /
+`zero_survival` は別の問いであり、第一目的は生存者数だ。4人多く救って2点低い周回は
+**動いている**、それも数える方向に。tier をまたいだ窓は停滞ではなく
+`not_comparable` を返す。人を失った周回は情報であって、そこから学んだばかりの
+近傍を捨てろと言うべきではない。
+
+発火すると memory は directive を載せる。
+
+```json
+{
+  "stagnation": {"status": "stagnated", "window": 4, "iterations": [4, 5, 6, 7],
+                 "best_score_before_window": 65.0, "best_score_in_window": 65.15,
+                 "score_delta": 0.15, "survival_tier": "full_survival"},
+  "exploration_directive": {
+    "mode": "diversify",
+    "avoid_repeating_recent_fields": true,
+    "preferred_strategies": ["…"],
+    "recent_field_sets": [{"plant_sim.wrs.max_feed_l_per_operation": 2.0}]
+  }
+}
+```
+
+directive は cooldown の間も出したままにする。cooldown が止めるのは**検出器の再発火**で
+あって、探索そのものではない。「探せ」と言った次の周回で黙る理由は無い。
+candidate budget は増やさない。これは**何を提案するか**を誘導するもので、
+シミュレーション回数を買うものではない。
+
 ## 候補パイプライン（全自動）
 
 LLM が `fields` を返した瞬間に、コード側が必ずこの順で実行する。
@@ -288,6 +335,42 @@ passed      全項目 passed
 - `operations_this_step` — 各サブシステムがその step に実際に処理した量
 
 `operations_this_step` のクリアは **step 境界**で行う。1 step のあいだにテレメトリは複数回ポーリングされるので、poll でクリアすると post_ops 行が書かれる前に消える（実装中に実測で見つけた）。拒否されたコマンドは何も記録しないので、監査が「実際には動いていない装置の仕事」を数えることはない。
+
+### cost / mass の満点ラインをどこに置くか
+
+満点ラインは以前、出荷時の baseline 機だった。その機体は乗員50名全員を失う。
+つまり**生存できる設計は必ずそれより大きい**ので、全部が両軸の底に貼りついた。
+まったく性格の違う2つの生存可能設計が 11.57/40 と 4.08/40。この軸が存在する理由そのもの
+——痩せた機体と肥大した機体の区別——ができなくなっていた。
+
+ラインは config になり、**全員を連れ帰った最小の機体**の近くに置いた。
+
+```yaml
+evaluation:
+  footprint:
+    cost_full_score_musd: 500.0   # これ以下なら 20点満点
+    cost_zero_score_musd: 900.0
+    mass_full_score_kg: 3400.0
+    mass_zero_score_kg: 6000.0
+```
+
+```text
+value <= full  ->  max_score
+value >= zero  ->  0
+それ以外        ->  max_score * (zero - value) / (zero - full)
+```
+
+これで痩せた生存設計は約 29/40、過大設計は約 20/40。軸1本分の差がつき、
+さらに小さくする余地も上に残る。`*_full_score_*` の2キーを消せば baseline に戻るので、
+古い config は従来の数字のままになる。zero が full 以下の設定は採点できないので、
+順序をでっち上げずに `incomplete` と出す。
+
+### designer に見せないもの
+
+volume は計算もランキングもダッシュボード表示もされるが、**どこでも採点されない**。
+だから designer の context からは外した。cost/mass を採点表と二重に言う budget violation も
+同じ理由で外す。`evaluate_design_constraints` が返すのは mass・cost・subsystem bounds・status。
+bounds を残すのは、「そもそも製造できるか」がスコアでは表現できない唯一のものだからだ。
 
 ## 制約モデル（`rack_affine_linear_v1`）
 

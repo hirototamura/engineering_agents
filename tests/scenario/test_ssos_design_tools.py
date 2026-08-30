@@ -125,6 +125,57 @@ def test_an_unreadable_chain_memory_does_not_break_the_design_loop(baseline: Pat
         note.unlink()
 
 
+def test_constraint_labels_leave_out_what_the_scorecard_already_answers(baseline: Path):
+    """Volume is not marked anywhere, so showing it buys nothing.
+
+    Cost and mass are two axes of the score now. Repeating them here as budget
+    violations hands the same judgement over twice, and volume adds a number no
+    design is ever judged on. What is left is the one thing a score cannot
+    express: whether the machine can be built at all.
+    """
+    result = _toolkit(baseline).call(
+        "evaluate_design_constraints", {"fields": {"plant_sim.ars.capacity_kg_day": 24.0}}
+    )
+    for key in (
+        "total_volume_m3",
+        "added_volume_m3",
+        "delta_installed_volume_m3",
+        "baseline_total_volume_m3",
+        "installed_total_volume_m3",
+        "budget_violations",
+        "budgets",
+        "design_penalty",
+    ):
+        assert key not in result, key
+    assert "volume" not in json.dumps(result)
+    # Mass and cost still come back -- they are what the score is computed from.
+    assert result["total_mass_kg"] > 0
+    assert result["total_cost_musd"] > 0
+    # And the buildability limits are still checkable.
+    assert result["constraint_status"]
+    assert "subsystem_bounds" in result
+    assert result["bound_violations"] == []
+
+
+def test_a_sizing_outside_the_engineering_bounds_is_still_reported(baseline: Path):
+    result = _toolkit(baseline).call(
+        "evaluate_design_constraints", {"fields": {"plant_sim.ars.capacity_kg_day": 500.0}}
+    )
+    assert result["constraint_status"] == "out_of_bounds"
+    assert result["bound_violations"]
+    assert result["violations"] == result["bound_violations"]
+
+
+def test_the_constraint_environment_shown_with_the_artifacts_drops_volume(baseline: Path):
+    described = _toolkit(baseline).call("load_run_artifacts", {"files": "scenario_config"})[
+        "scenario_config"
+    ]["design_constraints"]
+    assert "budgets" not in described
+    assert "total_volume_m3" not in described["baseline_footprint"]
+    assert "total_volume_m3" not in described["installed_footprint"]
+    assert "subsystem_bounds" in described
+
+
 def test_summarize_timeseries_finds_the_co2_band_crossings(baseline: Path):
     toolkit = _toolkit(baseline)
     result = toolkit.call(

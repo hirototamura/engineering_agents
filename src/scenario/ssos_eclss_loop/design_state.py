@@ -205,7 +205,10 @@ CHAIN_MEMORY_NOTE = (
     "the current run. Keep or improve on 'best_full_survival' unless the evidence "
     "above gives a reason to explore elsewhere, name all three design variables so "
     "a later iteration cannot silently drop one, and if you size ARS or OGS below "
-    "'theoretical_floor', say why the crew still survives on less."
+    "'theoretical_floor', say why the crew still survives on less. When "
+    "'exploration_directive' is present the chain has stopped making progress: "
+    "propose a materially different sizing rather than the best or most recent "
+    "one again."
 )
 
 
@@ -227,6 +230,7 @@ def _chain_memory_view(chain_memory: Optional[Mapping[str, Any]]) -> Optional[Di
             "last_effective_design",
             "known_bad_patterns",
             "proposal_guidance",
+            "exploration_directive",
         )
         if chain_memory.get(key) is not None
     }

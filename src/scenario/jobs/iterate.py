@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
+import yaml
+
 from scenario.jobs.executor import execute_run
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunResult, RunSpec
@@ -26,6 +28,7 @@ from scenario.ssos_eclss_loop.design_proposals import (
     supervisor_approval_reasons,
     write_design_proposals,
 )
+from scenario.ssos_eclss_loop.design_variables import read_capacity_fields
 
 ITERATE_SCENARIO = "ssos_eclss_loop"
 ALLOWED_ITERATE_BACKENDS = frozenset({"mock", "plant_sim"})
@@ -229,6 +232,21 @@ def _with_design_none(overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     return merged
 
 
+def _installed_capacity(run_dir: Any) -> Dict[str, float]:
+    """The machine this run actually flew, read back from its own config.
+
+    The proposal says what was asked for; only the config says what was built,
+    and a progress line that shows the score without the sizing beside it
+    cannot be read.
+    """
+    path = Path(str(run_dir)) / "scenario_config.yaml"
+    try:
+        config = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return {}
+    return read_capacity_fields(config) if isinstance(config, dict) else {}
+
+
 def _summary_row(
     *,
     label: Any,
@@ -244,6 +262,11 @@ def _summary_row(
         "crew_remaining": summary.get("crew_remaining"),
         "crew_lost": summary.get("crew_lost"),
         "crew_lost_by_cause": summary.get("crew_lost_by_cause"),
+        "evaluation_score": summary.get("evaluation_score"),
+        "evaluation_max_score": summary.get("evaluation_max_score"),
+        "evaluation_status": summary.get("evaluation_status"),
+        "physics_gate_passed": summary.get("physics_gate_passed"),
+        "installed_capacity": _installed_capacity(result.run_dir),
         "design_proposal_count": summary.get("design_proposal_count", 0),
         "design_decision_source": summary.get("design_decision_source"),
         "design_mode": summary.get("design_mode"),

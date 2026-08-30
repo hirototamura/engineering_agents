@@ -222,6 +222,45 @@ def test_the_prompt_carries_the_state_and_no_history(baseline: Path):
     assert "candidate_001" in second, "the second decision cannot see what the first produced"
 
 
+def test_a_stalled_chain_reaches_the_designer_as_an_instruction(baseline: Path):
+    """Being told the chain is stuck is only useful if it lands in the prompt.
+
+    The designer never sees a tool result -- it sees the decision page. A
+    directive that stops at ``load_run_artifacts`` changes nothing about what
+    gets proposed.
+    """
+    from scenario.ssos_eclss_loop.chain_memory import CHAIN_MEMORY_FILENAME
+
+    (baseline.parent / CHAIN_MEMORY_FILENAME).write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "best_full_survival": {"iteration": 4, "fields": {ARS: 20.8}},
+                "exploration_directive": {
+                    "mode": "diversify",
+                    "reason": "the score has not improved over 4 comparable iterations",
+                    "avoid_repeating_recent_fields": True,
+                    "preferred_strategies": ["try a smaller footprint"],
+                    "recent_field_sets": [{ARS: 20.8}],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    try:
+        llm = _ScriptedLlm([_propose(**{ARS: 25.0}), _finish()])
+        _agent(llm).propose(_bundle(baseline))
+        prompt = llm.prompts[0]
+    finally:
+        (baseline.parent / CHAIN_MEMORY_FILENAME).unlink()
+
+    assert "exploration_directive" in prompt
+    assert "diversify" in prompt
+    assert "recent_field_sets" in prompt
+    # And the rule for what to do about it is stated, not left to be inferred.
+    assert "materially different" in prompt
+
+
 def test_the_design_state_is_written_for_a_human_to_read(baseline: Path):
     llm = _ScriptedLlm([_propose(**{ARS: 25.0}), _finish()])
     _agent(llm).propose(_bundle(baseline))

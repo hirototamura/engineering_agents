@@ -541,8 +541,9 @@ class DesignConstraints:
                 "note": (
                     "full survival is the clearance line, not a score: a design that "
                     "loses an occupant is never adopted. Among designs that keep every "
-                    "occupant alive, less CRITICAL dwell wins first, then warning "
-                    "dwell, then the smallest mass, volume, and cost."
+                    "occupant alive the scorecard decides, and mass and cost are two of "
+                    "its axes -- so a heavier machine has to earn its weight back "
+                    "somewhere else on the sheet."
                 ),
             },
             "design_variables": list(CAPACITY_KEYS),

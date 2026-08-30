@@ -89,6 +89,11 @@ def _number(value: Any, default: float = 0.0) -> float:
     return float(value) if _finite_number(value) else default
 
 
+def _optional_number(value: Any) -> Optional[float]:
+    """A configured number, or ``None`` when the key was simply not set."""
+    return float(value) if _finite_number(value) else None
+
+
 def _clip(value: float, low: float = 0.0, high: float = 1.0) -> float:
     return max(low, min(high, value))
 
@@ -882,6 +887,7 @@ def _footprint_axis(
     quantity: str,
     max_score: float,
     zero_at: float,
+    full_at: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Score what the design costs, on the same sheet as how well it works.
 
@@ -891,9 +897,16 @@ def _footprint_axis(
     1210 kg heavier for six fewer warning steps. Here they are simply two more
     axes, so a heavier design has to earn the weight back somewhere.
 
-    Full marks at the shipped baseline sizing; zero at *zero_at*; linear
-    between. Going below the baseline earns no bonus -- the baseline is the
-    machine the station already has, not a target to undercut.
+    Full marks at or below *full_at*, zero at *zero_at*, linear between.
+
+    Where full marks sit is a judgement, not a fact, and the default was the
+    wrong one. It was the shipped baseline machine -- which loses the whole
+    crew. Every design that actually keeps people alive is necessarily larger,
+    so all of them scored near the bottom of these two axes and the sheet could
+    not tell a lean survivable machine from a bloated one: 11.57 and 4.08 out
+    of 40 for two designs that both brought back 50 of 50. Setting *full_at*
+    near the smallest machine that survives puts those two an axis apart again.
+    Omit it and the baseline is used, which is what older configs get.
     """
     from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
     from scenario.ssos_eclss_loop.design_variables import read_capacity_fields
@@ -912,20 +925,27 @@ def _footprint_axis(
 
     value = float(value)
     base_value = float(base_value)
-    span = zero_at - base_value
+    full_value = float(full_at) if _finite_number(full_at) else base_value
+    span = zero_at - full_value
     if span <= 0:
+        # A zero line at or under the full-marks line cannot be scored -- it
+        # would make every design worth either everything or nothing. The sheet
+        # says the axis is incomplete rather than inventing an order.
         return {"status": "incomplete", "score": None, "max_score": max_score}
-    fraction = _clip(1.0 - (value - base_value) / span)
+    fraction = _clip(1.0 - (value - full_value) / span)
     return {
         "status": "scored",
         "score": _round(max_score * fraction),
         "max_score": max_score,
         "metrics": {
             "value": _round(value),
-            "baseline_value": _round(base_value),
+            "full_score_value": _round(full_value),
             "zero_score_value": _round(zero_at),
-            "over_baseline": _round(value - base_value),
-            "fraction_of_headroom_used": _round(_clip((value - base_value) / span)),
+            "over_full_score_value": _round(value - full_value),
+            "fraction_of_headroom_used": _round(_clip((value - full_value) / span)),
+            # The machine the station shipped with, kept for continuity with
+            # earlier evaluations. It is no longer where full marks sit.
+            "baseline_value": _round(base_value),
             "installed_capacity": dict(installed),
             "by_subsystem": footprint.get("by_subsystem"),
         },
@@ -1020,12 +1040,14 @@ def evaluate_run(
             quantity="total_cost_musd",
             max_score=COST_MAX,
             zero_at=_number(footprint_cfg.get("cost_zero_score_musd"), COST_ZERO_MUSD),
+            full_at=_optional_number(footprint_cfg.get("cost_full_score_musd")),
         ),
         "mass": _footprint_axis(
             scenario_config,
             quantity="total_mass_kg",
             max_score=MASS_MAX,
             zero_at=_number(footprint_cfg.get("mass_zero_score_kg"), MASS_ZERO_KG),
+            full_at=_optional_number(footprint_cfg.get("mass_full_score_kg")),
         ),
     }
     if actor_mode != "none":

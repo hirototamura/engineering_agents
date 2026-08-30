@@ -168,6 +168,48 @@ def _bound_note(need: float, clamped: float) -> str:
     return f", {direction} buildable machine ({round(clamped, 3)})"
 
 
+# Volume is not on the scorecard. It is still computed, still written to the
+# rankings and still shown on the dashboard -- but showing the designer a
+# quantity nothing marks it on is one more number to reason about for no
+# change in what gets built. Cost and mass answer "what does this cost" on the
+# score sheet instead, so the budget violations that repeat them come off too;
+# what stays is the one thing a score cannot express, which is whether the
+# machine can be built at all.
+_INTERNAL_CONSTRAINT_KEYS = (
+    "total_volume_m3",
+    "added_volume_m3",
+    "delta_installed_volume_m3",
+    "baseline_total_volume_m3",
+    "installed_total_volume_m3",
+    "budget_violations",
+    "budgets",
+    "design_penalty",
+    "by_subsystem",
+)
+
+
+def _designer_facing_constraints(evaluation: Dict[str, Any]) -> Dict[str, Any]:
+    """The constraint labels a design decision can act on, and nothing else."""
+    for key in _INTERNAL_CONSTRAINT_KEYS:
+        evaluation.pop(key, None)
+    bounds = evaluation.get("bound_violations")
+    if isinstance(bounds, list):
+        # ``violations`` carried bound and budget breaches together; with the
+        # budget half gone it would otherwise still name volume.
+        evaluation["violations"] = list(bounds)
+    return evaluation
+
+
+def _designer_facing_environment(described: Dict[str, Any]) -> Dict[str, Any]:
+    """The constraint environment minus what the scorecard already answers."""
+    described.pop("budgets", None)
+    for key in ("baseline_footprint", "installed_footprint", "max_footprint"):
+        block = described.get(key)
+        if isinstance(block, dict):
+            block.pop("total_volume_m3", None)
+    return described
+
+
 @dataclass
 class ToolSpec:
     name: str
@@ -272,8 +314,9 @@ class DesignToolkit:
             ),
             ToolSpec(
                 "evaluate_design_constraints",
-                "Mass / volume / cost / bounds / budget labels for a capacity field set. "
-                "Does not simulate.",
+                "Mass / cost / bounds labels for a capacity field set. Cost and mass are "
+                "scored in the evaluation; subsystem bounds are what a machine can be "
+                "built in. Does not simulate.",
                 {"fields": f"object with keys from {list(CAPACITY_KEYS)}"},
                 evidence="evaluated_constraints",
             ),
@@ -391,7 +434,9 @@ class DesignToolkit:
                     "thresholds": self.ctx.scenario_config.get("thresholds"),
                     "simulation": self.ctx.scenario_config.get("simulation"),
                     "backend": self.ctx.scenario_config.get("backend"),
-                    "design_constraints": self.constraints.describe(),
+                    "design_constraints": _designer_facing_environment(
+                        self.constraints.describe()
+                    ),
                 }
             elif name == "agents_config":
                 agents = self.ctx.agents_config or {}
@@ -1031,9 +1076,7 @@ class DesignToolkit:
             return {"error": "fields is required", "allowed_keys": list(CAPACITY_KEYS)}
         if not isinstance(fields, Mapping):
             return {"error": "fields must be an object", "allowed_keys": list(CAPACITY_KEYS)}
-        evaluation = self.constraints.evaluate(fields)
-        evaluation.pop("by_subsystem", None)
-        return evaluation
+        return _designer_facing_constraints(self.constraints.evaluate(fields))
 
     # ------------------------------------------------------------------ #
     # 8. candidate re-simulation
