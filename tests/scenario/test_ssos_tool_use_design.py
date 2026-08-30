@@ -9,6 +9,7 @@ to reach a proposal that was never simulated.
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import List
 
@@ -85,6 +86,12 @@ def baseline(tmp_path_factory) -> Path:
         },
         recreate_output=True,
     )
+
+
+def _fresh_bundle(baseline: Path, tmp_path: Path) -> DesignReviewBundle:
+    dest = tmp_path / "run"
+    shutil.copytree(baseline, dest)
+    return _bundle(dest)
 
 
 def _bundle(run_dir: Path) -> DesignReviewBundle:
@@ -613,3 +620,109 @@ def test_the_question_budget_stops_the_loop_before_the_decision_budget(baseline:
     assert len(llm.prompts) == 2
     reached = _events(baseline, "budget_reached")
     assert reached and reached[-1]["reason"] == "llm_call_budget"
+
+
+def test_audit_panel_does_not_see_each_other(baseline: Path, tmp_path: Path, monkeypatch):
+    secret = "AUDITOR_ONE_SECRET_XYZ"
+    first = json.dumps(
+        {"decision": "propose_candidate", "rationale": "designer sizing", "fields": {ARS: 25.0}}
+    )
+    # Designer spends the candidate budget on one propose; then three auditors.
+    replies = [
+        first,
+        json.dumps({"decision": "approve", "message": secret, "reasoning": "numbers hold"}),
+        json.dumps({"decision": "approve", "message": "claim survives", "reasoning": "no break"}),
+        json.dumps({"decision": "approve", "message": "buildable", "reasoning": "bounds ok"}),
+    ]
+    llm = _ScriptedLlm(replies)
+    monkeypatch.setattr(
+        PostRunDesignAgent, "_build_llm_client", staticmethod(lambda cfg: llm)
+    )
+    bundle = _fresh_bundle(baseline, tmp_path)
+    proposals = PostRunDesignAgent(
+        {
+            "mode": "llm",
+            "team": {
+                "count": 1,
+                "id_prefix": "eclss_designer",
+                "archetypes": [],
+                "persona": "test designer",
+            },
+            "audit": {
+                "enabled": True,
+                "count": 3,
+                "id_prefix": "eclss_auditor",
+                "archetypes": [
+                    "rederive_numbers",
+                    "avoid_local_optima",
+                    "design_validity",
+                ],
+            },
+            "llm": {},
+            "tool_use": {
+                "enabled": True,
+                "max_candidate_runs": 1,
+                "plots_enabled": False,
+                "candidate_steps": 12,
+                "decision_loop": {"max_decisions": 3},
+            },
+        }
+    ).propose(bundle)
+
+    assert proposals["decision_source"] == "tool_use_audit_panel"
+    assert proposals["audited_by"] == [
+        "eclss_auditor_1",
+        "eclss_auditor_2",
+        "eclss_auditor_3",
+    ]
+    assert proposals["selected_candidate_id"]
+    designer_prompts = [prompt for prompt in llm.prompts if "You are eclss_designer_1" in prompt]
+    assert designer_prompts
+    assert all("You are eclss_auditor" not in prompt for prompt in designer_prompts)
+    assert all("Thinking lens" not in prompt for prompt in designer_prompts)
+    second = [prompt for prompt in llm.prompts if "You are eclss_auditor_2" in prompt]
+    assert second
+    assert all(secret not in prompt for prompt in second)
+    assert all("You are eclss_auditor_1" not in prompt for prompt in second)
+    third = [prompt for prompt in llm.prompts if "You are eclss_auditor_3" in prompt]
+    assert third
+    assert all(secret not in prompt for prompt in third)
+    auditor_one = [prompt for prompt in llm.prompts if "You are eclss_auditor_1" in prompt]
+    assert auditor_one
+    assert any("eclss_designer_1" in prompt for prompt in auditor_one)
+    session_root = bundle.run_dir / "design_storage" / "sessions"
+    assert (session_root / "eclss_designer_1.jsonl").exists()
+    assert (session_root / "eclss_auditor_1.jsonl").exists()
+    assert (session_root / "eclss_auditor_2.jsonl").exists()
+    two = (session_root / "eclss_auditor_2.jsonl").read_text(encoding="utf-8")
+    assert secret not in two
+    assert Path(proposals["tool_trace_path"]).parent == bundle.run_dir
+
+
+def test_count_one_still_writes_root_artifacts(baseline: Path, tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        PostRunDesignAgent,
+        "_build_llm_client",
+        staticmethod(lambda cfg: _ScriptedLlm([_propose(**{ARS: 25.0}), _finish()])),
+    )
+    bundle = _fresh_bundle(baseline, tmp_path)
+    proposals = PostRunDesignAgent(
+        {
+            "mode": "llm",
+            "team": {"count": 1, "id_prefix": "eclss_designer"},
+            "llm": {},
+            "tool_use": {
+                "enabled": True,
+                "max_candidate_runs": 1,
+                "plots_enabled": False,
+                "candidate_steps": 12,
+            },
+        }
+    ).propose(bundle)
+    assert "design_decision_loop" in proposals["decision_source"] or proposals[
+        "decision_source"
+    ].startswith("tool_use")
+    assert "ranked_candidates" not in proposals
+    assert Path(proposals["tool_trace_path"]).parent == bundle.run_dir
+    assert not (bundle.run_dir / "design_sessions").exists()
+    assert Path(proposals["design_review_report_path"]).exists()

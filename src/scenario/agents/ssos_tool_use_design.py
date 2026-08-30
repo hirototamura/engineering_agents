@@ -36,6 +36,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 from core.agents.types import AgentMessage, DeliberationPhase
 from core.llm.base import LLMClient, LLMGeneration, invoke_llm
 from core.llm.parsing import combine_thinking, extract_thinking_text, parse_json_response
+from core.storage.session import SessionStore
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_eval import (
     STATUS_APPROVED,
@@ -229,11 +230,17 @@ class ToolUseDesignAgent:
         persona: str,
         settings: ToolUseSettings,
         llm_client: Optional[LLMClient] = None,
+        session: Optional[SessionStore] = None,
+        work_dir: Optional[Path] = None,
+        bias_direction: str = "",
     ):
         self.agent_id = agent_id
         self.persona = persona
         self.settings = settings
         self.llm_client = llm_client
+        self.session = session
+        self.work_dir = Path(work_dir) if work_dir is not None else None
+        self.bias_direction = str(bias_direction or "").strip()
         self._turn_messages: List[Dict[str, Any]] = []
         self._message_step = 0
         self._llm_calls = 0
@@ -244,6 +251,7 @@ class ToolUseDesignAgent:
         self._message_step = _post_run_step(getattr(bundle, "summary", {}) or {})
         self._llm_calls = 0
         run_dir = Path(getattr(bundle, "run_dir", None) or ".")
+        work_dir = self.work_dir or run_dir
         scenario_config = dict(getattr(bundle, "scenario_config", {}) or {})
         constraints = DesignConstraints.from_scenario_config(scenario_config)
         toolkit = DesignToolkit(
@@ -257,12 +265,13 @@ class ToolUseDesignAgent:
                 candidate_actor_mode=self.settings.candidate_actor_mode,
                 candidate_steps=self.settings.candidate_steps,
                 plots_enabled=self.settings.plots_enabled,
+                work_dir=work_dir,
             )
         )
         # The trace is no longer the designer's memory -- the design state is.
         # It stays as the human-readable record of what happened, which is the
         # only thing it was ever good at.
-        trace = ToolTrace(run_dir / "tool_trace.jsonl")
+        trace = ToolTrace(work_dir / "tool_trace.jsonl")
         trace.append(
             {
                 "event": "start",
@@ -275,12 +284,34 @@ class ToolUseDesignAgent:
 
         # Evidence is gathered the same way whether or not a model is answering.
         evidence = self._gather_evidence(toolkit, trace)
+        self._session_append(
+            {
+                "event": "start",
+                "agent_id": self.agent_id,
+                "work_dir": str(work_dir),
+            }
+        )
         if self.llm_client is None:
             result = self._rule_fallback(toolkit, trace, reason="no_llm_client")
         else:
             result = self._decision_loop(toolkit, trace, evidence)
 
-        return self._finalize(bundle, toolkit, trace, result)
+        proposals = self._finalize(bundle, toolkit, trace, result)
+        self._session_append(
+            {
+                "event": "done",
+                "agent_id": self.agent_id,
+                "selected_candidate_id": proposals.get("selected_candidate_id"),
+                "final_status": proposals.get("final_status"),
+                "evidence": proposals.get("evidence"),
+            }
+        )
+        return proposals
+
+    def _session_append(self, record: Mapping[str, Any]) -> None:
+        if self.session is None:
+            return
+        self.session.append(self.agent_id, dict(record))
 
     # ------------------------------------------------------------------ #
     # keeping the record
@@ -525,7 +556,7 @@ class ToolUseDesignAgent:
         self, toolkit: DesignToolkit, trace: ToolTrace, evidence: Mapping[str, Any]
     ) -> Dict[str, Any]:
         notes: List[str] = []
-        run_dir = toolkit.ctx.run_dir
+        run_dir = toolkit.work_dir
         message = ""
         reasoning = ""
         self._llm_calls = 0
@@ -678,6 +709,15 @@ class ToolUseDesignAgent:
             self._run_candidate_pipeline(
                 toolkit, trace, parsed.get("fields") or {}, decision=decision
             )
+            self._session_append(
+                {
+                    "event": "decision",
+                    "decision": decision,
+                    "choice": choice,
+                    "selected_candidate_id": None,
+                    "fields": parsed.get("fields") or {},
+                }
+            )
 
         if not toolkit.candidates:
             # Nothing was ever built, so there is nothing to adopt. The
@@ -726,6 +766,14 @@ class ToolUseDesignAgent:
             self.persona.strip(),
             "",
             EXPERT_CONTEXT_PACK,
+        ]
+        if self.bias_direction:
+            sections += [
+                "",
+                "### Declared bias of this run",
+                self.bias_direction,
+            ]
+        sections += [
             "",
             "### Where the design stands",
             _dumps(state),
@@ -857,6 +905,7 @@ class ToolUseDesignAgent:
         result: Mapping[str, Any],
     ) -> Dict[str, Any]:
         run_dir = Path(getattr(bundle, "run_dir", None) or ".")
+        work_dir = self.work_dir or run_dir
         # Housekeeping, not designer work: re-rank whatever was simulated without
         # crediting the evidence ledger, so `evidence` still reports what the
         # designer itself collected.
@@ -953,8 +1002,8 @@ class ToolUseDesignAgent:
                 }
             )
 
-        rankings_path = run_dir / "candidate_rankings.json"
-        report_path = run_dir / "design_review_report.json"
+        rankings_path = work_dir / "candidate_rankings.json"
+        report_path = work_dir / "design_review_report.json"
         rankings_doc = {
             "baseline": toolkit.baseline_outcome,
             "ranking": [DesignToolkit._ranking_row(record) for record in ranked],
@@ -1051,6 +1100,8 @@ class ToolUseDesignAgent:
             "candidate_run_dirs": [
                 record.get("run_dir") for record in ranked if record.get("run_dir")
             ],
+            "ranked_candidates": [dict(record) for record in ranked],
+            "baseline_outcome": dict(toolkit.baseline_outcome),
         }
         final_thinking = ""
         for record in reversed(trace.records):

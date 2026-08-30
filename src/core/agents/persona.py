@@ -45,6 +45,27 @@ ARCHETYPE_LENSES: Dict[str, str] = {
         "Thinking lens — Systems integrator: watch cross-subsystem coupling (e.g. power vs. "
         "life-support) and the side-effects a local fix imposes on the rest of the station."
     ),
+    "rederive_numbers": (
+        "Thinking lens — Re-derive the numbers: rebuild every quantity from the raw "
+        "observations and the conservation relations. Do not accept a figure you have "
+        "not reconstructed, and do not share a conclusion you have not computed yourself."
+    ),
+    "break_conclusion": (
+        "Thinking lens — Break the conclusion: treat the emerging design as a claim to "
+        "falsify. Look for the observation, interaction, or boundary condition that would "
+        "make the recommendation fail."
+    ),
+    "avoid_local_optima": (
+        "Thinking lens — Avoid local optima: notice when the design is stuck repeating "
+        "the same move — for example only micro-adjusting WRS while ARS and OGS stay "
+        "put. Ask whether a different subsystem, a larger step, or a coupled change "
+        "would escape that basin. Do not bless a local tweak just because it is familiar."
+    ),
+    "design_validity": (
+        "Thinking lens — Design validity: ask whether the proposed machine is buildable "
+        "and operable as a whole — bounds, coupling, cadence, and whether the sized "
+        "hardware can actually be used."
+    ),
 }
 
 

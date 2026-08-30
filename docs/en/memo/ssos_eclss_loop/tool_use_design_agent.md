@@ -592,7 +592,15 @@ was lost.
 ```yaml
 design:
   team:
-    count: 1                      # a single engineer; multi-designer debate is a future phase
+    count: 1                      # one designer, no thinking lens
+    archetypes: []
+    # empty bias_direction => derived from the objective (do not skip it)
+  audit:
+    enabled: true
+    count: 3
+    id_prefix: eclss_auditor
+    archetypes: [rederive_numbers, avoid_local_optima, design_validity]
+    # empty persona => lens text only; approve or reject, never invent a machine
   tool_use:
     enabled: true                 # false returns to the summary-reading designer
     max_candidate_runs: 4
@@ -602,6 +610,8 @@ design:
     candidate_actor_mode: inherit # actor mode inside candidate runs
     plots_enabled: true
 ```
+
+One designer (no lens) runs the decision loop. After it finishes, three auditors (`design.audit`) each see that proposal from one lens and none of the other auditors. They may approve the items or reject named fields; they cannot invent a machine. Rejected items are dropped, the rest are kept so the next simulation still has a proposal. An empty veto keeps the designer's fields and marks the document provisional. Unusable replies abstain. Retracted claims are swept out of the designer body before the audit findings are appended. Session and claims land under `<run_dir>/design_storage/`. Detail: [design_audit_storage.md](design_audit_storage.md).
 
 | `design.mode` | `tool_use.enabled` | Behaviour |
 | --- | --- | --- |

@@ -53,19 +53,32 @@ design:
   # design.mode omitted: inherit actor.mode for library/tests.
   # Bare `ea run ssos_eclss_loop` pins design.mode=llm via CLI defaults.
   team:
-    # Tool-use design is a single engineer by design (doc §4): the question is
-    # whether ONE agent can gather its own evidence and reach a design. Multi
-    # designer debate stays a future phase. The classic (non tool-use) LLM
-    # designer still deliberates with the whole roster, so raise this to go back
-    # to a 4-designer review.
+    # One designer, no thinking lens. The three lenses sit on the audit panel
+    # below, not on this roster. Classic (non tool-use) LLM design still
+    # deliberates whoever is listed here.
     count: 1
     id_prefix: eclss_designer
+    archetypes: []
+    # Empty => derived from the objective (survival, then less CRITICAL, then smaller).
+    bias_direction: ""
     persona: |
       Post-run ECLSS capacity design engineer. The run is over: size the next
       build. You are shown where the design stands and you answer one thing:
       the sizing to try next, or that you are finished. Every candidate you
       name is checked, re-simulated, audited and compared for you before you
       are asked again. Do not judge pass/fail.
+  # Three independent auditors, after the designer. Each sees the same
+  # proposal and none of the others. They may only approve or reject; they
+  # cannot invent a machine. The three write-ups are then merged.
+  audit:
+    enabled: true
+    count: 3
+    id_prefix: eclss_auditor
+    archetypes:
+      - rederive_numbers
+      - avoid_local_optima
+      - design_validity
+    persona: ""  # empty => lens text only
   tool_use:
     # Design decision loop (design doc §5, §10). Only active when design.mode is llm.
     enabled: true  # false = classic summary-only post-run design proposal

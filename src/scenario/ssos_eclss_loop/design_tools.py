@@ -231,6 +231,9 @@ class DesignToolContext:
     candidate_actor_mode: str = "inherit"
     candidate_steps: Optional[int] = None
     plots_enabled: bool = True
+    # Writes (candidate runs, plots) go here. Baseline reads stay on run_dir.
+    # Omit to keep the single-designer layout (everything under run_dir).
+    work_dir: Optional[Path] = None
 
 
 class DesignToolkit:
@@ -239,6 +242,7 @@ class DesignToolkit:
     def __init__(self, ctx: DesignToolContext):
         self.ctx = ctx
         self.run_dir = Path(ctx.run_dir)
+        self.work_dir = Path(ctx.work_dir) if ctx.work_dir is not None else self.run_dir
         self.constraints = ctx.constraints
         self.evidence: Dict[str, bool] = {}
         self.candidates: List[Dict[str, Any]] = []
@@ -891,7 +895,7 @@ class DesignToolkit:
         except Exception as exc:
             return {**summary, "plot_path": None, "plot_error": f"matplotlib unavailable: {exc}"}
 
-        plots_dir = self.run_dir / "design_plots"
+        plots_dir = self.work_dir / "design_plots"
         plots_dir.mkdir(parents=True, exist_ok=True)
         name = filename or f"timeseries_{len(self._plot_paths) + 1:02d}.png"
         path = plots_dir / name
@@ -1180,7 +1184,7 @@ class DesignToolkit:
         if candidate_steps is not None:
             config.setdefault("simulation", {})["steps"] = int(candidate_steps)
 
-        out_dir = self.run_dir / "candidate_runs" / candidate_id
+        out_dir = self.work_dir / "candidate_runs" / candidate_id
         SsosEclssLoopScenario().run(
             output_dir=out_dir,
             overrides=config,

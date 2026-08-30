@@ -566,7 +566,15 @@ LLM 設計提案を自動承認する（INFO を出す）。監督ゲートを�
 ```yaml
 design:
   team:
-    count: 1                      # 単独エンジニア。複数人の議論は future phase
+    count: 1                      # 設計者 1 人。思考レンズなし
+    archetypes: []
+    # bias_direction が空なら objective から生成（書かないと収束する）
+  audit:
+    enabled: true
+    count: 3
+    id_prefix: eclss_auditor
+    archetypes: [rederive_numbers, avoid_local_optima, design_validity]
+    # persona が空ならレンズ文だけ。approve / reject のみ。機械は発明できない
   tool_use:
     enabled: true                 # false で従来の summary 直読み designer に戻る
     max_candidate_runs: 4
@@ -576,6 +584,9 @@ design:
     candidate_actor_mode: inherit # 候補ラン内の actor mode
     plots_enabled: true
 ```
+
+設計者は 1 人（レンズなし）でループを回す。そのあと監査 3 人が同じ提案を、互いの結論を見ずに各自のレンズで見る。項目を approve するか、名前を付けた field を reject する。機械は発明できない。reject された項目だけ落とし、残りを採用するので次ランは提案なしで止まらない。全部落とす veto は設計者の field を残して provisional にする。読めない返事は棄権。落ちた主張は設計者本文から掃いてから監査所見を足す。セッションと CLAIMS は `<run_dir>/design_storage/`。詳細: [design_audit_storage.md](design_audit_storage.md)。
+
 
 | `design.mode` | `tool_use.enabled` | 動作 |
 | --- | --- | --- |
