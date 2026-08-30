@@ -286,7 +286,7 @@ def test_merge_keeps_scorecard_only_checks():
 
 
 def test_merge_does_not_overwrite_a_failing_scorecard_check():
-    from scenario.ssos_eclss_loop.physics_gate import merge_physics_gates
+    from scenario.ssos_eclss_loop.physics_gate import merge_physics_gates, physics_gate_index
 
     telemetry = evaluate_physics(_rows())
     assert _status(_rows(), "operational_physical_bounds") == "passed"
@@ -302,7 +302,9 @@ def test_merge_does_not_overwrite_a_failing_scorecard_check():
     }
     merged = merge_physics_gates(scorecard, telemetry)
     assert merged["status"] == "failed"
+    assert merged["passed"] is False
     assert "operational_physical_bounds" in merged["failed"]
+    assert physics_gate_index("plant_sim", "invalid", merged) is False
 
 
 def test_physics_gate_index_is_null_when_the_gate_did_not_run():
