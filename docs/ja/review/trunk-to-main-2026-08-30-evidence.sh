@@ -317,6 +317,75 @@ rg -n "^on:|pull_request|workflow_dispatch|schedule|push" .github/workflows/ssos
   | head -6 | sed 's/^/  /'
 echo "  (docs.yml has push:[main] but only builds docs)"
 
+hr "C11 the same physical constant is published twice with different values"
+python3 - <<'PY'
+import re
+h = open('src/experiments/analysis/design_loop_analysis.html', encoding='utf-8').read()
+# the label also appears inside an SVG figure; take the criticality TABLE row
+m = re.search(r'ARS \(CO2 removal\)</td>((?:<td class="num">[\d.]+</td>)+)', h)
+cells = re.findall(r'>([\d.]+)<', m.group(1)) if m else []
+print("  HTML report table : ARS (CO2 removal)  rho*=%s  width=%s  max_slope=%s  r2=%s"
+      % tuple(cells[:4]) if len(cells) >= 4 else "  table row not found")
+md = open('docs/en/design-loop-analysis.md', encoding='utf-8').read()
+m = re.search(r'ρ\*_ARS ≈ ([\d.]+)', md)
+print(f"  Markdown prose    : rho*_ARS ~= {m.group(1) if m else '?'}  (design-loop-analysis.md:136)")
+PY
+python3 - <<'PY'
+import json, numpy as np
+from tools.analysis.report import _predictive_models
+surface = json.load(open('src/experiments/analysis/datasets/response_surface.json'))
+if isinstance(surface, dict):
+    surface = surface.get('rows') or surface.get('runs') or list(surface.values())[0]
+pub = _predictive_models(surface)["critical_coverage"]["ARS"]
+vals = [_predictive_models(surface, seed=s)["critical_coverage"]["ARS"] for s in range(1, 121)]
+a = np.array([v for v in vals if v is not None and np.isfinite(v)])
+print(f"  published (shipped seed 20260829): {pub:.6f}   <- the value the prose quotes")
+print(f"  across {a.size} other split seeds: mean={a.mean():.6f} sd={a.std(ddof=1):.6f} "
+      f"min={a.min():.6f} max={a.max():.6f}")
+print(f"  range = {a.max()-a.min():.6f} = {100*(a.max()-a.min())/a.mean():.1f}% of its own mean")
+print(f"  published sits {(pub-a.mean())/a.std(ddof=1):+.2f} sd from the across-split mean;")
+print(f"  the across-split mean {a.mean():.3f} is essentially the HTML table's 0.199")
+print("  report.py:399-401 claims three slice levels are 'stable across splits'")
+PY
+
+hr "H18 balanced accuracy scores an event no model predicts"
+python3 - <<'PY'
+import json
+from tools.analysis.report import _predictive_models, MODEL_ORDER
+surface = json.load(open('src/experiments/analysis/datasets/response_surface.json'))
+if isinstance(surface, dict):
+    surface = surface.get('rows') or surface.get('runs') or list(surface.values())[0]
+pub = _predictive_models(surface)
+print("  label  = observed >= 1.0   ('all 50 crew alive')")
+print("  decide = pred    >= 0.5    ('more than half the crew alive')  <- different event")
+for name in MODEL_ORDER:
+    mark = "  <- bolded winner in the published table" if name == "Liebig on response" else ""
+    print(f"    {name:24s} {pub['models'][name]['balanced_accuracy']:.4f}{mark}")
+print("  -> the bolded winner is beaten in this very column by 'series (product)' (0.9118)")
+PY
+
+hr "H19 the logistic fit cannot represent a decreasing response, and nothing gates on R2"
+python3 - <<'PY'
+import numpy as np
+from tools.analysis.statistics import fit_logistic_response
+x = np.linspace(0, 1, 21)
+f = fit_logistic_response(x, 1.0/(1.0+np.exp((x-0.5)/0.05)))   # decreasing truth
+print(f"  decreasing truth x0=0.5 w=0.05 -> fitted x0={f.x0:.4f} w={f.width:.4f} r2={f.r_squared:.4f}")
+print("  width = exp(log_w) is strictly positive, so only an increasing logistic exists;")
+print("  the published ARS profile descends twice yet its max_slope 1.95 is printed as")
+print("  'peak susceptibility' (ARS r2=0.869 / rmse 0.0966 vs OGS r2=0.987 / rmse 0.0471)")
+PY
+
+hr "M34 'deterministic: true' is claimed from an empty generator"
+python3 -c "
+print('  all(s == 0.0 for s in []) ->', all(s == 0.0 for s in []))
+import json
+d = json.load(open('src/experiments/analysis/design_loop_analysis.findings.json'))['determinism']
+print('  published block:', json.dumps(d, ensure_ascii=False))
+print('  (the published claim IS backed by 6 seeds on 2 of 3 keys; the third key is')
+print('   absent from every row and silently ignored. The fail-open is latent.)'
+)"
+
 hr "verified NON-issues (checked and sound)"
 echo "  - run id sanitisation blocks path traversal:"
 python3 -c "

@@ -41,9 +41,16 @@
 `main` に入れる前に C 系の解消を必須としたい。とくに **C-10（41.7 MiB のバイナリ）だけは
 マージ後に修正できない**ので、これは順序として最初に決める必要がある。
 
-内訳は CRITICAL 10 件・HIGH 17 件・MEDIUM 31 件。
+内訳は CRITICAL 12 件・HIGH 20 件・MEDIUM 40 件。
 サブシステム別の網羅は 5 系統に分けて実施した（設計ループ中核 / LLM・tool use /
 CLI・ジョブ・iterate / 解析・レポート / アーキテクチャ・テスト・CI）。
+
+**公開済みの数値について。** 「物理シミュレーションの結果」は概ね健全で、
+実 `plant_sim` の物理監査も本物である（後述）。一方**その上の解析・報告層には
+公開値に届く欠陥がある**: 同じ物理定数 ρ\* に 2 つの異なる値が公開されており（C-11）、
+うち Markdown が引用している側は分割シードで ±35% 振れる。
+公開表の balanced accuracy 列はどのモデルも予測していない事象を採点している（H-18）。
+**論文・レポートを出す前に C-11 / H-18 / H-19 は再導出が必要。**
 
 ---
 
@@ -362,6 +369,77 @@ candidate_rankings.json の記録: wrs.max_feed_l_per_operation = 10.0
 修正方針: 差し替えた fields で再シミュレーションするか、
 ranked 行には**シミュレートした fields のみ**を残し、監査後の値は
 `changes` 側だけに置いて「未検証」と明示する。
+
+### C-11. 同じ解析の 2 つの公開成果物が、同じ物理定数に別の値を載せている。しかも片方はシード雑音
+
+`src/tools/analysis/report.py:193-195`（表・全格子）vs `:449-451, 497`（散文・**訓練半分のみ**）
+
+同じ ρ\* というラベルで、独立に計算された 2 つの値が別の読者に届いている。
+
+```text
+HTML レポート     : ARS (CO2 removal)  0.199  0.128  1.95  0.869
+Markdown 散文     : ρ*_ARS ≈ 0.17    （docs/en/design-loop-analysis.md:136）
+```
+
+さらに悪いことに、散文が引用している 0.17 の枝は
+`_predictive_models(..., seed: int = 20260829)`（:404）で選ばれた**任意の半分**に対する当てはめである。
+同じ手続きを他の 200 通りの分割で回すと:
+
+```text
+published (seed 20260829): ARS rho* = 0.172515
+across 200 other split seeds:
+  mean=0.197334  sd=0.027115  min=0.124339  max=0.252743
+  range = 0.128404 = 65.1% of the mean
+  published value sits -0.92 sd from the across-split mean
+```
+
+**公開された 0.17 は、レポートが一切言及していない分布の下側の裾**にある。
+そして分割平均 0.197 は、HTML の表の 0.199 とほぼ一致する。
+
+`report.py:399-401` のコメントは
+「three is stable across splits without smearing the transition」と述べているが、
+**実測はその主張を否定している。**
+ρ\* は `report.py:464` の "Liebig on margin" 特徴量にも入るので、モデル比較も同じ不安定性を継ぐ。
+
+修正方針: ρ\* の定義を 1 つに統一する（全格子の枝を正典にするのが自然）。
+分割依存の量を公開するなら、複数分割にわたる平均と sd を併記する。
+
+### C-12. 実験キャッシュがグリッド添字だけを鍵にしており、新しいラベルと古い物理が対になる
+
+`src/tools/analysis/experiments.py:149-152`
+
+```python
+    run_dir = Path(root) / spec.run_id
+    marker = run_dir / ("chain_summary.json" if spec.iterate else "summary.json")
+    if cache and marker.is_file():
+        return RunOutcome(spec, run_dir, 0, cached=True)
+```
+
+`run_id` は格子上の位置から作られる（`f"{prefix}-a{i:02d}-o{j:02d}"`）だけで、
+`capacity` / `overrides` / `steps` / `seed` は**一切キャッシュ鍵に入らない**。
+`campaign.build_specs(quick=True)` は各格子を `(first, middle, last)` に間引くので、
+同じ `run_id` が**まったく別の設計**を指す。
+
+```text
+run_id         quick (ars, ogs)   full (ars, ogs)   same?
+grid-a01-o01   (26.0, 30.0)       (8.0, 14.0)       False
+--> 9 個の共通 run_id のうち 8 個が別の設計を指す
+
+full spec grid-a01-o01 asks for: ars = 8.0
+execute(...) -> cached=True returncode=0  （シミュレータは呼ばれない）
+  ars          = 8.0   <- ラベル。位相図のセルと周辺スライスがこれを使う
+  capacity_ars = 26.0  <- 設定。rho_ars はこれから作られる
+  steps        = 5     <- spec.steps は 72 だった
+```
+
+位相図のセル・臨界スライス・生存グループがすべて誤った座標に帰属し、
+`returncode=0` で警告も出ない。
+
+**出荷済みデータセットについては、ラベルと設定が全件一致することを確認した**ので、
+公開値はこのバグで汚染されていない。ただし**汚染されていても何も知らせない**構造である。
+
+修正方針: `run_id` に加えて spec の内容ハッシュ（capacity / overrides / steps / seed）を
+キャッシュ鍵に含める。
 
 ### C-10. 41.7 MiB のバイナリ run アーカイブが履歴に永久追加される
 
@@ -690,6 +768,100 @@ PR では 993 テストが走るので feature ブランチは守られている
 **統合ブランチ自体と、マージ後の `main` は検証されない。**
 マージ解決を誤っても誰も気付かない。
 
+### H-18. `balanced_accuracy` がどのモデルも予測していない事象を採点している
+
+`src/tools/analysis/report.py:479-488`
+
+```python
+    truth = observed >= 1.0
+...
+            "balanced_accuracy": balanced_accuracy(
+                list(truth[test]), list(pred[test] >= 0.5)
+            ),
+```
+
+ラベルは「乗員 50 名全員生存」（`observed >= 1.0`）だが、
+判定閾値は**予測された生存率**に 0.5 で当てている（「半分以上生存」）。**別の事象である。**
+
+結果、`docs/en/design-loop-analysis.md:130-134` の公開表では
+2 つの列が互いに矛盾している:
+
+```text
+model                                published BA
+Liebig on margin                           0.9020
+series (product)                           0.9118
+Liebig on response  ← 太字の勝者            0.9020
+```
+
+太字の勝者が、隣に印刷されている列で負けている。
+太字自体は held-out R²（0.936）が根拠なので誤りではないが、
+**balanced accuracy の列は測るべき事象を測っていない**ので、
+2 列を並べて読ませる表として成立していない。
+
+### H-19. ロジスティック当てはめは増加関数しか表現できず、R² のゲートも無い
+
+`src/tools/analysis/statistics.py:252-260`
+
+```python
+    lo_w, hi_w = math.log(span / 500.0), math.log(span * 2.0)
+```
+
+`width = exp(log_w)` は常に正なので、`1/(1+exp(-(x-x0)/w))` は単調増加しか取れない。
+減少応答には表現可能な当てはめが存在せず、格子探索は最も悪くない平坦曲線を返し、
+**`x0` はそのまま公開される**。
+
+```text
+truth : x0=0.5 width=0.05 (decreasing)
+fitted: x0=0.5000 width=2.9356 r_squared=-0.1102
+```
+
+これが実データに効いている。公開された ARS の臨界プロファイルは単調でない:
+
+```text
+profile y = [0.38, 0.24, 0.76, 0.58, 0.76, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]   （降下 2 回）
+published: max_slope 1.95   r_squared 0.869   rmse 0.0966
+OGS（真に単調）        :   r_squared 0.987   rmse 0.0471
+-> ARS の残差は OGS の 2.1 倍 = 乗員 50 名中 4.8 名分
+```
+
+`LogisticFit` の docstring は `1/(4w)` を「peak susceptibility」と呼んでいる。
+遷移域で 2 回降下するプロファイルから「感受性 1.95」を報告するのは、
+**データが持っていない鋭さをデータに帰属させている。**
+`report.py:202-205` の `fits` は R² も単調性もチェックしていない。
+
+### H-20. `per_step()` が正味収支を `steps - 1` で、運転収支を `steps` で割っている
+
+`src/tools/plant_sim_sensitivity.py:80-96`
+
+```python
+        m = max(1, self.metabolism_steps)
+        ops = max(1, self.steps)
+...
+            co2_ops_kg=self.co2_ops_kg / ops,
+            co2_net_kg=self.co2_net_kg / m,
+```
+
+`run_campaign` は step 0 で代謝を飛ばす（`if step > 0`, :215）が、
+サブシステム動作は全 `steps` step で発火する（:221/224/230）ので
+`metabolism_steps == steps - 1`。
+`steps` step 分蓄積した正味タンク変化を `steps - 1` で割っている。
+列見出しは "Simulated Δ tank / step"、軸は `kg / step` で、
+**割っていない 2 本の nameplate 列と y 軸を共有している。**
+
+```text
+steps  mode  | plotted net/step   correct net/steps   overstated
+    2  ars   |      -0.527778          -0.263889        100.00%
+   20  ars   |       0.064327           0.061111          5.26%
+   50  ogs   |      -0.163265          -0.160000          2.04%
+```
+
+アプリ既定は `steps=20`（`plant_sim_sensitivity_app.py:115`）なので、
+**出荷既定で全正味レートを 5.26% 過大表示**し、スライダ下端では 2 倍になる。
+
+隣の列の副題（`:351`「Ending tank = initial + (Δ tank/step × steps)」）は
+自分の描画値を再現せず、`steps=20, mode=ogs` では
+**物理的に不可能な負の O₂ 在庫**（−0.286）を導く。
+
 ---
 
 ## MEDIUM
@@ -727,6 +899,15 @@ PR では 993 テストが走るので feature ブランチは守られている
 | M-29 | `--write-spec` の出力先ディレクトリが無いと `parent.mkdir` 無しで `FileNotFoundError` トレースバック | `jobs/spec.py:51-52` |
 | M-30 | `executor._read_summary` に JSON ガードが無く、しかも `execute_run` の `try` の**外**で呼ばれるため、壊れた `summary.json` が未捕捉例外としてチェーン全体を落とす。`ssos_host._read_summary:268-277` は同じケースを正しく処理しているので、両者を揃えるべき | `jobs/executor.py:69,103-107` |
 | M-31 | `.cursor/plans/` にエージェントの作業メモ 15 KB がコミットされている（`skills/`・`agents/` は共有設定として妥当だが `plans/` は一時物） | `.cursor/plans/` |
+| M-32 | `controllability` の gain が**隣接差分**なのに docstring と軸ラベル（`\|dS/d ln x\|`）は**中心差分**と称している。非一様 log 格子ではノイズの大きい方。公開値 1.165 に対し中心差分なら 0.672（+73%差）。`test_analysis_loop_dynamics.py:112` が隣接挙動を固定しており、**テストが矛盾を捕らえるどころか固定している** | `loop_dynamics.py:408-409,463-467` |
+| M-33 | 「O2 制約を緩和した gain」列が出荷列の**コピー**。緩和対象 `plant_sim.ogs.max_o2_kg_day` を掃引値が上書きするため、OGS 軸の緩和掃引が出荷掃引と行単位で同一（公開表は `1.165 \| 1.165`）。周囲の散文は独立した測定として読ませる。**結果ではなく同語反復** | `experiments.py:296-299`, `campaign.py:77,162` |
+| M-34 | `deterministic: all(s == 0.0 for s in ... if s is not None)` は**空ジェネレータで True**。シードデータが 0 件でも「決定的」を主張する。`statistics.py` の docstring は不確実性モデル全体をこの主張に載せている。公開値自体は 6 シード・2 キーで実際に裏付けられているが、3 キーのうち `mean_normalized_severity` は全行で欠落しており**黙って無視されている** | `report.py:126-134` |
+| M-35 | `fig_mass_balance` がタイトルに結論をハードコード（"residuals sit at machine zero in all runs"）し、許容値超過の残差を "0x inside tolerance" と表示する。500 倍の違反でもこの表示。`fig_saturation` / `fig_crew_scaling` も同様に結論をタイトルに埋めている | `figures.py:121,135-136` |
+| M-36 | 打ち切り観測のマークが**最後のイベント時刻**に描かれる（`KaplanMeierCurve` は打ち切り時刻を保持していない）。実測で 48 件中 18 件が 23.67 h まで追跡されているのに、曲線と打ち切りマークが 3.00 h で止まる（**7.9 倍早い**）。読者が観測窓を判断できない | `figures.py:406-409`, `statistics.py:360-397` |
+| M-37 | `classify()` が `saturating` を `oscillating` より先に判定し、`delta` は**両端しか見ない**。振動して出発点に戻る軌跡が `saturating` になる。最終値の 1e-6 の違いで原型が反転する。出荷 3 チェーンは反転が無いので公開結論は今は正しいが、実際に探索する最初のチェーンで効く | `loop_dynamics.py:275-287` |
+| M-38 | 臨界プロファイルが `where={"ogs": max_ogs}` で**生ラベル**に一致判定するため、`ars`/`ogs` ラベルが欠けると両プロファイルが空になり、`fits` が `{}` で臨界表が**無言で空白**になる（C-12 の陳腐化キャッシュがまさにこれを作る） | `report.py:92` |
+| M-39 | `_num(...) or <default>` が正当な `0.0` を既定値に潰す。`survival_fraction` が 1 行欠けるだけで `ars_axis_worst_descent` が 0.24 → 1.0 に化け、**存在しない全乗員喪失の降下を捏造**する（文書が「worst single descent 0.24」として引用している統計量）。現行データでは発火しない潜在バグ | `report.py:159,361` |
+| M-40 | 図生成関数がすべて検証前に figure を確保するため、例外時に `to_svg` の `plt.close` に到達せず**図がリークする**（空モデル集合で `ValueError` + リーク 1 件を実測）。`pcolormesh(shading="nearest")` はセル境界を線形中点で計算した後に `set_xscale("log")` を当てるので、対数表示でセルが点の中心に来ない（左右幅が最大 1.33 倍差）。`limiter_rates()` は `totals` を捨てて `by_reason` だけから作るため「動作しなかった」と「動作したが制限されなかった」を混同し、消費側は欠落を `0.0` に丸める | `figures.py:170-186,483`, `artifacts.py:330-336` |
 
 ---
 
@@ -734,10 +915,16 @@ PR では 993 テストが走るので feature ブランチは守られている
 
 再確認の重複を避けるため記録する。**この項目群は「見ていない」ではなく「見て問題なかった」。**
 
-### 統計モジュールは数値的に正しい
+### 統計モジュールの**推定量そのもの**は数値的に正しい
 
 `src/tools/analysis/statistics.py` は scipy を独立実装で置き換えているので重点的に検算したが、
 全項目一致した。ここは fail-open の癖と正反対で、**欠損は NaN を返し数字を捏造しない**。
+
+ただし**重要な限定**が付く。正しいのは推定量であって、
+**その上に載るモデル選択・レポート層には実際の欠陥がある**（C-11, C-12, H-18〜H-20, M-32〜M-40）。
+「統計は大丈夫」と読まないでほしい。正しいのは下の層だけである。
+`fit_logistic_response` も、格子探索の実装は正しいが**増加関数しか表現できない**という
+モデル側の制約があり（H-19）、呼び出し側に R² のゲートが無い。
 
 | 検算項目 | 結果 |
 | --- | --- |
@@ -750,9 +937,37 @@ PR では 993 テストが走るので feature ブランチは守られている
 | `bootstrap_mean` | シード固定で完全再現（公開数値が再現可能） |
 | 退化入力 | `n=0`→NaN、分散ゼロの `pearson`→NaN（0 を返さない） |
 
-ノンパラメトリック手法（Cliff's delta・並べ替え検定・Kaplan-Meier）の選択も、
+  ノンパラメトリック手法（Cliff's delta・並べ替え検定・Kaplan-Meier）の選択も、
 0 と満員に張り付く出力分布に対して妥当。docstring が
 「決定的シミュレータの反復に誤差棒を作らない」と明言しているのも正しい判断。
+`central_difference` 自体も真に中心差分で非一様格子を正しく扱う（誤っているのは
+それを使っていない `loop_dynamics` 側 = M-32）。
+
+なお公開されている決定性の主張（`n_seeds: 6`, spreads 2 キーが 0.0）は
+**実データで裏付けられている**。M-34 は「データが無くても True になる」という
+潜在的な fail-open と、3 キーのうち 1 つが黙って無視されている点の指摘であり、
+公開値が誤っているという話ではない。
+
+### 解析側で確認して問題が無かった点
+
+- **出荷データセットは内部整合している。** 全データセットで spec ラベル
+  （`ars`, `ogs`, `multiplier`, `crew_size`, `scale`）が run 設定から復元した物理パラメータと一致。
+  **C-12 は公開キャンペーンでは発火していない。**
+- **モデル順位自体は頑健。** ρ\* とは違い、`Liebig on response` は 200 分割中 188 で
+  held-out R² の argmax であり、公開値 0.936 は平均±sd（0.925±0.055）の内側。
+  **不安定なのは ρ\* であってモデル選択の結論ではない。**
+- **公開された ruggedness とベースライン被覆率は正確に再現する。** 独立再計算で
+  18 descents / 110 transitions = 16.4%、worst 0.24、
+  ρ_ARS = 4.5/(50·1.04) = 0.0865、ρ_OGS = 9.25/(50·0.84) = 0.2202、ρ_WRS = 6.4 すべて一致。
+- **`discarded_fraction` の対応付けは正しい。** 提案数と適用数の off-by-one を疑ったが、
+  `applied_proposals.json` は提案した run のディレクトリに置かれるため各反復が 5 提案 3 適用で、
+  公開値 0.40 は per-iteration の絞り込み率 2/5 に正確に一致する。
+- **物理残差の `max()` は安全。** `report.py:141` は絶対値を取らないが、
+  `artifacts.py:228` が上流で `abs()` を適用済みなので負の残差は届かない。
+- **`fig_crew_scaling` の凡例と系列は一致している。** `_num` は bool を正しく弾くので
+  `physics_gate_passed: True` が 1.0 として平均されることもない。
+- **`evaluation_html.py` は H-5 の影響を受けない**（`_esc` / `html.escape` で退避している）。
+  無エスケープなのは `evaluation_browser.py` だけ。
 
 ### テストの質は高い
 
@@ -849,6 +1064,8 @@ Run 2 が `Applied from: cloud-smoke-run1` を表示し、Run 1 の 14 ファイ
 - [ ] C-6 適用した文書を `applied_proposals.json` として保存
 - [ ] C-7 TCL の 1 step ズレ修正、部分採点を捨てない集計に
 - [ ] C-8 `normalize_fields` / `candidate_hash` の衝突修正
+- [ ] C-11 ρ\* の定義を 1 つに統一し、分割依存量は複数分割の平均±sd で公開する（HTML と Markdown の食い違い解消）
+- [ ] C-12 キャッシュ鍵に spec の内容ハッシュを含める
 - [ ] H-3 `api-contracts.md` を実装に同期
 
 強く推奨:
@@ -864,8 +1081,12 @@ Run 2 が `Applied from: cloud-smoke-run1` を表示し、Run 1 の 14 ファイ
 - [ ] H-13 / H-14 / H-16 LLM 応答処理: 未閉タグ除去を JSON 文字列に踏み込ませない、`partial` を修復対象に含める、`fields` の型検証
 - [ ] H-15 計画部と実行ゲートの 1 step 上限契約を一致させる
 - [ ] H-17 テストワークフローに `push` トリガを追加（`trunk` / `main` を守る）
+- [ ] H-18 balanced accuracy の判定事象をラベルと一致させる（または列を落とす）
+- [ ] H-19 ロジスティックに減少方向を許すか、R² / 単調性ゲートを入れて `max_slope` の公開を止める
+- [ ] H-20 `per_step()` の除数を揃える、隣列の副題の式を実際の描画値に合わせる
 - [ ] M-2 CI に lint ジョブ追加（層規則も機械的に強制できる）
 - [ ] M-21 / M-22 Python 3.12 を CI matrix に追加、`EA_RESULTS_ROOT` の `monkeypatch.delenv` と `tmp_path` 未使用 5 件の修正
+- [ ] M-32 / M-33 gain の差分定義を docstring に合わせる（テストも）、緩和列の同語反復を解消
 
 回帰テストとして追加したいもの:
 
@@ -878,3 +1099,7 @@ Run 2 が `Applied from: cloud-smoke-run1` を表示し、Run 1 の 14 ファイ
 - [ ] `evaluation.json` の軸集合と `AXIS_ORDER` が一致すること
 - [ ] `api-contracts.md` の満点値と `evaluation.py` の定数が一致すること
 - [ ] 環境変数が設定された状態でも全テストが通ること（hermeticity）
+- [ ] ρ\* が分割シードを変えても公開精度内で安定すること（不安定なら公開しない）
+- [ ] 減少応答に対する `fit_logistic_response` の挙動（R² が負なら公開させない）
+- [ ] 間引いた格子で同じ `run_id` が別 spec のキャッシュを再利用しないこと
+- [ ] `summarise([])` が `median` を返すこと、シード 0 件で `deterministic` が True にならないこと
