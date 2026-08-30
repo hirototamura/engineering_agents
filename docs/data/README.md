@@ -21,6 +21,7 @@ Per-round metrics behind [the experiment record](../en/results.md) / [実験記�
 | `phaseN_chain_key_summary.csv` | the chain's own headline figures: rounds requested and completed, survivors first / last / baseline replay / final replay, verdict |
 | `ssos_three_way_comparison_summary.json` | the four phases side by side — the source of the comparison table in the experiment record |
 | `phaseN_score_components_split.csv` | the same score with all seven axes separate — A survival, B TCL, C environment, D recovery, **E cost, F mass**, G ops/physics. Use this one when the question is cost *against* mass; the grouped file adds them together |
+| `report03_emergence.json` | per-phase design-class / intent counts, unique designs, freeze/veto rounds, and final-answer snapshot for the emergence chapter |
 
 ## Columns worth knowing
 

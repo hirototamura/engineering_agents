@@ -1,0 +1,11 @@
+metric,value
+iterations_requested,50
+iterations_completed,50
+crew_remaining_first,0
+crew_remaining_last,50
+crew_remaining_baseline_replay,0
+crew_remaining_final_replay,50
+verdict,IMPROVED
+final_answer_status,provisional_final
+final_answer_selected_candidate_id,i32/candidate_001
+final_answer_iteration,32
