@@ -24,6 +24,7 @@ MkDocs サイトの全ページ一覧です。ヘッダーの言語切替で Eng
 | | [乗員サバイバル](memo/ssos_eclss_loop/occupant_survival.md) | plant_sim の乗員・actor 減員 |
 | | [ラベル付きルールベース](memo/ssos_eclss_loop/labeled_rule_base.md) | シミュレーション内 labeled 運用（必要量を積んでから上限） |
 | | [事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md) | actor / designer 分離（実装済み） |
+| | [Tool Use 設計エージェント](memo/ssos_eclss_loop/tool_use_design_agent.md) | 処理能力設計: tool ループ / Evidence Gate / 候補再シミュレーション |
 | | [SSOS EPS ROS2 プラン](memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS（Phase 3） |
 | | [ROS2 グラフ設計調査](memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | launch remap |
 | | [ECLSS 物理現象](memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md) | ECLSS 物理メモ |

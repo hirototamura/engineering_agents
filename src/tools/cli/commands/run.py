@@ -20,6 +20,9 @@ DEFAULT_SCENARIO = "scrubber_degradation"
 VALID_AGENTS_MODES = frozenset({"none", "labeled_rule_base", "llm"})
 VALID_SSOS_BACKENDS = frozenset({"mock", "plant_sim", "ros2"})
 BACKEND_ENV_VAR = "SSOS_ECLSS_BACKEND"
+DEFAULT_SSOS_BACKEND = "plant_sim"
+DEFAULT_SSOS_ACTOR_MODE = "labeled_rule_base"
+DEFAULT_SSOS_DESIGN_MODE = "llm"
 
 
 def register(app: typer.Typer) -> None:
@@ -34,12 +37,18 @@ def run(
     actor_mode: Optional[str] = typer.Option(
         None,
         "--actor-mode",
-        help="ssos_eclss_loop actor mode: none, labeled_rule_base, or llm.",
+        help=(
+            "ssos_eclss_loop actor mode: none, labeled_rule_base, or llm. "
+            "Bare `ea run ssos_eclss_loop` defaults to labeled_rule_base."
+        ),
     ),
     design_mode: Optional[str] = typer.Option(
         None,
         "--design-mode",
-        help="ssos_eclss_loop design mode: none, labeled_rule_base, or llm.",
+        help=(
+            "ssos_eclss_loop design mode: none, labeled_rule_base, or llm. "
+            "Bare `ea run ssos_eclss_loop` defaults to llm; otherwise omit to inherit actor mode."
+        ),
     ),
     agents_mode: Optional[str] = typer.Option(
         None,
@@ -61,12 +70,20 @@ def run(
     backend: Optional[str] = typer.Option(
         None,
         "--backend",
-        help="ssos_eclss_loop backend kind: mock, plant_sim, or ros2.",
+        help="ssos_eclss_loop backend kind: mock, plant_sim, or ros2 (default: plant_sim).",
     ),
     apply_proposals: Optional[Path] = typer.Option(
         None,
         "--apply-proposals",
         help="Apply design_proposals.json before running (ssos_eclss_loop).",
+    ),
+    approve_provisional: bool = typer.Option(
+        False,
+        "--approve-provisional",
+        help=(
+            "Adopt a design_proposals.json marked provisional_final / "
+            "requires_supervisor_approval. Without this, such a document is refused."
+        ),
     ),
     llm_provider: Optional[str] = typer.Option(
         None,
@@ -160,6 +177,7 @@ def run(
         recreate_output=not no_recreate,
         seed=seed,
         apply_proposals_path=apply_proposals,
+        approve_provisional=approve_provisional,
     )
 
     if write_spec is not None:
@@ -172,10 +190,18 @@ def run(
         resolved_steps = (config.get("simulation") or {}).get("steps")
 
     extra_lines = {}
-    if backend:
+    if scenario_name == "ssos_eclss_loop":
+        from scenario.ssos_eclss_loop.scenario_run import resolve_backend_kind as resolve_ssos_backend
+
+        extra_lines["backend"] = resolve_ssos_backend(
+            load_scenario_config(scenario_name, overrides), overrides
+        )
+    elif backend:
         extra_lines["backend"] = backend
     if apply_proposals:
         extra_lines["apply_proposals"] = str(apply_proposals)
+    if approve_provisional:
+        extra_lines["approve_provisional"] = "true"
     if inject_failures is not None:
         extra_lines["inject_failures"] = str(inject_failures).lower()
     if llm_provider:
@@ -314,14 +340,40 @@ def _build_overrides(
 
 
 def _apply_cli_defaults(scenario_name: str, overrides: dict | None) -> dict | None:
-    """Inject CLI-only defaults that differ from scenario.yaml (not for --set/--override-file)."""
+    """Pin `ea run ssos_eclss_loop` with no mode/backend flags.
+
+    A bare invocation is equivalent to::
+
+        --backend plant_sim --actor-mode labeled_rule_base --design-mode llm
+
+    Explicit ``--backend`` / ``--actor-mode`` / ``--design-mode`` / ``--agents-mode``
+    / ``--set`` / ``--override-file`` and ``SSOS_ECLSS_BACKEND`` still win. If actor
+    is set without design, design keeps inheriting ``actor.mode`` (do not force llm).
+    """
     if scenario_name != "ssos_eclss_loop":
         return overrides
     merged = dict(overrides or {})
+    agents = merged.get("agents") or {}
+    actor_specified = agents.get("mode") is not None or (
+        isinstance(agents.get("actor"), dict) and agents["actor"].get("mode") is not None
+    )
+    design_specified = (
+        isinstance(agents.get("design"), dict) and agents["design"].get("mode") is not None
+    )
     backend_kind = (merged.get("backend") or {}).get("kind")
-    if backend_kind or os.environ.get(BACKEND_ENV_VAR):
+    patch: dict = {}
+    if not backend_kind and not os.environ.get(BACKEND_ENV_VAR):
+        patch["backend"] = {"kind": DEFAULT_SSOS_BACKEND}
+    agents_patch: dict = {}
+    if not actor_specified:
+        agents_patch["actor"] = {"mode": DEFAULT_SSOS_ACTOR_MODE}
+    if not actor_specified and not design_specified:
+        agents_patch.setdefault("design", {})["mode"] = DEFAULT_SSOS_DESIGN_MODE
+    if agents_patch:
+        patch["agents"] = agents_patch
+    if not patch:
         return merged
-    return merge_overrides(merged, {"backend": {"kind": "ros2"}})
+    return merge_overrides(merged, patch)
 
 
 def _apply_llm_cli_to_llm_sides(

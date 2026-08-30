@@ -24,6 +24,7 @@ Full page index for the MkDocs site. Use the header language switcher for 日本
 | | [Occupant survival](memo/ssos_eclss_loop/occupant_survival.md) | plant_sim crew/actor attrition |
 | | [Labeled rule-base](memo/ssos_eclss_loop/labeled_rule_base.md) | In-sim labeled ops: sized ARS/OGS/WRS, then cap |
 | | [Post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md) | Actor / designer split (as shipped) |
+| | [Tool-use design agent](memo/ssos_eclss_loop/tool_use_design_agent.md) | Capacity sizing: tool loop, Evidence Gate, candidate re-simulation |
 | | [SSOS EPS ROS2 plan](memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS bridge (Phase 3) |
 | | [ROS2 graph investigation](memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | Launch remap research |
 | | [ECLSS physical phenomena](memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md) | ECLSS physics memo |

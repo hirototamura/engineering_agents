@@ -6,6 +6,8 @@
 
 Naming: **actor** (in-sim operational agents) and **designer** (post-run design agents).
 
+> **Newer path**: with `design.mode: llm` and `design.tool_use.enabled: true` (the shipped default), the designer described here is replaced by the tool-use capacity designer — see [tool_use_design_agent.md](tool_use_design_agent.md). Everything below still applies to `labeled_rule_base` and to `tool_use.enabled: false`.
+
 ## Status (plan todos)
 
 | ID | Work | State |

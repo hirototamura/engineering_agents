@@ -49,11 +49,14 @@ from scenario.ssos_eclss_loop.survival import (
     map_physics_limiting,
 )
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
+from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_proposals import (
     apply_design_proposals,
     load_design_proposals,
     write_design_proposals,
 )
+from scenario.ssos_eclss_loop.unified_evaluation import finalize_run_evaluation
+from scenario.ssos_eclss_loop.evaluation import write_evaluation
 from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
 from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
 
@@ -356,6 +359,7 @@ class SsosEclssLoopScenario(Scenario):
         apply_proposals_path: Optional[Path] = None,
         run_id: Optional[str] = None,
         results_root: Optional[Path] = None,
+        approve_provisional: bool = False,
     ) -> Path:
         # Load order (before any simulation step):
         # 1) scenario.yaml (+ CLI overrides)
@@ -365,8 +369,14 @@ class SsosEclssLoopScenario(Scenario):
         applied_proposals_path: Optional[Path] = None
         if apply_proposals_path is not None:
             proposals = load_design_proposals(apply_proposals_path)
-            config = apply_design_proposals(config, proposals)
+            config = apply_design_proposals(
+                config, proposals, approve_provisional=approve_provisional
+            )
             applied_proposals_path = Path(apply_proposals_path)
+        # Fail before the simulation, not after it: a design_constraints block
+        # the ranking does not implement is a config error, and finding it in
+        # the post-run designer would waste the whole run.
+        DesignConstraints.from_scenario_config(config)
         thresholds = config.get("thresholds", {}) or {}
         agents_config = load_agents_config(self.name, config)
         if agents_config:
@@ -571,9 +581,20 @@ class SsosEclssLoopScenario(Scenario):
             summary["agent_ids_remaining"] = list(team.active_ids)
             summary["max_actions_per_step"] = team.max_actions_per_step
 
+        # Canonical run measurement precedes design reasoning. The tool-use
+        # designer therefore sees the same deterministic diagnosis used by the
+        # dashboard, and candidate runs are evaluated identically.
+        summary = finalize_run_evaluation(
+            run_dir, scenario_config=config, summary=summary
+        )
+
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
             actor_cfg = flatten_actor_config(agents_config)
             design_cfg = flatten_design_config(agents_config)
+            # Persist the summary before design so a tool-use designer can read
+            # the run's own artifacts (summary.json included) from disk. It is
+            # rewritten below with the design fields added.
+            log.write_summary(summary)
             designer = PostRunDesignAgent(design_cfg)
             proposals = designer.propose(
                 DesignReviewBundle(
@@ -582,6 +603,8 @@ class SsosEclssLoopScenario(Scenario):
                     baseline_graph=dict(config.get("ssos_graph") or {}),
                     policy=dict(actor_cfg.get("policy") or {}),
                     actor_snapshot=actor_snapshot_from_team(team) if team is not None else None,
+                    run_dir=run_dir,
+                    agents_config=agents_config,
                 )
             )
             # L8/B: only persist when there is at least one change so
@@ -590,6 +613,21 @@ class SsosEclssLoopScenario(Scenario):
             summary["design_proposal_count"] = change_count
             summary["design_proposed_by"] = proposals.get("proposed_by")
             summary["design_decision_source"] = proposals.get("decision_source")
+            # Tool-use design (design doc §11) adds its artifacts to the summary.
+            for key in (
+                "design_family",
+                "final_status",
+                "selected_candidate_id",
+                "requires_supervisor_approval",
+                "tool_trace_path",
+                "candidate_rankings_path",
+                "design_review_report_path",
+                "candidate_run_dirs",
+            ):
+                if proposals.get(key) is not None:
+                    summary[f"design_{key}" if not key.startswith("design_") else key] = (
+                        proposals[key]
+                    )
             for msg in proposals.pop("deliberation_messages", []) or []:
                 if isinstance(msg, dict):
                     log.append("messages", msg)
@@ -599,6 +637,25 @@ class SsosEclssLoopScenario(Scenario):
                 proposals_path = run_dir / "design_proposals.json"
                 write_design_proposals(proposals_path, proposals)
                 summary["design_proposals_path"] = str(proposals_path)
+
+        evaluation_path, evaluation_html_path, evaluation = write_evaluation(
+            run_dir,
+            scenario_config=config,
+            summary=summary,
+        )
+        evaluation_scores = evaluation.get("scores") or {}
+        summary.update(
+            {
+                "evaluation_path": str(evaluation_path),
+                "evaluation_html_path": str(evaluation_html_path),
+                "evaluation_status": evaluation.get("status"),
+                "evaluation_score": evaluation_scores.get("total"),
+                "evaluation_max_score": evaluation_scores.get("max_score"),
+                "physics_gate_passed": bool(
+                    (evaluation.get("physics_gate") or {}).get("passed", False)
+                ),
+            }
+        )
 
         log.write_summary(summary)
 
@@ -651,6 +708,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         metavar="PATH",
         help="Apply design_proposals.json from a prior run before executing",
     )
+    parser.add_argument(
+        "--approve-provisional",
+        action="store_true",
+        help=(
+            "Adopt a proposal marked provisional_final / requires_supervisor_approval "
+            "(design doc §9: otherwise such a document is refused)"
+        ),
+    )
     args = parser.parse_args(argv)
 
     overrides: Dict[str, Any] = {}
@@ -676,6 +741,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             output_dir=args.output_dir,
             overrides=overrides or None,
             apply_proposals_path=args.apply_proposals,
+            approve_provisional=args.approve_provisional,
         )
     )
     if result.exit_code != 0:

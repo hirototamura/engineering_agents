@@ -30,7 +30,7 @@ def test_ssos_container_name_honors_env_precedence(monkeypatch):
 
 def test_resolve_backend_kind_uses_yaml_default_without_env():
     spec = RunSpec(scenario="ssos_eclss_loop")
-    assert resolve_backend_kind(spec) == "mock"
+    assert resolve_backend_kind(spec) == "plant_sim"
 
 
 def test_resolve_backend_kind_honors_env_mock(monkeypatch):

@@ -38,7 +38,8 @@ def test_build_provenance_includes_ssos_operational_records(tmp_path: Path):
         "ssos_eclss_loop",
         output_dir=tmp_path / "labeled",
         overrides={
-            "agents": {"mode": "labeled_rule_base"},
+            "backend": {"kind": "mock"},
+            "agents": {"mode": "labeled_rule_base", "design": {"mode": "labeled_rule_base"}},
             "simulation": {"initial_o2_storage_kg": 8.0},
         },
         recreate_output=True,

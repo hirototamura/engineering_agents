@@ -114,6 +114,46 @@ def test_run_ssos_actor_and_design_mode_dry_run(tmp_path: Path):
     assert payload["overrides"]["agents"]["design"]["mode"] == "llm"
 
 
+def test_run_ssos_bare_defaults_plant_sim_labeled_llm(tmp_path: Path):
+    spec_path = tmp_path / "spec.json"
+    result = runner.invoke(
+        app,
+        ["run", "ssos_eclss_loop", "--dry-run", "--write-spec", str(spec_path)],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(spec_path.read_text(encoding="utf-8"))
+    overrides = payload["overrides"]
+    assert overrides["backend"]["kind"] == "plant_sim"
+    assert overrides["agents"]["actor"]["mode"] == "labeled_rule_base"
+    assert overrides["agents"]["design"]["mode"] == "llm"
+    assert "actor=labeled_rule_base" in result.stdout
+    assert "design=llm" in result.stdout
+    assert "backend: plant_sim" in result.stdout
+
+
+def test_run_ssos_actor_flag_without_design_inherits(tmp_path: Path):
+    spec_path = tmp_path / "spec.json"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "labeled_rule_base",
+            "--dry-run",
+            "--write-spec",
+            str(spec_path),
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(spec_path.read_text(encoding="utf-8"))
+    design = ((payload["overrides"].get("agents") or {}).get("design") or {})
+    assert design.get("mode") is None
+    assert "design=llm" not in result.stdout
+
+
 def test_run_rejects_invalid_design_mode():
     result = runner.invoke(
         app,
@@ -179,7 +219,16 @@ def test_run_ssos_without_docker_blocks(monkeypatch):
     monkeypatch.setattr("tools.cli.ssos_host.shutil.which", lambda _: None)
     result = runner.invoke(
         app,
-        ["run", "ssos_eclss_loop", "--agents-mode", "none", "--steps", "1"],
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--backend",
+            "ros2",
+            "--agents-mode",
+            "none",
+            "--steps",
+            "1",
+        ],
     )
     assert result.exit_code == 3
     assert "Docker is required" in result.output

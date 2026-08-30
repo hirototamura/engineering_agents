@@ -43,6 +43,18 @@ _ECLSS_OPERATIONAL_KINDS = frozenset(
 )
 _LABELED_SUBSYSTEMS = ("ars", "ogs", "wrs")
 
+# One command per group per step (design doc §7). Subsystem actions and the
+# feedstock / withdrawal services are counted separately: `request_co2` is a
+# Sabatier service, not a second ARS action, so it has its own slot.
+_COMMAND_GROUPS = {
+    "air_revitalisation": "ars_action",
+    "oxygen_generation": "ogs_action",
+    "water_recovery": "wrs_action",
+    "request_co2": "request_co2_service",
+    "request_o2": "request_o2_service",
+}
+DUPLICATE_COMMAND_REASON = "duplicate_command_this_step"
+
 _ARS_GOAL_FIELDS = frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"})
 _OGS_GOAL_FIELDS = frozenset({"input_water_mass", "iodine_concentration"})
 _WRS_GOAL_FIELDS = frozenset({"urine_volume"})
@@ -228,9 +240,38 @@ class SsosEclssLoopTeam(Team):
         return self._run_step_labeled(obs)
 
     def apply_outcome(self, backend: EclssBackend, outcome: StepEclssOutcome) -> List[Dict[str, Any]]:
+        """Apply this step's commands, at most one attempt per subsystem / service.
+
+        The gate is deterministic and mode-independent (labeled, llm, tests):
+        the first command of a group takes the group's slot for this step, every
+        later one is recorded as ``operational_rejected`` with
+        ``reason=duplicate_command_this_step``. The slot is spent on the attempt,
+        not on success — a first command the backend rejects (busy subsystem,
+        failed subsystem, invalid payload) still blocks the rest of the step, so
+        a team cannot retry its way past the limit. ``max_actions_per_step``
+        still sizes the action round; this is the execution-side safety net
+        (design doc §7).
+        """
         events: List[Dict[str, Any]] = []
+        used_groups: set[str] = set()
         for cmd in outcome.commands:
+            group = _COMMAND_GROUPS.get(cmd.kind)
+            if group is not None and group in used_groups:
+                events.append(
+                    {
+                        "kind": "/eclss/events/operational_rejected",
+                        "command": cmd.to_dict(),
+                        "reason": DUPLICATE_COMMAND_REASON,
+                        "message": (
+                            f"{cmd.kind} already issued this step "
+                            f"(one command per {group} per step)"
+                        ),
+                    }
+                )
+                continue
             event = self._apply_command(backend, cmd)
+            if group is not None:
+                used_groups.add(group)
             if event is not None:
                 events.append(event)
         return events
@@ -946,19 +987,27 @@ _ECLSS_OPERATIONAL_LEVERS = """\
   initial_moisture_content (percent 0–100), initial_contaminants (percent 0–100).
 - oxygen_generation: OGS action — payload fields input_water_mass (kg),
   iodine_concentration (mg/L).
+- water_recovery: WRS action — payload field urine_volume (L) taken from the urine
+  buffer; condensate / grey water fills the rest of the batch automatically.
 - request_co2: Service call — payload {"amount": <kg>} optional Sabatier feedstock;
   default policy leaves this to OGS-internal /ars/request_co2 (use only when
   request_co2_before_ogs is explicitly enabled or discourse justifies it).
 - request_o2: Service call — payload {"amount": <kg>} withdraw O2 from plant /o2_storage reserve.
-Actions are asynchronous; issue only commands justified by Telemetry and team discourse."""
+Actions are asynchronous; issue only commands justified by Telemetry and team discourse.
+One command per subsystem per step: duplicates in the same step are rejected, and a
+subsystem stays busy for the duration of its operation (ARS runs 80 minutes)."""
 
 
 def build_llm_situation(obs: EclssLoopObservation) -> str:
     t = obs.telemetry
+    plant = t.raw_topics.get("plant_sim") if isinstance(t.raw_topics, dict) else None
+    plant = plant if isinstance(plant, dict) else {}
     telemetry = (
         f"step={obs.step}, co2_storage_kg={t.co2_storage_kg}, o2_storage_kg={t.o2_storage_kg}, "
         f"product_water_reserve_l={t.product_water_reserve_l}, "
         f"grey_water_collected_l={t.grey_water_collected_l}, "
+        f"urine_buffer_l={plant.get('urine_buffer_l')}, "
+        f"captured_co2_kg={plant.get('captured_co2_kg')}, "
         f"ars_failure_enabled={t.ars_failure_enabled}, "
         f"ogs_failure_enabled={t.ogs_failure_enabled}, wrs_failure_enabled={t.wrs_failure_enabled}"
     )

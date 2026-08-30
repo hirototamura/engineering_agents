@@ -12,6 +12,12 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from scenario.ssos_eclss_loop.design_eval import STATUS_APPROVED as FINAL_STATUS_APPROVED
+from scenario.ssos_eclss_loop.design_variables import (
+    apply_capacity_fields,
+    sync_action_payloads,
+    validate_capacity_fields,
+)
 from scenario.ssos_eclss_loop.health import (
     DEFAULT_CO2_STORAGE_HIGH_KG,
     DEFAULT_O2_STORAGE_LOW_KG,
@@ -22,11 +28,17 @@ DESIGN_DOMAIN = "ssos_graph"
 SSOS_CHANGE_KINDS = frozenset(
     {
         "action_profile",
+        "capacity_profile",
         "service_config",
         "set_parameter",
         "graph_rewire",
     }
 )
+
+# ``capacity_profile`` is hardware sizing (plant_sim nameplate throughput);
+# ``action_profile`` is the operational payload the crew sends at run time.
+# Design doc §6 keeps them distinct on purpose.
+CAPACITY_PROFILE_BACKENDS = frozenset({"plant_sim"})
 
 ACTION_PROFILE_FIELDS_BY_SUBSYSTEM = {
     "ars": frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"}),
@@ -149,6 +161,27 @@ def _apply_action_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> No
             raise ValueError(f"action_profile subsystem must be ars, ogs, or wrs, got {subsystem!r}")
 
 
+def _apply_capacity_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> None:
+    """Size ARS / OGS / WRS throughput and keep the action payloads usable."""
+    backend = str(payload.get("backend", "plant_sim")).lower()
+    if backend not in CAPACITY_PROFILE_BACKENDS:
+        raise ValueError(
+            f"capacity_profile.backend must be one of {sorted(CAPACITY_PROFILE_BACKENDS)}, "
+            f"got {backend!r}"
+        )
+    fields = payload.get("fields")
+    if not isinstance(fields, dict):
+        raise ValueError("capacity_profile.fields must be an object")
+    errors = validate_capacity_fields(fields)
+    if errors:
+        raise ValueError("; ".join(errors))
+    apply_capacity_fields(config, fields)
+    # Nameplate alone is not reachable: OGS is throttled by ogs_goal.input_water_mass
+    # and WRS by wrs_goal.urine_volume (design doc §6.1 / §6.2).
+    if payload.get("sync_action_payloads", True):
+        sync_action_payloads(config)
+
+
 def _apply_service_config(config: Dict[str, Any], payload: Dict[str, Any]) -> None:
     import math
 
@@ -212,6 +245,7 @@ def _apply_graph_rewire(config: Dict[str, Any], payload: Dict[str, Any]) -> None
 
 _APPLY_HANDLERS: Dict[str, ApplyHandler] = {
     "action_profile": _apply_action_profile,
+    "capacity_profile": _apply_capacity_profile,
     "service_config": _apply_service_config,
     "set_parameter": _apply_set_parameter,
     "graph_rewire": _apply_graph_rewire,
@@ -237,14 +271,57 @@ def validate_ssos_proposal_change(
     return payload
 
 
+def supervisor_approval_reasons(proposals: Dict[str, Any]) -> List[str]:
+    """Why this document may not be adopted without a human saying so.
+
+    ``provisional_final`` means the designer could not clear its own bar — the
+    design loses occupants, or it only exists outside the documented budgets.
+    Design doc §9 says such a design is "not auto-adopted"; this is where that
+    sentence is enforced, because the file plus ``--apply-proposals`` is the
+    adoption path.
+    """
+    reasons: List[str] = []
+    status = proposals.get("final_status")
+    if status is not None and status != FINAL_STATUS_APPROVED:
+        selection = proposals.get("selection")
+        detail = proposals.get("selection_reason")
+        if not detail and isinstance(selection, dict):
+            detail = selection.get("reason")
+        detail = str(detail or "").strip()
+        reasons.append(f"final_status={status}" + (f" ({detail})" if detail else ""))
+    if proposals.get("requires_supervisor_approval"):
+        reasons.append("document is flagged requires_supervisor_approval")
+    for index, change in enumerate(proposals.get("changes") or []):
+        if isinstance(change, dict) and change.get("requires_supervisor_approval"):
+            reasons.append(f"changes[{index}] is flagged requires_supervisor_approval")
+    return reasons
+
+
 def apply_design_proposals(
     config: Dict[str, Any],
     proposals: Dict[str, Any],
+    *,
+    approve_provisional: bool = False,
 ) -> Dict[str, Any]:
-    """Merge proposal changes into scenario config for the *next* run."""
+    """Merge proposal changes into scenario config for the *next* run.
+
+    A document that needs supervisor approval is refused unless the caller
+    passes ``approve_provisional=True`` (CLI: ``--approve-provisional``). Being
+    handed the file is not approval — a human deciding to accept an over-budget
+    or lossy design is.
+    """
     errors = validate_design_proposals(proposals)
     if errors:
         raise ValueError("; ".join(errors))
+
+    if not approve_provisional:
+        blocking = supervisor_approval_reasons(proposals)
+        if blocking:
+            raise ValueError(
+                "design_proposals requires supervisor approval and was not applied: "
+                + "; ".join(blocking)
+                + ". Re-run with --approve-provisional to adopt it anyway."
+            )
 
     merged = copy.deepcopy(config)
     for change in proposals.get("changes", []):

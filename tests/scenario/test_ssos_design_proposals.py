@@ -343,3 +343,74 @@ def test_apply_without_legacy_policy_key_still_loads_actor_policy():
     agents = load_agents_config("ssos_eclss_loop", merged)
     assert agents is not None
     assert agents["actor"]["policy"]["ars_goal"]["initial_co2_mass"] == 2.5
+
+
+# --------------------------------------------------------------------------- #
+# supervisor approval gate (design doc §9)
+# --------------------------------------------------------------------------- #
+def _capacity_document(**extra) -> dict:
+    document = {
+        "design_domain": DESIGN_DOMAIN,
+        "changes": [
+            {
+                "change_kind": "capacity_profile",
+                "payload": {
+                    "backend": "plant_sim",
+                    "fields": {"plant_sim.ars.capacity_kg_day": 30.0},
+                },
+            }
+        ],
+    }
+    document.update(extra)
+    return document
+
+
+def test_a_provisional_design_is_not_applied_without_approval():
+    """The file plus --apply-proposals is the adoption path, so it is the gate."""
+    config = {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}}
+    document = _capacity_document(
+        final_status="provisional_final",
+        requires_supervisor_approval=True,
+        selection={"reason": "over budget by 3000 kg"},
+    )
+    with pytest.raises(ValueError) as excinfo:
+        apply_design_proposals(config, document)
+    message = str(excinfo.value)
+    assert "provisional_final" in message
+    assert "over budget by 3000 kg" in message
+    assert "--approve-provisional" in message
+    # and the config it was handed is untouched
+    assert config["plant_sim"]["ars"]["capacity_kg_day"] == 4.5
+
+
+def test_an_approved_design_applies_without_a_flag():
+    merged = apply_design_proposals(
+        {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}},
+        _capacity_document(final_status="approved_final", requires_supervisor_approval=False),
+    )
+    assert merged["plant_sim"]["ars"]["capacity_kg_day"] == 30.0
+
+
+def test_a_human_can_still_adopt_a_provisional_design_on_purpose():
+    merged = apply_design_proposals(
+        {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}},
+        _capacity_document(final_status="provisional_final", requires_supervisor_approval=True),
+        approve_provisional=True,
+    )
+    assert merged["plant_sim"]["ars"]["capacity_kg_day"] == 30.0
+
+
+def test_a_single_flagged_change_blocks_the_whole_document():
+    document = _capacity_document(final_status="approved_final")
+    document["changes"][0]["requires_supervisor_approval"] = True
+    with pytest.raises(ValueError, match="requires_supervisor_approval"):
+        apply_design_proposals({}, document)
+
+
+def test_a_document_without_a_status_still_applies():
+    """Hand-written and scrubber-style documents carry no design status."""
+    merged = apply_design_proposals(
+        {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}},
+        _capacity_document(),
+    )
+    assert merged["plant_sim"]["ars"]["capacity_kg_day"] == 30.0

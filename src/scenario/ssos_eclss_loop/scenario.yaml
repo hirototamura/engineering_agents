@@ -11,7 +11,7 @@ simulation:
   initial_product_water_l: 80.0  # [L] starting potable water (above product_water_low_l)
 
 backend:
-  kind: mock  # mock | plant_sim | ros2 — CLI default is ros2 (needs Docker); or SSOS_ECLSS_BACKEND
+  kind: plant_sim  # mock | plant_sim | ros2 — `ea run ssos_eclss_loop` default; or SSOS_ECLSS_BACKEND
   ros2:
     action_timeout_s: 120.0  # [s] wait for a ROS2 action result
     topic_timeout_s: 15.0  # [s] wait for a telemetry topic sample
@@ -61,6 +61,11 @@ plant_sim:
     urine_recovery: 0.98  # [-] potable recovered from urine feed
     grey_recovery: 0.90  # [-] potable recovered from grey / condensate feed
     max_feed_l_per_operation: 10.0  # [L] urine + grey batch cap per WRS action
+  operations:
+    # Busy guard: a subsystem accepted at step t is occupied for
+    # ceil(operation_seconds / step_seconds) steps (ARS 4800/1200 = 4 steps).
+    # Commands arriving while busy are rejected with reason=subsystem_busy.
+    busy_guard_enabled: true  # [-] set false to restore pre-guard behaviour
   survival:
     enabled: true  # plant_sim only; sensitivity sweep leaves this false
     o2:
@@ -79,6 +84,66 @@ plant_sim:
       critical_steps: 2  # [steps]
       critical_divisor: 2  # once per stay: lost = n // 2 (no wipe)
 
+# Post-run capacity design: what the designer may size, and what it costs.
+# Coefficients are an exploration model (rack_affine_linear_v1), NOT flight
+# hardware estimates. They exist so raising throughput has a price.
+design_constraints:
+  enabled: true  # if false, candidates are still simulated but never labelled infeasible
+  objective:
+    # Documents the objective implemented in design_eval; any other value is
+    # rejected when the scenario loads, so config and behaviour cannot drift.
+    primary: require_full_survival  # clearance line: crew_remaining == crew_initial
+    secondary: minimize_resource_footprint  # then CRITICAL dwell → warning → mass → volume → cost
+  budgets:
+    # Soft caps used for labelling, not a pre-simulation hard stop (§8.1).
+    max_total_mass_kg: 4000.0  # [kg] ARS + OGS + WRS installed mass
+    max_total_cost_musd: 500.0  # [MUSD] hardware + launch
+    max_total_volume_m3: 14.0  # [m3] pressurised volume
+  subsystem_bounds:  # engineering range each machine can be built in
+    ars:
+      min_capacity_kg_day: 4.5  # [kg/day]
+      max_capacity_kg_day: 80.0  # [kg/day]
+    ogs:
+      min_o2_kg_day: 9.25  # [kg/day]
+      max_o2_kg_day: 80.0  # [kg/day]
+    wrs:
+      min_feed_l_per_operation: 1.0  # [L/operation]
+      max_feed_l_per_operation: 20.0  # [L/operation]
+  sizing_model:
+    mode: rack_affine_linear_v1  # subsystem_x = fixed + variable_at_baseline * capacity_ratio
+    baseline:  # capacity that the variable_at_baseline coefficients refer to
+      ars_capacity_kg_day: 4.5  # [kg/day]
+      ogs_max_o2_kg_day: 9.25  # [kg/day]
+      wrs_max_feed_l_per_operation: 10.0  # [L/operation]
+    mass_kg:  # [kg] fixed = rack, controller, plumbing, redundancy
+      ars: {fixed: 180.0, variable_at_baseline: 270.0}
+      ogs: {fixed: 250.0, variable_at_baseline: 450.0}
+      wrs: {fixed: 300.0, variable_at_baseline: 350.0}
+    volume_m3:  # [m3]
+      ars: {fixed: 0.8, variable_at_baseline: 1.2}
+      ogs: {fixed: 1.0, variable_at_baseline: 1.3}
+      wrs: {fixed: 1.2, variable_at_baseline: 1.3}
+    hardware_cost_musd:  # [MUSD] hardware + integration, launch excluded
+      ars: {fixed: 15.0, variable_at_baseline: 25.0}
+      ogs: {fixed: 20.0, variable_at_baseline: 45.0}
+      wrs: {fixed: 18.0, variable_at_baseline: 37.0}
+    # [MUSD/kg] resupply burden order of magnitude (NASA OIG CRS audits report
+    # ~63.2-71.8 kUSD/kg); 55 kUSD/kg is an exploration value, not a quote.
+    launch_cost_musd_per_kg: 0.055
+  simulation_policy:
+    run_invalid_candidates: false  # schema / numeric / out-of-scope variable: never run
+    run_over_budget_candidates: true  # over budget still teaches the designer something
+    run_out_of_bounds_candidates: true  # same for beyond engineering bounds
+    require_in_bounds_final: true  # an unbuildable machine is never adopted
+    # Budgets label, they do not filter: at 50 occupants no full-survival design
+    # fits, and hiding it would leave the review with nothing to report. An
+    # over-budget winner comes back provisional_final for a human to accept.
+    require_feasible_final: false
+  penalty_weights:  # descriptive design_penalty only; ranking stays lexicographic
+    mass: 0.5
+    cost: 0.3
+    volume: 0.2
+
 # Optional timed fault injection (scenario layer → EclssBackend.set_subsystem_failure).
 # Distinct from scrubber anomalies. Off by default; enable via CLI --inject-failures
 # or --set inject_failures=true.
@@ -94,16 +159,52 @@ subsystem_failures:
     start_step: 30  # [-] inclusive, 0-based
     end_step: 40  # [-] exclusive
 
+# Deterministic post-run scorecard. These are verification requirements, not
+# plant physics and not labeled actor policy. Full scoring requires plant_sim
+# with survival enabled. Equal resource weights are explicit for auditability.
+evaluation:
+  enabled: true
+  tcl:
+    reference_seconds: 57600  # [s] acceptance horizon (16 h); no future extrapolation
+  trajectory:
+    resource_weights: {co2: 1.0, o2: 1.0, water: 1.0}
+    zero_score_mean_severity: 1.0  # [-] weighted mean severity that maps to 0/10
+  resource_recovery:
+    resource_weights: {co2: 1.0, o2: 1.0, water: 1.0}
+    terminal_weight: 0.5  # [-] remaining 0.5 is worst-to-final recovery
+  actor_decision:
+    max_latency_steps: 2  # [steps] zero latency gets full response quality
+    latency_weight: 0.5  # [-] remaining 0.5 is command validity
+    command_bounds:
+      air_revitalisation:
+        initial_co2_mass: [0.0, 8.0]  # [kg]
+      oxygen_generation:
+        input_water_mass: [0.0, 1.0]  # [kg]
+      water_recovery:
+        urine_volume: [0.0, 10.0]  # [L]
+      request_co2:
+        amount: [0.0, 8.0]  # [kg]
+      request_o2:
+        amount: [0.0, 8.0]  # [kg]
+  physical_response:
+    success_weight: 1.0
+    conversion_weight: 1.0
+    sign_weight: 1.0
+  physics_gate:
+    inventory_tolerance: 1.0e-9
+    ledger_tolerance: 2.0e-6  # [kg or L] permits documented chemistry residual
+
 agents:
   actor:
-    mode: none  # none | labeled_rule_base | llm (CLI --actor-mode overrides)
+    mode: labeled_rule_base  # none | labeled_rule_base | llm — `ea run` default; CLI --actor-mode overrides
     # Cap on actions per step (llm and labeled). Rotates from eclss_actor_{step % N}.
     # llm: actors allowed to command after deliberation (clamped to actor.team.count).
     # labeled: needed ARS/OGS/WRS repeats to leave warning/critical, then min(needed, this).
     # request_co2 does not count.
     max_actions_per_step: 6 # [-] llm / labeled cap on commands per step
   design: {}
-    # design.mode omitted: inherit actor.mode. Set none to disable post-run design.
+    # design.mode omitted here so library/tests inherit actor.mode.
+    # Bare `ea run ssos_eclss_loop` pins design.mode=llm via CLI defaults.
 
 output:
   run_id: ssos_eclss_loop_baseline  # none/none (or unspecified)
