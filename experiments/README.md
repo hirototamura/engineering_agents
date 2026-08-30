@@ -145,7 +145,13 @@ the two cross-phase trends and the three-way comparison summary.
 
 Column meanings: [`docs/data/README.md`](../docs/data/README.md).
 
-## 5. Run a new chain
+## 5. 日本語の手順書
+
+[`ANALYSIS_PROCEDURE.ja.md`](ANALYSIS_PROCEDURE.ja.md) — the same procedure written for somebody
+reproducing it on their own machine: what to look for in each figure, what the common
+sticking points are, and a ready-made prompt for handing the whole thing to a coding agent.
+
+## 6. Run a new chain
 
 ```bash
 ./scripts/run_design_chain.sh --rounds 50                          # from the repo root
