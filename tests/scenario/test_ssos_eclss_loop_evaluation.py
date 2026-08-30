@@ -39,6 +39,76 @@ def test_c_axis_weights_favour_the_lethal_resource():
     assert weights["water"] == pytest.approx(1.0)
 
 
+def _recovery_fixture_rows():
+    return [
+        {
+            "step": 0,
+            "co2_storage_kg": 1.0,
+            "o2_storage_kg": 8.0,
+            "product_water_reserve_l": 80.0,
+        },
+        {
+            "step": 1,
+            "co2_storage_kg": 3.0,
+            "o2_storage_kg": 5.0,
+            "product_water_reserve_l": 45.0,
+        },
+        {
+            "step": 2,
+            "co2_storage_kg": 1.5,
+            "o2_storage_kg": 7.0,
+            "product_water_reserve_l": 60.0,
+        },
+    ]
+
+
+def _recovery_thresholds():
+    return {
+        "co2_storage_high_kg": 2.0,
+        "co2_storage_critical_kg": 8.0,
+        "o2_storage_low_kg": 6.0,
+        "o2_storage_critical_kg": 1.0,
+        "product_water_low_l": 50.0,
+        "product_water_critical_l": 25.0,
+    }
+
+
+def test_c_axis_unequal_weights_move_the_score_when_co2_is_worse():
+    rows = _recovery_fixture_rows()
+    event = {"step": 1, "kind": "subsystem_failure_applied", "enabled": True, "subsystem": "ars"}
+    pre = {0: rows[0], 1: rows[1], 2: rows[2]}
+    equal = _resource_recovery_axis(
+        rows,
+        pre,
+        [event],
+        _recovery_thresholds(),
+        {
+            "resource_recovery": {
+                "resource_weights": {"co2": 1, "o2": 1, "water": 1},
+                "terminal_weight": 0.5,
+            }
+        },
+    )
+    lethal = _resource_recovery_axis(
+        rows,
+        pre,
+        [event],
+        _recovery_thresholds(),
+        {
+            "resource_recovery": {
+                "resource_weights": {"co2": 2, "o2": 1, "water": 1},
+                "terminal_weight": 0.5,
+            }
+        },
+    )
+    assert equal["metrics"]["resources"]["co2"]["terminal_quality"] < equal["metrics"]["resources"][
+        "water"
+    ]["terminal_quality"]
+    assert lethal["score"] < equal["score"]
+    assert lethal["metrics"]["resource_weights"]["co2"] == pytest.approx(0.5)
+    assert lethal["metrics"]["resource_weights"]["o2"] == pytest.approx(0.25)
+
+
 def test_select_telemetry_rows_prefers_post_ops_and_preserves_pre():
     rows = [
         {"step": 0, "co2_storage_kg": 1.0},
@@ -78,40 +148,13 @@ def test_tcl_scores_observed_event_and_right_censors_short_run():
 
 
 def test_resource_recovery_uses_actor_pre_event_values():
-    thresholds = {
-        "co2_storage_high_kg": 2.0,
-        "co2_storage_critical_kg": 8.0,
-        "o2_storage_low_kg": 6.0,
-        "o2_storage_critical_kg": 1.0,
-        "product_water_low_l": 50.0,
-        "product_water_critical_l": 25.0,
-    }
-    rows = [
-        {
-            "step": 0,
-            "co2_storage_kg": 1.0,
-            "o2_storage_kg": 8.0,
-            "product_water_reserve_l": 80.0,
-        },
-        {
-            "step": 1,
-            "co2_storage_kg": 3.0,
-            "o2_storage_kg": 5.0,
-            "product_water_reserve_l": 45.0,
-        },
-        {
-            "step": 2,
-            "co2_storage_kg": 1.5,
-            "o2_storage_kg": 7.0,
-            "product_water_reserve_l": 60.0,
-        },
-    ]
+    rows = _recovery_fixture_rows()
     event = {"step": 1, "kind": "subsystem_failure_applied", "enabled": True, "subsystem": "ars"}
     axis = _resource_recovery_axis(
         rows,
         {0: rows[0], 1: rows[1], 2: rows[2]},
         [event],
-        thresholds,
+        _recovery_thresholds(),
         {
             "resource_recovery": {
                 "resource_weights": {"co2": 1, "o2": 1, "water": 1},

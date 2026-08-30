@@ -163,7 +163,8 @@ subsystem_failures:
 
 # Deterministic post-run scorecard. These are verification requirements, not
 # plant physics and not labeled actor policy. Full scoring requires plant_sim
-# with survival enabled. Equal resource weights are explicit for auditability.
+# with survival enabled. Resource weights are explicit: B-axis stays equal;
+# C-axis weights CO2 higher (see resource_recovery.resource_weights).
 evaluation:
   enabled: true
   tcl:

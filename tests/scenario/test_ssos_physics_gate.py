@@ -266,15 +266,43 @@ def test_merge_keeps_scorecard_only_checks():
                 "name": "mass_balance_ledgers",
                 "passed": True,
                 "residuals": {"o2_kg": 0.0, "co2_kg": 0.0, "water_l": 0.0},
-            }
+            },
+            {
+                "name": "operational_physical_bounds",
+                "passed": True,
+                "details": [],
+            },
         ],
     }
     merged = merge_physics_gates(scorecard, telemetry)
     names = [check["name"] for check in merged["checks"]]
     assert "mass_balance_ledgers" in names
-    assert "operational_physical_bounds" in names
-    assert merged["scorecard_checks_kept"] == ["mass_balance_ledgers"]
+    assert names.count("operational_physical_bounds") == 2
+    assert merged["scorecard_checks_kept"] == [
+        "mass_balance_ledgers",
+        "operational_physical_bounds",
+    ]
     assert merged["status"] == "passed"
+
+
+def test_merge_does_not_overwrite_a_failing_scorecard_check():
+    from scenario.ssos_eclss_loop.physics_gate import merge_physics_gates
+
+    telemetry = evaluate_physics(_rows())
+    assert _status(_rows(), "operational_physical_bounds") == "passed"
+    scorecard = {
+        "passed": False,
+        "checks": [
+            {
+                "name": "operational_physical_bounds",
+                "passed": False,
+                "details": [{"step": 1, "kind": "air_revitalisation"}],
+            }
+        ],
+    }
+    merged = merge_physics_gates(scorecard, telemetry)
+    assert merged["status"] == "failed"
+    assert "operational_physical_bounds" in merged["failed"]
 
 
 def test_physics_gate_index_is_null_when_the_gate_did_not_run():

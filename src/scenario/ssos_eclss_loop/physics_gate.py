@@ -484,20 +484,15 @@ def _check_skipped(check: Mapping[str, Any]) -> bool:
 def merge_physics_gates(
     scorecard: Mapping[str, Any], telemetry: Mapping[str, Any]
 ) -> Dict[str, Any]:
-    """Keep the scorecard gate's checks and add any the telemetry gate lacks.
+    """Publish the telemetry audit without dropping the scorecard checks.
 
-    The telemetry-only audit does not overwrite the evaluator's own gate.
-    Checks that exist only on the older scorecard gate (different names or
-    event-based formulas) are appended so both verdicts stay visible.
+    A same-name port (for example ``operational_physical_bounds``) is not a
+    replacement: the scorecard formula still compares event details the
+    telemetry-only check cannot see. Both copies stay on the published gate.
     """
-    telemetry_checks = list(telemetry.get("checks") or [])
-    seen = {check.get("name") for check in telemetry_checks}
-    extras = [
-        dict(check)
-        for check in (scorecard.get("checks") or [])
-        if check.get("name") not in seen
-    ]
-    checks = telemetry_checks + extras
+    telemetry_checks = [dict(check) for check in (telemetry.get("checks") or [])]
+    scorecard_checks = [dict(check) for check in (scorecard.get("checks") or [])]
+    checks = telemetry_checks + scorecard_checks
     failed = [str(check.get("name")) for check in checks if _check_failed(check)]
     skipped = [str(check.get("name")) for check in checks if _check_skipped(check)]
     if failed:
@@ -514,7 +509,7 @@ def merge_physics_gates(
         "checks": checks,
         "failed": failed,
         "skipped": skipped,
-        "scorecard_checks_kept": [str(check.get("name")) for check in extras],
+        "scorecard_checks_kept": [str(check.get("name")) for check in scorecard_checks],
     }
 
 
