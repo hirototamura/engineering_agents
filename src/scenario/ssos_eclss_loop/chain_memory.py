@@ -10,21 +10,10 @@ back 0/50. The design that worked was not rejected. It was forgotten.
 
 This module keeps one small file at the root of a chain — a few hundred bytes
 naming the best design that kept everyone alive, the sizing that was actually
-installed last round, where each subsystem was *measured* to stop keeping the
-crew alive, and the handful of ways this chain has already lost people. It is
-capped at 4 KB because its only reader is a language model with a finite
-context window: it is a note, not a history, and it never grows with the
-iteration count.
-
-It states no limits of its own. It used to carry a calculated minimum per
-subsystem and a rule against going below it, and that rule became the answer:
-from the round the gas subsystems first touched their calculated minimum,
-twenty further rounds moved neither. Worse, one of the three calculations was
-wrong — the water figure ignored that the crew only starts the recycler once
-five litres have collected — and three rounds lost four occupants each
-rediscovering it. What is recorded now is what happened when a sizing was
-actually run. A designer shown that twelve occupants died at 20.45 does not
-need to be told 20.8 is a floor.
+installed last round, the theoretical floor under each subsystem, and the
+handful of ways this chain has already lost the crew. It is capped at 4 KB
+because its only reader is a language model with a finite context window: it is
+a note, not a history, and it never grows with the iteration count.
 
 What it is not: it does not *apply* anything. Carrying a partial proposal
 is ``iterate_apply_document``'s job — omitted keys stay at the machine this
@@ -60,6 +49,7 @@ OGS_KEY = "plant_sim.ogs.max_o2_kg_day"
 WRS_KEY = "plant_sim.wrs.max_feed_l_per_operation"
 
 PATTERN_DROPPED_TO_BASELINE = "dropped_ars_ogs_to_baseline"
+PATTERN_BELOW_FLOOR = "below_theoretical_floor"
 
 PATTERN_DESCRIPTIONS = {
     # Kept as a canary. Completing every hand-off to a whole machine should make
@@ -67,6 +57,9 @@ PATTERN_DESCRIPTIONS = {
     PATTERN_DROPPED_TO_BASELINE: (
         "A partial proposal omitted ARS/OGS and the next run reset them to "
         "baseline, losing the crew."
+    ),
+    PATTERN_BELOW_FLOOR: (
+        "ARS or OGS installed below the theoretical floor, and occupants were lost."
     ),
 }
 
@@ -77,11 +70,9 @@ OBJECTIVE = {
 }
 
 PROPOSAL_GUIDANCE = {
-    # No "do not reduce" clause. Shrinking is the whole point of the exercise
-    # once everyone is coming back, and the measured limits below say where it
-    # stops working without anyone having to forbid anything.
     "prefer_complete_capacity_profile": True,
     "include_all_design_variables": list(CAPACITY_KEYS),
+    "do_not_reduce_below_best_without_reason": True,
 }
 
 # Ranking used only to break a tie on score: a design that can be paid for
@@ -254,6 +245,65 @@ def capacity_keys_in_document(document: Optional[Mapping[str, Any]]) -> List[str
     return named
 
 
+# --------------------------------------------------------------------------- #
+# the theoretical floor
+# --------------------------------------------------------------------------- #
+def theoretical_floor_from_trace(trace_path: Path) -> Dict[str, float]:
+    """The smallest each subsystem can be and still meet the crew's demand.
+
+    Taken from the design agent's own ``compute_theoretical_capacity`` call
+    rather than recomputed here, so the number in the memory is the number the
+    designer was shown. Calls that overrode the crew size are skipped: they
+    answer a different question.
+    """
+    trace_path = Path(trace_path)
+    if not trace_path.is_file():
+        return {}
+    floor: Dict[str, float] = {}
+    try:
+        lines = trace_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(row, Mapping) or row.get("tool") != _TOOL_THEORETICAL_CAPACITY:
+            continue
+        if (row.get("arguments") or {}).get("crew_size") is not None:
+            continue
+        result = row.get("result")
+        if not isinstance(result, Mapping):
+            result = _parse_excerpt(row.get("result_excerpt"))
+        subsystems = (result or {}).get("subsystems")
+        if not isinstance(subsystems, Mapping):
+            continue
+        found = {
+            ARS_KEY: _number((subsystems.get("ars") or {}).get("required_nameplate_kg_day")),
+            OGS_KEY: _number((subsystems.get("ogs") or {}).get("required_nameplate_kg_day")),
+            # The WRS batch has to clear one step's worth of feed, or the buffer
+            # grows however many operations a day the busy guard allows.
+            WRS_KEY: _number((subsystems.get("wrs") or {}).get("expected_feed_l_per_step")),
+        }
+        floor.update({key: value for key, value in found.items() if value is not None})
+    return floor
+
+
+def _parse_excerpt(excerpt: Any) -> Dict[str, Any]:
+    """A traced result that was only kept as clipped text, if it survived intact."""
+    if not isinstance(excerpt, str):
+        return {}
+    try:
+        payload = json.loads(excerpt)
+    except ValueError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
 def _number(value: Any) -> Optional[float]:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
@@ -268,7 +318,8 @@ def _blank_memory() -> Dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "updated_after_iteration": None,
         "objective": dict(OBJECTIVE),
-        # Set once, by measurement, not by this module.
+        "theoretical_floor": {},
+        # Optional extra evidence from a probe; not a replacement for the floor.
         "measured_limits": None,
         "best_full_survival": None,
         "last_effective_design": None,
@@ -372,6 +423,28 @@ def _detect_dropped_to_baseline(
             # baseline. Both are the shape being counted.
             return True
     return False
+
+
+def _detect_below_floor(
+    *,
+    fields: Mapping[str, float],
+    floor: Mapping[str, Any],
+    crew_remaining: Any,
+    crew_initial: Any,
+) -> Optional[Dict[str, Any]]:
+    if not isinstance(crew_remaining, int) or not isinstance(crew_initial, int):
+        return None
+    if crew_remaining >= crew_initial:
+        return None
+    breached: Dict[str, Any] = {}
+    for key in (ARS_KEY, OGS_KEY):
+        limit = _number(floor.get(key))
+        installed = _number(fields.get(key))
+        if limit is None or installed is None:
+            continue
+        if installed < limit - 1e-9:
+            breached[key] = limit
+    return breached or None
 
 
 # --------------------------------------------------------------------------- #
@@ -610,6 +683,12 @@ def update_compact_chain_memory(
     # one produced the numbers beside it.
     fields = _round_fields(read_capacity_fields(config)) if config else {}
 
+    floor = theoretical_floor_from_trace(iteration_dir / "tool_trace.jsonl")
+    if floor:
+        memory["theoretical_floor"] = _round_fields(floor)
+    existing_floor = memory.get("theoretical_floor")
+    existing_floor = existing_floor if isinstance(existing_floor, Mapping) else {}
+
     crew_initial = summary.get("crew_initial")
     crew_remaining = summary.get("crew_remaining")
     score = _number((evaluation.get("scores") or {}).get("total"))
@@ -662,6 +741,14 @@ def update_compact_chain_memory(
         previous=previous_effective,
     ):
         _bump_pattern(patterns, PATTERN_DROPPED_TO_BASELINE)
+    breached = _detect_below_floor(
+        fields=fields,
+        floor=existing_floor,
+        crew_remaining=crew_remaining,
+        crew_initial=crew_initial,
+    )
+    if breached:
+        _bump_pattern(patterns, PATTERN_BELOW_FLOOR, thresholds=breached)
     memory["known_bad_patterns"] = patterns
 
     settings = exploration_settings(config)
@@ -724,6 +811,7 @@ __all__ = [
     "MAX_MEMORY_BYTES",
     "OBJECTIVE",
     "OGS_KEY",
+    "PATTERN_BELOW_FLOOR",
     "PATTERN_DROPPED_TO_BASELINE",
     "PROPOSAL_GUIDANCE",
     "SCHEMA_VERSION",
@@ -747,5 +835,6 @@ __all__ = [
     "load_chain_memory",
     "record_measured_limits",
     "survival_tier",
+    "theoretical_floor_from_trace",
     "update_compact_chain_memory",
 ]

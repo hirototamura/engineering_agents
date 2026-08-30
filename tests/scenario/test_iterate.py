@@ -573,6 +573,7 @@ def test_the_chain_measures_its_own_limits_before_designing_against_them(tmp_pat
             overrides=_labeled_overrides(backend="plant_sim", steps=8, inject_failures=False),
         ),
         paired_replay=False,
+        measure_limits=True,
     )
 
     path = chain_dir / MEASURED_LIMITS_FILENAME
@@ -592,8 +593,8 @@ def test_the_chain_measures_its_own_limits_before_designing_against_them(tmp_pat
     assert limits["by_subsystem"]
     for row in limits["by_subsystem"].values():
         assert "smallest_that_kept_everyone" in row
-    # Observations, not instructions.
-    assert "do_not_reduce_below_best_without_reason" not in memory["proposal_guidance"]
+    assert memory["proposal_guidance"]["do_not_reduce_below_best_without_reason"] is True
+    assert memory.get("theoretical_floor") is not None or memory.get("measured_limits")
 
 
 def test_the_chain_hands_on_a_whole_machine_not_just_what_changed(tmp_path: Path):
