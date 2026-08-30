@@ -14,6 +14,10 @@
 | local-optima | Second lens is `avoid_local_optima` | **done** |
 | storage | Session / Artifact / Claims in `core/storage` (no ADK Runner port) | **done** |
 | isolation | Auditors do not see each other. The designer does not see them | **done** |
+| parallel-audit | Three auditors run in parallel after the designer finishes | **done** |
+| slim-brief | Scorecard + clipped speech; no raw `evaluation_compact` (~114k) | **done** |
+| pin-veto | Vetoed keys stay at the installed value | **done** |
+| iterate-complete | `iterate_apply_document` fills omitted keys from the flown machine | **done** |
 | tests-docs | Isolation, item veto, empty-proposal guard, count=1 regression | **done** |
 
 ## Why
@@ -28,7 +32,7 @@ three auditors (lenses)    = which proposed items to drop
 Python                     = evidence, re-sim, physics gate, item merge, record
 ```
 
-Auditors do not invent a machine. An empty `changes` list leaves the iterate chain on the previous YAML, so a total veto still keeps the designer's fields.
+Auditors do not invent a machine. Iterate applies listed keys onto fresh YAML, so omitting a key reverts it to the baseline. A veto therefore pins that key to the currently installed value and still emits a complete three-field profile. A total veto keeps the installed machine so the next run has a proposal.
 
 ## Multi-agent
 
@@ -61,6 +65,7 @@ Auditors are outside `team.count`. `design.audit` owns the roster.
 | `design.audit.count` | `3` |
 | `design.audit.id_prefix` | `eclss_auditor` |
 | `design.audit.archetypes` | `rederive_numbers` / `avoid_local_optima` / `design_validity` |
+| `design.audit.llm.max_tokens` | `2048` (`think` stays on from `design.llm`) |
 
 ```mermaid
 flowchart LR
@@ -74,7 +79,7 @@ flowchart LR
   Merge --> Out["design_proposals.json"]
 ```
 
-All three see the same proposal. None sees another auditor's conclusion. They run sequentially (no vLLM queue pile-up).
+All three see the same slim brief (scorecard, clipped speech, installed vs proposed, chain note). None sees another auditor's conclusion. They run in parallel after the designer finishes. Python attaches nameplates and `compact_chain_memory` — auditors do not choose or call tools.
 
 ### Lenses
 
@@ -106,17 +111,18 @@ One JSON object each. No invented machine, field, or value.
 `integrate_audit_panel` in [`src/scenario/ssos_eclss_loop/design_ensemble.py`](../../../src/scenario/ssos_eclss_loop/design_ensemble.py):
 
 1. Start from the designer's verified fields  
-2. Drop the union of named `rejected_fields`  
-3. If anything remains, adopt that  
-4. If nothing would remain, keep the designer's fields so the next run has a proposal  
-5. Dropping items, or keeping fields after a total veto, is `provisional_final` (the leftover machine was not re-simulated)  
-6. All approve, or only abstains, keeps the designer's physics status  
+2. Take the union of named `rejected_fields`  
+3. Pin each vetoed key to the installed value; keep the rest of the proposal  
+4. Always emit all three capacity keys so a later apply cannot silently revert one  
+5. If every proposed change was vetoed, emit the installed machine (`kept_to_proceed`)  
+6. Pinning or a total veto is `provisional_final` (that mix was not re-simulated)  
+7. All approve, or only abstains, keeps the designer's physics status  
 
 | `decision_source` | Meaning |
 | --- | --- |
 | `tool_use_audit_panel` | no item dropped |
-| `tool_use_audit_panel:item_veto` | some fields dropped |
-| `tool_use_audit_panel:kept_to_proceed` | a total veto was blocked so the chain can continue |
+| `tool_use_audit_panel:item_veto` | some fields pinned to the installed machine |
+| `tool_use_audit_panel:kept_to_proceed` | every change was vetoed; the installed machine stays |
 
 The body is the designer message / reasoning, then the three write-ups. There is no fourth synthesizer LLM.
 
@@ -135,7 +141,7 @@ Implementation: [`src/core/storage/`](../../../src/core/storage/).
       eclss_auditor_2.jsonl
       eclss_auditor_3.jsonl
     claims.json
-  design_review_report.json      # ArtifactStore writes at run_dir root
+  design_review_report.json      # designer report; audit merges in, does not replace
   candidate_rankings.json
 ```
 

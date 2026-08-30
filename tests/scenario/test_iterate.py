@@ -350,6 +350,31 @@ def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
     assert approved is not None
 
 
+def test_iterate_apply_document_keeps_omitted_keys_at_installed():
+    from scenario.jobs.iterate import iterate_apply_document
+
+    ars = "plant_sim.ars.capacity_kg_day"
+    ogs = "plant_sim.ogs.max_o2_kg_day"
+    wrs = "plant_sim.wrs.max_feed_l_per_operation"
+    adopted = iterate_apply_document(
+        {
+            "design_domain": "ssos_graph",
+            "changes": [
+                {
+                    "change_kind": "capacity_profile",
+                    "payload": {"backend": "plant_sim", "fields": {ogs: 48.0, wrs: 10.0}},
+                }
+            ],
+        },
+        installed={ars: 4.5, ogs: 50.0, wrs: 10.0},
+    )
+    assert adopted is not None
+    fields = adopted["changes"][0]["payload"]["fields"]
+    assert fields[ars] == 4.5
+    assert fields[ogs] == 48.0
+    assert fields[wrs] == 10.0
+
+
 def test_the_chain_leaves_each_round_a_note_from_the_ones_before_it(tmp_path: Path):
     """Iterations read only their own run, so what carries over has to be written.
 

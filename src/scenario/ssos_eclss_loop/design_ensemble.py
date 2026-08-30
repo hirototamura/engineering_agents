@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence
@@ -13,7 +14,9 @@ from core.llm.parsing import parse_json_response
 from core.storage import DesignStorage
 from core.storage.claims import ClaimsRegistry, rewrite_body_from_selected
 from core.storage.session import SessionStore
+from scenario.ssos_eclss_loop.chain_memory import load_chain_memory
 from scenario.ssos_eclss_loop.design_eval import STATUS_APPROVED, STATUS_PROVISIONAL
+from scenario.ssos_eclss_loop.design_state import _scorecard
 from scenario.ssos_eclss_loop.design_tools import DesignToolkit
 from scenario.ssos_eclss_loop.design_variables import CAPACITY_KEYS, read_capacity_fields
 
@@ -31,24 +34,18 @@ INTERNAL_PROPOSAL_KEYS = ("ranked_candidates", "baseline_outcome")
 
 DEFAULT_AUDITOR_PREFIX = "eclss_auditor"
 DEFAULT_AUDIT_LENSES = ("rederive_numbers", "avoid_local_optima", "design_validity")
+DEFAULT_AUDIT_MAX_TOKENS = 2048
+AUDIT_SPEECH_CHARS = 400
+AUDIT_BRIEF_CHAR_BUDGET = 12000
 
 AUDIT_CONTRACT = """\
-Reply with ONE JSON object and nothing else.
+Reply with one JSON object.
 
-If this lens finds no item to drop:
-{"decision": "approve", "message": "what survived this lens",
- "reasoning": "what you checked"}
+Approve: {"decision":"approve","message":"...","reasoning":"..."}
+Reject items: {"decision":"reject","rejected_fields":["plant_sim.wrs.max_feed_l_per_operation"],"message":"...","reasoning":"..."}
 
-If this lens found a problem with one or more proposed items:
-{"decision": "reject",
- "rejected_fields": ["plant_sim.wrs.max_feed_l_per_operation"],
- "message": "which items fail this lens",
- "reasoning": "why those items, not the whole machine"}
-
-Rules: rejected_fields must be copied from the proposal. Do not invent a
-machine, a new field, or a value. Items you do not name stay. An empty
-proposal cannot be applied, so do not try to delete every item unless
-you can name each one. You do not see the other auditors.
+rejected_fields must already be in the proposal. Do not invent a machine,
+field, or value. Unnamed items stay. You do not see the other auditors.
 """
 
 
@@ -116,14 +113,68 @@ def resolve_audit_config(design_cfg: Mapping[str, Any]) -> Dict[str, Any]:
     return {"enabled": enabled, "agents": agents}
 
 
+def merge_audit_llm_cfg(
+    design_cfg: Mapping[str, Any],
+    tool_use_overrides: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Designer llm + tool_use overrides, then audit.llm. Default a short budget."""
+    audit = design_cfg.get("audit") if isinstance(design_cfg.get("audit"), Mapping) else {}
+    audit_llm = audit.get("llm") if isinstance(audit.get("llm"), Mapping) else {}
+    merged = {
+        **dict(design_cfg.get("llm") or {}),
+        **dict(tool_use_overrides or {}),
+        **dict(audit_llm),
+    }
+    if "max_tokens" not in audit_llm:
+        merged["max_tokens"] = DEFAULT_AUDIT_MAX_TOKENS
+    return merged
+
+
+def collect_audit_evidence(
+    *,
+    designer: Mapping[str, Any],
+    ranked: Sequence[Mapping[str, Any]],
+    scenario_config: Optional[Mapping[str, Any]] = None,
+    run_dir: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """The two views an auditor needs: nameplates, and the chain note.
+
+    Python builds this once. Auditors do not choose or call tools.
+    """
+    selected_id = designer.get("selected_candidate_id")
+    selected = next(
+        (row for row in ranked if row.get("candidate_id") == selected_id),
+        None,
+    )
+    proposed = dict((selected or {}).get("fields") or _fields_from_changes(designer))
+    installed = read_capacity_fields(scenario_config or {})
+    delta: Dict[str, Any] = {}
+    for key in CAPACITY_KEYS:
+        before = installed.get(key)
+        after = proposed.get(key)
+        if isinstance(before, (int, float)) and isinstance(after, (int, float)):
+            delta[key] = after - before
+    evidence: Dict[str, Any] = {
+        "installed": {key: installed[key] for key in CAPACITY_KEYS if key in installed},
+        "proposed": {key: proposed[key] for key in CAPACITY_KEYS if key in proposed},
+        "delta": delta,
+    }
+    if run_dir is not None:
+        memory = _audit_chain_view(load_chain_memory(Path(run_dir)))
+        if memory:
+            evidence["chain"] = memory
+    return evidence
+
+
 def build_audit_brief(
     *,
     designer: Mapping[str, Any],
     ranked: Sequence[Mapping[str, Any]],
     bias_direction: str,
     auditor: AuditAgent,
+    evidence: Optional[Mapping[str, Any]] = None,
 ) -> str:
-    """Show one designer proposal to one auditor. Other auditors are absent."""
+    """Show one slim designer proposal to one auditor. Other auditors are absent."""
     selected_id = designer.get("selected_candidate_id")
     selected = next(
         (row for row in ranked if row.get("candidate_id") == selected_id),
@@ -132,65 +183,45 @@ def build_audit_brief(
     proposal = {
         "proposed_by": designer.get("proposed_by"),
         "selected_candidate_id": selected_id,
-        "final_status": designer.get("final_status"),
-        "message": designer.get("message"),
-        "reasoning": designer.get("reasoning"),
         "fields": (selected or {}).get("fields") or _fields_from_changes(designer),
-        "outcome": {
-            key: ((selected or {}).get("outcome") or {}).get(key)
-            for key in (
-                "crew_remaining",
-                "crew_initial",
-                "critical_step_count",
-                "warning_step_count",
-                "evaluation_compact",
-            )
-        }
-        if selected
-        else designer.get("expected_outcome"),
+        "message": _clip_speech(designer.get("message")),
+        "reasoning": _clip_speech(designer.get("reasoning")),
+        "outcome": _audit_outcome(
+            (selected or {}).get("outcome")
+            if selected
+            else designer.get("expected_outcome")
+        ),
     }
-    catalog = [
-        {
-            "candidate_id": record.get("candidate_id"),
-            "fields": record.get("fields"),
-            "final_eligible": record.get("final_eligible"),
-            "final_ineligible_reasons": record.get("final_ineligible_reasons"),
-            "rank": record.get("rank"),
-            "outcome": {
-                key: (record.get("outcome") or {}).get(key)
-                for key in (
-                    "crew_remaining",
-                    "crew_initial",
-                    "critical_step_count",
-                    "warning_step_count",
-                    "evaluation_compact",
-                )
-            },
-        }
-        for record in ranked
-    ]
+    catalog = [_audit_candidate_row(record) for record in ranked if record is not selected]
     sections = [
-        f"You are {auditor.agent_id}, an independent adoption auditor.",
+        f"You are {auditor.agent_id}. Check this machine from your lens.",
         auditor.persona,
-        "",
-        "One designer (no thinking lens) proposed a verified machine.",
-        "Check that proposal from your lens. Approve it or reject it.",
-        "You do not see the other auditors. You may not invent a machine.",
+        "Approve or reject named items. Do not invent a machine. You do not see the other auditors.",
     ]
     if bias_direction:
-        sections += ["", "### Declared bias of this run", bias_direction]
+        sections += ["", "### Declared bias of this run", _clip_speech(bias_direction)]
+    if evidence:
+        sections += [
+            "",
+            "### Installed vs proposed (and chain note)",
+            json.dumps(evidence, ensure_ascii=False, default=str, separators=(",", ":")),
+        ]
     sections += [
         "",
-        "### Designer proposal (shown to you only among the auditors)",
-        json.dumps(proposal, ensure_ascii=False, default=str, indent=2),
-        "",
-        "### Verified candidates the designer already simulated",
-        json.dumps(catalog, ensure_ascii=False, default=str, indent=2),
-        "",
-        "### Output contract",
-        AUDIT_CONTRACT,
+        "### Proposed machine",
+        json.dumps(proposal, ensure_ascii=False, default=str, separators=(",", ":")),
     ]
-    return "\n".join(sections)
+    if catalog:
+        sections += [
+            "",
+            "### Other verified candidates",
+            json.dumps(catalog, ensure_ascii=False, default=str, separators=(",", ":")),
+        ]
+    sections += ["", "### Output contract", AUDIT_CONTRACT]
+    brief = "\n".join(sections)
+    if len(brief) <= AUDIT_BRIEF_CHAR_BUDGET:
+        return brief
+    return brief[:AUDIT_BRIEF_CHAR_BUDGET] + "\n…[audit brief clipped]"
 
 
 def run_lens_audit(
@@ -253,6 +284,63 @@ def run_lens_audit(
     )
 
 
+def run_audit_panel(
+    *,
+    llm_client: Any,
+    designer: Mapping[str, Any],
+    ranked: Sequence[Mapping[str, Any]],
+    bias_direction: str,
+    auditors: Sequence[AuditAgent],
+    session: Optional[SessionStore] = None,
+    scenario_config: Optional[Mapping[str, Any]] = None,
+    run_dir: Optional[Path] = None,
+) -> List[AuditVerdict]:
+    """Run every auditor on the same slim brief. Independence is no shared conclusions."""
+    evidence = collect_audit_evidence(
+        designer=designer,
+        ranked=ranked,
+        scenario_config=scenario_config,
+        run_dir=run_dir,
+    )
+    jobs = [
+        (
+            auditor,
+            build_audit_brief(
+                designer=designer,
+                ranked=ranked,
+                bias_direction=bias_direction,
+                auditor=auditor,
+                evidence=evidence,
+            ),
+        )
+        for auditor in auditors
+    ]
+    if not jobs:
+        return []
+    if len(jobs) == 1:
+        auditor, brief = jobs[0]
+        return [
+            run_lens_audit(
+                llm_client=llm_client,
+                brief=brief,
+                auditor=auditor,
+                session=session,
+            )
+        ]
+
+    def _one(job: tuple) -> AuditVerdict:
+        auditor, brief = job
+        return run_lens_audit(
+            llm_client=llm_client,
+            brief=brief,
+            auditor=auditor,
+            session=session,
+        )
+
+    with ThreadPoolExecutor(max_workers=len(jobs), thread_name_prefix="ea-audit") as pool:
+        return list(pool.map(_one, jobs))
+
+
 def apply_claims_sweep(
     proposals: Dict[str, Any],
     registry: ClaimsRegistry,
@@ -311,11 +399,11 @@ def integrate_audit_panel(
     verdicts: Sequence[AuditVerdict],
     storage: DesignStorage,
 ) -> Dict[str, Any]:
-    """Keep a runnable proposal; drop only the items the panel named.
+    """Keep a runnable proposal; pin vetoed items to the installed machine.
 
-    Auditors cannot invent a machine. Unusable replies abstain. If every
-    item would be dropped, the designer's fields stay so the next run can
-    proceed, and the document is provisional.
+    Auditors cannot invent a machine. Unusable replies abstain. Iterate
+    also completes a partial profile from the machine this run flew, so
+    an omitted key does not revert to the YAML baseline.
     """
     proposals = dict(designer)
     notes = list(proposals.get("parse_notes") or [])
@@ -331,8 +419,9 @@ def integrate_audit_panel(
     proposed_fields = dict(
         (selected or {}).get("fields") or _fields_from_changes(designer)
     )
+    installed = read_capacity_fields(getattr(bundle, "scenario_config", {}) or {})
     vetoed = _collect_vetoed_fields(verdicts, proposed_fields)
-    kept_fields, emptied = _keep_runnable_fields(proposed_fields, vetoed)
+    kept_fields, emptied = _pin_vetoed_to_installed(proposed_fields, vetoed, installed)
     if selected is not None:
         selected = dict(selected)
         selected["fields"] = dict(kept_fields)
@@ -365,7 +454,8 @@ def integrate_audit_panel(
         proposals["requires_supervisor_approval"] = True
         proposals["decision_source"] = "tool_use_audit_panel:kept_to_proceed"
         notes.append(
-            "audit panel named every item; kept designer fields so the next run can proceed"
+            "audit panel named every proposed change; kept the installed machine "
+            "so the next run can proceed"
         )
         reason = str(proposals.get("selection_reason") or "").strip()
         proposals["selection_reason"] = (
@@ -375,7 +465,10 @@ def integrate_audit_panel(
         proposals["final_status"] = STATUS_PROVISIONAL
         proposals["requires_supervisor_approval"] = True
         proposals["decision_source"] = "tool_use_audit_panel:item_veto"
-        notes.append("audit panel dropped items: " + ", ".join(sorted(vetoed)))
+        notes.append(
+            "audit panel pinned vetoed items to the installed machine: "
+            + ", ".join(sorted(vetoed))
+        )
         reason = str(proposals.get("selection_reason") or "").strip()
         proposals["selection_reason"] = (
             f"{reason} | audit panel dropped {', '.join(sorted(vetoed))}".strip(" |")
@@ -389,11 +482,7 @@ def integrate_audit_panel(
     else:
         notes.append("audit panel unusable; kept designer proposal")
 
-    _write_kept_fields(
-        proposals,
-        kept_fields,
-        installed=read_capacity_fields(getattr(bundle, "scenario_config", {}) or {}),
-    )
+    _write_kept_fields(proposals, kept_fields, installed=installed)
 
     designer_message = str(designer.get("message") or "").strip()
     designer_reasoning = str(designer.get("reasoning") or "").strip()
@@ -450,32 +539,36 @@ def integrate_audit_panel(
     proposals["evidence"] = evidence
 
     run_dir = Path(getattr(bundle, "run_dir", None) or ".")
-    report = {
-        "design_family": DESIGN_FAMILY,
-        "decision_source": proposals.get("decision_source"),
-        "proposed_by": proposals.get("proposed_by"),
-        "audited_by": proposals.get("audited_by"),
-        "message": proposals["message"],
-        "reasoning": proposals["reasoning"],
+    selection = {
+        "selected_candidate_id": selected_id,
         "final_status": proposals.get("final_status"),
-        "selection": {
-            "selected_candidate_id": selected_id,
-            "final_status": proposals.get("final_status"),
-            "requires_supervisor_approval": proposals.get("requires_supervisor_approval"),
-            "reason": proposals.get("selection_reason"),
-        },
-        "audit": audit_records,
-        "candidates": [DesignToolkit._ranking_row(record) for record in ranked],
-        "notes": notes,
+        "requires_supervisor_approval": proposals.get("requires_supervisor_approval"),
+        "reason": proposals.get("selection_reason"),
     }
-    storage.artifacts.write_json("design_review_report.json", report)
+    _merge_audit_into_report(
+        storage,
+        {
+            "design_family": DESIGN_FAMILY,
+            "decision_source": proposals.get("decision_source"),
+            "proposed_by": proposals.get("proposed_by"),
+            "audited_by": proposals.get("audited_by"),
+            "message": proposals["message"],
+            "reasoning": proposals["reasoning"],
+            "final_status": proposals.get("final_status"),
+            "selection": selection,
+            "audit": audit_records,
+            "candidates": [DesignToolkit._ranking_row(record) for record in ranked],
+            "notes": notes,
+            "evidence": evidence,
+        },
+    )
     if ranked:
-        storage.artifacts.write_json(
-            "candidate_rankings.json",
+        _merge_audit_into_rankings(
+            storage,
             {
                 "baseline": designer.get("baseline_outcome") or {},
                 "ranking": [DesignToolkit._ranking_row(record) for record in ranked],
-                "selection": report["selection"],
+                "selection": selection,
                 "audit": audit_records,
             },
         )
@@ -516,15 +609,72 @@ def _collect_vetoed_fields(
     return vetoed
 
 
-def _keep_runnable_fields(
+def _pin_vetoed_to_installed(
     proposed_fields: Mapping[str, Any],
     vetoed: Sequence[str],
+    installed: Mapping[str, Any],
 ) -> tuple:
-    dropped = {key for key in vetoed}
-    kept = {key: value for key, value in proposed_fields.items() if key not in dropped}
-    if kept:
-        return kept, False
+    """Complete three-key profile. Vetoed keys stay at the installed value."""
+    dropped = set(vetoed)
+    complete: Dict[str, Any] = {}
+    for key in CAPACITY_KEYS:
+        if key in dropped:
+            if key in installed:
+                complete[key] = installed[key]
+            elif key in proposed_fields:
+                complete[key] = proposed_fields[key]
+            continue
+        if key in proposed_fields:
+            complete[key] = proposed_fields[key]
+        elif key in installed:
+            complete[key] = installed[key]
+    proposed_keys = {key for key in proposed_fields if key in CAPACITY_KEYS}
+    emptied = bool(dropped) and bool(proposed_keys) and proposed_keys <= dropped
+    if complete:
+        return complete, emptied
     return dict(proposed_fields), True
+
+
+def _clip_speech(text: Any, limit: int = AUDIT_SPEECH_CHARS) -> str:
+    value = str(text or "")
+    if len(value) <= limit:
+        return value
+    return f"{value[:limit]} …[{len(value) - limit} chars omitted]"
+
+
+def _audit_outcome(outcome: Any) -> Dict[str, Any]:
+    body = outcome if isinstance(outcome, Mapping) else {}
+    view: Dict[str, Any] = {}
+    for key in ("crew_remaining", "crew_initial", "critical_step_count", "warning_step_count"):
+        if body.get(key) is not None:
+            view[key] = body.get(key)
+    view["scorecard"] = _scorecard(body)
+    return view
+
+
+def _audit_candidate_row(record: Mapping[str, Any]) -> Dict[str, Any]:
+    return {
+        "candidate_id": record.get("candidate_id"),
+        "fields": record.get("fields"),
+        "outcome": _audit_outcome(record.get("outcome")),
+    }
+
+
+def _audit_chain_view(memory: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(memory, Mapping) or memory.get("error"):
+        return None
+    view = {
+        key: memory.get(key)
+        for key in (
+            "updated_after_iteration",
+            "theoretical_floor",
+            "best_full_survival",
+            "last_effective_design",
+            "known_bad_patterns",
+        )
+        if memory.get(key) is not None
+    }
+    return view or None
 
 
 def _write_kept_fields(
@@ -574,3 +724,44 @@ def _join_sections(lead: str, extras: Sequence[str]) -> str:
     parts = [lead] if lead else []
     parts.extend(item for item in extras if item)
     return "\n\n".join(parts)
+
+
+def _merge_audit_into_report(
+    storage: DesignStorage,
+    updates: Mapping[str, Any],
+) -> None:
+    """Keep the designer's report; add the panel. Do not replace the file."""
+    report = dict(storage.artifacts.read_json("design_review_report.json"))
+    existing_selection = (
+        dict(report["selection"]) if isinstance(report.get("selection"), Mapping) else {}
+    )
+    existing_evidence = (
+        dict(report["evidence"]) if isinstance(report.get("evidence"), Mapping) else {}
+    )
+    incoming_evidence = updates.get("evidence") if isinstance(updates.get("evidence"), Mapping) else {}
+    existing_notes = list(report.get("notes") or [])
+    for note in updates.get("notes") or []:
+        if note not in existing_notes:
+            existing_notes.append(note)
+    report.update({key: value for key, value in updates.items() if key != "notes"})
+    report["selection"] = {**existing_selection, **dict(updates.get("selection") or {})}
+    report["evidence"] = {**existing_evidence, **dict(incoming_evidence)}
+    report["notes"] = existing_notes
+    storage.artifacts.write_json("design_review_report.json", report)
+
+
+def _merge_audit_into_rankings(
+    storage: DesignStorage,
+    updates: Mapping[str, Any],
+) -> None:
+    """Keep the designer's ranking document; add the panel."""
+    rankings = dict(storage.artifacts.read_json("candidate_rankings.json"))
+    existing_selection = (
+        dict(rankings["selection"]) if isinstance(rankings.get("selection"), Mapping) else {}
+    )
+    if not rankings.get("baseline") and updates.get("baseline"):
+        rankings["baseline"] = updates["baseline"]
+    rankings["ranking"] = updates.get("ranking") or rankings.get("ranking") or []
+    rankings["selection"] = {**existing_selection, **dict(updates.get("selection") or {})}
+    rankings["audit"] = updates.get("audit") or []
+    storage.artifacts.write_json("candidate_rankings.json", rankings)

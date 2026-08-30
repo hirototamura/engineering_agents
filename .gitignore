@@ -46,6 +46,8 @@ simulation.log
 src/experiments/results/*
 !src/experiments/results/.gitkeep
 !src/experiments/results/evaluation.html
+src/experiments/analysis/*
+!src/experiments/analysis/.gitkeep
 
 # Archived chains: the .tar.gz under experiments/runs/ is what is tracked.
 # Extracting one, and re-running the analysis over it, produces these.

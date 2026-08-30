@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import threading
 from pathlib import Path
 from typing import List
 
@@ -42,12 +43,14 @@ class _ScriptedLlm:
     def __init__(self, replies: List[str]):
         self.replies = list(replies)
         self.prompts: List[str] = []
+        self._lock = threading.Lock()
 
     def generate(self, prompt: str) -> str:
-        self.prompts.append(prompt)
-        if not self.replies:
-            return _finish()
-        return self.replies.pop(0)
+        with self._lock:
+            self.prompts.append(prompt)
+            if not self.replies:
+                return _finish()
+            return self.replies.pop(0)
 
     def check_connection(self) -> bool:
         return True

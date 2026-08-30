@@ -185,7 +185,9 @@ DesignState は 1 ランだけから組み立てる。だから伸びないの�
 **ラウンド間の記憶が無い**。実測 50 iteration の chain ではこれが乗員全員のコストになった。
 iteration 24 は ARS 20.8 / OGS 42.0 で 50/50 を維持し、iteration 25 が WRS だけの提案を出し、
 ARS と OGS が baseline に巻き戻り、次のランは 0/50 で返ってきた。うまくいった設計は
-却下されたのではない。**忘れられた。**
+却下されたのではない。**忘れられた。** いまは `iterate_apply_document` が省略された
+capacity キーを、そのランが実際に飛ばした機械の値で埋める。次の apply が新しい YAML に
+書いても、黙って baseline へ戻ることはない。
 
 そこで chain のルート直下に小さなファイルを 1 本だけ置き、iteration ごとに更新する
 （各 iteration dir 配下にはコピーしない）。実装は
@@ -575,6 +577,8 @@ design:
     id_prefix: eclss_auditor
     archetypes: [rederive_numbers, avoid_local_optima, design_validity]
     # persona が空ならレンズ文だけ。approve / reject のみ。機械は発明できない
+    llm:
+      max_tokens: 2048            # think はオンのまま。designer より短い予算
   tool_use:
     enabled: true                 # false で従来の summary 直読み designer に戻る
     max_candidate_runs: 4
@@ -585,7 +589,7 @@ design:
     plots_enabled: true
 ```
 
-設計者は 1 人（レンズなし）でループを回す。そのあと監査 3 人が同じ提案を、互いの結論を見ずに各自のレンズで見る。項目を approve するか、名前を付けた field を reject する。機械は発明できない。reject された項目だけ落とし、残りを採用するので次ランは提案なしで止まらない。全部落とす veto は設計者の field を残して provisional にする。読めない返事は棄権。落ちた主張は設計者本文から掃いてから監査所見を足す。セッションと CLAIMS は `<run_dir>/design_storage/`。詳細: [design_audit_storage.md](design_audit_storage.md)。
+設計者は 1 人（レンズなし）でループを回す。そのあと監査 3 人が並列に走る。同じ短い brief を、互いの結論を見ずに各自のレンズで見る。項目を approve するか、名前を付けた field を reject する。機械は発明できない。veto した field は搭載中の値に固定するので、iterate が YAML 初期値へ黙って戻すことはない。全部 veto なら搭載中の機械を残す。読めない返事は棄権。落ちた主張は設計者本文から掃いてから監査所見を足す。セッションと CLAIMS は `<run_dir>/design_storage/`。詳細: [design_audit_storage.md](design_audit_storage.md)。
 
 
 | `design.mode` | `tool_use.enabled` | 動作 |

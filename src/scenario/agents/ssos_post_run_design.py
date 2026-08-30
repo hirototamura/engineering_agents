@@ -23,11 +23,11 @@ from core.llm.factory import build_llm_client
 from core.storage import DesignStorage
 from scenario.agents.ssos_tool_use_design import ToolUseDesignAgent, ToolUseSettings
 from scenario.ssos_eclss_loop.design_ensemble import (
-    build_audit_brief,
     integrate_audit_panel,
+    merge_audit_llm_cfg,
     resolve_audit_config,
     resolve_bias_direction,
-    run_lens_audit,
+    run_audit_panel,
     strip_internal_proposal_keys,
 )
 from scenario.ssos_eclss_loop.design_proposals import (
@@ -137,6 +137,13 @@ class PostRunDesignAgent:
             return self._build_llm_client(merged)
         return llm_client
 
+    def _audit_llm_client(self) -> Optional[Any]:
+        if self.llm_client is None:
+            return None
+        return self._build_llm_client(
+            merge_audit_llm_cfg(self.config, self.tool_use.llm_overrides)
+        )
+
     def _run_one_tool_use(
         self,
         bundle: DesignReviewBundle,
@@ -180,22 +187,16 @@ class PostRunDesignAgent:
             for row in (designer.get("ranked_candidates") or [])
             if isinstance(row, dict)
         ]
-        verdicts = []
-        for auditor in audit_cfg["agents"]:
-            brief = build_audit_brief(
-                designer=designer,
-                ranked=ranked,
-                bias_direction=bias,
-                auditor=auditor,
-            )
-            verdicts.append(
-                run_lens_audit(
-                    llm_client=self._tool_use_llm_client(),
-                    brief=brief,
-                    auditor=auditor,
-                    session=storage.session,
-                )
-            )
+        verdicts = run_audit_panel(
+            llm_client=self._audit_llm_client(),
+            designer=designer,
+            ranked=ranked,
+            bias_direction=bias,
+            auditors=audit_cfg["agents"],
+            session=storage.session,
+            scenario_config=bundle.scenario_config,
+            run_dir=run_dir,
+        )
         return integrate_audit_panel(bundle, designer, verdicts, storage)
 
     def _rep_id(self, summary: Dict[str, Any]) -> str:

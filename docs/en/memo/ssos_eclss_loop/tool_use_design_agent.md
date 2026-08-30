@@ -195,7 +195,9 @@ means a chained run has no memory *between* rounds. In an observed fifty-iterati
 chain that cost the whole crew: iteration 24 kept 50/50 with ARS 20.8 / OGS 42.0,
 iteration 25 proposed a WRS-only change, ARS and OGS fell back to their baseline
 sizes, and the next run came back 0/50. The design that worked was not rejected. It
-was forgotten.
+was forgotten. ``iterate_apply_document`` now fills omitted capacity keys from the
+machine that run actually flew, so a later apply onto fresh YAML cannot silently
+revert them.
 
 So the chain keeps one small file at its root, updated after every iteration and
 never copied under them, in `src/scenario/ssos_eclss_loop/chain_memory.py`:
@@ -601,6 +603,8 @@ design:
     id_prefix: eclss_auditor
     archetypes: [rederive_numbers, avoid_local_optima, design_validity]
     # empty persona => lens text only; approve or reject, never invent a machine
+    llm:
+      max_tokens: 2048            # think stays on; smaller than the designer budget
   tool_use:
     enabled: true                 # false returns to the summary-reading designer
     max_candidate_runs: 4
@@ -611,7 +615,7 @@ design:
     plots_enabled: true
 ```
 
-One designer (no lens) runs the decision loop. After it finishes, three auditors (`design.audit`) each see that proposal from one lens and none of the other auditors. They may approve the items or reject named fields; they cannot invent a machine. Rejected items are dropped, the rest are kept so the next simulation still has a proposal. An empty veto keeps the designer's fields and marks the document provisional. Unusable replies abstain. Retracted claims are swept out of the designer body before the audit findings are appended. Session and claims land under `<run_dir>/design_storage/`. Detail: [design_audit_storage.md](design_audit_storage.md).
+One designer (no lens) runs the decision loop. After it finishes, three auditors (`design.audit`) run in parallel. Each sees the same slim brief from one lens and none of the other auditors. They may approve the items or reject named fields; they cannot invent a machine. A veto pins that field to the installed value so iterate cannot silently revert it to the YAML baseline. A total veto keeps the installed machine. Unusable replies abstain. Retracted claims are swept out of the designer body before the audit findings are appended. Session and claims land under `<run_dir>/design_storage/`. Detail: [design_audit_storage.md](design_audit_storage.md).
 
 | `design.mode` | `tool_use.enabled` | Behaviour |
 | --- | --- | --- |

@@ -26,10 +26,10 @@ rediscovering it. What is recorded now is what happened when a sizing was
 actually run. A designer shown that twelve occupants died at 20.45 does not
 need to be told 20.8 is a floor.
 
-What it is not: it does not *apply* anything. A partial proposal still drops
-the fields it omits — fixing that means merging applied designs, which is a
-change to how proposals are carried, not to what the designer is told. This
-file only makes the loss visible to whoever writes the next proposal.
+What it is not: it does not *apply* anything. Carrying a partial proposal
+is ``iterate_apply_document``'s job — omitted keys stay at the machine this
+run flew. This file only tells the next designer what was installed and
+what already failed.
 """
 
 from __future__ import annotations

@@ -68,8 +68,8 @@ design:
       name is checked, re-simulated, audited and compared for you before you
       are asked again. Do not judge pass/fail.
   # Three independent auditors, after the designer. Each sees the same
-  # proposal and none of the others. They may only approve or reject; they
-  # cannot invent a machine. The three write-ups are then merged.
+  # slim proposal and none of the others. They run in parallel. They may
+  # only approve or reject; they cannot invent a machine.
   audit:
     enabled: true
     count: 3
@@ -79,6 +79,10 @@ design:
       - avoid_local_optima
       - design_validity
     persona: ""  # empty => lens text only
+    llm:
+      # think stays on via design.llm. A veto is a small JSON object; the
+      # designer 6144 budget is too much thinking for that and too slow.
+      max_tokens: 2048  # [-] completion budget per auditor (~faster think)
   tool_use:
     # Design decision loop (design doc §5, §10). Only active when design.mode is llm.
     enabled: true  # false = classic summary-only post-run design proposal

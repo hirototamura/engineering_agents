@@ -24,13 +24,13 @@ from scenario.ssos_eclss_loop.chain_selection import (
     select_chain_final_answer,
     write_chain_final_answer,
 )
+from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_proposals import (
     complete_capacity_profile,
     load_design_proposals,
     supervisor_approval_reasons,
     write_design_proposals,
 )
-from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_variables import read_capacity_fields
 from scenario.ssos_eclss_loop.floor_probe import (
     measure_survival_limits,
@@ -195,12 +195,17 @@ def iterate_apply_document(
     proposals: Dict[str, Any],
     *,
     approve_provisional: bool = False,
+    installed: Optional[Mapping[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Document the next iterate sim should apply.
 
     Unified generation (capacity_profile, action_profile, …) is kept. ``set_parameter``
     is dropped so verification thresholds stay frozen across the chain. Documents
     that still need supervisor approval are skipped unless *approve_provisional*.
+
+    A capacity_profile that names only some keys is completed from *installed*
+    (the machine this run actually flew). Omit means keep that value, not
+    revert to the YAML baseline on the next apply.
     """
     kept: List[Dict[str, Any]] = []
     for change in proposals.get("changes") or []:
@@ -213,6 +218,8 @@ def iterate_apply_document(
         return None
     document = copy.deepcopy(proposals)
     document["changes"] = kept
+    if installed:
+        document = complete_capacity_profile(document, installed)
     if not approve_provisional and supervisor_approval_reasons(document):
         return None
     return document
@@ -484,7 +491,9 @@ def run_design_iterate(
             new_changes = list(proposals.get("changes") or [])
             accumulated_history.append({"iteration": index, "changes": new_changes})
             adoptable = iterate_apply_document(
-                proposals, approve_provisional=base_spec.approve_provisional
+                proposals,
+                approve_provisional=base_spec.approve_provisional,
+                installed=_installed_capacity(output_dir),
             )
             if adoptable is not None:
                 applied_path = output_dir / "applied_proposals.json"

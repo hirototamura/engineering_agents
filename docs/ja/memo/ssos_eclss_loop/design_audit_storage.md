@@ -14,6 +14,10 @@
 | local-optima | 2 本目のレンズを `avoid_local_optima` にする | **done** |
 | storage | Session / Artifact / Claims を `core/storage` に置く（ADK Runner は移植しない） | **done** |
 | isolation | 監査同士は結論を見ない。designer は監査を見ない | **done** |
+| parallel-audit | designer のあと監査 3 人を並列に走らせる | **done** |
+| slim-brief | スコアカードと短い本文。生の `evaluation_compact`（約 114k）は送らない | **done** |
+| pin-veto | veto したキーは搭載中の値に固定する | **done** |
+| iterate-complete | `iterate_apply_document` が省略キーを今回飛んだ機械で埋める | **done** |
 | tests-docs | 独立性・項目 veto・空提案回避・count=1 回帰 | **done** |
 
 ## なぜ
@@ -28,7 +32,7 @@ designer 1 人（レンズなし） = 何をサイズするか
 Python                      = 証拠・再シミュ・物理ゲート・項目マージ・記録
 ```
 
-監査は機械を発明しない。`changes` が空だと `--iterate` の次ランが初期 YAML のまま進むので、全部 veto されても designer の field を残す。
+監査は機械を発明しない。iterate は列挙したキーだけを新しい YAML に書くので、キーを落とすとその項目は初期値に戻る。veto したキーは搭載中の値に固定し、3 項目そろった profile を出す。全部 veto されたときは搭載中の機械を残す。
 
 ## マルチエージェント
 
@@ -61,6 +65,7 @@ eclss_designer_1 ── 決定ループ ── 検証済み candidate
 | `design.audit.count` | `3` |
 | `design.audit.id_prefix` | `eclss_auditor` |
 | `design.audit.archetypes` | `rederive_numbers` / `avoid_local_optima` / `design_validity` |
+| `design.audit.llm.max_tokens` | `2048`（`think` は `design.llm` のまま） |
 
 ```mermaid
 flowchart LR
@@ -74,7 +79,7 @@ flowchart LR
   Merge --> Out["design_proposals.json"]
 ```
 
-3 人は同じ提案を見る。互いの結論は見ない。順次実行（vLLM の待ち行列を積まない）。
+3 人は同じ短い brief（スコアカード、短い本文、搭載中 vs 提案、チェーンメモ）を見る。互いの結論は見ない。designer のあと並列に走る。能力値と履歴は Python が載せる。監査は tool を選ばない。
 
 ### レンズ
 
@@ -106,17 +111,18 @@ flowchart LR
 実装は [`src/scenario/ssos_eclss_loop/design_ensemble.py`](../../../src/scenario/ssos_eclss_loop/design_ensemble.py) の `integrate_audit_panel`。
 
 1. designer の検証済み field を起点にする  
-2. 3 人の `rejected_fields` の和集合を落とす  
-3. 残りが 1 つでもあればそれを採用する  
-4. 残りが空なら designer の field を残す（次ランが提案なしで止まらない）  
-5. 項目を落とした、または全部 veto して残した場合は `provisional_final`（落とされたあとの機械は未検証）  
-6. 3 人が approve、または棄権だけなら designer の物理ステータスを残す  
+2. 3 人の `rejected_fields` の和集合を取る  
+3. veto したキーは搭載中の値に固定し、残りは提案を採用する  
+4. 3 キーそろった profile を出す（後の apply が 1 項目を黙って戻さないように）  
+5. 提案した変更が全部 veto されたら搭載中の機械を残す（`kept_to_proceed`）  
+6. ピン留め、または全部 veto は `provisional_final`（その組み合わせは未検証）  
+7. 3 人が approve、または棄権だけなら designer の物理ステータスを残す  
 
 | `decision_source` | 意味 |
 | --- | --- |
 | `tool_use_audit_panel` | 項目は落ちていない |
-| `tool_use_audit_panel:item_veto` | 一部の field を落とした |
-| `tool_use_audit_panel:kept_to_proceed` | 全部落ちるところを designer field で止めた |
+| `tool_use_audit_panel:item_veto` | 一部の field を搭載中の値に戻した |
+| `tool_use_audit_panel:kept_to_proceed` | 変更が全部 veto され、搭載中の機械のまま |
 
 本文は designer の message / reasoning のあとに、3 人の所見を足す。4 人目の合成 LLM は置かない。
 
@@ -135,7 +141,7 @@ ADK の Runner / LlmAgent / tool-use ループは移植しない。残すのは 
       eclss_auditor_2.jsonl
       eclss_auditor_3.jsonl
     claims.json
-  design_review_report.json      # ArtifactStore が run_dir 直下へ
+  design_review_report.json      # designer の報告。監査は追記し、置き換えない
   candidate_rankings.json
 ```
 
