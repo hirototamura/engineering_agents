@@ -14,30 +14,31 @@ The chain memory mechanism removed eleven of twelve catastrophic resets. That re
 | --- | --- | --- |
 | Assert `chain_memory_compact` is in the tool-use context from round 2 onward | `tests/scenario/test_ssos_chain_memory.py` | a chain run with the note stripped fails |
 | Assert the recorded best design names ARS **and** OGS **and** WRS | `chain_memory.py` `best_full_survival` | a two-field best is rejected |
-| Assert a partial proposal does not reset the omitted fields to baseline | `design_proposals.py` | currently **fails by design** — see P1 |
+| Assert a partial proposal does not reset the omitted fields to baseline | `design_proposals.py` | **done** in `0aaec84` — `complete_capacity_profile`, covered by `tests/scenario/test_ssos_design_proposals.py` |
 | Keep an observed failure boundary as a bad pattern | `chain_memory.py` `known_bad_patterns` | WRS=1.25 → 45/50 survives into the next round's note |
 
-## P1 — Make chain memory *apply*, not only *show*
+## ~~P1 — Make chain memory *apply*, not only *show*~~ — done in `0aaec84`
 
-The largest known gap, and the code says so in its own docstring: chain memory tells the next round what worked, but a partial proposal still drops the fields it omits. Showing the note was enough in practice — one reset in fifty rounds instead of twelve — but the mechanism is a warning label, not a fix.
+A capacity proposal was merged into the *scenario file* rather than into the machine the run that produced it was flying, so naming one subsystem silently returned the other two to their shipped sizes. `complete_capacity_profile` now fills in whatever a proposal did not mention from what was actually installed. Nothing is overridden; an omission has simply stopped meaning "revert this".
 
-**The fix:** merge `applied_proposals` into a cumulative design state, so an unnamed field keeps its installed value rather than falling back to the scenario default. That is a change to how proposals are carried (`design_proposals.py`), not to what the designer is told.
+The same commit replaced the *calculated* floor with a *measured* bracket (`floor_probe.py`), because the asserted minimum had become the answer: from the round the gas subsystems first touched it, twenty rounds moved neither, and one of the three figures was wrong.
 
-**Why it was not done first:** it changes the meaning of every proposal in the archive, and the cheaper intervention was worth measuring on its own. It was. Now the expensive one is worth doing.
+**What this opens, and is the next thing to run:** ARS and OGS were pinned through most of phases 2 and 3 by that assertion. Nothing forbids going lower now. Whether the search actually spreads is unmeasured — a fourth chain answers it.
 
-## P1 — Explore more than one axis
+## P1 — Check that the search actually spreads
 
-Phase 3's stagnation detector fires and asks for exploration, and the exploration it gets is still WRS-only. ARS and OGS have not moved since they reached their theoretical floor.
+Phase 3's stagnation detector fired and asked for exploration, and the exploration it got was still WRS-only. The reason is now understood: ARS and OGS were held by an *asserted* minimum, and a line a designer may not cross becomes the answer. `0aaec84` removed the assertion and replaced it with a measured bracket. Nothing forbids going lower any more.
 
-| Direction | Rationale |
+So the priority is no longer "add a rule that permits exploring" — it is **run a fourth chain and see**. What to look for:
+
+| Question | What would answer it |
 | --- | --- |
-| Hold ARS ≥ 20.8, OGS ≥ 42.0 as a floor | below it the crew dies; this is physics, not preference |
-| Concentrate on WRS 1.8–2.2 | the observed promising band |
-| Avoid WRS ≈ 1.25 | measured failure boundary (45/50) |
-| When WRS alone stops paying, perturb ARS/OGS by 1–3 % | the one axis pair never tried |
-| Deprioritise *lowering* ARS/OGS | high prior probability of losing the crew |
+| Do ARS and OGS move at all now? | unique `config_ars` / `config_ogs` values per chain, against phase 3's one apiece |
+| Does anything survive below the measured bracket? | rounds proposing under 20.79 / 42.04 / 1.98, and what came back |
+| Does total mass or cost actually fall? | `total_mass_kg` and `total_cost_musd` at equal survival, not score |
+| Does the recycler stop absorbing the whole search? | share of rounds whose only change is WRS |
 
-Lands in `chain_memory.py` `_exploration_directive`, which already composes the text the next round reads.
+If the search stays on one axis with nothing forbidding it, the cause is the directive text rather than the constraint, and that lands in `chain_memory.py` `_exploration_directive`.
 
 ## P1 — Separate "the scoring changed" from "the design improved"
 

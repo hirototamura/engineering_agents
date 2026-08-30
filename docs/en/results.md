@@ -47,7 +47,7 @@ The diagnosis is worth stating precisely, because it is not the obvious one: **t
 
 ## Phase 2 — one 4 KB note
 
-The only change: `compact_chain_memory.json`, capped at 4096 bytes, carrying the best full-survival design, the sizing actually installed last round, the theoretical floor under each subsystem, and up to five ways this chain has already lost the crew. It is *shown* to the next round. Nothing applies it.
+The only change: `compact_chain_memory.json`, capped at 4096 bytes, carrying the best full-survival design, the sizing actually installed last round, a *calculated* floor under each subsystem, and up to five ways this chain has already lost the crew. It is *shown* to the next round; nothing applies it. (Both of those changed in `0aaec84`, after these runs — the floor is measured now and the hand-off is completed. What follows is what these three chains actually ran with.)
 
 | | Phase 1 | Phase 2 |
 | --- | ---: | ---: |
@@ -109,7 +109,9 @@ Round 34 dropped WRS to 1.25 and lost five people (45/50) — the only non-50/50
 
 ![ARS / OGS / WRS across all three phases](../images/results/ssos_phase1_phase2_phase3_parameter_trends.svg)
 
-In phases 2 and 3, ARS settles at 20.8 kg/day and OGS at 42.0 kg/day and stays there. Those are not arbitrary: they are exactly the nameplates `compute_theoretical_capacity` reports as required for this crew (`theory_ars_required_nameplate=20.8`, `theory_ogs_required_nameplate=42.0` in every row of the metrics CSVs; OGS 42.0 is 50 × 0.84 kg O₂/day). The chain found the physical floor and refused to go under it — which is the correct behaviour, and is what `theoretical_floor` in chain memory is for.
+In phases 2 and 3, ARS settles at 20.8 kg/day and OGS at 42.0 kg/day and stays there. Those are not arbitrary: they are exactly the nameplates `compute_theoretical_capacity` reports as required for this crew (`theory_ars_required_nameplate=20.8`, `theory_ogs_required_nameplate=42.0` in every row of the metrics CSVs; OGS 42.0 is 50 × 0.84 kg O₂/day). The chain found the physical floor and refused to go under it.
+
+That refusal has since been re-examined, and the re-examination is the most interesting thing these three runs produced. The floor was *calculated* and *asserted* — and a line a designer may not cross becomes the answer. From the round the two gas subsystems first touched theirs, twenty further rounds moved neither; they are 91% of the mass, which is why the search collapsed onto the water recycler. One of the three figures was also simply wrong: the calculated water minimum of 1.5625 L is really about 1.98, because the crew only starts the recycler once five litres have collected, and three rounds lost four occupants each rediscovering that. `floor_probe.py` (`0aaec84`) measures the bracket instead of asserting it, and shows the designer both ends and no threshold. A fourth chain has not yet been run with it.
 
 Search then concentrated on WRS. The most frequent designs in phase 3:
 
@@ -131,9 +133,10 @@ Stated plainly, because a result page that only lists wins is not a result page.
 
 1. **Total mass and cost did not improve much between phase 2 and phase 3.** The score went up because the scoring changed. The correct reading is "survivable designs stopped being marked unfairly", not "the design got lighter". Future reports should print the new score, the old score recomputed, total M$, total kg, and survivors side by side, so the two can never be confused again.
 2. **The search is still WRS-only.** ARS and OGS have not been perturbed since they hit the floor. The stagnation detector now fires and asks for exploration, but the exploration it gets is still along one axis.
-3. **Chain memory shows; it does not apply.** A partial proposal still drops the fields it omits. Showing the note was enough in practice — one reset in fifty rounds instead of twelve — but the underlying merge of applied designs is unfixed, and `chain_memory.py`'s own docstring says so.
+3. **~~Chain memory shows; it does not apply.~~ Fixed in `0aaec84`, after these runs.** A capacity proposal was merged into the *scenario file* rather than into the machine the run was flying, so naming one subsystem silently returned the other two to their shipped sizes — that is the mechanism behind every reset counted above. `complete_capacity_profile` now fills in whatever a proposal did not mention from what was actually installed. The note stops being a stopgap; the numbers on this page pre-date the fix.
 4. **No safety floor during exploration.** Round 34's WRS=1.25 cost five lives. Nothing stopped it, and nothing had to: exploration is deliberately unconstrained, and only the *final answer* must keep everyone alive. Whether that is the right trade is an open question, not a settled one.
-5. **One model, one seed, three chains.** These are three runs, not a statistical study. They are enough to show a mechanism working and a mechanism failing; they are not enough to put an error bar on a score.
+5. **The measured floor is unmeasured, as a result.** `0aaec84` also removed the asserted minimum, which is what pinned ARS and OGS through most of phases 2 and 3. Whether the search actually spreads once nothing forbids going lower is the obvious next run, and it has not been done.
+6. **One model, one seed, three chains.** These are three runs, not a statistical study. They are enough to show a mechanism working and a mechanism failing; they are not enough to put an error bar on a score.
 
 ---
 

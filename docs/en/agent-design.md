@@ -175,14 +175,30 @@ The note holds four things and nothing else:
 | --- | --- |
 | `best_full_survival` | the smallest design that kept everyone alive |
 | `last_effective_design` | what was *actually installed* last round, not what was proposed |
-| `theoretical_floor` | the physical floor under each subsystem, computed from the trace |
+| `measured_limits` | where each subsystem was **measured** to stop keeping the crew alive — both ends of the bracket |
 | `known_bad_patterns` | at most 5, e.g. "a partial proposal reset ARS/OGS to baseline and lost the crew" |
 
 When it exceeds 4 KB, `_fit` (`chain_memory.py:550`) drops the least useful entry rather than truncating text — a note that ends mid-sentence is worse than a shorter one. It never grows with the round count. It is a note, not a history.
 
 It also carries an **exploration directive**: when four consecutive rounds *in the same survival tier* fail to improve by 0.25 points (`_detect_stagnation`, `chain_memory.py:458`), the next round is told, in words, that it is going round in circles. Comparing only within a survival tier matters — a round that saved four more people moved, even if it scored lower.
 
-**An honest limitation, stated in the code's own docstring:** chain memory *shows*, it does not *apply*. A partial proposal still drops the fields it omits. Making the note visible was enough to stop the collapse in practice — one baseline reset in fifty rounds instead of twelve — but the underlying merge is still unfixed, and the docstring says so.
+### Measured, not calculated
+
+`measured_limits` was a calculated floor until `0aaec84`, and the change is worth reading as a result rather than a refactor.
+
+The floor was crew demand over how often a machine can run, asserted per subsystem, with the designer told not to cross it. Two things were wrong. **The arithmetic was not always right** — it assumes a full batch every cycle, and the crew only starts the water recycler once five litres have collected, so the calculated 1.5625 L was really about 1.98. Three rounds proposed the calculated value and each lost four occupants rediscovering that. **And a line a designer may not cross becomes the answer** — from the round the two gas subsystems first touched their calculated minimum, twenty further rounds moved neither. Those two are 91% of the mass, so the only lever left was the recycler, worth under half a mark across its whole safe range.
+
+So `floor_probe.py` measures instead: once per chain, grow the shipped machine until everyone comes back, then walk each subsystem down on its own — holding the others at the smallest sizing that survived — until occupants are lost. 34 simulations, 16 seconds, no model involved.
+
+```text
+CO2 scrubber      20.79 kept everyone   20.45 lost 12  (co2_warning)
+oxygen generator  42.04 kept everyone   41.35 lost  2  (o2_warning)
+water recycler     1.98 kept everyone    1.95 lost  4  (water_warning)
+```
+
+The gas figures came out where the calculation said — which is only knowable because they were checked. The water figure did not. What reaches the decision page is the two ends of each bracket and nothing else: no threshold, no floor, no instruction.
+
+**And the note is no longer a stopgap.** It carried a `do_not_reduce` clause because a capacity proposal was merged into the *scenario file* rather than into the machine the run was flying, so naming one subsystem silently returned the other two to their shipped sizes. `complete_capacity_profile` now fills in whatever a proposal did not mention from what was actually installed. An omission has stopped meaning "revert this", and the four places that forbade going lower are gone.
 
 ---
 

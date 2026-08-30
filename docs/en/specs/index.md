@@ -66,7 +66,7 @@ iteration 25: a WRS-centred partial proposal
 
 The design that worked was not rejected. It was forgotten.
 
-**What was built.** One file at the root of a chain, `compact_chain_memory.json`, capped at 4 KB: the best design that kept everyone alive, the sizing actually installed last round, the theoretical floor under each subsystem, and the handful of ways this chain has already lost the crew. Its only reader is a language model with a finite context window, so the size cap is a design constraint, not an implementation detail.
+**What was built.** One file at the root of a chain, `compact_chain_memory.json`, capped at 4 KB: the best design that kept everyone alive, the sizing actually installed last round, a calculated floor under each subsystem (measured, since `0aaec84`), and the handful of ways this chain has already lost the crew. Its only reader is a language model with a finite context window, so the size cap is a design constraint, not an implementation detail.
 
 | Spec section | Code |
 | --- | --- |
@@ -79,7 +79,7 @@ Commit: `c0dcb4f`
 
 **Explicit non-goals, from the spec:** no vector DB, no raw telemetry in context, no redesign of the agent loop, no new optimiser.
 
-**Still open, and stated as such:** chain memory *shows*, it does not *apply*. A partial proposal still drops the fields it omits; fixing that means merging applied designs, which changes how proposals are carried. Showing it was enough to stop the collapse in practice — see the [experiment record](../results.md).
+**Left open by this spec, and closed later:** chain memory *showed*, it did not *apply* — a partial proposal still dropped the fields it omitted, and the spec said so rather than pretending otherwise. Showing it was enough to stop the collapse in practice (see the [experiment record](../results.md)); `0aaec84` then fixed the carrying itself, and replaced the calculated floor this spec introduced with a measured one.
 
 ## 4 — Scoring and stagnation exploration (2026-08-30)
 

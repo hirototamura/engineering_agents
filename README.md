@@ -116,7 +116,17 @@ round 24: ARS=20.8, OGS=42.0, WRS=1.8  → 50/50 alive, score 66.18
 round 25: a WRS-only proposal          → next run installs baseline → 0/50
 ```
 
-The design that worked was not rejected. **It was forgotten.** Every round assembles its state fresh from its own run — which is what makes a round auditable, and is exactly why the chain had no memory. Chain memory carries four things and nothing else: the best full-survival design, what was *actually installed* last round, the theoretical floor under each subsystem, and up to five ways this chain has already lost the crew. Over 4 KB it drops the least useful entry rather than truncating text.
+The design that worked was not rejected. **It was forgotten.** Every round assembles its state fresh from its own run — which is what makes a round auditable, and is exactly why the chain had no memory. Chain memory carries four things and nothing else: the best full-survival design, what was *actually installed* last round, **where each subsystem was measured to stop keeping the crew alive**, and up to five ways this chain has already lost people. Over 4 KB it drops the least useful entry rather than truncating text.
+
+Those limits are measured, not calculated, and the distinction cost a run to learn. A calculated minimum was asserted per subsystem and the designer was told not to cross it — so it became the answer: from the round the two gas subsystems first touched theirs, twenty further rounds moved neither. They are 91% of the mass. And one of the three figures was simply wrong. Now `floor_probe.py` grows the shipped machine until everyone comes back, then walks each subsystem down alone until occupants are lost — 34 simulations, 16 seconds, no model asked anything. What the designer sees is the two ends of each bracket:
+
+```text
+CO2 scrubber      20.79 kept everyone   20.45 lost 12
+oxygen generator  42.04 kept everyone   41.35 lost  2
+water recycler     1.98 kept everyone    1.95 lost  4
+```
+
+No threshold, no floor, no instruction. Someone shown that twelve occupants died at 20.45 does not need to be told 20.8 is a limit.
 
 It also carries an exploration directive: four rounds *in the same survival tier* without a 0.25-point gain, and the next round is told, in words, that it is going in circles.
 
@@ -146,7 +156,9 @@ Three findings worth the run time:
 2. **A 4 KB note fixed it.** Twelve catastrophic resets became one. Every proposal thereafter named all three subsystems. The cost: unique designs fell from 39 to 11 as the search narrowed.
 3. **The scorecard was measuring the wrong thing.** Full marks on cost and mass sat at the *shipped baseline*, which kills everyone — so every survivable design, being necessarily larger, was marked expensive. Two very different survivable designs scored 11.6 and 4.1 out of 40; the sheet could not tell them apart. Re-anchoring to the smallest observed survivable design fixed the resolution.
 
-And what is still wrong, stated in the same place: total mass and cost did **not** improve much between phases 2 and 3 — the score moved because the scoring moved. The search is still WRS-only. Chain memory shows but does not apply. One model, one seed, three chains — not a statistical study.
+And what is still wrong, stated in the same place: total mass and cost did **not** improve much between phases 2 and 3 — the score moved because the scoring moved. The search stayed on one axis. One model, one seed, three chains — not a statistical study.
+
+Two of those have since been diagnosed and fixed (`0aaec84`), which is the fourth finding and the most uncomfortable one. The chain was handed a *calculated* minimum per subsystem and told not to cross it — so it stopped there: from the round the two gas subsystems first touched theirs, twenty further rounds moved neither, and they are 91% of the mass. One of the three figures was also wrong. **The floor is measured now** — grow the machine until everyone comes back, walk each subsystem down alone until they do not, show the designer both ends and no threshold. And the resets themselves turned out to be a plumbing bug: a proposal was merged into the scenario file rather than the machine the run was flying, so naming one subsystem reverted the other two. Whether the search spreads now that nothing forbids going lower is **unmeasured** — that is the next chain, not a claim.
 
 → **[Full experiment record](docs/en/results.md)**
 
@@ -295,7 +307,7 @@ Provider reasoning (vLLM `reasoning_content`, Ollama `thinking`) is merged with 
 
 **Concurrency and reproducibility.** Fifty agents deliberate in one batch through a 128-worker pool with a loop-agnostic `threading.BoundedSemaphore` (an `asyncio.Semaphore` breaks on the next step's `asyncio.run`). Steps are synchronous: all agents observe the same snapshot, then the plant advances once. The simulator has no RNG — same config, same commands, same trajectory to the decimal, which is what lets a candidate's *predicted* outcome be checked against the next round's *measured* one.
 
-**Tests.** 812 passing, 4 skipped.
+**Tests.** 820 passing, 4 skipped.
 
 ```bash
 pytest tests --ignore=tests/e2e
@@ -310,8 +322,7 @@ Not smoke tests — they test the adversarial cases. `test_ssos_physics_gate.py`
 Each item is something the three chains **measured** as missing.
 
 - **P0** — regression-test the chain memory mechanism. It removed eleven of twelve catastrophic resets and nothing currently fails if it stops working.
-- **P1** — make chain memory *apply*, not only *show*: merge applied proposals so an unnamed field keeps its installed value.
-- **P1** — explore more than one axis. ARS/OGS have not moved since reaching their theoretical floor.
+- **P1** — run a fourth chain now that the asserted floor is gone, and check whether the search actually spreads past the water recycler. Unmeasured, and the interesting question.
 - **P1** — print new score, old score recomputed, total M$, total kg and survivors side by side, so "the scoring changed" can never again read as "the design improved".
 - **P2** — a safety floor during exploration (round 34 cost five lives); prune volume and `over_budget` from the decision page; show candidate id and applied round together.
 
