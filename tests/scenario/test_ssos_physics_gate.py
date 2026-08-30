@@ -151,7 +151,7 @@ def test_no_telemetry_is_incomplete_not_passed():
     result = evaluate_physics([])
     assert result["status"] == "incomplete"
     assert result["passed"] is False
-    assert len(result["skipped"]) == 9
+    assert len(result["skipped"]) == 10
 
 
 def test_missing_audit_fields_are_incomplete_not_passed():
@@ -164,7 +164,11 @@ def test_missing_audit_fields_are_incomplete_not_passed():
 
     result = evaluate_physics(rows)
     assert result["status"] == "incomplete"
-    assert set(result["skipped"]) == {"failure_quiescence", "capacity_bounds"}
+    assert set(result["skipped"]) == {
+        "failure_quiescence",
+        "capacity_bounds",
+        "operational_physical_bounds",
+    }
     assert not result["failed"]
 
 
@@ -242,3 +246,42 @@ def test_ars_bound_scales_with_the_goal():
 
     operations[0]["goal_scale"] = 4.0
     assert _status(rows, "capacity_bounds") == "passed"
+
+
+def test_negative_processed_amount_fails_operational_bounds():
+    rows = _rows()
+    operations = rows[-1]["raw_topics"]["plant_sim"]["operations_this_step"]
+    operations[0]["co2_removed_kg"] = -0.1
+    assert _status(rows, "operational_physical_bounds") == "failed"
+
+
+def test_merge_keeps_scorecard_only_checks():
+    from scenario.ssos_eclss_loop.physics_gate import merge_physics_gates
+
+    telemetry = evaluate_physics(_rows())
+    scorecard = {
+        "passed": True,
+        "checks": [
+            {
+                "name": "mass_balance_ledgers",
+                "passed": True,
+                "residuals": {"o2_kg": 0.0, "co2_kg": 0.0, "water_l": 0.0},
+            }
+        ],
+    }
+    merged = merge_physics_gates(scorecard, telemetry)
+    names = [check["name"] for check in merged["checks"]]
+    assert "mass_balance_ledgers" in names
+    assert "operational_physical_bounds" in names
+    assert merged["scorecard_checks_kept"] == ["mass_balance_ledgers"]
+    assert merged["status"] == "passed"
+
+
+def test_physics_gate_index_is_null_when_the_gate_did_not_run():
+    from scenario.ssos_eclss_loop.physics_gate import physics_gate_index
+
+    gate = {"passed": False, "status": "incomplete"}
+    assert physics_gate_index("mock", "not_applicable", gate) is None
+    assert physics_gate_index("plant_sim", "not_applicable", gate) is None
+    assert physics_gate_index("plant_sim", "scored", {"passed": True}) is True
+    assert physics_gate_index("plant_sim", "invalid", {"passed": False}) is False

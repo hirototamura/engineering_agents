@@ -164,6 +164,8 @@ def test_evaluation_carries_the_integrity_and_physics_summaries(tmp_path: Path):
         "arm_modified",
     }
     assert payload["physics_gate"]["status"] == "passed"
+    assert "scorecard_physics_gate" in payload
+    assert payload["scorecard_physics_gate"].get("checks")
     assert (run_dir / "run_integrity.json").is_file()
     assert (run_dir / "physics_gate.json").is_file()
 
