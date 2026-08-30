@@ -203,4 +203,4 @@ def test_unprovable_physics_makes_the_evaluation_invalid(tmp_path: Path):
 
     payload = json.loads((run_dir / "evaluation.json").read_text(encoding="utf-8"))
     assert payload["status"] == "invalid"
-    assert payload["invalid_reasons"] == ["physics_gate_incomplete"]
+    assert payload["invalid_reasons"] == ["physics_gate_failed"]
