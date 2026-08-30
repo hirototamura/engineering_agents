@@ -407,7 +407,21 @@ reason: no candidate was simulated anywhere in the chain
 5 本走らせた後で「どこにも候補が無かった」と言う。exit code は 0。
 mock では候補評価機構が働かないなら、実行前に弾くか警告すべき。
 
-### M-6. `VllmClient` が全例外を空文字列に潰す
+### M-6. `summarise()` が空入力で戻り値のキー集合を変える
+
+`src/tools/analysis/statistics.py:520-532`
+
+```text
+non-empty keys: ['max', 'mean', 'median', 'min', 'n', 'sd']
+empty keys    : ['max', 'mean', 'min', 'n', 'sd']
+summarise([])["median"] -> KeyError 'median'
+```
+
+空入力の分岐だけ `median` を返さない。`src/tools/analysis/report.py:263-271` は
+戻り値をそのまま集計 dict に格納するため、データが 1 件も無い条件の集計で
+下流が `KeyError` になる。空でも `median: nan` を返せば済む。
+
+### M-7. `VllmClient` が全例外を空文字列に潰す
 
 `src/core/llm/vllm.py:296-308` の `except Exception` は
 ネットワーク障害・認証エラー・タイムアウトを区別せず
@@ -435,6 +449,24 @@ LLM 設計モードの結果解釈に直接影響する。
   問題は基準の中身（H-1）であって構造ではない。
 - **`occupant_count`（`design_eval.py:175-192`）の型処理は丁寧。**
   `bool` を弾き、`50.0` を受け、端数を `None` にする扱いは正しい。
+- **統計モジュール `src/tools/analysis/statistics.py` は数値的に正しい。**
+  scipy を独立実装で置き換えている箇所なので重点的に検算したが、全項目一致した。
+  ここは fail-open の癖と正反対で、**欠損は NaN を返し数字を捏造しない**。
+
+  | 検算項目 | 結果 |
+  | --- | --- |
+  | `summarise` の標準偏差 | `ddof=1`（標本 SD）で `2.13809` = 教科書値 |
+  | `cliffs_delta` | `-0.166667` = 総当たり計算と一致 |
+  | `_chi2_sf_1df` | 3.841459→0.050000、6.634897→0.010000（臨界値と 6 桁一致） |
+  | `kaplan_meier` | `[1.0, 0.75, 0.375]` = 手計算と一致（打ち切り処理も正しい） |
+  | `log_rank_test` の分散 | 超幾何分布の `d·(nₐ/n)·(n_b/n)·(n−d)/(n−1)` で正しい |
+  | `permutation_test` | `(hits+1)/(perm+1)` 補正あり・シード固定で再現 |
+  | `bootstrap_mean` | シード固定で完全再現（公開数値が再現可能） |
+  | 退化入力 | `n=0`→NaN、分散ゼロの `pearson`→NaN（0 を返さない） |
+
+  ノンパラメトリック手法（Cliff's delta・並べ替え検定・Kaplan-Meier）の選択も、
+  0 と満員に張り付く出力分布に対して妥当。docstring が
+  「決定的シミュレータの反復に誤差棒を作らない」と明言しているのも正しい判断。
 
 ---
 
