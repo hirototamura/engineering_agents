@@ -443,7 +443,7 @@ Same optional `"post_ops": true` duplicate-row rule as `telemetry.jsonl` (ops re
 | --- | --- |
 | `action_profile` | Action goal fields (ARS / OGS / WRS) |
 | `service_config` | Service call amounts and order |
-| `set_parameter` | Threshold / policy parameters |
+| `set_parameter` | Labeled actor policy bands only (`agents.actor.policy.*`). Verification `thresholds.*` are not allowed. |
 | `graph_rewire` | Client `topic_remap` for next run (Phase 7). Launch remap: [BL-003](memo/backlog.md#bl-003) |
 
 `--apply-proposals` merges into `scenario.yaml` / `ssos_graph.rewires`. Implementation: `scenario/ssos_eclss_loop/design_proposals.py`.

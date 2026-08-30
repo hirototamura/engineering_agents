@@ -440,7 +440,7 @@ backend 選択: `scenario.yaml` の `backend.kind`、環境変数 `SSOS_ECLSS_BA
 | --- | --- |
 | `action_profile` | Action goal フィールド（ARS / OGS / WRS） |
 | `service_config` | Service 呼び出し量・順序 |
-| `set_parameter` | 閾値・policy パラメータ |
+| `set_parameter` | labeled actor の policy 帯のみ（`agents.actor.policy.*`）。検証要求の `thresholds.*` は許可しない。 |
 | `graph_rewire` | 次 run の client `topic_remap`（Phase 7）。launch remap は [BL-003](memo/backlog.md#bl-003) |
 
 `--apply-proposals` で `scenario.yaml` / `ssos_graph.rewires` にマージ。実装: `scenario/ssos_eclss_loop/design_proposals.py`。
