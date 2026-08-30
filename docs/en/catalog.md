@@ -7,6 +7,11 @@ Full page index for the MkDocs site. Use the header language switcher for 日本
 | Start | [Quick start](index.md) | Install, CLI golden path, result files |
 | | [Overview](overview.md) | Project goals, dashboard, detailed setup |
 | Design | [Architecture](architecture.md) | Layers, execution flow, agents |
+| | [Agent design](agent-design.md) | What the world enforces, what the model decides; memory tiers; LLM contract |
+| | [Extending](extending.md) | Backend, scenario, agent mode, world rules, design variable |
+| Results | [Experiment record](results.md) | Three 50-round chains, measured |
+| | [Roadmap](roadmap.md) | Priorities, each traced to a measurement |
+| Specs | [Implementation specs](specs/index.md) | The specs each rebuild was written against, verbatim |
 | | [API contracts](api-contracts.md) | JSONL schemas, protocols |
 | | [Engineering guide](AGENTS.md) | Mission, coding discipline |
 | Scenarios | [scrubber_degradation](scenario-scrubber-degradation.md) | Mock CO₂ scrubber scenario |

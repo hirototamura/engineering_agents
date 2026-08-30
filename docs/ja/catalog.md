@@ -7,6 +7,11 @@ MkDocs サイトの全ページ一覧です。ヘッダーの言語切替で Eng
 | 開始 | [クイックスタート](index.md) | インストール、CLI、結果ファイル |
 | | [概要](overview.md) | 目的、ダッシュボード、詳細セットアップ |
 | 設計 | [アーキテクチャ](architecture.md) | レイヤ、実行フロー、エージェント |
+| | [エージェント設計](agent-design.md) | 世界が強制すること／モデルが決めること、記憶3層、LLM 契約 |
+| | [拡張ガイド](extending.md) | backend・シナリオ・エージェント・世界ルール・設計変数 |
+| 実測 | [実験記録](results.md) | 50周の連鎖3本の実測 |
+| | [ロードマップ](roadmap.md) | 優先順位と、その根拠になった実測 |
+| 仕様書 | [実装仕様書](specs/index.md) | 各回の作り直しが対象にした仕様書（原文） |
 | | [API 契約](api-contracts.md) | JSONL スキーマ、プロトコル |
 | | [エージェントガイド](AGENTS.md) | ミッション、コーディング規律 |
 | シナリオ | [scrubber_degradation](scenario-scrubber-degradation.md) | Mock CO₂ スクラバー |

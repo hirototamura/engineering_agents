@@ -36,13 +36,13 @@ isProject: false
 - E/装置応答：Dで妥当と判定した操作だけを対象に、成功、要求量に対する実処理量、期待する物理符号を合成する。複数操作時は個別result detailsを正本とし、step全体の差分を個別操作へ誤帰属しない。
 
 ## 実装箇所
-- [`src/scenario/ssos_eclss_loop/evaluation.py`](/Users/naoya/develop/Singulab/hakkason2nd/engineering_agents/src/scenario/ssos_eclss_loop/evaluation.py)を新設し、JSONL読取、canonical行選択、物理ゲート、各軸の純関数、`evaluation.json`書込を集約する。
-- [`src/scenario/ssos_eclss_loop/scenario.yaml`](/Users/naoya/develop/Singulab/hakkason2nd/engineering_agents/src/scenario/ssos_eclss_loop/scenario.yaml)に `evaluation` セクションを追加する。`T_ref`、均等資源重み、B/Cの正規化、Dの許容遅延・payload範囲、D/Eの内部重み、物理ゲート許容誤差をすべて明示する。
-- [`src/environment/ssos/eclss/plant_sim/backend.py`](/Users/naoya/develop/Singulab/hakkason2nd/engineering_agents/src/environment/ssos/eclss/plant_sim/backend.py)の `raw_topics.plant_sim` に、ラン単位の保存則を成果物から再計算するための既存累積台帳を追加する。物理モデル自体や判定閾値はenvironment層へ入れない。
-- [`src/scenario/ssos_eclss_loop/scenario_run.py`](/Users/naoya/develop/Singulab/hakkason2nd/engineering_agents/src/scenario/ssos_eclss_loop/scenario_run.py)でラン終了後に評価器を呼び、`evaluation.json`を生成する。`summary.json`には `evaluation_path/status/score/max_score/physics_gate_passed` のみ追加し、詳細の正本は分離する。
-- [`docs/ja/api-contracts.md`](/Users/naoya/develop/Singulab/hakkason2nd/engineering_agents/docs/ja/api-contracts.md)と[`docs/en/api-contracts.md`](/Users/naoya/develop/Singulab/hakkason2nd/engineering_agents/docs/en/api-contracts.md)へ新成果物、適用条件、打ち切り、canonical行規則を追加し、[`docs/ja/evaluation-scorecard-a3.html`](/Users/naoya/develop/Singulab/hakkason2nd/engineering_agents/docs/ja/evaluation-scorecard-a3.html)も実装上の項目名・式に同期する。
+- [`src/scenario/ssos_eclss_loop/evaluation.py`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/evaluation.py)を新設し、JSONL読取、canonical行選択、物理ゲート、各軸の純関数、`evaluation.json`書込を集約する。
+- [`src/scenario/ssos_eclss_loop/scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml)に `evaluation` セクションを追加する。`T_ref`、均等資源重み、B/Cの正規化、Dの許容遅延・payload範囲、D/Eの内部重み、物理ゲート許容誤差をすべて明示する。
+- [`src/environment/ssos/eclss/plant_sim/backend.py`](https://github.com/hirototamura/engineering_agents/blob/main/src/environment/ssos/eclss/plant_sim/backend.py)の `raw_topics.plant_sim` に、ラン単位の保存則を成果物から再計算するための既存累積台帳を追加する。物理モデル自体や判定閾値はenvironment層へ入れない。
+- [`src/scenario/ssos_eclss_loop/scenario_run.py`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario_run.py)でラン終了後に評価器を呼び、`evaluation.json`を生成する。`summary.json`には `evaluation_path/status/score/max_score/physics_gate_passed` のみ追加し、詳細の正本は分離する。
+- [`docs/ja/api-contracts.md`](api-contracts.md)と[`docs/en/api-contracts.md`](https://github.com/hirototamura/engineering_agents/blob/main/docs/en/api-contracts.md)へ新成果物、適用条件、打ち切り、canonical行規則を追加し、[`docs/ja/evaluation-scorecard-a3.html`](evaluation-scorecard-a3.html)も実装上の項目名・式に同期する。
 
 ## 検証
-- [`tests/scenario/test_ssos_eclss_loop_evaluation.py`](/Users/naoya/develop/Singulab/hakkason2nd/engineering_agents/tests/scenario/test_ssos_eclss_loop_evaluation.py)を新設し、各式、post_ops重複排除、TCL発生/右打ち切り、actor noneの80点、物理ゲート失敗、故障時値、D/Eの対象選別を単体検証する。
+- [`tests/scenario/test_ssos_eclss_loop_evaluation.py`](https://github.com/hirototamura/engineering_agents/blob/main/tests/scenario/test_ssos_eclss_loop_evaluation.py)を新設し、各式、post_ops重複排除、TCL発生/右打ち切り、actor noneの80点、物理ゲート失敗、故障時値、D/Eの対象選別を単体検証する。
 - plant_sim統合テストで `evaluation.json` と `summary.json` の索引一致、台帳出力、provenance後も評価参照が残ることを確認する。
 - `python3 -m pytest --ignore=tests/e2e` を実行し、可能ならAGENTS.md指定のmock 2-run smokeも実行して既存の設計→検証ループを回帰確認する。
