@@ -33,9 +33,10 @@ python3 -m tools.analysis all
 | `design_loop_analysis.ja.html` | 日本語レポート（同じ数値、本文は翻訳） |
 | `design_loop_analysis.findings.json` | 算出したすべての数値。差分確認と回帰検出用 |
 | `datasets/*.json` | 実験ブロックごとの、1 実行 1 行のフラットな行 |
+| `datasets/chain_dynamics.json` | 直列化したループ軌道（`ChainDynamics`）。生の `chains/` が無いとき `report` はここから次数パラメータを再構築する |
 | `<block>/<run_id>/` | 生の実行ディレクトリ（git 管理外・再生成可能） |
 
-`run` は実行ディレクトリ単位でキャッシュするため、中断したキャンペーンは最初からではなく途中から再開します。`report` はシミュレータに触れずに何度でも再実行できます。
+`run` は実行ディレクトリ単位でキャッシュするため、中断したキャンペーンは最初からではなく途中から再開します。`report` はシミュレータに触れずに何度でも再実行できます。新規チェックアウトでは git 管理外の `chains/` は不要です。ループの原型・ステップノルム・図は `datasets/chain_dynamics.json` から復元します。
 
 主なフラット: `--quick` は各グリッドを 3 点に間引いてスモークテストにし、`--workers N` は並列数、`--steps N` はミッション長、`--no-cache` は再シミュレーションの強制、`--root DIR` はツリー全体の移動です。
 

@@ -33,9 +33,10 @@ Outputs land under `src/experiments/analysis/`:
 | `design_loop_analysis.ja.html` | Japanese report (same numbers, translated prose) |
 | `design_loop_analysis.findings.json` | every computed number, for diffing and regression |
 | `datasets/*.json` | one flat row per run, per experiment block |
+| `datasets/chain_dynamics.json` | serialised loop trajectories (`ChainDynamics`); `report` reconstructs order parameters from this file when raw `chains/` dirs are absent |
 | `<block>/<run_id>/` | the raw run directories (git-ignored, regenerable) |
 
-`run` caches by run directory, so an interrupted campaign resumes instead of restarting, and `report` can be re-run as often as needed without touching the simulator.
+`run` caches by run directory, so an interrupted campaign resumes instead of restarting, and `report` can be re-run as often as needed without touching the simulator. A fresh checkout does not need the git-ignored `chains/` directories: loop archetypes, step norms and figures come from `datasets/chain_dynamics.json`.
 
 Useful flags: `--quick` thins every grid to three points for a smoke test, `--workers N` sets parallelism, `--steps N` changes the mission length, `--no-cache` forces re-simulation, and `--root DIR` moves the whole tree.
 

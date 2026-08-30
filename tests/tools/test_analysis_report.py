@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
 from pathlib import Path
 
 import pytest
@@ -317,3 +318,62 @@ def test_load_datasets_reads_what_the_campaign_wrote(tmp_path):
     loaded = report.load_datasets(tmp_path)
     assert len(loaded["response_surface"]) == 64
     assert loaded["crew_scaling"] == []
+
+
+def _write_flat_datasets(root: Path) -> None:
+    datasets_dir = root / "datasets"
+    datasets_dir.mkdir(parents=True)
+    for name, rows in datasets().items():
+        (datasets_dir / f"{name}.json").write_text(json.dumps(rows), encoding="utf-8")
+
+
+def test_load_campaign_reconstructs_chains_from_tracked_dynamics(tmp_path):
+    _write_flat_datasets(tmp_path)
+    report.save_chain_dynamics(tmp_path, [chain()])
+    assert not (tmp_path / "chains").exists()
+
+    findings, loaded, chains = report.load_campaign(tmp_path, config=SCENARIO)
+    assert len(chains) == 1
+    assert chains[0].archetype == "saturating"
+    assert chains[0].states[1].step_norm == pytest.approx(0.3865)
+    assert findings["loop"]["n_chains"] == 1
+    assert findings["loop"]["archetypes"]["saturating"] == pytest.approx(1.0)
+    assert findings["loop"]["archetypes"]["frozen"] == pytest.approx(0.0)
+    document = report.render(findings, loaded, chains)
+    assert "<svg" in document
+
+
+def test_load_campaign_falls_back_to_findings_when_dynamics_are_missing(tmp_path):
+    _write_flat_datasets(tmp_path)
+    payload = {"loop": {"chains": [chain().as_dict()]}}
+    (tmp_path / report.FINDINGS_NAME).write_text(json.dumps(payload), encoding="utf-8")
+
+    findings, _, chains = report.load_campaign(tmp_path, config=SCENARIO)
+    assert [c.archetype for c in chains] == ["saturating"]
+    assert findings["loop"]["archetypes"]["saturating"] == pytest.approx(1.0)
+
+
+def test_load_campaign_without_any_chain_artifact_is_empty(tmp_path):
+    _write_flat_datasets(tmp_path)
+    findings, _, chains = report.load_campaign(tmp_path, config=SCENARIO)
+    assert chains == []
+    assert findings["loop"]["n_chains"] == 0
+    assert findings["loop"]["archetypes"]["frozen"] == pytest.approx(0.0)
+
+
+def test_committed_datasets_rebuild_loop_without_raw_chain_dirs(tmp_path):
+    src = Path("src/experiments/analysis")
+    if not (src / "datasets" / "response_surface.json").is_file():
+        pytest.skip("committed analysis datasets are not present")
+    shutil.copytree(src / "datasets", tmp_path / "datasets")
+    findings_src = src / report.FINDINGS_NAME
+    if findings_src.is_file():
+        shutil.copy(findings_src, tmp_path / report.FINDINGS_NAME)
+    assert not (tmp_path / "chains").exists()
+
+    findings, _, chains = report.load_campaign(tmp_path, config=SCENARIO)
+    assert findings["loop"]["n_chains"] == 3
+    assert findings["loop"]["archetypes"]["saturating"] == pytest.approx(1.0)
+    assert findings["loop"]["archetypes"]["frozen"] == pytest.approx(0.0)
+    assert all(chain.states for chain in chains)
+    assert all(chain.archetype == "saturating" for chain in chains)

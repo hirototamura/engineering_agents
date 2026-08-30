@@ -31,6 +31,7 @@ from tools.analysis.loop_dynamics import (
     archetype_distribution,
     controllability,
     effective_gain,
+    from_records,
 )
 from tools.analysis.statistics import (
     balanced_accuracy,
@@ -1055,14 +1056,70 @@ def _controls_from(records: Sequence[Mapping[str, Any]]):
     ]
 
 
-def load_campaign(root: Path | str, *, config: Optional[Mapping[str, Any]] = None
-                  ) -> Tuple[Dict[str, Any], Dict[str, List[Dict[str, Any]]], List[ChainDynamics]]:
-    """Load datasets, reconstruct chains, and compute findings."""
+CHAIN_DYNAMICS_NAME = "chain_dynamics"
+FINDINGS_NAME = "design_loop_analysis.findings.json"
+
+
+def load_persisted_chains(root: Path | str) -> List[ChainDynamics]:
+    """Rebuild loop trajectories from tracked artifacts, without raw run dirs.
+
+    Preference order:
+
+    1. ``datasets/chain_dynamics.json`` — serialised :class:`ChainDynamics`
+    2. ``design_loop_analysis.findings.json`` ``loop.chains`` — older checkouts
+    """
+
+    root = Path(root)
+    tracked = root / "datasets" / f"{CHAIN_DYNAMICS_NAME}.json"
+    if tracked.is_file():
+        payload = json.loads(tracked.read_text(encoding="utf-8"))
+        if isinstance(payload, list) and payload:
+            return from_records(payload)
+    findings_path = root / FINDINGS_NAME
+    if findings_path.is_file():
+        payload = json.loads(findings_path.read_text(encoding="utf-8"))
+        records = (payload.get("loop") or {}).get("chains") if isinstance(payload, Mapping) else None
+        if isinstance(records, list) and records:
+            return from_records(records)
+    return []
+
+
+def load_chains(root: Path | str) -> List[ChainDynamics]:
+    """Live ``chains/`` directories if present, otherwise the tracked artifact."""
 
     from tools.analysis.campaign import chain_dirs
 
+    live = chain_dirs(root)
+    if live:
+        return [analyse_chain(load_chain(path)) for path in live]
+    return load_persisted_chains(root)
+
+
+def save_chain_dynamics(root: Path | str, chains: Sequence[ChainDynamics]) -> Optional[Path]:
+    """Write ``datasets/chain_dynamics.json`` so ``report`` needs no raw run dirs."""
+
+    if not chains:
+        return None
+    path = Path(root) / "datasets" / f"{CHAIN_DYNAMICS_NAME}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps([chain.as_dict() for chain in chains], indent=1, default=str),
+        encoding="utf-8",
+    )
+    return path
+
+
+def load_campaign(root: Path | str, *, config: Optional[Mapping[str, Any]] = None
+                  ) -> Tuple[Dict[str, Any], Dict[str, List[Dict[str, Any]]], List[ChainDynamics]]:
+    """Load datasets, reconstruct chains, and compute findings.
+
+    Raw ``chains/`` run directories are git-ignored. A fresh checkout still
+    rebuilds loop dynamics from the tracked ``chain_dynamics`` artifact (or,
+    failing that, from ``findings.json``).
+    """
+
     datasets = load_datasets(root)
-    chains = [analyse_chain(load_chain(path)) for path in chain_dirs(root)]
+    chains = load_chains(root)
     findings = analyse(datasets, chains, config=config)
     return findings, datasets, chains
 
@@ -1100,11 +1157,16 @@ def sibling_report_path(path: Path, lang: str) -> Path:
 
 
 __all__ = [
+    "CHAIN_DYNAMICS_NAME",
     "DATASET_NAMES",
+    "FINDINGS_NAME",
     "analyse",
     "build",
     "load_campaign",
+    "load_chains",
     "load_datasets",
+    "load_persisted_chains",
     "render",
+    "save_chain_dynamics",
     "sibling_report_path",
 ]

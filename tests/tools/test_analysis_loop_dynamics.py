@@ -161,3 +161,31 @@ def test_effective_gain_uses_the_best_axis_within_a_subspace():
         ld.AxisControllability("b", "capacity", gain=3.0, outcome_range=1.0, n_points=3),
     ]
     assert ld.effective_gain({"capacity": 1.0}, controls)["capacity"] == pytest.approx(3.0)
+
+
+# --------------------------------------------------------------------------- #
+# serialisation
+# --------------------------------------------------------------------------- #
+def test_chain_dynamics_round_trips_through_as_dict():
+    original = _chain("saturating")
+    restored = ld.ChainDynamics.from_dict(original.as_dict())
+    assert restored == original
+
+
+def test_iteration_state_round_trips_through_as_dict():
+    original = ld.IterationState(
+        iteration=2, vector={"ogs_action_water_mass": 0.22},
+        survival_fraction=0.0, evaluation_score=21.7, rho_min=0.087,
+        displacement=0.3865, step_norm=0.3865, turning_cosine=None,
+        step_by_subspace={"action": 0.3865},
+        displacement_by_subspace={"action": 0.3865},
+        proposed_kinds={"action_profile": 3, "set_parameter": 2},
+        applied_kinds={"action_profile": 3},
+    )
+    assert ld.IterationState.from_dict(original.as_dict()) == original
+
+
+def test_from_records_skips_non_mappings():
+    records = [_chain("converging").as_dict(), "skip", None]
+    restored = ld.from_records(records)
+    assert [c.archetype for c in restored] == ["converging"]

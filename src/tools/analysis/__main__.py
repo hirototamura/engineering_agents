@@ -65,9 +65,17 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    from tools.analysis.report import load_campaign, render, sibling_report_path
+    from tools.analysis.report import (
+        load_campaign,
+        render,
+        save_chain_dynamics,
+        sibling_report_path,
+    )
 
     findings, datasets, chains = load_campaign(args.root, config=_scenario_config())
+    persisted = save_chain_dynamics(args.root, chains)
+    if persisted is not None:
+        print(f"  wrote chain_dynamics: {persisted}", file=sys.stderr)
     langs = ["en", "ja"] if args.lang == "all" else [args.lang]
     requested = Path(args.out)
 

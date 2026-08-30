@@ -69,6 +69,39 @@ ARCHETYPE_DESCRIPTIONS: Dict[str, str] = {
 _EPS = 1e-12
 
 
+def _opt_float(value: Any) -> Optional[float]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _float_map(value: Any) -> Dict[str, float]:
+    if not isinstance(value, Mapping):
+        return {}
+    out: Dict[str, float] = {}
+    for key, item in value.items():
+        number = _opt_float(item)
+        if number is not None:
+            out[str(key)] = number
+    return out
+
+
+def _int_map(value: Any) -> Dict[str, int]:
+    if not isinstance(value, Mapping):
+        return {}
+    out: Dict[str, int] = {}
+    for key, item in value.items():
+        try:
+            out[str(key)] = int(item)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def _dot(a: Sequence[float], b: Sequence[float]) -> float:
     return sum(float(x) * float(y) for x, y in zip(a, b))
 
@@ -109,6 +142,25 @@ class IterationState:
             "proposed_kinds": dict(self.proposed_kinds),
             "applied_kinds": dict(self.applied_kinds),
         }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "IterationState":
+        """Rebuild one iteration from :meth:`as_dict` (or findings JSON)."""
+
+        return cls(
+            iteration=int(data.get("iteration") or 0),
+            vector=_float_map(data.get("vector")),
+            survival_fraction=_opt_float(data.get("survival_fraction")),
+            evaluation_score=_opt_float(data.get("evaluation_score")),
+            rho_min=float(data.get("rho_min") or 0.0),
+            displacement=float(data.get("displacement") or 0.0),
+            step_norm=float(data.get("step_norm") or 0.0),
+            turning_cosine=_opt_float(data.get("turning_cosine")),
+            step_by_subspace=_float_map(data.get("step_by_subspace")),
+            displacement_by_subspace=_float_map(data.get("displacement_by_subspace")),
+            proposed_kinds=_int_map(data.get("proposed_kinds")),
+            applied_kinds=_int_map(data.get("applied_kinds")),
+        )
 
 
 @dataclass(frozen=True)
@@ -151,6 +203,32 @@ class ChainDynamics:
             "verdict": self.verdict,
             "states": [state.as_dict() for state in self.states],
         }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "ChainDynamics":
+        """Rebuild a chain from :meth:`as_dict` (or findings JSON)."""
+
+        states = tuple(
+            IterationState.from_dict(state)
+            for state in (data.get("states") or [])
+            if isinstance(state, Mapping)
+        )
+        design_mode = data.get("design_mode")
+        verdict = data.get("verdict")
+        return cls(
+            chain_id=str(data.get("chain_id") or ""),
+            design_mode=str(design_mode) if design_mode is not None else None,
+            states=states,
+            archetype=str(data.get("archetype") or "frozen"),
+            total_displacement=float(data.get("total_displacement") or 0.0),
+            displacement_by_subspace=_float_map(data.get("displacement_by_subspace")),
+            outcome_change=float(data.get("outcome_change") or 0.0),
+            proposed_share=_float_map(data.get("proposed_share")),
+            applied_share=_float_map(data.get("applied_share")),
+            magnitude_share=_float_map(data.get("magnitude_share")),
+            discarded_fraction=float(data.get("discarded_fraction") or 0.0),
+            verdict=str(verdict) if verdict is not None else None,
+        )
 
 
 def _kind_counts(changes: Sequence[Mapping[str, Any]]) -> Dict[str, int]:
@@ -420,6 +498,16 @@ def effective_gain(
     }
 
 
+def from_records(records: Sequence[Mapping[str, Any]]) -> List[ChainDynamics]:
+    """Rebuild chains from a list of :meth:`ChainDynamics.as_dict` payloads."""
+
+    return [
+        ChainDynamics.from_dict(record)
+        for record in records
+        if isinstance(record, Mapping)
+    ]
+
+
 __all__ = [
     "ARCHETYPES",
     "ARCHETYPE_DESCRIPTIONS",
@@ -432,4 +520,5 @@ __all__ = [
     "classify",
     "controllability",
     "effective_gain",
+    "from_records",
 ]

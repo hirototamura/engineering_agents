@@ -1,0 +1,729 @@
+[
+ {
+  "chain_id": "chain-labeled_rule_base-n03",
+  "design_mode": "labeled_rule_base",
+  "length": 3,
+  "archetype": "saturating",
+  "total_displacement": 0.7729845464550393,
+  "displacement_by_subspace": {
+   "capacity": 0.0,
+   "action": 0.7729845464550393,
+   "policy": 0.0
+  },
+  "outcome_change": 0.0,
+  "proposed_share": {
+   "action": 0.6000000000000001,
+   "policy": 0.4
+  },
+  "applied_share": {
+   "action": 1.0
+  },
+  "magnitude_share": {
+   "capacity": 0.0,
+   "action": 1.0,
+   "policy": 0.0
+  },
+  "discarded_fraction": 0.4,
+  "verdict": "NOT_IMPROVED",
+  "states": [
+   {
+    "iteration": 1,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.0,
+     "ogs_action_water_mass": 0.0,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.0,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 21.530845,
+    "rho_min": 0.08653846153846154,
+    "displacement": 0.0,
+    "step_norm": 0.0,
+    "turning_cosine": null,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.0,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.0,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 2,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.22314355131420976,
+     "ogs_action_water_mass": 0.22314355131420976,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.22314355131420976,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 21.703687,
+    "rho_min": 0.08653846153846154,
+    "displacement": 0.38649596825756427,
+    "step_norm": 0.38649596825756427,
+    "turning_cosine": null,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649596825756427,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649596825756427,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 3,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.44628710262841953,
+     "ogs_action_water_mass": 0.44628710262841953,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.44627430254649875,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 22.023978,
+    "rho_min": 0.08653846153846154,
+    "displacement": 0.7729845464550393,
+    "step_norm": 0.3864885782681299,
+    "turning_cosine": 0.9999999996343791,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.3864885782681299,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.7729845464550393,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   }
+  ]
+ },
+ {
+  "chain_id": "chain-labeled_rule_base-n05",
+  "design_mode": "labeled_rule_base",
+  "length": 5,
+  "archetype": "saturating",
+  "total_displacement": 1.5459729750945959,
+  "displacement_by_subspace": {
+   "capacity": 0.0,
+   "action": 1.5459729750945959,
+   "policy": 0.0
+  },
+  "outcome_change": 0.0,
+  "proposed_share": {
+   "action": 0.6000000000000001,
+   "policy": 0.4
+  },
+  "applied_share": {
+   "action": 1.0
+  },
+  "magnitude_share": {
+   "capacity": 0.0,
+   "action": 1.0,
+   "policy": 0.0
+  },
+  "discarded_fraction": 0.4,
+  "verdict": "NOT_IMPROVED",
+  "states": [
+   {
+    "iteration": 1,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.0,
+     "ogs_action_water_mass": 0.0,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.0,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 21.530845,
+    "rho_min": 0.08653846153846154,
+    "displacement": 0.0,
+    "step_norm": 0.0,
+    "turning_cosine": null,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.0,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.0,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 2,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.22314355131420976,
+     "ogs_action_water_mass": 0.22314355131420976,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.22314355131420976,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 21.703687,
+    "rho_min": 0.08653846153846154,
+    "displacement": 0.38649596825756427,
+    "step_norm": 0.38649596825756427,
+    "turning_cosine": null,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649596825756427,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649596825756427,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 3,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.44628710262841953,
+     "ogs_action_water_mass": 0.44628710262841953,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.44627430254649875,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 22.023978,
+    "rho_min": 0.08653846153846154,
+    "displacement": 0.7729845464550393,
+    "step_norm": 0.3864885782681299,
+    "turning_cosine": 0.9999999996343791,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.3864885782681299,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.7729845464550393,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 4,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.6694305970537388,
+     "ogs_action_water_mass": 0.6694315072755985,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.6694076136772044,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 21.64528,
+    "rho_min": 0.08653846153846154,
+    "displacement": 1.1594750624545636,
+    "step_norm": 0.3864905160102104,
+    "turning_cosine": 0.9999999999881853,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.3864905160102104,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 1.1594750624545636,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 5,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.8925741028568337,
+     "ogs_action_water_mass": 0.8925743759234912,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.8925552610773991,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 22.04461,
+    "rho_min": 0.08653846153846154,
+    "displacement": 1.5459729750945959,
+    "step_norm": 0.38649791273789336,
+    "turning_cosine": 0.9999999994872849,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649791273789336,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 1.5459729750945959,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   }
+  ]
+ },
+ {
+  "chain_id": "chain-labeled_rule_base-n08",
+  "design_mode": "labeled_rule_base",
+  "length": 8,
+  "archetype": "saturating",
+  "total_displacement": 2.705456000867876,
+  "displacement_by_subspace": {
+   "capacity": 0.0,
+   "action": 2.7054560008678763,
+   "policy": 0.0
+  },
+  "outcome_change": 0.0,
+  "proposed_share": {
+   "action": 0.6000000000000001,
+   "policy": 0.4
+  },
+  "applied_share": {
+   "action": 1.0
+  },
+  "magnitude_share": {
+   "capacity": 0.0,
+   "action": 1.0,
+   "policy": 0.0
+  },
+  "discarded_fraction": 0.4,
+  "verdict": "NOT_IMPROVED",
+  "states": [
+   {
+    "iteration": 1,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.0,
+     "ogs_action_water_mass": 0.0,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.0,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 21.530845,
+    "rho_min": 0.08653846153846154,
+    "displacement": 0.0,
+    "step_norm": 0.0,
+    "turning_cosine": null,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.0,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.0,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 2,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.22314355131420976,
+     "ogs_action_water_mass": 0.22314355131420976,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.22314355131420976,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 21.703687,
+    "rho_min": 0.08653846153846154,
+    "displacement": 0.38649596825756427,
+    "step_norm": 0.38649596825756427,
+    "turning_cosine": null,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649596825756427,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649596825756427,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 3,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.44628710262841953,
+     "ogs_action_water_mass": 0.44628710262841953,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.44627430254649875,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 22.023978,
+    "rho_min": 0.08653846153846154,
+    "displacement": 0.7729845464550393,
+    "step_norm": 0.3864885782681299,
+    "turning_cosine": 0.9999999996343791,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.3864885782681299,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.7729845464550393,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 4,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.6694305970537388,
+     "ogs_action_water_mass": 0.6694315072755985,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.6694076136772044,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 21.64528,
+    "rho_min": 0.08653846153846154,
+    "displacement": 1.1594750624545636,
+    "step_norm": 0.3864905160102104,
+    "turning_cosine": 0.9999999999881853,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.3864905160102104,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 1.1594750624545636,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 5,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 0.8925741028568337,
+     "ogs_action_water_mass": 0.8925743759234912,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 0.8925552610773991,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 22.04461,
+    "rho_min": 0.08653846153846154,
+    "displacement": 1.5459729750945959,
+    "step_norm": 0.38649791273789336,
+    "turning_cosine": 0.9999999994872849,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649791273789336,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 1.5459729750945959,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 6,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 1.1157176723754898,
+     "ogs_action_water_mass": 1.1157184733707919,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 1.1156922586459794,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 24.588705,
+    "rho_min": 0.08653846153846154,
+    "displacement": 1.9324654854031411,
+    "step_norm": 0.3864925103116726,
+    "turning_cosine": 0.9999999997129885,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.3864925103116726,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 1.9324654854031411,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 7,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 1.3388612091261427,
+     "ogs_action_water_mass": 1.3388620246850016,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 1.3388358099601891,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 22.939402,
+    "rho_min": 0.08653846153846154,
+    "displacement": 2.3189614452332092,
+    "step_norm": 0.38649595984929086,
+    "turning_cosine": 0.9999999998950594,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649595984929086,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 2.3189614452332092,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   },
+   {
+    "iteration": 8,
+    "vector": {
+     "ars_capacity_kg_day": 0.0,
+     "ogs_max_o2_kg_day": 0.0,
+     "wrs_max_feed_l": 0.0,
+     "ars_action_co2_mass": 1.5620047604403524,
+     "ogs_action_water_mass": 1.5620052264740676,
+     "wrs_action_urine_volume": 0.0,
+     "request_co2_amount": 1.561977264066726,
+     "co2_threshold_high": 0.0,
+     "o2_threshold_low": 0.0,
+     "water_threshold_low": 0.0
+    },
+    "survival_fraction": 0.0,
+    "evaluation_score": 24.081943,
+    "rho_min": 0.08653846153846154,
+    "displacement": 2.705456000867876,
+    "step_norm": 0.38649455563898033,
+    "turning_cosine": 0.9999999999914687,
+    "step_by_subspace": {
+     "capacity": 0.0,
+     "action": 0.38649455563898033,
+     "policy": 0.0
+    },
+    "displacement_by_subspace": {
+     "capacity": 0.0,
+     "action": 2.7054560008678763,
+     "policy": 0.0
+    },
+    "proposed_kinds": {
+     "action_profile": 2,
+     "set_parameter": 2,
+     "service_config": 1
+    },
+    "applied_kinds": {
+     "action_profile": 2,
+     "service_config": 1
+    }
+   }
+  ]
+ }
+]

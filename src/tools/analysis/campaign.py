@@ -37,6 +37,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence
 
+from tools.analysis.artifacts import load_chain
 from tools.analysis.experiments import (
     RunOutcome,
     RunSpec,
@@ -51,6 +52,7 @@ from tools.analysis.experiments import (
     save_rows,
     seed_replicate_specs,
 )
+from tools.analysis.loop_dynamics import analyse_chain
 
 #: Nameplate ARS values. Dense below the transition, sparse in saturation.
 ARS_GRID: Sequence[float] = (4.5, 8.0, 12.0, 16.0, 20.0, 26.0, 32.0, 40.0, 52.0, 65.0, 80.0)
@@ -91,6 +93,7 @@ class CampaignResult:
     crew_rows: List[Dict]
     iso_ray_rows: List[Dict]
     chain_rows: List[Dict]
+    chain_dynamics: List[Dict]
     failures: List[RunOutcome]
 
     def counts(self) -> Dict[str, int]:
@@ -125,9 +128,14 @@ class CampaignResult:
             "iso_ray": self.iso_ray_rows,
             "chains": self.chain_rows,
         }
-        return {
+        written = {
             name: save_rows(rows, out / f"{name}.json") for name, rows in blocks.items()
         }
+        if self.chain_dynamics:
+            written["chain_dynamics"] = save_rows(
+                self.chain_dynamics, out / "chain_dynamics.json"
+            )
+        return written
 
 
 def build_specs(*, steps: int = 72, quick: bool = False) -> Dict[str, List[RunSpec]]:
@@ -187,6 +195,12 @@ def run_campaign(
         collected[name] = outcomes
         failures.extend(o for o in outcomes if not o.ok)
 
+    chain_dynamics = []
+    for outcome in collected["chains"]:
+        if not outcome.ok:
+            continue
+        chain_dynamics.append(analyse_chain(load_chain(outcome.run_dir)).as_dict())
+
     return CampaignResult(
         root=root,
         seed_rows=collect_rows(collected["seed_replicates"]),
@@ -196,6 +210,7 @@ def run_campaign(
         crew_rows=collect_rows(collected["crew_scaling"]),
         iso_ray_rows=collect_rows(collected["iso_ray"]),
         chain_rows=collect_chain_rows(collected["chains"]),
+        chain_dynamics=chain_dynamics,
         failures=failures,
     )
 
