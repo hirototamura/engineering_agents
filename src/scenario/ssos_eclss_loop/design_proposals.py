@@ -10,10 +10,11 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional
 
 from scenario.ssos_eclss_loop.design_eval import STATUS_APPROVED as FINAL_STATUS_APPROVED
 from scenario.ssos_eclss_loop.design_variables import (
+    CAPACITY_KEYS,
     apply_capacity_fields,
     sync_action_payloads,
     validate_capacity_fields,
@@ -159,6 +160,45 @@ def _apply_action_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> No
             policy.setdefault("wrs_goal", {}).update(filtered)
         else:
             raise ValueError(f"action_profile subsystem must be ars, ogs, or wrs, got {subsystem!r}")
+
+
+def complete_capacity_profile(
+    document: Dict[str, Any],
+    installed: Mapping[str, float],
+) -> Dict[str, Any]:
+    """Fill in the design variables a proposal did not mention.
+
+    A capacity proposal is applied by merging it into the *scenario file*, not
+    into the machine the run that produced it was flying. So a proposal naming
+    one subsystem silently returns the other two to their shipped sizes. That is
+    how a chain that had grown its CO2 scrubber and oxygen generator enough to
+    keep all fifty occupants alive handed the next round a station sized for
+    none of them, and read the loss as the design's fault.
+
+    Completing the document here makes every hand-off a whole machine: what was
+    proposed, plus what was already flying wherever the proposal was silent.
+    Nothing is overridden -- an omission simply stops meaning "revert this".
+    """
+    completed = copy.deepcopy(document)
+    for change in completed.get("changes") or []:
+        if not isinstance(change, dict) or change.get("change_kind") != "capacity_profile":
+            continue
+        payload = change.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        fields = payload.get("fields")
+        if not isinstance(fields, dict):
+            continue
+        carried = {
+            key: float(value)
+            for key, value in installed.items()
+            if key in CAPACITY_KEYS and key not in fields
+        }
+        if not carried:
+            continue
+        payload["fields"] = {**fields, **carried}
+        change["carried_forward"] = sorted(carried)
+    return completed
 
 
 def _apply_capacity_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> None:

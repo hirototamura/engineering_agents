@@ -17,6 +17,7 @@ from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunResult, RunSpec
 from scenario.ssos_eclss_loop.chain_memory import (
     capacity_keys_in_document,
+    record_measured_limits,
     update_compact_chain_memory,
 )
 from scenario.ssos_eclss_loop.chain_selection import (
@@ -24,11 +25,18 @@ from scenario.ssos_eclss_loop.chain_selection import (
     write_chain_final_answer,
 )
 from scenario.ssos_eclss_loop.design_proposals import (
+    complete_capacity_profile,
     load_design_proposals,
     supervisor_approval_reasons,
     write_design_proposals,
 )
+from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_variables import read_capacity_fields
+from scenario.ssos_eclss_loop.floor_probe import (
+    measure_survival_limits,
+    scenario_runner,
+    write_measured_limits,
+)
 
 ITERATE_SCENARIO = "ssos_eclss_loop"
 ALLOWED_ITERATE_BACKENDS = frozenset({"mock", "plant_sim"})
@@ -239,12 +247,8 @@ def _installed_capacity(run_dir: Any) -> Dict[str, float]:
     and a progress line that shows the score without the sizing beside it
     cannot be read.
     """
-    path = Path(str(run_dir)) / "scenario_config.yaml"
-    try:
-        config = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
-        return {}
-    return read_capacity_fields(config) if isinstance(config, dict) else {}
+    config = _run_config(Path(str(run_dir)))
+    return read_capacity_fields(config) if config else {}
 
 
 def _summary_row(
@@ -278,6 +282,74 @@ def _summary_row(
     if extra:
         row.update(extra)
     return row
+
+
+def _measure_survival_limits(
+    chain_dir: Path,
+    first_run_dir: Path,
+    *,
+    steps: Optional[int] = None,
+) -> Optional[Dict[str, Any]]:
+    """Find out where each subsystem stops keeping the crew alive, by trying it.
+
+    Run once, before any design decision, from the machine the scenario ships
+    with. Deterministic and cheap -- a 72-step simulation costs under a second,
+    and the whole sweep costs about thirty of them -- so what the chain knows
+    about its own limits is measured rather than predicted. The alternative was
+    a calculated minimum, which was wrong for the water recycler by 40% and
+    which, being stated as a rule, no round ever tested.
+    """
+    config = _run_config(first_run_dir)
+    if not config:
+        return None
+    agents = _run_agents_config(first_run_dir)
+    actor = (agents.get("actor") or {}) if agents else {}
+    try:
+        constraints = DesignConstraints.from_scenario_config(config)
+        bounds = {
+            key: float(constraints.bounds[sub]["min"])
+            for key, sub in (
+                ("plant_sim.ars.capacity_kg_day", "ars"),
+                ("plant_sim.ogs.max_o2_kg_day", "ogs"),
+                ("plant_sim.wrs.max_feed_l_per_operation", "wrs"),
+            )
+        }
+        measured = measure_survival_limits(
+            start=read_capacity_fields(config),
+            bounds=bounds,
+            runner=scenario_runner(
+                scenario_config=config,
+                output_root=chain_dir / "survival_limits",
+                actor_mode=actor.get("mode"),
+                policy_hint=actor.get("policy"),
+                steps=steps,
+            ),
+        )
+        write_measured_limits(chain_dir, measured)
+        record_measured_limits(chain_dir, measured)
+        return measured
+    except Exception as exc:  # a measurement that fails must not stop the chain
+        (chain_dir / "survival_limits_error.txt").write_text(
+            f"{type(exc).__name__}: {exc}", encoding="utf-8"
+        )
+        return None
+
+
+def _run_config(run_dir: Path) -> Dict[str, Any]:
+    try:
+        text = (Path(run_dir) / "scenario_config.yaml").read_text(encoding="utf-8")
+        config = yaml.safe_load(text)
+    except (OSError, yaml.YAMLError):
+        return {}
+    return config if isinstance(config, dict) else {}
+
+
+def _run_agents_config(run_dir: Path) -> Dict[str, Any]:
+    try:
+        config = yaml.safe_load((Path(run_dir) / "agents_config.yaml").read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return {}
+    return config if isinstance(config, dict) else {}
 
 
 def _record_chain_memory(
@@ -321,6 +393,7 @@ def run_design_iterate(
     paired_replay: bool = True,
     reporter: Optional[IterateReporter] = None,
     iteration_record: Optional[Dict[str, Any]] = None,
+    measure_limits: bool = True,
 ) -> Dict[str, Any]:
     """Run *iterations* ssos_eclss_loop sims, applying only the previous adopted file.
 
@@ -347,6 +420,7 @@ def run_design_iterate(
     last_apply_path: Optional[Path] = None
     verified_apply_path: Optional[Path] = None
     requirement_hash: Optional[str] = None
+    survival_limits: Optional[Dict[str, Any]] = None
 
     for index in range(1, iterations + 1):
         output_dir = _iter_dir(chain_dir, index)
@@ -414,7 +488,11 @@ def run_design_iterate(
             )
             if adoptable is not None:
                 applied_path = output_dir / "applied_proposals.json"
-                write_design_proposals(applied_path, adoptable)
+                # Hand on the whole machine, not just the part that changed.
+                write_design_proposals(
+                    applied_path,
+                    complete_capacity_profile(adoptable, row["installed_capacity"]),
+                )
                 last_apply_path = applied_path
                 summary["applied_proposals_path"] = str(applied_path)
                 (output_dir / "summary.json").write_text(
@@ -423,6 +501,11 @@ def run_design_iterate(
                 )
         else:
             accumulated_history.append({"iteration": index, "changes": []})
+        if index == 1 and measure_limits:
+            # Before the second round is designed, so every decision after the
+            # first is taken against measurements rather than a calculation.
+            reporter.on_phase("measuring survival limits")
+            survival_limits = _measure_survival_limits(chain_dir, output_dir, steps=steps)
         _record_chain_memory(
             chain_dir,
             output_dir,
@@ -554,6 +637,13 @@ def run_design_iterate(
         "runs": runs,
         "replay_runs": replay_runs,
     }
+    if survival_limits:
+        chain_summary["survival_limits"] = {
+            "status": survival_limits.get("status"),
+            "simulations": survival_limits.get("simulations"),
+            "smallest_surviving_machine": survival_limits.get("smallest_surviving_machine"),
+            "path": str(chain_dir / "measured_limits.json"),
+        }
     if iteration_record:
         chain_summary["iteration"] = iteration_record
     chain_summary["chain_dir"] = str(chain_dir)

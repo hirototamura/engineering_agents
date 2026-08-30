@@ -126,6 +126,68 @@ No transcript of earlier turns. **There is no past to re-read, so there is nothi
 
 Each run keeps its last state as `design_decision_state.json` — named apart from the per-step `design_state.jsonl` the run already writes.
 
+## Where each subsystem actually stops working
+
+The chain used to be handed a *calculated* minimum per subsystem — crew demand
+divided by how often the machine can run — and told not to go below it. Two
+things were wrong with that, and together they cost most of a fifty-round run.
+
+**The calculation was not always right.** It assumes the machine runs at full
+batch every time it is available, which the crew's own operating rules do not
+do: the water recycler is only started once five litres have collected, so a
+batch smaller than that leaves feed behind every cycle. The calculated minimum
+was 1.5625 L; the real one is about 2.0. Three separate rounds proposed the
+calculated value and each lost four occupants finding that out again.
+
+**And a line a designer may not cross becomes the answer.** From the round the
+gas subsystems first touched their calculated minimum, twenty further rounds
+moved neither of them — not because anything had been measured, but because a
+number had been asserted. With the two heavy subsystems pinned (they are 91% of
+the mass) the only lever left was the water recycler, worth under half a mark
+across its whole safe range. The chain spent thirty rounds there.
+
+So the limits are measured. Once per chain, before the second round is
+designed, `floor_probe` grows the shipped machine until everyone comes back,
+then walks each subsystem down on its own — holding the others at the smallest
+sizing that survived — until occupants are lost:
+
+```text
+<chain_dir>/measured_limits.json
+```
+
+```text
+CO2 scrubber      20.79 kept everyone   20.45 lost 12  (co2_warning)
+oxygen generator  42.04 kept everyone   41.35 lost  2  (o2_warning)
+water recycler     1.98 kept everyone    1.95 lost  4  (water_warning)
+```
+
+Thirty-four simulations, sixteen seconds, no model involved. The gas figures
+came out where the calculation said — which is only knowable because they were
+checked. The water figure did not.
+
+**Nothing here forbids anything.** The decision page carries the two ends of
+each bracket and no threshold, no floor, and no instruction. A designer shown
+that twelve occupants died at 20.45 does not need to be told 20.8 is a limit,
+and one shown that nothing below 1.98 has survived can still try lower if the
+evidence changes. Four places used to say otherwise — the capacity table's
+"required nameplate", a `below_theoretical_floor` failure pattern, a
+`do_not_reduce_below_best_without_reason` flag, and a prompt clause demanding a
+justification for going lower. All four are gone.
+
+## A proposal hands on the whole machine
+
+A capacity proposal is applied by merging it into the *scenario file*, not into
+the machine the run that produced it was flying. So a proposal naming one
+subsystem silently returned the other two to their shipped sizes — which is how
+a chain that had grown its scrubber and oxygen generator enough to keep fifty
+occupants alive handed the next round a station sized for none of them, and
+read the loss as the design's fault.
+
+`complete_capacity_profile` fills in whatever a proposal did not mention from
+what was actually installed, so every hand-off is a whole machine. Nothing is
+overridden; an omission simply stops meaning "revert this". This is the fix the
+chain-memory note was always a stopgap for.
+
 ## What carries between rounds
 
 The DesignState is built from one run, which is what keeps it from growing. It also
@@ -148,9 +210,10 @@ never copied under them, in `src/scenario/ssos_eclss_loop/chain_memory.py`:
   "updated_after_iteration": 24,
   "objective": {"primary": "maximize_crew_remaining",
                 "secondary": "maximize_evaluation_score"},
-  "theoretical_floor": {"plant_sim.ars.capacity_kg_day": 20.8,
-                        "plant_sim.ogs.max_o2_kg_day": 42.0,
-                        "plant_sim.wrs.max_feed_l_per_operation": 1.5625},
+  "measured_limits": {"smallest_surviving_machine": {"…": 0},
+                      "by_subsystem": {"plant_sim.wrs.max_feed_l_per_operation":
+                        {"smallest_that_kept_everyone": 1.98,
+                         "largest_that_lost_someone": 1.95, "and_lost": "46/50"}}},
   "best_full_survival": {"iteration": 24, "crew_remaining": 50, "score": 66.18,
                          "fields": {"…": 0}, "constraint_status": "over_budget"},
   "last_effective_design": {"iteration": 24, "fields": {"…": 0}},
@@ -167,11 +230,11 @@ Four rules decide what goes in it.
 - **`best_full_survival`** admits an iteration only if `crew_remaining == crew_initial`,
   the physics gate passed and the evaluation was `scored`. Among those, the highest
   score wins; a tie goes to the design that can be paid for.
-- **`theoretical_floor`** comes from the designer's own `compute_theoretical_capacity`
-  call in `tool_trace.jsonl`, so the number in the memory is the number it was shown.
-  A round that did not produce one keeps the floor the chain already had.
-- **`known_bad_patterns`** counts two shapes: a partial proposal that let ARS/OGS fall
-  back to baseline, and ARS/OGS installed below the floor in a round that lost occupants.
+- **`measured_limits`** are not written here at all — they come from the sweep above,
+  once per chain, and the memory only carries them forward.
+- **`known_bad_patterns`** counts one shape: a partial proposal that let the gas pair
+  fall back to their shipped sizes. Completing every hand-off should make that
+  impossible; it is kept as a canary for that fix regressing.
 
 It is capped at **4 KB** — its only reader is a model with a finite context window. It
 is a note, not a history: at most five patterns, one best design, one installed design,

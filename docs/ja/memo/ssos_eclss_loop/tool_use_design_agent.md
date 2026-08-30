@@ -126,6 +126,59 @@ LLM が返す JSON は 2 種類だけ。
 
 ランごとに `design_decision_state.json` として最後の状態を残す（既存の step ごとの `design_state.jsonl` とは別物なので名前を分けてある）。
 
+## 各装置が実際に機能しなくなる点
+
+以前は装置ごとに**計算した**最小値——乗員の需要を運転可能回数で割った値——を渡し、
+「これを下回るな」と伝えていた。これには2つの誤りがあり、あわせて50周のランの大半を
+無駄にした。
+
+**計算が常に正しいとは限らない。** 計算は「運転可能なときは毎回満量で動く」と仮定するが、
+乗員の運用ルールはそうなっていない。水再生装置は5L溜まってから起動するので、
+それより小さい処理量では毎回処理し残しが出る。計算値は 1.5625 L、実際は約 2.0。
+3つの周回が計算値を提案し、そのたびに4人ずつ失って同じことを再発見した。
+
+**そして「越えてはいけない線」は答えになる。** ガス系2つが計算値に触れた周回以降、
+20周にわたってどちらも動かなかった。何かが測定されたからではなく、
+**数字が断定されていたから**である。重量の91%を占める2つが釘付けになると、
+残る操作対象は水再生装置だけで、その安全圏全域を動かしても0.5点に満たない。
+チェーンはそこで30周を費やした。
+
+そこで限界は**測る**ことにした。チェーンごとに1回、2周目が設計される前に、
+`floor_probe` が出荷時の機体を全員生存するまで大きくし、そこから各装置を単独で
+——他は生存した最小値に固定したまま——乗員を失うまで下げていく。
+
+```text
+<chain_dir>/measured_limits.json
+```
+
+```text
+CO2除去装置    20.79 で全員生存   20.45 で12人死亡（CO2警戒帯）
+酸素生成装置   42.04 で全員生存   41.35 で 2人死亡（酸素警戒帯）
+水再生装置      1.98 で全員生存    1.95 で 4人死亡（水警戒帯）
+```
+
+34本・16秒、LLMは関与しない。ガス2つは計算どおりの位置に出た——**それが分かるのは
+確かめたからである**。水は違った。
+
+**ここには禁止が1つも無い。** 判断画面に載るのは各装置の両端2点だけで、閾値も、下限も、
+指示も無い。20.45で12人死んだと示された設計者に「20.8が限界だ」と告げる必要は無いし、
+1.98未満で生存した例が無いと示されても、証拠が変われば下を試してよい。
+以前これに反することを言っていた4か所——必要能力表の「必要定格」、
+`below_theoretical_floor` の失敗パターン、`do_not_reduce_below_best_without_reason` フラグ、
+そして下回る際の説明を求めるプロンプト——は**すべて削除した**。
+
+## 提案は機体まるごとを引き継ぐ
+
+容量提案は、それを出したランが実際に飛ばしていた機体ではなく、**シナリオファイル**へ
+マージして適用される。だから1つの装置しか書かれていない提案は、残る2つを黙って
+出荷時のサイズへ戻していた。スクラバと酸素生成装置を50人が生き延びるまで育てたチェーンが、
+次の周回に誰も生き延びられない station を渡し、その損失を設計のせいと読んだ——
+これがその機構である。
+
+`complete_capacity_profile` は、提案が触れなかった変数を**実際に設置されていた値**で
+埋める。上書きはしない。省略が「元に戻せ」を意味しなくなるだけだ。
+chain memory のメモが最初から暫定策だと書いていた、その本修正にあたる。
+
 ## ラウンドをまたいで引き継ぐもの
 
 DesignState は 1 ランだけから組み立てる。だから伸びないのだが、同時に chain 実行では
@@ -148,9 +201,10 @@ ARS と OGS が baseline に巻き戻り、次のランは 0/50 で返ってき�
   "updated_after_iteration": 24,
   "objective": {"primary": "maximize_crew_remaining",
                 "secondary": "maximize_evaluation_score"},
-  "theoretical_floor": {"plant_sim.ars.capacity_kg_day": 20.8,
-                        "plant_sim.ogs.max_o2_kg_day": 42.0,
-                        "plant_sim.wrs.max_feed_l_per_operation": 1.5625},
+  "measured_limits": {"smallest_surviving_machine": {"…": 0},
+                      "by_subsystem": {"plant_sim.wrs.max_feed_l_per_operation":
+                        {"smallest_that_kept_everyone": 1.98,
+                         "largest_that_lost_someone": 1.95, "and_lost": "46/50"}}},
   "best_full_survival": {"iteration": 24, "crew_remaining": 50, "score": 66.18,
                          "fields": {"…": 0}, "constraint_status": "over_budget"},
   "last_effective_design": {"iteration": 24, "fields": {"…": 0}},
@@ -166,11 +220,11 @@ ARS と OGS が baseline に巻き戻り、次のランは 0/50 で返ってき�
 - **`best_full_survival`** に入れるのは `crew_remaining == crew_initial` かつ
   physics gate 通過かつ evaluation が `scored` の iteration だけ。その中で score 最大、
   同点なら制約違反が軽い（払える）方を採る。
-- **`theoretical_floor`** は `tool_trace.jsonl` にある designer 自身の
-  `compute_theoretical_capacity` 結果から取る。memory に載る数字は designer が見た数字と
-  同じになる。取得できないラウンドは既存値を維持する。
-- **`known_bad_patterns`** は 2 つの形を数える。partial proposal で ARS/OGS が baseline に
-  戻った回数と、理論床未満の ARS/OGS で乗員を失った回数。
+- **`measured_limits`** はここでは作らない。上の実測をチェーンに1回だけ走らせた結果を
+  そのまま運ぶだけである。
+- **`known_bad_patterns`** が数えるのは1つの形だけ。partial proposal でガス系2つが
+  出荷時サイズに戻った回数。機体まるごとを引き継ぐようにした以上これは起きないはずで、
+  その修正が退行した場合のカナリアとして残してある。
 
 上限は **4 KB**。読み手は有限のコンテキストを持つ LLM だけだからだ。これは履歴ではなく
 **メモ**である。pattern は最大 5 件、best は 1 件、last は 1 件、iteration ごとのログは

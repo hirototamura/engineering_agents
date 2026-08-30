@@ -107,6 +107,7 @@ def test_design_iterate_mock_applies_only_previous_applied_file(tmp_path: Path):
             overrides=_labeled_overrides(backend="mock", steps=4),
         ),
         iteration_record={"chain": True, "count": 3},
+        measure_limits=False,
     )
     assert summary["iterations_completed"] == 3
     assert (chain_dir / "01" / "summary.json").exists()
@@ -389,6 +390,71 @@ def test_the_chain_leaves_each_round_a_note_from_the_ones_before_it(tmp_path: Pa
     # Every iteration after the first can see it from its own run directory.
     for index in (1, 2, 3):
         assert load_chain_memory(chain_dir / f"{index:02d}") == memory
+
+
+def test_the_chain_measures_its_own_limits_before_designing_against_them(tmp_path: Path):
+    """Where each subsystem stops working is found by trying it, once, up front.
+
+    It used to be calculated and asserted. The calculation was wrong for the
+    water recycler, and because it arrived as a rule rather than a result, no
+    round of an observed fifty-iteration chain ever tested any of the three.
+    """
+    from scenario.ssos_eclss_loop.floor_probe import MEASURED_LIMITS_FILENAME
+
+    chain_dir = tmp_path / "chain"
+    summary = run_design_iterate(
+        iterations=2,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=_labeled_overrides(backend="plant_sim", steps=8, inject_failures=False),
+        ),
+        paired_replay=False,
+    )
+
+    path = chain_dir / MEASURED_LIMITS_FILENAME
+    assert path.exists()
+    measured = json.loads(path.read_text(encoding="utf-8"))
+    assert measured["simulations"] > 0
+    assert set(measured["smallest_surviving_machine"]) == {
+        "plant_sim.ars.capacity_kg_day",
+        "plant_sim.ogs.max_o2_kg_day",
+        "plant_sim.wrs.max_feed_l_per_operation",
+    }
+    assert summary["survival_limits"]["status"] == measured["status"]
+
+    # And what was measured reaches the round that has to design against it.
+    memory = load_chain_memory(chain_dir / "02")
+    limits = memory["measured_limits"]
+    assert limits["by_subsystem"]
+    for row in limits["by_subsystem"].values():
+        assert "smallest_that_kept_everyone" in row
+    # Observations, not instructions.
+    assert "do_not_reduce_below_best_without_reason" not in memory["proposal_guidance"]
+
+
+def test_the_chain_hands_on_a_whole_machine_not_just_what_changed(tmp_path: Path):
+    chain_dir = tmp_path / "chain"
+    run_design_iterate(
+        iterations=2,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=_labeled_overrides(backend="mock", steps=4),
+        ),
+        paired_replay=False,
+        measure_limits=False,
+    )
+    applied = json.loads(
+        (chain_dir / "01" / "applied_proposals.json").read_text(encoding="utf-8")
+    )
+    capacity = [c for c in applied["changes"] if c["change_kind"] == "capacity_profile"]
+    for change in capacity:
+        assert set(change["payload"]["fields"]) == {
+            "plant_sim.ars.capacity_kg_day",
+            "plant_sim.ogs.max_o2_kg_day",
+            "plant_sim.wrs.max_feed_l_per_operation",
+        }
 
 
 def test_the_chain_writes_a_final_answer_beside_its_verdict(tmp_path: Path):
