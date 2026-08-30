@@ -136,27 +136,28 @@ It also carries an exploration directive: four rounds *in the same survival tier
 
 ## What actually happened
 
-Three fifty-round chains, same world, same crew. Between them, two changes. Every figure below is read from the per-round metrics committed in [`docs/data/`](docs/data).
+Four fifty-round chains, same world, same crew. Between them, three changes. Every figure below is read from the per-round metrics committed in [`docs/data/`](docs/data).
 
-| | Phase 1 — as built | Phase 2 — + chain memory | Phase 3 — + re-anchored scorecard |
-| --- | ---: | ---: | ---: |
-| **Final survivors** | **34/50** | **50/50** | **50/50** |
-| Rounds at 0/50 | 12 | 1 | 1 |
-| Complete design proposals | 38/50 | 50/50 | 50/50 |
-| Unique designs explored | 39 | 11 | 17 |
-| Best / mean score | 66.18 / 61.71 | 66.36 / 65.94 | 84.23 / 83.34 |
+| | Phase 1 — as built | Phase 2 — + chain memory | Phase 3 — + re-anchored scorecard | Phase 4 — + audit panel |
+| --- | ---: | ---: | ---: | ---: |
+| **Final survivors** | **34/50** | **50/50** | **50/50** | **50/50** |
+| Rounds at 0/50 | 12 | 1 | 1 | 1 |
+| Complete design proposals | 38/50 | 50/50 | 50/50 | 50/50 |
+| Unique designs explored | 39 | 11 | 17 | 9 |
+| Best / mean score | 66.18 / 61.71 | 66.36 / 65.94 | 84.23 / 83.34 | 84.03 / 82.59 |
 
-*Phase 3's scores are not comparable to 1–2 — the scoring function changed. Comparable: survivors, resets, proposal completeness, unique designs.*
+*Phase 3 and 4 scores are not comparable to 1–2 — the scoring function changed. Phase 4 uses the phase-3 sheet. Comparable across all four: survivors, resets, proposal completeness, unique designs.*
 
-![Survivors and score across three phases](docs/images/results/ssos_phase1_phase2_phase3_survival_score_trend.svg)
+![Survivors and score across four phases](docs/images/results/ssos_phase1_phase2_phase3_survival_score_trend.svg)
 
-Three findings worth the run time:
+Four findings worth the run time:
 
 1. **Phase 1 was not a search failure — it was a state-inheritance failure.** It explored 39 unique designs, more than either later phase, and found a full-survival answer at round 24. It just could not hold on to it, and ended twenty-six rounds later, worse.
 2. **A 4 KB note fixed it.** Twelve catastrophic resets became one. Every proposal thereafter named all three subsystems. The cost: unique designs fell from 39 to 11 as the search narrowed.
 3. **The scorecard was measuring the wrong thing.** Full marks on cost and mass sat at the *shipped baseline*, which kills everyone — so every survivable design, being necessarily larger, was marked expensive. Two very different survivable designs scored 11.6 and 4.1 out of 40; the sheet could not tell them apart. Re-anchoring to the smallest observed survivable design fixed the resolution.
+4. **The audit panel stopped the dangerous cut — and the search.** Phase 4 locked at `20.8 / 42.0 / 1.65` from round 17 and never visited phase 3's WRS=1.25 failure (45/50) or the 1.8–2.2 band that scored 84.23. Unique designs fell from 17 to 9.
 
-And what is still wrong, stated in the same place: total mass and cost did **not** improve much between phases 2 and 3 — the score moved because the scoring moved. The search stayed on one axis. One model, one seed, three chains — not a statistical study.
+And what is still wrong, stated in the same place: total mass and cost did **not** improve much between phases 2, 3, and 4 — the score moved because the scoring moved. The search stayed on one axis, then froze. One model, one seed, four chains — not a statistical study.
 
 Two of those have since been diagnosed and fixed (`0aaec84`), which is the fourth finding and the most uncomfortable one. The chain was handed a *calculated* minimum per subsystem and told not to cross it — so it stopped there: from the round the two gas subsystems first touched theirs, twenty further rounds moved neither, and they are 91% of the mass. One of the three figures was also wrong. **The floor is measured now** — grow the machine until everyone comes back, walk each subsystem down alone until they do not, show the designer both ends and no threshold. And the resets themselves turned out to be a plumbing bug: a proposal was merged into the scenario file rather than the machine the run was flying, so naming one subsystem reverted the other two. Whether the search spreads now that nothing forbids going lower is **unmeasured** — that is the next chain, not a claim.
 
@@ -169,7 +170,7 @@ The whole chain is in the repository, and the last step is a `diff`:
 | | Where | Size |
 | --- | --- | --- |
 | **Run a chain** | [`scripts/run_design_chain.sh`](scripts/run_design_chain.sh) · [`.ps1`](scripts/windows/run_design_chain.ps1) | |
-| **Raw logs** — all three chains, whole | [`experiments/runs/*.tar.gz`](experiments/runs) | 32 MB (115 MB each extracted) |
+| **Raw logs** — all four chains, whole | [`experiments/runs/*.tar.gz`](experiments/runs) | 43 MB (115 MB each extracted) |
 | **Analysis scripts** — stdlib only, no numpy | [`experiments/analysis/`](experiments/analysis) | 6 scripts |
 | **Analysed data** — 50 rows × 54 columns per phase | [`docs/data/`](docs/data) | |
 | **Figures** | [`docs/images/results/`](docs/images/results) | |

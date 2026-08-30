@@ -1,6 +1,6 @@
 # Roadmap
 
-Priorities here are not wishes. Each one is something the [three fifty-round chains](results.md) measured as missing, and each names the file it lands in.
+Priorities here are not wishes. Each one is something the [four fifty-round chains](results.md) measured as missing, and each names the file it lands in.
 
 For SSOS/ROS 2 integration phases specifically, see [SSOS roadmap](ssos/roadmap.md).
 

@@ -102,12 +102,9 @@ EXPERT_CONTEXT_PACK = """\
 - Only a candidate that has been re-simulated may become the final proposal.
 - When the state carries `chain_memory`, it is bounded evidence from earlier rounds
   of this chain, not a replacement for what this run shows. Prefer a design that
-  keeps or improves on `best_full_survival`, and name all three design variables in
-  a proposal so a later round cannot silently drop one.
-- `chain_memory.measured_limits` reports, per subsystem, a sizing that brought every
-  occupant back and one that did not. These are results, not rules: no sizing is
-  forbidden. Sizing below one is a decision to be made on the evidence, the same as
-  any other, and the smallest machine that keeps everyone alive is the goal.
+  keeps or improves on `best_full_survival`; name all three design variables in a
+  proposal so a later round cannot silently drop one; and if you size ARS or OGS
+  below `theoretical_floor`, say why the crew still survives on less.
 - If `chain_memory.exploration_directive.mode` is "diversify", the chain has stopped
   making progress in the same neighbourhood. Do not repeat the best or the most
   recent capacity set: propose a complete three-variable profile at a materially

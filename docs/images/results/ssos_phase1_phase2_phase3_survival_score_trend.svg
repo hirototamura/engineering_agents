@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1260" height="760" viewBox="0 0 1260 760">
 <rect width="100%" height="100%" fill="white"/>
-<text x="630.0" y="32" font-size="22" text-anchor="middle" font-family="Arial">段階①-③の生存者数・スコア推移</text>
+<text x="630.0" y="32" font-size="22" text-anchor="middle" font-family="Arial">段階①-④の生存者数・スコア推移</text>
 <text x="78" y="44.0" font-size="15" font-family="Arial">Crew remaining / 50</text>
 <rect x="78" y="58.0" width="1002" height="280.0" fill="none" stroke="#333"/>
 <line x1="78" y1="338.0" x2="1080" y2="338.0" stroke="#e6e6e6"/>
@@ -47,6 +47,10 @@
 <circle cx="78.0" cy="338.0" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 1: 0.00</title></circle>
 <circle cx="1080.0" cy="58.0" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 50: 50.00</title></circle>
 <circle cx="98.4" cy="58.0" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 2: 50.00</title></circle>
+<polyline fill="none" stroke="#d94801" stroke-width="2.7" points="78.0,338.0 98.4,231.6 118.9,58.0 139.3,58.0 159.8,58.0 180.2,58.0 200.7,58.0 221.1,58.0 241.6,58.0 262.0,58.0 282.5,58.0 302.9,58.0 323.4,58.0 343.8,58.0 364.3,58.0 384.7,58.0 405.2,58.0 425.6,58.0 446.1,58.0 466.5,58.0 487.0,58.0 507.4,58.0 527.9,58.0 548.3,58.0 568.8,58.0 589.2,58.0 609.7,58.0 630.1,58.0 650.6,58.0 671.0,58.0 691.5,58.0 711.9,58.0 732.4,58.0 752.8,58.0 773.3,58.0 793.7,58.0 814.2,58.0 834.6,58.0 855.1,58.0 875.5,58.0 896.0,58.0 916.4,58.0 936.9,58.0 957.3,58.0 977.8,58.0 998.2,58.0 1018.7,58.0 1039.1,58.0 1059.6,58.0 1080.0,58.0"/>
+<circle cx="78.0" cy="338.0" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 1: 0.00</title></circle>
+<circle cx="1080.0" cy="58.0" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 50: 50.00</title></circle>
+<circle cx="118.9" cy="58.0" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 3: 50.00</title></circle>
 <text x="78" y="394.0" font-size="15" font-family="Arial">Evaluation score / 100</text>
 <rect x="78" y="408.0" width="1002" height="280.0" fill="none" stroke="#333"/>
 <line x1="78" y1="688.0" x2="1080" y2="688.0" stroke="#e6e6e6"/>
@@ -93,11 +97,17 @@
 <circle cx="78.0" cy="630.1" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 1: 58.28</title></circle>
 <circle cx="1080.0" cy="449.4" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 50: 84.08</title></circle>
 <circle cx="896.0" cy="448.4" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 41: 84.23</title></circle>
+<polyline fill="none" stroke="#d94801" stroke-width="2.7" points="78.0,630.1 98.4,595.6 118.9,538.6 139.3,466.2 159.8,466.2 180.2,466.2 200.7,462.9 221.1,462.9 241.6,453.3 262.0,451.8 282.5,451.8 302.9,451.8 323.4,450.8 343.8,450.8 364.3,450.8 384.7,450.8 405.2,449.8 425.6,449.8 446.1,449.8 466.5,449.8 487.0,449.8 507.4,449.8 527.9,449.8 548.3,449.8 568.8,449.8 589.2,449.8 609.7,449.8 630.1,449.8 650.6,449.8 671.0,449.8 691.5,449.8 711.9,449.8 732.4,449.8 752.8,449.8 773.3,449.8 793.7,449.8 814.2,449.8 834.6,449.8 855.1,449.8 875.5,449.8 896.0,449.8 916.4,449.8 936.9,449.8 957.3,449.8 977.8,449.8 998.2,449.8 1018.7,449.8 1039.1,449.8 1059.6,449.8 1080.0,449.8"/>
+<circle cx="78.0" cy="630.1" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 1: 58.28</title></circle>
+<circle cx="1080.0" cy="449.8" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 50: 84.03</title></circle>
+<circle cx="405.2" cy="449.8" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 17: 84.03</title></circle>
 <line x1="1104" y1="84" x2="1148" y2="84" stroke="#9ecae1" stroke-width="3"/>
 <text x="1158" y="89" font-size="14" font-family="Arial">段階① 初期</text>
 <line x1="1104" y1="112" x2="1148" y2="112" stroke="#2171b5" stroke-width="3"/>
 <text x="1158" y="117" font-size="14" font-family="Arial">段階② 記憶あり改善</text>
 <line x1="1104" y1="140" x2="1148" y2="140" stroke="#08306b" stroke-width="3"/>
 <text x="1158" y="145" font-size="14" font-family="Arial">段階③ 記憶+評価変更</text>
+<line x1="1104" y1="168" x2="1148" y2="168" stroke="#d94801" stroke-width="3"/>
+<text x="1158" y="173" font-size="14" font-family="Arial">段階④ 監査パネル</text>
 <text x="579.0" y="742" font-size="15" text-anchor="middle" font-family="Arial">Iteration</text>
 </svg>

@@ -2,13 +2,14 @@
 
 この手順書は、他の人のCursor環境で、SSOS ECLSSの50 iteration結果から同じ比較レポート・CSV・SVGを再生成するためのものです。
 
-対象は以下の3段階です。
+対象は以下の4段階です。
 
 | 段階 | 入力データ | 意味 |
 |---|---|---|
 | 段階① 初期 | `phase1-no-chain-memory.tar.gz` | chain memoryなしの初期実装 |
 | 段階② 記憶あり改善 | `phase2-chain-memory.tar.gz` | `compact_chain_memory.json` をiteration間で保持 |
 | 段階③ 記憶+評価変更 | `phase3-rescored.tar.gz` | 記憶あり + Cost/Mass評価指標を再調整 |
+| 段階④ 監査パネル | `phase4-multiagent.tar.gz` | 記憶+再採点 + 設計者1・監査者3の item-veto |
 
 ## 1. 前提
 
@@ -43,6 +44,7 @@ engineering_agents/
       phase1_iteration_metrics.csv
       phase2_iteration_metrics.csv
       phase3_iteration_metrics.csv
+      phase4_iteration_metrics.csv
       ...
     images/
       results/
@@ -51,9 +53,11 @@ engineering_agents/
         phase1_score_components_grouped.svg
         phase2_score_components_grouped.svg
         phase3_score_components_grouped.svg
+        phase4_score_components_grouped.svg
         phase1_score_components_stacked_split.svg
         phase2_score_components_stacked_split.svg
         phase3_score_components_stacked_split.svg
+        phase4_score_components_stacked_split.svg
 ```
 
 ## 2. 解析データを展開する
@@ -86,6 +90,7 @@ Get-ChildItem runs\*.tar.gz | ForEach-Object {
 experiments/runs/phase1-no-chain-memory/
 experiments/runs/phase2-chain-memory/
 experiments/runs/phase3-rescored/
+experiments/runs/phase4-multiagent/
 ```
 
 各ディレクトリには `chain_summary.json` と `01/` から `50/` のiterationディレクトリがあるはずです。
@@ -98,6 +103,7 @@ experiments/runs/phase3-rescored/
 python3 analysis/analyze_ssos_iter.py --root runs/phase1-no-chain-memory --prefix phase1
 python3 analysis/analyze_ssos_iter.py --root runs/phase2-chain-memory    --prefix phase2
 python3 analysis/analyze_ssos_iter.py --root runs/phase3-rescored        --prefix phase3
+python3 analysis/analyze_ssos_iter.py --root runs/phase4-multiagent      --prefix phase4
 ```
 
 Windows PowerShellで日本語表示が崩れる場合:
@@ -107,6 +113,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 python analysis\analyze_ssos_iter.py --root runs/phase1-no-chain-memory --prefix phase1
 python analysis\analyze_ssos_iter.py --root runs/phase2-chain-memory    --prefix phase2
 python analysis\analyze_ssos_iter.py --root runs/phase3-rescored        --prefix phase3
+python analysis\analyze_ssos_iter.py --root runs/phase4-multiagent      --prefix phase4
 ```
 
 主な生成物:
@@ -115,16 +122,18 @@ python analysis\analyze_ssos_iter.py --root runs/phase3-rescored        --prefix
 experiments/outputs/phase1_iteration_metrics.csv
 experiments/outputs/phase2_iteration_metrics.csv
 experiments/outputs/phase3_iteration_metrics.csv
+experiments/outputs/phase4_iteration_metrics.csv
 experiments/outputs/phase1_iteration_findings.json
 experiments/outputs/phase2_iteration_findings.json
 experiments/outputs/phase3_iteration_findings.json
+experiments/outputs/phase4_iteration_findings.json
 ```
 
-## 4. 3段階比較グラフを生成する
+## 4. 4段階比較グラフを生成する
 
 ### 生存者数・スコア推移
 
-段階①-③を重ねて、生存者数と評価スコアの推移を確認します。
+段階①-④を重ねて、生存者数と評価スコアの推移を確認します。
 
 ```bash
 python3 analysis/make_comparison_trend.py
@@ -141,6 +150,7 @@ experiments/outputs/ssos_phase1_phase2_phase3_survival_score_trend.svg
 - 段階①は途中で生存者数が崩れていないか
 - 段階②以降で50/50生存を維持できているか
 - 段階③のスコア上昇を、評価指標変更の影響として読めているか
+- 段階④は iter 2 の部分生存（19/50）のあと、③より早く設計を固定していないか
 
 ### ARS / OGS / WRS の3パラメータ推移
 
@@ -160,6 +170,7 @@ experiments/outputs/ssos_phase1_phase2_phase3_parameter_trends.svg
 - OGSが42.0 kg/day付近を維持できているか
 - WRSの探索範囲が広がっているか
 - WRSを下げすぎた失敗境界が見えているか
+- 段階④の監査が WRS の下げを止め、1.65 に固定していないか
 
 ## 5. 点数内訳の積み上げグラフを生成する
 
@@ -176,6 +187,7 @@ experiments/outputs/ssos_phase1_phase2_phase3_parameter_trends.svg
 python3 analysis/make_score_group_components.py --prefix phase1 --title "段階① 初期: 点数内訳 集約版" --output phase1_score_components_grouped
 python3 analysis/make_score_group_components.py --prefix phase2 --title "段階② 記憶あり改善: 点数内訳 集約版" --output phase2_score_components_grouped
 python3 analysis/make_score_group_components.py --prefix phase3 --title "段階③ 記憶+評価変更: 点数内訳 集約版" --output phase3_score_components_grouped
+python3 analysis/make_score_group_components.py --prefix phase4 --title "段階④ 監査パネル: 点数内訳 集約版" --output phase4_score_components_grouped
 ```
 
 生成物:
@@ -184,9 +196,11 @@ python3 analysis/make_score_group_components.py --prefix phase3 --title "段階�
 experiments/outputs/phase1_score_components_grouped.csv
 experiments/outputs/phase2_score_components_grouped.csv
 experiments/outputs/phase3_score_components_grouped.csv
+experiments/outputs/phase4_score_components_grouped.csv
 experiments/outputs/phase1_score_components_grouped.svg
 experiments/outputs/phase2_score_components_grouped.svg
 experiments/outputs/phase3_score_components_grouped.svg
+experiments/outputs/phase4_score_components_grouped.svg
 ```
 
 ### 詳細版: A / B / C / D / E / F / G
@@ -195,6 +209,7 @@ experiments/outputs/phase3_score_components_grouped.svg
 python3 analysis/make_score_components_split.py --prefix phase1 --title "段階① 初期: 点数内訳 詳細版"
 python3 analysis/make_score_components_split.py --prefix phase2 --title "段階② 記憶あり改善: 点数内訳 詳細版"
 python3 analysis/make_score_components_split.py --prefix phase3 --title "段階③ 記憶+評価変更: 点数内訳 詳細版"
+python3 analysis/make_score_components_split.py --prefix phase4 --title "段階④ 監査パネル: 点数内訳 詳細版"
 ```
 
 生成物:
@@ -203,9 +218,11 @@ python3 analysis/make_score_components_split.py --prefix phase3 --title "段階�
 experiments/outputs/phase1_score_components_split.csv
 experiments/outputs/phase2_score_components_split.csv
 experiments/outputs/phase3_score_components_split.csv
+experiments/outputs/phase4_score_components_split.csv
 experiments/outputs/phase1_score_components_stacked_split.svg
 experiments/outputs/phase2_score_components_stacked_split.svg
 experiments/outputs/phase3_score_components_stacked_split.svg
+experiments/outputs/phase4_score_components_stacked_split.svg
 ```
 
 見るポイント:
@@ -215,7 +232,7 @@ experiments/outputs/phase3_score_components_stacked_split.svg
 - E CostとF Massが段階③で十分に振れているか
 - G Ops/Physicsが最終スコア差にどれくらい効いているか
 
-## 6. 3段階サマリを生成する
+## 6. 4段階サマリを生成する
 
 ```bash
 python3 analysis/summarize_three_way_inputs.py
@@ -248,7 +265,7 @@ experiments/outputs/ssos_three_way_comparison_summary.json
 Linux / macOS / Git Bash:
 
 ```bash
-for n in 1 2 3; do
+for n in 1 2 3 4; do
   diff outputs/phase${n}_iteration_metrics.csv          ../docs/data/phase${n}_iteration_metrics.csv
   diff outputs/phase${n}_iteration_findings.json        ../docs/data/phase${n}_iteration_findings.json
   diff outputs/phase${n}_score_components_grouped.csv   ../docs/data/phase${n}_score_components_grouped.csv
@@ -264,7 +281,7 @@ diff outputs/ssos_phase1_phase2_phase3_parameter_trends.svg     ../docs/images/r
 Windows PowerShell:
 
 ```powershell
-1..3 | ForEach-Object {
+1..4 | ForEach-Object {
   Compare-Object (Get-Content "outputs\phase$($_)_iteration_metrics.csv") (Get-Content "..\docs\data\phase$($_)_iteration_metrics.csv")
   Compare-Object (Get-Content "outputs\phase$($_)_iteration_findings.json") (Get-Content "..\docs\data\phase$($_)_iteration_findings.json")
   Compare-Object (Get-Content "outputs\phase$($_)_score_components_grouped.csv") (Get-Content "..\docs\data\phase$($_)_score_components_grouped.csv")
@@ -325,23 +342,24 @@ experiments/outputs/mychain_score_components_stacked_split.svg
 
 ### 評価指標
 
-- 段階③のスコアは段階①/②と単純比較しない
+- 段階③④のスコアは段階①/②と単純比較しない（③と④は同じ採点表）
 - Cost/Massの点数が適切に振れているか
 - 旧評価スコア・新評価スコア・総コスト・総重量を分けて見る
+- 段階④の監査 veto が探索を狭めていないか
 
 ## 10. Cursorに依頼するときのプロンプト例
 
 ```text
 このリポジトリの experiments/README.md と docs/data/README.md を読み、
-experiments/runs/ にある3つのtar.gzを展開して、解析手順に従って
-SSOS ECLSSの3段階比較レポートを再生成してください。
+experiments/runs/ にある4つのtar.gzを展開して、解析手順に従って
+SSOS ECLSSの4段階比較レポートを再生成してください。
 
 必ず以下を出してください。
-- 生存者数・スコアの3段階重ね合わせグラフ
-- ARS/OGS/WRSの3段階重ね合わせグラフ
+- 生存者数・スコアの4段階重ね合わせグラフ
+- ARS/OGS/WRSの4段階重ね合わせグラフ
 - 点数内訳の集約版: A / B-D / E-F / G
 - 点数内訳の詳細版: A / B / C / D / E / F / G
-- 段階③のスコアは評価指標変更後なので、段階①/②と単純比較しないという注意書き
+- 段階③④のスコアは評価指標変更後なので、段階①/②と単純比較しないという注意書き
 - Cost/Massの点数上昇と、物理的な総コスト・総重量の改善を切り分けた考察
 
 生成結果は experiments/outputs/ に置き、docs/data/ と docs/images/results/ の

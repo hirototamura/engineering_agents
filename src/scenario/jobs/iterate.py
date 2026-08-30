@@ -490,7 +490,7 @@ def run_design_iterate(
     paired_replay: bool = True,
     reporter: Optional[IterateReporter] = None,
     iteration_record: Optional[Dict[str, Any]] = None,
-    measure_limits: bool = True,
+    measure_limits: bool = False,
 ) -> Dict[str, Any]:
     """Run *iterations* ssos_eclss_loop sims, applying the accumulated adopted file.
 

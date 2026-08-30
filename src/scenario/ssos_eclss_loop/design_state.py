@@ -184,15 +184,10 @@ def _capacity_need(theory: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
     subsystems = theory.get("subsystems") if isinstance(theory, Mapping) else None
     if not isinstance(subsystems, Mapping):
         return {}
-    # What the crew actually consumes, and how much of that the installed
-    # machine covers. Not the calculated "smallest machine that would do" --
-    # that is a prediction, it was wrong for the water recycler by 40%, and
-    # printing it beside the design turned it into a boundary nobody tested.
-    # Where each subsystem really stops working is measured instead, and
-    # arrives with the chain memory.
     wanted = (
         "required_kg_day",
         "required_l_operation",
+        "required_nameplate_kg_day",
         "effective_capacity_kg_day",
         "nameplate_kg_day",
         "coverage_ratio",
@@ -207,9 +202,10 @@ def _capacity_need(theory: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
 
 CHAIN_MEMORY_NOTE = (
     "Bounded evidence from earlier iterations of this chain, not a substitute for "
-    "the current run. 'measured_limits' are observations, not rules: each names a "
-    "sizing that brought everyone back and one that did not. Name all three design "
-    "variables so a later iteration cannot silently drop one. When "
+    "the current run. Keep or improve on 'best_full_survival' unless the evidence "
+    "above gives a reason to explore elsewhere, name all three design variables so "
+    "a later iteration cannot silently drop one, and if you size ARS or OGS below "
+    "'theoretical_floor', say why the crew still survives on less. When "
     "'exploration_directive' is present the chain has stopped making progress: "
     "propose a materially different sizing rather than the best or most recent "
     "one again."
@@ -229,6 +225,7 @@ def _chain_memory_view(chain_memory: Optional[Mapping[str, Any]]) -> Optional[Di
         key: chain_memory.get(key)
         for key in (
             "updated_after_iteration",
+            "theoretical_floor",
             "measured_limits",
             "best_full_survival",
             "last_effective_design",

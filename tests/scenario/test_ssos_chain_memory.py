@@ -22,6 +22,7 @@ from scenario.ssos_eclss_loop.chain_memory import (
     MAX_MEMORY_BYTES,
     MODE_DIVERSIFY,
     OGS_KEY,
+    PATTERN_BELOW_FLOOR,
     PATTERN_DROPPED_TO_BASELINE,
     STAGNATION_ACTIVE,
     STAGNATION_COOLDOWN,
@@ -36,12 +37,14 @@ from scenario.ssos_eclss_loop.chain_memory import (
     exploration_settings,
     load_chain_memory,
     survival_tier,
+    theoretical_floor_from_trace,
     update_compact_chain_memory,
 )
 from scenario.ssos_eclss_loop.design_state import build_design_state
 from scenario.ssos_eclss_loop.design_tools import DesignToolContext, DesignToolkit
 from scenario.ssos_eclss_loop.design_variables import BASELINE_CAPACITY
 
+FLOOR = {ARS_KEY: 20.8, OGS_KEY: 42.0, WRS_KEY: 1.5625}
 # The sizing this fixture's rounds fly, unless a test says otherwise.
 SURVIVOR = {ARS_KEY: 20.8, OGS_KEY: 42.0}
 
@@ -56,6 +59,7 @@ def _write_iteration(
     score: float = 60.0,
     status: str = "scored",
     gate_passed: bool = True,
+    with_trace: bool = True,
 ) -> Path:
     """One finished iteration on disk: what ran, and how it went."""
     run_dir = chain_dir / f"{index:02d}"
@@ -83,6 +87,25 @@ def _write_iteration(
         }
     }
     (run_dir / "scenario_config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+    if with_trace:
+        (run_dir / "tool_trace.jsonl").write_text(
+            json.dumps(
+                {
+                    "event": "tool_call",
+                    "tool": "compute_theoretical_capacity",
+                    "arguments": {},
+                    "result": {
+                        "subsystems": {
+                            "ars": {"required_nameplate_kg_day": FLOOR[ARS_KEY]},
+                            "ogs": {"required_nameplate_kg_day": FLOOR[OGS_KEY]},
+                            "wrs": {"expected_feed_l_per_step": FLOOR[WRS_KEY]},
+                        }
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
     return run_dir
 
 
@@ -140,6 +163,7 @@ def test_a_round_that_saved_everyone_becomes_the_best_on_record(tmp_path: Path):
     assert best["score"] == 66.2
     assert best["fields"] == _survivor_fields()
     assert best["physics_gate_passed"] is True
+    assert memory["theoretical_floor"] == FLOOR
     assert memory["objective"]["primary"] == "maximize_crew_remaining"
 
 
@@ -243,6 +267,35 @@ def test_a_complete_proposal_is_not_counted_as_a_drop(tmp_path: Path):
     assert PATTERN_DROPPED_TO_BASELINE not in ids
 
 
+def test_sizing_under_the_floor_and_losing_the_crew_is_counted_with_its_thresholds(
+    tmp_path: Path,
+):
+    run_dir = _write_iteration(tmp_path, 1, fields=_baseline_fields(), crew_remaining=0)
+    update_compact_chain_memory(tmp_path, run_dir, iteration=1)
+
+    patterns = {p["id"]: p for p in load_chain_memory(tmp_path)["known_bad_patterns"]}
+    breach = patterns[PATTERN_BELOW_FLOOR]
+    assert breach["observed_count"] == 1
+    assert breach["thresholds"] == {ARS_KEY: 20.8, OGS_KEY: 42.0}
+
+
+def test_sizing_under_the_floor_without_losing_anyone_is_not_counted(tmp_path: Path):
+    run_dir = _write_iteration(tmp_path, 1, fields=_baseline_fields(), crew_remaining=50)
+    update_compact_chain_memory(tmp_path, run_dir, iteration=1)
+    ids = [p["id"] for p in load_chain_memory(tmp_path)["known_bad_patterns"]]
+    assert PATTERN_BELOW_FLOOR not in ids
+
+
+def test_repeated_failures_accumulate_on_one_entry(tmp_path: Path):
+    for index in range(1, 4):
+        run_dir = _write_iteration(tmp_path, index, fields=_baseline_fields(), crew_remaining=0)
+        update_compact_chain_memory(tmp_path, run_dir, iteration=index)
+    patterns = load_chain_memory(tmp_path)["known_bad_patterns"]
+    below = [p for p in patterns if p["id"] == PATTERN_BELOW_FLOOR]
+    assert len(below) == 1
+    assert below[0]["observed_count"] == 3
+
+
 # --------------------------------------------------------------------------- #
 # the budget the note is written against
 # --------------------------------------------------------------------------- #
@@ -284,6 +337,53 @@ def test_an_iteration_that_wrote_nothing_leaves_the_note_alone(tmp_path: Path):
     assert not (tmp_path / CHAIN_MEMORY_FILENAME).exists()
 
 
+def test_the_floor_comes_from_the_designers_own_capacity_call(tmp_path: Path):
+    run_dir = _write_iteration(tmp_path, 1, fields=_survivor_fields(), crew_remaining=50)
+    assert theoretical_floor_from_trace(run_dir / "tool_trace.jsonl") == FLOOR
+
+
+def test_a_capacity_call_for_a_different_crew_is_not_the_floor(tmp_path: Path):
+    trace = tmp_path / "tool_trace.jsonl"
+    trace.write_text(
+        json.dumps(
+            {
+                "tool": "compute_theoretical_capacity",
+                "arguments": {"crew_size": 6},
+                "result": {"subsystems": {"ars": {"required_nameplate_kg_day": 2.5}}},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert theoretical_floor_from_trace(trace) == {}
+
+
+def test_the_floor_survives_a_result_kept_only_as_text(tmp_path: Path):
+    trace = tmp_path / "tool_trace.jsonl"
+    trace.write_text(
+        json.dumps(
+            {
+                "tool": "compute_theoretical_capacity",
+                "arguments": {},
+                "result_excerpt": json.dumps(
+                    {"subsystems": {"ogs": {"required_nameplate_kg_day": 42.0}}}
+                ),
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert theoretical_floor_from_trace(trace) == {OGS_KEY: 42.0}
+
+
+def test_a_missing_capacity_call_keeps_the_floor_the_chain_already_had(tmp_path: Path):
+    first = _write_iteration(tmp_path, 1, fields=_survivor_fields(), crew_remaining=50)
+    update_compact_chain_memory(tmp_path, first, iteration=1)
+    second = _write_iteration(
+        tmp_path, 2, fields=_survivor_fields(), crew_remaining=50, with_trace=False
+    )
+    update_compact_chain_memory(tmp_path, second, iteration=2)
+    assert load_chain_memory(tmp_path)["theoretical_floor"] == FLOOR
 
 
 
@@ -323,11 +423,12 @@ def test_the_decision_page_carries_the_best_design_earlier_rounds_found(tmp_path
 
     memory = _state(load_chain_memory(tmp_path))["chain_memory"]
     assert memory["best_full_survival"]["fields"] == _survivor_fields()
+    assert memory["theoretical_floor"] == FLOOR
     assert memory["proposal_guidance"]["prefer_complete_capacity_profile"] is True
+    assert memory["proposal_guidance"]["do_not_reduce_below_best_without_reason"] is True
     assert len(memory["proposal_guidance"]["include_all_design_variables"]) == 3
-    # Nothing on the page forbids making a subsystem smaller.
-    assert "do_not_reduce_below_best_without_reason" not in memory["proposal_guidance"]
-    assert "measured_limits" in memory["note"]
+    assert "best_full_survival" in memory["note"]
+    assert "theoretical_floor" in memory["note"]
 
 
 def test_the_decision_page_says_nothing_when_there_is_no_memory():
@@ -371,11 +472,12 @@ def test_the_round_after_a_partial_proposal_is_told_what_it_lost(tmp_path: Path)
     assert memory["proposal_guidance"]["prefer_complete_capacity_profile"] is True
     counted = {p["id"]: p["observed_count"] for p in memory["known_bad_patterns"]}
     assert counted[PATTERN_DROPPED_TO_BASELINE] == 1
+    assert counted[PATTERN_BELOW_FLOOR] == 1
 
     # And it reaches the page the decision is actually taken from.
     shown = _state(memory)["chain_memory"]
     assert shown["best_full_survival"]["fields"] == _survivor_fields()
-    assert "measured_limits" in shown["note"]
+    assert "theoretical_floor" in shown["note"]
 
 # --------------------------------------------------------------------------- #
 # noticing that the chain has stopped getting anywhere

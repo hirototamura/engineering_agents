@@ -7,6 +7,7 @@ SERIES = [
     ("段階① 初期", "phase1", "#9ecae1"),
     ("段階② 記憶あり改善", "phase2", "#2171b5"),
     ("段階③ 記憶+評価変更", "phase3", "#08306b"),
+    ("段階④ 監査パネル", "phase4", "#d94801"),
 ]
 PARAMS = [
     ("ARS capacity kg/day", "config_ars", 0, 32, 20.8, "theory floor 20.8"),
@@ -53,7 +54,7 @@ xmin, xmax = 1, max(row["iteration"] for _, rows, _ in data for row in rows)
 elems = [
     f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">',
     '<rect width="100%" height="100%" fill="white"/>',
-    f'<text x="{w/2}" y="32" font-size="22" text-anchor="middle" font-family="Arial">段階①-③の3パラメータ推移</text>',
+    f'<text x="{w/2}" y="32" font-size="22" text-anchor="middle" font-family="Arial">段階①-④の3パラメータ推移</text>',
 ]
 
 for idx, (title, key, ymin, ymax, ref, ref_label) in enumerate(PARAMS):

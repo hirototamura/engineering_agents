@@ -21,6 +21,11 @@ RUNS = {
         "root": Path("runs/phase3-rescored"),
         "label": "Memory + scoring sensitivity",
     },
+    "multiagent": {
+        "prefix": "phase4",
+        "root": Path("runs/phase4-multiagent"),
+        "label": "Memory + rescored + audit panel",
+    },
 }
 
 
