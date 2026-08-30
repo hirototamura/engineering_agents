@@ -7,7 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from scenario.jobs.iterate import VERDICT_INCONCLUSIVE, resolve_iteration, run_design_iterate
+from scenario.jobs.iterate import (
+    VERDICT_INCONCLUSIVE,
+    accumulate_applied_document,
+    iterate_apply_document,
+    resolve_iteration,
+    run_design_iterate,
+)
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunSpec
 from scenario.ssos_eclss_loop.chain_memory import (
@@ -15,6 +21,7 @@ from scenario.ssos_eclss_loop.chain_memory import (
     MAX_MEMORY_BYTES,
     load_chain_memory,
 )
+from scenario.ssos_eclss_loop.design_proposals import apply_design_proposals
 
 
 def test_resolve_iteration_disabled_without_cli():
@@ -278,8 +285,6 @@ def test_design_llm_provenance_from_overrides():
 
 
 def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
-    from scenario.jobs.iterate import iterate_apply_document
-
     adopted = iterate_apply_document(
         {
             "design_domain": "ssos_graph",
@@ -351,8 +356,6 @@ def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
 
 
 def test_iterate_apply_document_keeps_omitted_keys_at_installed():
-    from scenario.jobs.iterate import iterate_apply_document
-
     ars = "plant_sim.ars.capacity_kg_day"
     ogs = "plant_sim.ogs.max_o2_kg_day"
     wrs = "plant_sim.wrs.max_feed_l_per_operation"
@@ -373,6 +376,141 @@ def test_iterate_apply_document_keeps_omitted_keys_at_installed():
     assert fields[ars] == 4.5
     assert fields[ogs] == 48.0
     assert fields[wrs] == 10.0
+
+
+def test_accumulate_applied_document_keeps_earlier_kinds():
+    previous = {
+        "design_domain": "ssos_graph",
+        "changes": [
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ars",
+                    "action": "air_revitalisation",
+                    "fields": {"initial_co2_mass": 2.25, "initial_moisture_content": 0.4},
+                },
+            },
+            {
+                "change_kind": "graph_rewire",
+                "payload": {"source": "cabin", "target": "ars"},
+            },
+            {
+                "change_kind": "capacity_profile",
+                "payload": {
+                    "backend": "plant_sim",
+                    "fields": {"plant_sim.ars.capacity_kg_day": 4.5},
+                },
+            },
+            {
+                "change_kind": "service_config",
+                "payload": {"service": "request_co2", "amount": 0.03, "before_ogs": True},
+            },
+        ],
+    }
+    new = {
+        "design_domain": "ssos_graph",
+        "proposed_by": "round-2",
+        "changes": [
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ogs",
+                    "action": "oxygen_generation",
+                    "fields": {"input_water_mass": 0.02},
+                },
+            },
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ars",
+                    "action": "air_revitalisation",
+                    "fields": {"initial_co2_mass": 2.8},
+                },
+            },
+            {
+                "change_kind": "capacity_profile",
+                "payload": {
+                    "backend": "plant_sim",
+                    "fields": {"plant_sim.ogs.max_o2_kg_day": 48.0},
+                },
+            },
+            {
+                "change_kind": "set_parameter",
+                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1.0},
+            },
+        ],
+    }
+    merged = accumulate_applied_document(previous, new)
+    assert merged["proposed_by"] == "round-2"
+    kinds = [(c["change_kind"], (c.get("payload") or {}).get("subsystem") or (c.get("payload") or {}).get("service")) for c in merged["changes"]]
+    assert ("action_profile", "ars") in kinds
+    assert ("action_profile", "ogs") in kinds
+    assert ("graph_rewire", None) in kinds
+    assert ("service_config", "request_co2") in kinds
+    assert ("capacity_profile", None) in kinds
+    assert all(c["change_kind"] != "set_parameter" for c in merged["changes"])
+
+    by_kind = {}
+    for change in merged["changes"]:
+        payload = change.get("payload") or {}
+        if change["change_kind"] == "action_profile":
+            by_kind[("action", payload["subsystem"])] = payload["fields"]
+        elif change["change_kind"] == "capacity_profile":
+            by_kind["capacity"] = payload["fields"]
+        elif change["change_kind"] == "graph_rewire":
+            by_kind["rewire"] = payload
+        elif change["change_kind"] == "service_config":
+            by_kind["service"] = payload
+    assert by_kind[("action", "ars")] == {"initial_co2_mass": 2.8, "initial_moisture_content": 0.4}
+    assert by_kind[("action", "ogs")] == {"input_water_mass": 0.02}
+    assert by_kind["capacity"] == {
+        "plant_sim.ars.capacity_kg_day": 4.5,
+        "plant_sim.ogs.max_o2_kg_day": 48.0,
+    }
+    assert by_kind["rewire"] == {"source": "cabin", "target": "ars"}
+    assert by_kind["service"]["amount"] == 0.03
+
+
+def test_iterate_apply_document_folds_previous_partial_into_applied_file():
+    previous = {
+        "design_domain": "ssos_graph",
+        "changes": [
+            {
+                "change_kind": "action_profile",
+                "payload": {
+                    "subsystem": "ars",
+                    "action": "air_revitalisation",
+                    "fields": {"initial_co2_mass": 2.25},
+                },
+            },
+            {
+                "change_kind": "graph_rewire",
+                "payload": {"source": "cabin", "target": "ars"},
+            },
+        ],
+    }
+    adopted = iterate_apply_document(
+        {
+            "design_domain": "ssos_graph",
+            "changes": [
+                {
+                    "change_kind": "action_profile",
+                    "payload": {
+                        "subsystem": "ogs",
+                        "action": "oxygen_generation",
+                        "fields": {"input_water_mass": 0.02},
+                    },
+                }
+            ],
+        },
+        previous=previous,
+    )
+    assert adopted is not None
+    config = apply_design_proposals({"agents": {"actor": {"policy": {}}}}, adopted)
+    policy = config["agents"]["actor"]["policy"]
+    assert policy["ars_goal"]["initial_co2_mass"] == 2.25
+    assert policy["ogs_goal"]["input_water_mass"] == 0.02
+    assert config["ssos_graph"]["rewires"] == [{"source": "cabin", "target": "ars"}]
 
 
 def test_the_chain_leaves_each_round_a_note_from_the_ones_before_it(tmp_path: Path):
