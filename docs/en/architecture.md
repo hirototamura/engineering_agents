@@ -129,7 +129,7 @@ Extends `Team` ABC. **Homogeneous N agents + representative action**, not rigid 
 
 | Concept | Description |
 | --- | --- |
-| `team.count` | Operator count (scrubber default 4). ssos actors: `actor.team.count` (default 50, lock-step with `plant_sim.crew.size`). Designers: `design.team.count` (default 4; not occupants) |
+| `team.count` | Operator count (scrubber default 4). ssos actors: `actor.team.count` (default 50, lock-step with `plant_sim.crew.size`). Designers: `design.team.count` (default 1, no lens; not occupants). Adoption is a separate `design.audit` panel of 3 independent lenses |
 | `team.archetypes` | Optional list of thinking lenses (scrubber default: all four). Round-robin onto `agent_id`s. Omit or `[]` for legacy homogeneous team |
 | deliberation | llm: one simultaneous (parallel) round for all. labeled: rule-driven fixed messages |
 | action rep | Representative issues commands each step via `(step-1) % N` (ssos actors: `step % N`, 0-based) |
@@ -146,6 +146,10 @@ Implemented in `src/core/agents/persona.py` (`ARCHETYPE_LENSES`, `load_team`, `b
 | `failure_mode` | FMEA-style — secondary failures and worst-case interactions |
 | `improviser` | Smallest intervention reusing resources already on hand |
 | `systems_integrator` | Cross-subsystem coupling and side-effects of local fixes |
+| `rederive_numbers` | Rebuild every quantity; do not accept a figure you have not reconstructed |
+| `break_conclusion` | Treat the emerging design as a claim to falsify |
+| `avoid_local_optima` | Notice a repeated local tweak (for example only WRS) and refuse to bless that basin |
+| `design_validity` | Ask whether the sized machine is buildable and operable as a whole |
 
 **Assignment**: lens names map **round-robin** onto `agent_ids` (`engineer_1` gets the first lens, etc.). Fewer lenses than agents repeats the list.
 
@@ -165,7 +169,7 @@ run_scenario(
 )
 ```
 
-Unknown lens names raise `ValueError` at team load. `ssos_eclss_loop` ships without `team.archetypes` by default.
+Unknown lens names raise `ValueError` at team load. `ssos_eclss_loop` tool-use ships one unlensed designer and an audit panel of `rederive_numbers` / `avoid_local_optima` / `design_validity`. See [design team, audit panel, and storage](memo/ssos_eclss_loop/design_audit_storage.md).
 
 Details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md). Implementation: `src/core/agents/persona.py`.
 

@@ -13,7 +13,15 @@ from scenario.jobs.executor import execute_run
 from scenario.jobs.spec import RunSpec
 from scenario.runner import load_agents_config, load_scenario_config, scenario_descriptions
 from tools.cli import exit_codes
-from tools.cli.output import print_error, print_run_plan, print_run_result
+from tools.cli.output import (
+    ChainLiveReporter,
+    console,
+    hook_execute_progress,
+    maybe_note_approve_provisional,
+    print_error,
+    print_run_plan,
+    print_run_result,
+)
 from tools.cli.overrides import load_override_file, merge_overrides, parse_set_values
 
 DEFAULT_SCENARIO = "scrubber_degradation"
@@ -77,12 +85,32 @@ def run(
         "--apply-proposals",
         help="Apply design_proposals.json before running (ssos_eclss_loop).",
     ),
-    approve_provisional: bool = typer.Option(
-        False,
-        "--approve-provisional",
+    iterate: Optional[int] = typer.Option(
+        None,
+        "--iterate",
+        min=1,
+        max=50,
+        help=(
+            "Chain N design→verify simulations (ssos_eclss_loop). "
+            "Omit the scenario argument to default to ssos_eclss_loop."
+        ),
+    ),
+    paired_replay: Optional[bool] = typer.Option(
+        None,
+        "--paired-replay/--no-paired-replay",
+        help=(
+            "With a design→verify chain: re-run baseline vs final after the chain. "
+            "Omit to use scenario.yaml iteration.paired_replay."
+        ),
+    ),
+    approve_provisional: Optional[bool] = typer.Option(
+        None,
+        "--approve-provisional/--no-approve-provisional",
         help=(
             "Adopt a design_proposals.json marked provisional_final / "
-            "requires_supervisor_approval. Without this, such a document is refused."
+            "requires_supervisor_approval. Omit to use scenario.yaml "
+            "iteration.approve_provisional (ssos_eclss_loop). "
+            "--no-approve-provisional restores the supervisor gate."
         ),
     ),
     llm_provider: Optional[str] = typer.Option(
@@ -134,7 +162,12 @@ def run(
     json_output: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
     quiet: bool = typer.Option(False, "--quiet", help="Print only the output path."),
 ) -> None:
-    scenario_name = scenario or DEFAULT_SCENARIO
+    from scenario.jobs.iterate import ITERATE_SCENARIO, resolve_iteration
+
+    if iterate is not None:
+        scenario_name = scenario or ITERATE_SCENARIO
+    else:
+        scenario_name = scenario or DEFAULT_SCENARIO
     known = scenario_descriptions()
     if scenario_name not in known:
         names = ", ".join(sorted(known))
@@ -158,6 +191,65 @@ def run(
             set_values=set_values,
             override_file=override_file,
         )
+        iteration_config = (
+            load_scenario_config(scenario_name, overrides)
+            if scenario_name == ITERATE_SCENARIO
+            else None
+        )
+        settings = resolve_iteration(
+            iteration_config,
+            cli_iterate=iterate,
+            cli_paired_replay=paired_replay,
+            cli_approve_provisional=approve_provisional,
+            cli_run_id=run_id,
+        )
+    except ValueError as exc:
+        print_error(str(exc), hint="Example: --set iteration.count=5 or --iterate 5")
+        raise typer.Exit(exit_codes.USER_ERROR) from exc
+
+    if settings.chain:
+        if apply_proposals is not None:
+            print_error(
+                "A design→verify chain cannot be combined with --apply-proposals.",
+                hint="The chain applies each run's own adopted proposals.",
+            )
+            raise typer.Exit(exit_codes.USER_ERROR)
+        from tools.cli.commands.iterate import run_iterate_from_run
+
+        maybe_note_approve_provisional(
+            scenario=scenario_name,
+            approve_provisional=settings.approve_provisional,
+            quiet=quiet,
+        )
+        run_iterate_from_run(
+            scenario_name=scenario_name,
+            iterations=settings.count,
+            actor_mode=actor_mode,
+            design_mode=design_mode,
+            agents_mode=agents_mode,
+            steps=steps,
+            run_id=settings.run_id,
+            output_dir=output_dir,
+            results_root=results_root,
+            backend=backend,
+            llm_provider=llm_provider,
+            llm_model=llm_model,
+            inject_failures=inject_failures,
+            paired_replay=settings.paired_replay,
+            approve_provisional=settings.approve_provisional,
+            iteration_record=settings.as_dict(),
+            seed=seed,
+            set_values=set_values,
+            override_file=override_file,
+            no_recreate=no_recreate,
+            dry_run=dry_run,
+            write_spec=write_spec,
+            json_output=json_output,
+            quiet=quiet,
+        )
+        return
+
+    try:
         overrides = _apply_cli_defaults(scenario_name, overrides)
         overrides = _apply_llm_cli_to_llm_sides(
             scenario_name, overrides, llm_provider=llm_provider, llm_model=llm_model
@@ -177,7 +269,7 @@ def run(
         recreate_output=not no_recreate,
         seed=seed,
         apply_proposals_path=apply_proposals,
-        approve_provisional=approve_provisional,
+        approve_provisional=settings.approve_provisional,
     )
 
     if write_spec is not None:
@@ -200,8 +292,8 @@ def run(
         extra_lines["backend"] = backend
     if apply_proposals:
         extra_lines["apply_proposals"] = str(apply_proposals)
-    if approve_provisional:
-        extra_lines["approve_provisional"] = "true"
+    if scenario_name == "ssos_eclss_loop":
+        extra_lines["approve_provisional"] = str(settings.approve_provisional).lower()
     if inject_failures is not None:
         extra_lines["inject_failures"] = str(inject_failures).lower()
     if llm_provider:
@@ -209,6 +301,11 @@ def run(
     if llm_model:
         extra_lines["llm_model"] = llm_model
 
+    maybe_note_approve_provisional(
+        scenario=scenario_name,
+        approve_provisional=settings.approve_provisional,
+        quiet=quiet,
+    )
     if not quiet and not json_output:
         print_run_plan(
             scenario_name,
@@ -227,9 +324,6 @@ def run(
         if env_code != exit_codes.SUCCESS:
             raise typer.Exit(env_code)
 
-    if not quiet and not json_output:
-        typer.echo("Running simulation...")
-
     from tools.cli.ssos_host import (
         check_ssos_ros2_host_environment,
         run_ssos_in_container,
@@ -240,9 +334,40 @@ def run(
     if env_block is not None:
         result = env_block
     elif should_run_ssos_in_container(spec):
+        if not quiet and not json_output:
+            typer.echo("Running simulation...")
         result = run_ssos_in_container(spec)
     else:
-        result = execute_run(spec)
+        live: ChainLiveReporter | None = None
+        if not quiet and not json_output and scenario_name == "ssos_eclss_loop":
+            steps_n = int(resolved_steps) if resolved_steps is not None else 1
+            live = ChainLiveReporter(iterations=1, console=console)
+            live.on_run_start(
+                index=1,
+                total=1,
+                label="1",
+                steps=max(steps_n, 1),
+                kind="iteration",
+            )
+        elif not quiet and not json_output:
+            typer.echo("Running simulation...")
+        on_step, on_phase = hook_execute_progress(live)
+        try:
+            result = execute_run(spec, on_step=on_step, on_phase=on_phase)
+            if live is not None:
+                summary = result.summary or {}
+                live.on_run_end(
+                    {
+                        "iteration": 1,
+                        "crew_remaining": summary.get("crew_remaining"),
+                        "crew_lost": summary.get("crew_lost"),
+                        "design_proposal_count": summary.get("design_proposal_count"),
+                        "apply_proposals_path": spec.apply_proposals_path,
+                    }
+                )
+        finally:
+            if live is not None:
+                live.close()
     print_run_result(result, quiet=quiet, as_json=json_output)
     if result.exit_code != 0:
         print_error(result.error or "Simulation failed.")
@@ -342,9 +467,13 @@ def _build_overrides(
 def _apply_cli_defaults(scenario_name: str, overrides: dict | None) -> dict | None:
     """Pin `ea run ssos_eclss_loop` with no mode/backend flags.
 
-    A bare invocation is equivalent to::
+    Used for both a single sim and chained child sims. A bare invocation is
+    equivalent to::
 
         --backend plant_sim --actor-mode labeled_rule_base --design-mode llm
+
+    ``inject_failures`` is not pinned here; it stays the scenario.yaml value
+    unless ``--inject-failures`` / ``--no-inject-failures`` / ``--set`` is given.
 
     Explicit ``--backend`` / ``--actor-mode`` / ``--design-mode`` / ``--agents-mode``
     / ``--set`` / ``--override-file`` and ``SSOS_ECLSS_BACKEND`` still win. If actor

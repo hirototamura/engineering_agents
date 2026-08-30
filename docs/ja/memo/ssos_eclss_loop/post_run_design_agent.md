@@ -6,7 +6,7 @@
 
 用語は **actor**（シミュレーション内の運用エージェント）と **designer**（ラン終了後の設計エージェント）。
 
-> **新しい経路**: `design.mode: llm` かつ `design.tool_use.enabled: true`（現行の既定）では、ここで説明する designer は Tool Use 処理能力 designer に置き換わる → [tool_use_design_agent.md](tool_use_design_agent.md)。以下は `labeled_rule_base` と `tool_use.enabled: false` に引き続き適用される。
+> **新しい経路**: `design.mode: llm` かつ `design.tool_use.enabled: true`（現行の既定）では、ここで説明する designer は設計判断ループの処理能力 designer に置き換わる → [tool_use_design_agent.md](tool_use_design_agent.md)。以下は `labeled_rule_base` と `tool_use.enabled: false` に引き続き適用される。
 
 ## ステータス（プラン todos）
 
@@ -80,7 +80,7 @@ CLI（ssos）:
 
 ```bash
 python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 20 \
-  --run-id cloud-smoke-run1
+  --run-id cloud-smoke-run1 --set iteration.enabled=false
 ```
 
 ## 実装の置き場所
@@ -96,6 +96,55 @@ python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rul
 llm 時は designer 全員が 1 ラウンド話し合ったあと、**代表 1 人**が `changes` を出す。件数に上限はない（空ならファイルを書かない）。labeled の `proposed_by` は `eclss_designer_1`。**policy 数値はプロンプトに入れない**。
 
 `summary` に `actor_mode`, `design_mode`, `design_proposed_by`。`agents_mode` は `actor_mode` と同じ（ダッシュボード互換）。
+
+## 連鎖（`scenario.yaml` の `iteration:` / `ea run --iterate`）
+
+連鎖ジョブの正本は `src/scenario/ssos_eclss_loop/scenario.yaml` の `iteration:`（別ファイルにしない）。既定は `enabled: true` なので `ea run ssos_eclss_loop` だけで連鎖し、`--iterate` と同じイテレーション／ステップ進捗をターミナルに出す。回数だけ変えるなら `--iterate N`。CLI が YAML より優先。
+
+```bash
+python3 -m tools.cli run ssos_eclss_loop --iterate 10 --backend plant_sim \
+  --actor-mode labeled_rule_base --design-mode llm --inject-failures --steps 50 \
+  --run-id design-iter-10
+```
+
+- 設計提案の**生成**は unified の事後 designer（既定は tool-use）。連鎖は生成ロジックを差し替えない
+- ラン k のシミュはラン k-1 で採用した `applied_proposals.json` を unified の `apply_design_proposals` で適用する（`capacity_profile` 含む）
+- `set_parameter`（`thresholds.*`）は連鎖では自動適用しない。`ea run` の既定は `--approve-provisional` オン（INFO を出して LLM 提案を自動承認し、人間の介在なしにループを閉じる）。監督ゲートを戻すには `--no-approve-provisional`
+- 空・不採用の提案でも連鎖は止めず、直前の適用ファイル（まだ無ければ初期 YAML）のまま続ける
+- 最後のランは検証専用。そこで出た提案は未検証
+- 連鎖後に `design.mode=none` の baseline / final replay を回し、その `crew_remaining` で `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE` を決める
+- ターミナルとダッシュボードでイテレーション進捗・子 run（`01/` など）を可視化する
+
+### 連鎖の最終回答（`chain_final_answer.json`）
+
+探索は制限しない。乗員を失う設計も、製造できない寸法の設計も、次の周回に渡してよい。
+そこから学ぶことが連鎖の目的だからである。制限するのは**採用**のほうだけにする。
+
+judgement は「連鎖が前に進んだか」しか答えない。「では何を作るのか」には答えていない。
+その区別が無いと、1 周目で全員生存に届いた設計が 2 周目で人を失う設計に置き換わり、
+成果物のどこにも名前が残らないまま、連鎖はその喪失を結果として報告してしまう。
+
+そこで連鎖の最後に、**全周回の全候補**（各周回の勝者だけではない）から 1 本だけ選び、
+`chain_final_answer.json` に書き出す。
+
+| 条件 | 扱い |
+| --- | --- |
+| 全員生存 | **必須**。1 人でも失う設計は最終回答にならない |
+| 製造できる寸法（bounds 内） | **必須**。作れない機械は設計ではない |
+| 物理監査に合格 | **必須**。監査できていない生存は生存として数えない |
+| 予算超過 | 許す。`provisional_final` として人に上げる。金を払うかは人の判断 |
+| 1 本も該当しない | 「該当なし」と明示する。**不合格の中の最良を格上げしない** |
+
+順位づけの前提として、**全周回が同じ試験を受けていること**を確認する（`scoring_bar_drift`）。
+しきい値・乗員数・step 数・backend のどれかが途中で変わっていたら、1 周目と 3 周目は
+別の試験なので、順位をつけずに `not_comparable` で止める。
+
+比較の相手は**周回どうし**であって、出荷時の scenario ファイルではない。乗員 6 人・8 step で
+回した連鎖は scenario とは全部違うが、それ自体は一貫している。壊れるのは途中で動いた場合だけ。
+
+各候補の合否は周回のファイルを信用せず**ここで付け直す**。各周回は「直前の周回が渡してきた設計」
+を baseline にして合否を付けているので、「baseline より良い」の意味が周回ごとに違う。
+連鎖全体では基準は 1 つ、何も適用していない最初の状態である。
 
 ## やらないこと（プランどおり未着手）
 

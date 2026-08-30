@@ -10,7 +10,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import yaml
 
@@ -50,13 +50,14 @@ from scenario.ssos_eclss_loop.survival import (
 )
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
+from scenario.ssos_eclss_loop.integrity_guard import compare_configs, integrity_summary
 from scenario.ssos_eclss_loop.design_proposals import (
+    APPROVE_PROVISIONAL_SIM_INFO,
     apply_design_proposals,
     load_design_proposals,
     write_design_proposals,
 )
 from scenario.ssos_eclss_loop.unified_evaluation import finalize_run_evaluation
-from scenario.ssos_eclss_loop.evaluation import write_evaluation
 from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
 from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
 
@@ -360,6 +361,9 @@ class SsosEclssLoopScenario(Scenario):
         run_id: Optional[str] = None,
         results_root: Optional[Path] = None,
         approve_provisional: bool = False,
+        design_history: Optional[List[Dict[str, Any]]] = None,
+        on_step: Optional[Callable[[int, int], None]] = None,
+        on_phase: Optional[Callable[[str], None]] = None,
     ) -> Path:
         # Load order (before any simulation step):
         # 1) scenario.yaml (+ CLI overrides)
@@ -402,10 +406,24 @@ class SsosEclssLoopScenario(Scenario):
             results_root=results_root,
             recreate_output=recreate_output,
         )
+        if design_history:
+            (run_dir / "design_history.json").write_text(
+                json.dumps(design_history, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
         config_paths = write_effective_configs(
             run_dir,
             scenario_config=config,
             agents_config=agents_config,
+        )
+
+        # Before the first step: what does this run differ from the pristine
+        # scenario in, and is any of it the yardstick? Recorded whatever the
+        # answer, so the classification travels with the run rather than being
+        # reconstructed later from the config that produced it.
+        integrity = compare_configs(self.load_config(None), config)
+        (run_dir / "run_integrity.json").write_text(
+            json.dumps(integrity, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
         backend = build_eclss_backend(config, kind=backend_kind)
@@ -443,6 +461,8 @@ class SsosEclssLoopScenario(Scenario):
         try:
             # 0-based steps: step 0 observes configured initial state; advance before 1..steps-1.
             for step in range(steps):
+                if on_step is not None:
+                    on_step(step, steps)
                 commands_this_step = False
                 if step > 0 and hasattr(backend, "advance_step"):
                     backend.advance_step()
@@ -584,11 +604,14 @@ class SsosEclssLoopScenario(Scenario):
         # Canonical run measurement precedes design reasoning. The tool-use
         # designer therefore sees the same deterministic diagnosis used by the
         # dashboard, and candidate runs are evaluated identically.
+        summary["run_integrity"] = integrity_summary(integrity)
         summary = finalize_run_evaluation(
-            run_dir, scenario_config=config, summary=summary
+            run_dir, scenario_config=config, summary=summary, integrity=integrity
         )
 
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
+            if on_phase is not None:
+                on_phase("design review")
             actor_cfg = flatten_actor_config(agents_config)
             design_cfg = flatten_design_config(agents_config)
             # Persist the summary before design so a tool-use designer can read
@@ -623,6 +646,7 @@ class SsosEclssLoopScenario(Scenario):
                 "candidate_rankings_path",
                 "design_review_report_path",
                 "candidate_run_dirs",
+                "llm_turn_count",
             ):
                 if proposals.get(key) is not None:
                     summary[f"design_{key}" if not key.startswith("design_") else key] = (
@@ -638,25 +662,11 @@ class SsosEclssLoopScenario(Scenario):
                 write_design_proposals(proposals_path, proposals)
                 summary["design_proposals_path"] = str(proposals_path)
 
-        evaluation_path, evaluation_html_path, evaluation = write_evaluation(
-            run_dir,
-            scenario_config=config,
-            summary=summary,
-        )
-        evaluation_scores = evaluation.get("scores") or {}
-        summary.update(
-            {
-                "evaluation_path": str(evaluation_path),
-                "evaluation_html_path": str(evaluation_html_path),
-                "evaluation_status": evaluation.get("status"),
-                "evaluation_score": evaluation_scores.get("total"),
-                "evaluation_max_score": evaluation_scores.get("max_score"),
-                "physics_gate_passed": bool(
-                    (evaluation.get("physics_gate") or {}).get("passed", False)
-                ),
-            }
-        )
-
+        # The evaluation is written once, by ``finalize_run_evaluation`` above.
+        # Re-running the evaluator here would overwrite that measurement with a
+        # differently-configured one, so summary.json and evaluation.json would
+        # disagree about the same run and the designer's evidence would not be
+        # what a human opens afterwards.
         log.write_summary(summary)
 
         provenance_path = run_dir / "provenance.jsonl"
@@ -710,13 +720,18 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument(
         "--approve-provisional",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help=(
-            "Adopt a proposal marked provisional_final / requires_supervisor_approval "
-            "(design doc §9: otherwise such a document is refused)"
+            "Adopt a proposal marked provisional_final / requires_supervisor_approval. "
+            "Default on so the sim can close the design loop without a human "
+            "(prints an INFO note). Pass --no-approve-provisional to restore the gate."
         ),
     )
     args = parser.parse_args(argv)
+
+    if args.approve_provisional:
+        print(f"INFO: {APPROVE_PROVISIONAL_SIM_INFO}", file=sys.stderr)
 
     overrides: Dict[str, Any] = {}
     if args.backend:

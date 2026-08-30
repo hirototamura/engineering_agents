@@ -301,7 +301,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend plant_sim --actor-mode
 
 ### 前 run の設計提案を次 run に適用
 
-`--apply-proposals` は **シミュレーション開始前**に、ディスク上の `scenario.yaml` / `agents.yaml` を書き換えず、**メモリ上にロードした設定へマージ**する。適用後の実効設定は結果ディレクトリの `scenario_config.yaml` / `agents_config.yaml` に出力される。
+`--apply-proposals` は **シミュレーション開始前**に、ディスク上の `scenario.yaml` / `agents.yaml` を書き換えず、**メモリ上にロードした設定へマージ**する。適用後の実効設定は結果ディレクトリの `scenario_config.yaml` / `agents_config.yaml` に出力される。N 回連鎖は `ea run --iterate N`（[cli.md](cli.md)）。
 
 ```bash
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \

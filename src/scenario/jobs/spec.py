@@ -20,8 +20,10 @@ class RunSpec:
     recreate_output: bool = True
     seed: Optional[int] = None
     apply_proposals_path: Optional[Path] = None
-    # Adopting a provisional_final design is a human decision (design doc §9).
+    # Adopting a provisional_final design is a supervisor decision (design doc §9).
+    # `ea run` defaults this True so the sim can close the loop without a human.
     approve_provisional: bool = False
+    design_history: Optional[list] = None
 
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)

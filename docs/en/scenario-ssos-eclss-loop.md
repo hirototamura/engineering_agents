@@ -301,7 +301,7 @@ Inside container directly: `ea-loop --actor-mode labeled_rule_base` (default `OL
 
 ### Apply prior run design proposals to next run
 
-`--apply-proposals` merges into the **in-memory** config **before simulation starts**; on-disk `scenario.yaml` / `agents.yaml` are not rewritten. The effective configs are written to `scenario_config.yaml` / `agents_config.yaml` in the run directory.
+`--apply-proposals` merges into the **in-memory** config **before simulation starts**; on-disk `scenario.yaml` / `agents.yaml` are not rewritten. The effective configs are written to `scenario_config.yaml` / `agents_config.yaml` in the run directory. For an N-run chain use `ea run --iterate N` ([cli.md](cli.md)).
 
 ```bash
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \

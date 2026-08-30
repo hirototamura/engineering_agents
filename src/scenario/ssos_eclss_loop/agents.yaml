@@ -53,25 +53,54 @@ design:
   # design.mode omitted: inherit actor.mode for library/tests.
   # Bare `ea run ssos_eclss_loop` pins design.mode=llm via CLI defaults.
   team:
-    # Tool-use design is a single engineer by design (doc §4): the question is
-    # whether ONE agent can gather its own evidence and reach a design. Multi
-    # designer debate stays a future phase. The classic (non tool-use) LLM
-    # designer still deliberates with the whole roster, so raise this to go back
-    # to a 4-designer review.
+    # One designer, no thinking lens. The three lenses sit on the audit panel
+    # below, not on this roster. Classic (non tool-use) LLM design still
+    # deliberates whoever is listed here.
     count: 1
     id_prefix: eclss_designer
+    archetypes: []
+    # Empty => derived from the objective (survival, then less CRITICAL, then smaller).
+    bias_direction: ""
     persona: |
       Post-run ECLSS capacity design engineer. The run is over: size the next
-      build. Gather your own evidence with the tools instead of trusting the
-      summary, compute what the crew actually demands, and verify every capacity
-      change by re-simulating it before you recommend it. Do not judge pass/fail.
+      build. You are shown where the design stands and you answer one thing:
+      the sizing to try next, or that you are finished. Every candidate you
+      name is checked, re-simulated, audited and compared for you before you
+      are asked again. Do not judge pass/fail.
+  # Three independent auditors, after the designer. Each sees the same
+  # slim proposal and none of the others. They run in parallel. They may
+  # only approve or reject; they cannot invent a machine.
+  audit:
+    enabled: true
+    count: 3
+    id_prefix: eclss_auditor
+    archetypes:
+      - rederive_numbers
+      - avoid_local_optima
+      - design_validity
+    persona: ""  # empty => lens text only
+    llm:
+      # think stays on via design.llm. A veto is a small JSON object; the
+      # designer 6144 budget is too much thinking for that and too slow.
+      max_tokens: 2048  # [-] completion budget per auditor (~faster think)
   tool_use:
-    # Tool-use loop (design doc §5, §10). Only active when design.mode is llm.
+    # Design decision loop (design doc §5, §10). Only active when design.mode is llm.
     enabled: true  # false = classic summary-only post-run design proposal
-    # 7 required tools + up to 4 candidate runs = 11 turns of pure evidence, so a
-    # tighter budget spends the LLM path on bookkeeping and falls back.
-    max_tool_iterations: 24  # [-] turns before the deterministic fallback takes over
-    max_candidate_runs: 4  # [-] candidate re-simulations allowed per review
+    max_candidate_runs: 1  # [-] candidate re-simulations allowed per review
+    decision_loop:
+      # One design per round. The search happens across the chain, not inside a
+      # single round: an earlier build explored four sizings per round, threw
+      # three of them away, and passed only the winner on, so the chain learned
+      # from a tenth of what it had paid to simulate.
+      #
+      # Asking the model is the only slow step in the loop (about seventy
+      # seconds against three seconds for all nine tools together), so the
+      # question is what is budgeted, and a repair counts against it. Spending
+      # the budget is the normal ending: the verified design is adopted and
+      # handed to the next round.
+      max_decisions: 2  # [-] design decisions per review
+      max_llm_calls: 2  # [-] questions per review, repairs included
+      max_parse_retries: 1  # [-] repair attempts, charged to max_llm_calls
     # Candidate validation is not a knob: the Evidence Gate always requires a
     # re-simulated candidate, and the adopted fields always come from its record.
     # Actor mode inside candidate runs: inherit keeps the baseline crew. Use
@@ -79,12 +108,12 @@ design:
     candidate_actor_mode: inherit  # inherit | labeled_rule_base | llm | none
     plots_enabled: true  # render PNG timeseries next to the numeric features
     llm:
-      # Merged over design.llm for tool-loop turns only. A turn emits one small
+      # Merged over design.llm for decision turns only. A turn emits one small
       # JSON object; with design.llm's 16384 budget the 27B model spends it all
       # on thinking and can pass the 300 s HTTP timeout (empty reply). This
       # keeps a turn at roughly 40-70 s and still leaves room for the final
       # proposal, which is the longest reply of the loop.
-      max_tokens: 6144  # [-] completion budget per tool-loop turn (~40-70 s)
+      max_tokens: 6144  # [-] completion budget per decision turn (~40-70 s)
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8001/v1  # independent of actor; 32B is :8001/v1

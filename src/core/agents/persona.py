@@ -9,8 +9,8 @@ from typing import Any, Awaitable, Dict, List, Optional, Sequence, Tuple, TypeVa
 from core.agents.base import DeliberationContext, Persona
 from core.agents.memory import AgentMemory
 from core.agents.types import AgentMessage, DeliberationPhase
-from core.llm.base import LLMClient
-from core.llm.parsing import parse_json_response
+from core.llm.base import LLMClient, LLMGeneration, invoke_llm
+from core.llm.parsing import combine_thinking, extract_thinking_text, parse_json_response
 
 TEAM_CHARTER = """You are on a closed-habitat ECLSS resilience team.
 Your Persona is a professional lens — not a script. You may disagree with teammates, wait, or propose alternatives.
@@ -44,6 +44,27 @@ ARCHETYPE_LENSES: Dict[str, str] = {
     "systems_integrator": (
         "Thinking lens — Systems integrator: watch cross-subsystem coupling (e.g. power vs. "
         "life-support) and the side-effects a local fix imposes on the rest of the station."
+    ),
+    "rederive_numbers": (
+        "Thinking lens — Re-derive the numbers: rebuild every quantity from the raw "
+        "observations and the conservation relations. Do not accept a figure you have "
+        "not reconstructed, and do not share a conclusion you have not computed yourself."
+    ),
+    "break_conclusion": (
+        "Thinking lens — Break the conclusion: treat the emerging design as a claim to "
+        "falsify. Look for the observation, interaction, or boundary condition that would "
+        "make the recommendation fail."
+    ),
+    "avoid_local_optima": (
+        "Thinking lens — Avoid local optima: notice when the design is stuck repeating "
+        "the same move — for example only micro-adjusting WRS while ARS and OGS stay "
+        "put. Ask whether a different subsystem, a larger step, or a coupled change "
+        "would escape that basin. Do not bless a local tweak just because it is familiar."
+    ),
+    "design_validity": (
+        "Thinking lens — Design validity: ask whether the proposed machine is buildable "
+        "and operable as a whole — bounds, coupling, cadence, and whether the sized "
+        "hardware can actually be used."
     ),
 }
 
@@ -296,6 +317,7 @@ class PersonaAgent:
         self.persona = persona
         self.memory = memory
         self.llm_client = llm_client
+        self.last_generation = LLMGeneration(text="")
 
     def build_context(
         self,
@@ -351,17 +373,36 @@ class PersonaAgent:
         )
 
     def _generate(self, prompt: str) -> str:
-        if self.llm_client is None:
-            return ""
-        return self.llm_client.generate(prompt)
+        generation = invoke_llm(self.llm_client, prompt)
+        self.last_generation = generation
+        return generation.text
 
     async def _generate_async(self, prompt: str) -> str:
         if self.llm_client is None:
+            self.last_generation = LLMGeneration(text="")
             return ""
+        generate_result_async = getattr(self.llm_client, "generate_result_async", None)
+        if callable(generate_result_async):
+            generation = await generate_result_async(prompt)
+            if isinstance(generation, LLMGeneration):
+                text = generation.text or ""
+                self.last_generation = LLMGeneration(
+                    text=text,
+                    thinking=combine_thinking(
+                        generation.thinking, extract_thinking_text(text)
+                    ),
+                )
+                return text
         generate_async = getattr(self.llm_client, "generate_async", None)
         if generate_async is not None:
-            return await generate_async(prompt)
-        return await asyncio.to_thread(self.llm_client.generate, prompt)
+            text = await generate_async(prompt)
+        else:
+            text = await asyncio.to_thread(self.llm_client.generate, prompt)
+        text = text or ""
+        self.last_generation = LLMGeneration(
+            text=text, thinking=extract_thinking_text(text)
+        )
+        return text
 
     @staticmethod
     def _parse_turn(raw: str, required: tuple[str, ...]) -> Optional[ParsedTurn]:

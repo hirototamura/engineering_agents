@@ -1,26 +1,28 @@
-"""Tool-use post-run ECLSS design agent (design doc §4, §5, §10).
+"""Post-run ECLSS capacity design agent (design doc §4, §5, §10; spec §5-§10).
 
-A single designer runs an autonomous planning loop instead of reading a
-pre-digested summary: it writes its own ``task_plan``, picks one tool per turn,
-observes the deterministic result, and revises. The implementation fixes the
-guardrails, not the order of thought:
+The designer decides what to build. It does not decide how the review is run.
 
-* one tool call per turn, from a fixed catalog
-* ``max_tool_iterations`` / ``max_candidate_runs``
-* an Evidence Gate that rejects a ``final_proposal`` which is not backed by
-  artifacts, theory, constraints, a candidate re-simulation and a comparison.
-  Candidate validation is an invariant, not a switch: the adopted fields always
-  come from a record written by ``run_design_candidate``, so there is no
-  configuration under which an unverified design is proposed
-* a deterministic rule fallback so the run always yields a design
+Each turn it is handed one freshly assembled picture of where the design stands
+and answers one of two things: try this sizing, or finish. Everything else --
+reading the run, computing what the crew needs, checking constraints,
+re-simulating, auditing the physics, comparing -- happens in fixed order, in
+code, for every candidate.
 
-The Expert Context Pack in the prompt exists because a 8B–32B model, left to
-self-assess, tends to jump from ``summary.json`` straight to a final answer. It
-states the minimum domain facts and the minimum evidence, not a procedure.
+That division is the whole point. When the model also chose which tool to call
+next, an observed run spent twenty-one turns re-checking the same constraint
+and finished with one candidate, because nothing in the loop obliged it to
+move on. It cannot now: it is never asked.
+
+The Expert Context Pack states the minimum domain facts, not a procedure. A
+model that cannot be read is asked once more and then handed to the
+deterministic fallback, which keeps every candidate already verified.
 
 Self-hosted vLLM / Ollama cannot be relied on for native function calling, so
-the tool protocol is a plain JSON contract parsed by
-:mod:`core.llm.parsing`.
+the protocol is a plain JSON contract parsed by :mod:`core.llm.parsing`.
+
+Every decision is written down whole -- what the model said, what it reasoned,
+and whatever thinking the provider exposed -- alongside every tool call the
+code made on its behalf. A design nobody can retrace is not reviewable.
 """
 
 from __future__ import annotations
@@ -32,8 +34,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from core.agents.types import AgentMessage, DeliberationPhase
-from core.llm.base import LLMClient
-from core.llm.parsing import parse_json_response
+from core.llm.base import LLMClient, LLMGeneration, invoke_llm
+from core.llm.parsing import combine_thinking, extract_thinking_text, parse_json_response
+from core.storage.session import SessionStore
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_eval import (
     STATUS_APPROVED,
@@ -41,30 +44,47 @@ from scenario.ssos_eclss_loop.design_eval import (
     STATUS_REJECTED,
 )
 from scenario.ssos_eclss_loop.design_proposals import DESIGN_DOMAIN
+from scenario.ssos_eclss_loop.design_state import (
+    build_design_state,
+    candidate_hash,
+    find_duplicate,
+    normalize_fields,
+)
 from scenario.ssos_eclss_loop.design_tools import DesignToolContext, DesignToolkit
 from scenario.ssos_eclss_loop.design_variables import CAPACITY_KEYS, read_capacity_fields
 
 DESIGN_FAMILY = "capacity_sizing"
 
-# Seven required tools plus up to four candidate runs fill eleven turns, so a
-# budget near that leaves no room for a rejected final_proposal, a mistyped tool
-# name or a second look at the data before the deterministic fallback takes over.
-DEFAULT_MAX_TOOL_ITERATIONS = 24
-DEFAULT_MAX_CANDIDATE_RUNS = 4
+# Named apart from the per-step design_state.jsonl the run already writes.
+DESIGN_STATE_FILENAME = "design_decision_state.json"
 
-# Observation text budget per tool result kept in the prompt (characters).
-_RECENT_OBSERVATION_CHARS = 2600
-_OLDER_OBSERVATION_CHARS = 400
-_FULL_OBSERVATIONS = 3
+DEFAULT_MAX_DECISIONS = 2
+DEFAULT_MAX_PARSE_RETRIES = 1
+DEFAULT_MAX_CANDIDATE_RUNS = 1
 
+# Asking the model is the only slow thing in the loop: the nine tools together
+# take about three seconds, one question takes about seventy. So the question
+# is what gets budgeted, and a repair counts against it -- a reply that had to
+# be asked for twice cost the run twice.
+DEFAULT_MAX_LLM_CALLS = 2
+
+# The audit record keeps what the model actually said. Clipping a rationale to
+# a couple of sentences saves nothing and loses the design intent, which is the
+# one thing the record exists for.
+_RAW_RESPONSE_LOG_CHARS = 12000
+_RESULT_EXCERPT_CHARS = 8000
 
 EXPERT_CONTEXT_PACK = """\
 ### Expert context pack (domain minimum, not a procedure)
 - Objective: every occupant must survive — a design that loses one is never adopted,
-  whatever it saves. Among designs where crew_remaining == crew_initial, less CRITICAL
-  dwell wins before mass, then volume, then cost. A light machine that lives in a
-  dangerous band loses to a heavier calm one. So do not stop at the first design
-  that works; find the calmest, then smallest, that still works.
+  whatever it saves. Among designs where everyone comes back, the scorecard decides,
+  and nothing else is compared. Mass, cost, and time spent in the warning bands are
+  all marked inside that score, so a heavier machine has to earn its weight back
+  somewhere else on the sheet. So do not stop at the first design that works; read
+  where the score was lost and aim at that.
+- A low score is a statement about what to change, not a request for more capacity.
+  Each candidate reports which axes lost the most marks. Growing a subsystem that is
+  already covering its demand costs marks on mass and cost and buys nothing.
 - Capacity is not free and not one-way. Spare throughput is mass, volume and cost the
   station carries for nothing, so sizing a subsystem *down* is a legitimate design
   move — the candidate re-simulation is what tells you whether it was too far.
@@ -80,44 +100,58 @@ EXPERT_CONTEXT_PACK = """\
 - summary.json alone is not enough evidence. Look at the time series, the dwell in
   warning / critical bands, the shortfall ledgers and the crew loss causes.
 - Only a candidate that has been re-simulated may become the final proposal.
+- When the state carries `chain_memory`, it is bounded evidence from earlier rounds
+  of this chain, not a replacement for what this run shows. Prefer a design that
+  keeps or improves on `best_full_survival`; name all three design variables in a
+  proposal so a later round cannot silently drop one; and if you size ARS or OGS
+  below `theoretical_floor`, say why the crew still survives on less.
+- If `chain_memory.exploration_directive.mode` is "diversify", the chain has stopped
+  making progress in the same neighbourhood. Do not repeat the best or the most
+  recent capacity set: propose a complete three-variable profile at a materially
+  different point, none of which matches `recent_field_sets` exactly. Once full
+  survival has already been reached, prefer testing a smaller footprint.
 - One verified candidate is the minimum, not the goal. While candidate runs remain,
   size another one and compare: a candidate that still loses occupants has to grow,
   and one that saves everyone is worth testing smaller. The comparison tool picks the
   winner; naming a different candidate in your final_proposal will not change it."""
 
 
-TOOL_LOOP_CONTRACT = """\
-Reply with ONE JSON object and nothing else.
+DECISION_CONTRACT = """Reply with ONE JSON object and nothing else. There are exactly two answers.
 
-To use a tool:
-{"message": "what you learned or plan next", "reasoning": "why this tool now",
- "task_plan": ["short", "ordered", "steps"],
- "tool_call": {"name": "<tool name>", "arguments": {}}}
+To try a design:
+{"decision": "propose_candidate",
+ "rationale": "why this sizing, from the state above",
+ "fields": {"<design variable>": <number>}}
 
-To finish:
-{"message": "final recommendation", "reasoning": "evidence-backed rationale",
- "final_proposal": {"candidate_id": "<candidate you verified>",
-                    "changes": [{"change_kind": "capacity_profile",
-                                 "payload": {"backend": "plant_sim",
-                                             "fields": {"<design variable>": <number>}}}],
-                    "expected_outcome": {},
-                    "constraint_evaluation": {}}}
+To stop:
+{"decision": "finish",
+ "rationale": "why this one",
+ "selected_candidate_id": "<a candidate that was simulated>"}
 
-Rules: exactly one tool_call per turn; never both tool_call and final_proposal;
-never invent tool names or numbers; capacity fields are limited to
-%s.""" % json.dumps(list(CAPACITY_KEYS))
+You do not choose what happens next. Every candidate you propose is checked,
+simulated, audited and compared automatically before you are asked again, and
+the winner is decided by the ranking, not by your pick. Capacity fields are
+limited to %s.""" % json.dumps(list(CAPACITY_KEYS))
 
 
 @dataclass
 class ToolUseSettings:
     enabled: bool = False
-    # Optional overrides merged over design.llm for the tool loop only. A loop
-    # turn emits a small JSON object, so the classic designer's large
-    # completion budget only buys thinking tokens — and a turn that spends them
-    # all can exceed the HTTP timeout and come back empty.
+    # Optional overrides merged over design.llm for the decision loop only.
     llm_overrides: Dict[str, Any] = field(default_factory=dict)
-    max_tool_iterations: int = DEFAULT_MAX_TOOL_ITERATIONS
+    # A decision emits a small JSON object, so the classic designer's large
+    # completion budget only buys thinking tokens -- and a turn that spends
+    # them all can exceed the HTTP timeout and come back empty.
+    # One decision per candidate plus one to stop. The old budget counted
+    # tool calls, which is why a model that kept re-checking the same
+    # constraint could spend twenty turns without designing anything.
+    max_decisions: int = DEFAULT_MAX_DECISIONS
+    max_parse_retries: int = DEFAULT_MAX_PARSE_RETRIES
     max_candidate_runs: int = DEFAULT_MAX_CANDIDATE_RUNS
+    # Hard ceiling on questions per review, repairs included. Reaching it is
+    # not a failure: the run adopts the best design it has verified and moves
+    # on, which is what the next iteration is for.
+    max_llm_calls: int = DEFAULT_MAX_LLM_CALLS
     candidate_actor_mode: str = "inherit"
     candidate_steps: Optional[int] = None
     plots_enabled: bool = True
@@ -140,10 +174,22 @@ class ToolUseSettings:
         except (TypeError, ValueError):
             candidate_steps = None
         llm_overrides = raw.get("llm")
+        loop = raw.get("decision_loop")
+        loop = loop if isinstance(loop, Mapping) else {}
+
+        def loop_int(key: str, default: int) -> int:
+            try:
+                value = int(loop.get(key, default))
+            except (TypeError, ValueError):
+                return default
+            return value if value > 0 else default
+
         return cls(
             enabled=bool(raw.get("enabled", False)),
             llm_overrides=dict(llm_overrides) if isinstance(llm_overrides, Mapping) else {},
-            max_tool_iterations=as_int("max_tool_iterations", DEFAULT_MAX_TOOL_ITERATIONS),
+            max_decisions=loop_int("max_decisions", DEFAULT_MAX_DECISIONS),
+            max_parse_retries=loop_int("max_parse_retries", DEFAULT_MAX_PARSE_RETRIES),
+            max_llm_calls=loop_int("max_llm_calls", DEFAULT_MAX_LLM_CALLS),
             max_candidate_runs=as_int("max_candidate_runs", DEFAULT_MAX_CANDIDATE_RUNS),
             candidate_actor_mode=str(raw.get("candidate_actor_mode", "inherit")),
             candidate_steps=candidate_steps,
@@ -153,7 +199,13 @@ class ToolUseSettings:
 
 @dataclass
 class ToolTrace:
-    """Append-only JSONL record of the whole loop (auditable by a human)."""
+    """Append-only JSONL audit of the design loop.
+
+    ``llm_turn`` rows are one question to the model and its whole answer:
+    message, reasoning, and whatever thinking the provider exposed.
+    ``tool_call`` rows are the work the code did around it -- ``source`` says
+    which fixed stage asked for it, since the model no longer picks tools.
+    """
 
     path: Path
     records: List[Dict[str, Any]] = field(default_factory=list)
@@ -175,15 +227,28 @@ class ToolUseDesignAgent:
         persona: str,
         settings: ToolUseSettings,
         llm_client: Optional[LLMClient] = None,
+        session: Optional[SessionStore] = None,
+        work_dir: Optional[Path] = None,
+        bias_direction: str = "",
     ):
         self.agent_id = agent_id
         self.persona = persona
         self.settings = settings
         self.llm_client = llm_client
+        self.session = session
+        self.work_dir = Path(work_dir) if work_dir is not None else None
+        self.bias_direction = str(bias_direction or "").strip()
+        self._turn_messages: List[Dict[str, Any]] = []
+        self._message_step = 0
+        self._llm_calls = 0
 
     # ------------------------------------------------------------------ #
     def propose(self, bundle: Any) -> Dict[str, Any]:
+        self._turn_messages = []
+        self._message_step = _post_run_step(getattr(bundle, "summary", {}) or {})
+        self._llm_calls = 0
         run_dir = Path(getattr(bundle, "run_dir", None) or ".")
+        work_dir = self.work_dir or run_dir
         scenario_config = dict(getattr(bundle, "scenario_config", {}) or {})
         constraints = DesignConstraints.from_scenario_config(scenario_config)
         toolkit = DesignToolkit(
@@ -197,244 +262,537 @@ class ToolUseDesignAgent:
                 candidate_actor_mode=self.settings.candidate_actor_mode,
                 candidate_steps=self.settings.candidate_steps,
                 plots_enabled=self.settings.plots_enabled,
+                work_dir=work_dir,
             )
         )
-        trace = ToolTrace(run_dir / "tool_trace.jsonl")
+        # The trace is no longer the designer's memory -- the design state is.
+        # It stays as the human-readable record of what happened, which is the
+        # only thing it was ever good at.
+        trace = ToolTrace(work_dir / "tool_trace.jsonl")
         trace.append(
             {
                 "event": "start",
                 "agent_id": self.agent_id,
                 "run_dir": str(run_dir),
-                "max_tool_iterations": self.settings.max_tool_iterations,
+                "max_decisions": self.settings.max_decisions,
                 "max_candidate_runs": self.settings.max_candidate_runs,
-                "tools": toolkit.tool_names(),
             }
         )
 
+        # Evidence is gathered the same way whether or not a model is answering.
+        evidence = self._gather_evidence(toolkit, trace)
+        self._session_append(
+            {
+                "event": "start",
+                "agent_id": self.agent_id,
+                "work_dir": str(work_dir),
+            }
+        )
         if self.llm_client is None:
             result = self._rule_fallback(toolkit, trace, reason="no_llm_client")
         else:
-            result = self._tool_loop(toolkit, trace)
+            result = self._decision_loop(toolkit, trace, evidence)
 
-        return self._finalize(bundle, toolkit, trace, result)
+        proposals = self._finalize(bundle, toolkit, trace, result)
+        self._session_append(
+            {
+                "event": "done",
+                "agent_id": self.agent_id,
+                "selected_candidate_id": proposals.get("selected_candidate_id"),
+                "final_status": proposals.get("final_status"),
+                "evidence": proposals.get("evidence"),
+            }
+        )
+        return proposals
+
+    def _session_append(self, record: Mapping[str, Any]) -> None:
+        if self.session is None:
+            return
+        self.session.append(self.agent_id, dict(record))
 
     # ------------------------------------------------------------------ #
-    # LLM planning loop
+    # keeping the record
     # ------------------------------------------------------------------ #
-    def _tool_loop(self, toolkit: DesignToolkit, trace: ToolTrace) -> Dict[str, Any]:
-        observations: List[Dict[str, Any]] = []
-        task_plan: List[str] = []
-        notes: List[str] = []
-        gate_feedback: Optional[str] = None
-        parse_failures = 0
+    @staticmethod
+    def _thinking_from(generation: LLMGeneration, parsed: Any) -> str:
+        """Whatever the provider let us see of the model working.
 
-        for iteration in range(1, self.settings.max_tool_iterations + 1):
-            prompt = self._build_prompt(
-                toolkit,
-                observations=observations,
-                task_plan=task_plan,
-                iteration=iteration,
-                gate_feedback=gate_feedback,
+        Providers put it in different places -- a dedicated field, a wrapper on
+        the parsed object, ``<think>`` tags in the text -- so all three are
+        merged rather than picked between.
+        """
+        return combine_thinking(
+            generation.thinking,
+            getattr(parsed, "thinking", "") or "",
+            extract_thinking_text(generation.text),
+        )
+
+    def _append_turn_message(
+        self,
+        *,
+        message: str,
+        reasoning: str,
+        thinking: str,
+        decision: int,
+        extra: Optional[Mapping[str, Any]] = None,
+    ) -> None:
+        """Add one turn to the deliberation the run's own record will carry.
+
+        Without this the run keeps only the closing statement, and a reader
+        sees the conclusion with none of the turns that reached it.
+        """
+        metadata: Dict[str, Any] = {
+            "decision_source": "design_decision_loop",
+            "deliberation_phase": DeliberationPhase.POST_RUN,
+            "tool_iteration": decision,
+            "decision_index": decision,
+        }
+        if thinking:
+            metadata["thinking"] = thinking
+        if extra:
+            metadata.update(dict(extra))
+        self._turn_messages.append(
+            AgentMessage(
+                step=self._message_step,
+                from_role=self.agent_id,
+                to_role="team",
+                message=message or "design decision %d" % decision,
+                message_type="comment",
+                reasoning=reasoning or "",
+                metadata=metadata,
+            ).to_dict()
+        )
+
+    def _record_llm_turn(
+        self,
+        trace: ToolTrace,
+        *,
+        decision: int,
+        generation: LLMGeneration,
+        parsed: Any,
+        elapsed_s: float,
+        extra: Optional[Mapping[str, Any]] = None,
+    ) -> str:
+        """Write down one exchange in full, readable or not."""
+        data = parsed.data if isinstance(getattr(parsed, "data", None), Mapping) else {}
+        thinking = self._thinking_from(generation, parsed)
+        message = str(data.get("message") or data.get("rationale") or "")
+        reasoning = str(data.get("rationale") or data.get("reasoning") or "")
+        record: Dict[str, Any] = {
+            "event": "llm_turn",
+            # ``iteration`` is the name every existing reader looks for; this
+            # loop counts decisions, so both names carry the same number.
+            "iteration": decision,
+            "decision": decision,
+            "elapsed_s": round(elapsed_s, 2),
+            "parse_status": getattr(parsed, "status", None),
+            "parse_error": getattr(parsed, "error", None),
+            "choice": str(data.get("decision") or ""),
+            "message": message,
+            "reasoning": reasoning,
+            "thinking": thinking,
+            "raw_excerpt": _clip(generation.text, _RAW_RESPONSE_LOG_CHARS),
+        }
+        if extra:
+            record.update(dict(extra))
+        trace.append(record)
+        self._append_turn_message(
+            message=message,
+            reasoning=reasoning,
+            thinking=thinking,
+            decision=decision,
+            extra=extra,
+        )
+        return thinking
+
+    def _traced_tool_call(
+        self,
+        toolkit: DesignToolkit,
+        trace: ToolTrace,
+        name: str,
+        arguments: Optional[Mapping[str, Any]] = None,
+        *,
+        decision: int,
+        source: str,
+    ) -> Dict[str, Any]:
+        """Run one tool and record it.
+
+        ``source`` names the fixed stage that asked for it. The model does not
+        choose tools any more, so filing these under the model would
+        misdescribe the run.
+        """
+        arguments = dict(arguments or {})
+        started = time.monotonic()
+        result = toolkit.call(name, arguments)
+        trace.append(
+            {
+                "event": "tool_call",
+                "source": source,
+                "iteration": decision,
+                "decision": decision,
+                "tool": name,
+                "arguments": arguments,
+                "result": result,
+                "result_excerpt": _clip(_dumps(result), _RESULT_EXCERPT_CHARS),
+                "tool_elapsed_s": round(time.monotonic() - started, 2),
+                "evidence": toolkit.evidence_report(),
+            }
+        )
+        return result
+
+    # ------------------------------------------------------------------ #
+    # deterministic evidence and candidate pipeline
+    # ------------------------------------------------------------------ #
+    def _gather_evidence(self, toolkit: DesignToolkit, trace: ToolTrace) -> Dict[str, Any]:
+        """Read the run before anyone is asked to design against it.
+
+        The designer used to spend its first turns fetching this, and could
+        reach a conclusion without ever asking for some of it. It is the same
+        work every time, so the code does it every time.
+        """
+        started = time.monotonic()
+
+        def call(name: str, arguments: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+            return self._traced_tool_call(
+                toolkit, trace, name, arguments, decision=0, source="evidence"
             )
-            started = time.monotonic()
-            raw = self.llm_client.generate(prompt) if self.llm_client else ""
-            elapsed = time.monotonic() - started
-            parsed = parse_json_response(raw, required=("message",))
-            gate_feedback = None
 
-            if parsed.status in {"fallback", "empty_response"}:
-                parse_failures += 1
-                notes.append(f"iteration {iteration}: LLM response unparsable ({parsed.error})")
+        artifacts = call("load_run_artifacts", {})
+        call("summarize_timeseries", {"source": "telemetry"})
+        call("summarize_timeseries", {"source": "health_metrics"})
+        features = call("compute_eclss_features", {})
+        theory = call("compute_theoretical_capacity", {})
+        if self.settings.plots_enabled:
+            call("plot_eclss_timeseries", {})
+        trace.append(
+            {
+                "event": "evidence_gathered",
+                "elapsed_s": round(time.monotonic() - started, 2),
+                "evidence": toolkit.evidence_report(),
+            }
+        )
+        return {
+            "features": features,
+            "theory": theory,
+            "chain_memory": artifacts.get("chain_memory_compact"),
+        }
+
+    def _run_candidate_pipeline(
+        self,
+        toolkit: DesignToolkit,
+        trace: ToolTrace,
+        fields: Mapping[str, Any],
+        *,
+        decision: int,
+        label: Optional[str] = None,
+        source: str = "pipeline",
+    ) -> Dict[str, Any]:
+        """Check, simulate, audit and compare one proposed machine.
+
+        Every step runs, in this order, for every candidate. The designer
+        cannot skip the constraint check or forget to re-simulate, because it
+        is never asked which of these to do.
+        """
+        normalized = normalize_fields(fields)
+        if not normalized:
+            record = {"error": "no recognised design variable in the proposal"}
+            trace.append({"event": "candidate_rejected", "decision": decision, **record})
+            return record
+
+        duplicate = find_duplicate(toolkit.candidates, normalized)
+        if duplicate is not None:
+            # The same machine, proposed again. It costs a decision -- one was
+            # spent -- but not a second simulation.
+            trace.append(
+                {
+                    "event": "candidate_duplicate",
+                    "decision": decision,
+                    "candidate_id": duplicate.get("candidate_id"),
+                    "fields": normalized,
+                }
+            )
+            return dict(duplicate)
+
+        started = time.monotonic()
+        # Constraints before simulation, and recorded: the mass, volume and cost
+        # of a machine are known without running it, and the review has to be
+        # able to show that they were looked at.
+        def call(name: str, arguments: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+            return self._traced_tool_call(
+                toolkit, trace, name, arguments, decision=decision, source=source
+            )
+
+        call("evaluate_design_constraints", {"fields": normalized})
+        result = call(
+            "run_design_candidate",
+            {"fields": normalized, "label": label or "decision_%d" % decision},
+        )
+        for record in toolkit.candidates:
+            if record.get("candidate_id") == result.get("candidate_id"):
+                record["candidate_hash"] = candidate_hash(normalized)
+        comparison = call("compare_design_runs", {})
+        trace.append(
+            {
+                "event": "candidate_evaluated",
+                "decision": decision,
+                "candidate_id": result.get("candidate_id"),
+                "fields": normalized,
+                "simulated": bool(result.get("simulated")),
+                "outcome": result.get("outcome"),
+                "constraint_evaluation": result.get("constraint_evaluation"),
+                "current_best": (comparison.get("selection") or {}).get("selected_candidate_id"),
+                "elapsed_s": round(time.monotonic() - started, 2),
+            }
+        )
+        return result
+
+    # ------------------------------------------------------------------ #
+    # design decision loop
+    # ------------------------------------------------------------------ #
+    def _decision_loop(
+        self, toolkit: DesignToolkit, trace: ToolTrace, evidence: Mapping[str, Any]
+    ) -> Dict[str, Any]:
+        notes: List[str] = []
+        run_dir = toolkit.work_dir
+        message = ""
+        reasoning = ""
+        self._llm_calls = 0
+
+        for decision in range(1, self.settings.max_decisions + 1):
+            # Both budgets are checked before the question, not after. Asking
+            # what to build next and then discarding the answer because there
+            # was no room to build it costs the whole run's slowest operation
+            # and buys nothing.
+            if len(toolkit.candidates) >= self.settings.max_candidate_runs:
+                notes.append(
+                    "decision %d: candidate budget spent; adopting the best verified design"
+                    % decision
+                )
+                trace.append(
+                    {
+                        "event": "budget_reached",
+                        "decision": decision,
+                        "reason": "candidate_budget",
+                        "candidates": len(toolkit.candidates),
+                        "llm_calls": self._llm_calls,
+                    }
+                )
+                break
+            if self._llm_calls >= self.settings.max_llm_calls:
+                notes.append(
+                    "decision %d: question budget spent; adopting the best verified design"
+                    % decision
+                )
+                trace.append(
+                    {
+                        "event": "budget_reached",
+                        "decision": decision,
+                        "reason": "llm_call_budget",
+                        "candidates": len(toolkit.candidates),
+                        "llm_calls": self._llm_calls,
+                    }
+                )
+                break
+
+            state = build_design_state(
+                baseline_outcome=toolkit.baseline_outcome,
+                theory=evidence.get("theory") or {},
+                features=evidence.get("features") or {},
+                candidates=toolkit.candidates,
+                scenario_config=toolkit.ctx.scenario_config,
+                decisions_left=self.settings.max_decisions - decision + 1,
+                candidate_budget_left=self.settings.max_candidate_runs - len(toolkit.candidates),
+                chain_memory=evidence.get("chain_memory"),
+            )
+            _write_json(run_dir / DESIGN_STATE_FILENAME, state)
+            trace.append({"event": "design_state", "decision": decision, "state": state})
+
+            parsed, elapsed, generation, raw_parse = self._ask(state, repair=False)
+            thinking = self._record_llm_turn(
+                trace,
+                decision=decision,
+                generation=generation,
+                parsed=raw_parse,
+                elapsed_s=elapsed,
+            )
+            retries = 0
+            while (
+                parsed is None
+                and retries < self.settings.max_parse_retries
+                and self._llm_calls < self.settings.max_llm_calls
+            ):
+                retries += 1
+                notes.append("decision %d: unusable reply, repaired once" % decision)
                 trace.append(
                     {
                         "event": "parse_failure",
-                        "iteration": iteration,
-                        "elapsed_s": round(elapsed, 2),
-                        "parse_status": parsed.status,
-                        "parse_error": parsed.error,
-                        "raw_excerpt": parsed.raw_excerpt,
+                        "decision": decision,
+                        "iteration": decision,
+                        "retry": retries,
+                        "parse_status": getattr(raw_parse, "status", None),
+                        "parse_error": getattr(raw_parse, "error", None),
+                        "thinking": thinking,
+                        "raw_excerpt": _clip(generation.text, _RAW_RESPONSE_LOG_CHARS),
                     }
                 )
-                if parse_failures >= 3:
-                    return self._rule_fallback(
-                        toolkit, trace, reason="repeated_parse_failure", notes=notes
-                    )
-                gate_feedback = (
-                    "Your last reply was not valid JSON. Reply with exactly one JSON object "
-                    "following the contract."
+                parsed, elapsed, generation, raw_parse = self._ask(state, repair=True)
+                thinking = self._record_llm_turn(
+                    trace,
+                    decision=decision,
+                    generation=generation,
+                    parsed=raw_parse,
+                    elapsed_s=elapsed,
+                    extra={"repair_attempt": retries},
                 )
-                continue
-
-            data = parsed.data
-            plan = data.get("task_plan")
-            if isinstance(plan, list) and plan:
-                task_plan = [str(item) for item in plan][:8]
-
-            final_proposal = data.get("final_proposal")
-            tool_call = data.get("tool_call")
-
-            if isinstance(final_proposal, Mapping):
-                missing = toolkit.missing_evidence()
-                if missing:
-                    notes.append(
-                        f"iteration {iteration}: final_proposal rejected by Evidence Gate "
-                        f"(missing: {', '.join(missing)})"
-                    )
-                    trace.append(
-                        {
-                            "event": "evidence_gate_reject",
-                            "iteration": iteration,
-                            "missing_evidence": missing,
-                            "message": str(data.get("message", ""))[:400],
-                        }
-                    )
-                    gate_feedback = (
-                        "Evidence Gate rejected your final_proposal. Missing evidence: "
-                        + ", ".join(missing)
-                        + ". Keep using tools until every item is collected."
-                    )
-                    continue
+            if parsed is None:
                 trace.append(
                     {
-                        "event": "final_proposal",
-                        "iteration": iteration,
-                        "message": str(data.get("message", ""))[:800],
-                        "reasoning": str(data.get("reasoning", ""))[:800],
-                        "final_proposal": final_proposal,
+                        "event": "parse_failure",
+                        "decision": decision,
+                        "iteration": decision,
+                        "retry": retries,
+                        "parse_status": getattr(raw_parse, "status", None),
+                        "parse_error": getattr(raw_parse, "error", None),
+                        "thinking": thinking,
+                        "raw_excerpt": _clip(generation.text, _RAW_RESPONSE_LOG_CHARS),
                     }
                 )
-                return {
-                    "decision_source": "llm_tool_use",
-                    "message": str(data.get("message", "")),
-                    "reasoning": str(data.get("reasoning", "")),
-                    "final_proposal": dict(final_proposal),
-                    "task_plan": task_plan,
-                    "iterations_used": iteration,
-                    "parse_notes": notes,
-                }
+                notes.append("decision %d: unusable reply after repair" % decision)
+                return self._rule_fallback(toolkit, trace, reason="unusable_reply", notes=notes)
 
-            if not isinstance(tool_call, Mapping):
-                notes.append(f"iteration {iteration}: reply had neither tool_call nor final_proposal")
-                trace.append(
-                    {
-                        "event": "no_action",
-                        "iteration": iteration,
-                        "message": str(data.get("message", ""))[:400],
-                    }
-                )
-                gate_feedback = (
-                    "Your reply contained no tool_call and no final_proposal. "
-                    "Choose exactly one."
-                )
-                continue
-
-            name = str(tool_call.get("name", "")).strip()
-            arguments = tool_call.get("arguments")
-            arguments = dict(arguments) if isinstance(arguments, Mapping) else {}
-            if name not in toolkit.tool_names():
-                notes.append(f"iteration {iteration}: unknown tool {name!r}")
-                trace.append(
-                    {"event": "unknown_tool", "iteration": iteration, "requested": name}
-                )
-                gate_feedback = (
-                    f"{name!r} is not a tool. Available tools: "
-                    + ", ".join(toolkit.tool_names())
-                )
-                continue
-
-            call_started = time.monotonic()
-            result = toolkit.call(name, arguments)
-            call_elapsed = time.monotonic() - call_started
-            observations.append(
-                {
-                    "iteration": iteration,
-                    "tool": name,
-                    "arguments": arguments,
-                    "result": result,
-                }
-            )
+            message = str(parsed.get("message") or parsed.get("rationale") or "")
+            reasoning = str(parsed.get("rationale") or "")
+            choice = str(parsed.get("decision") or "").strip()
             trace.append(
                 {
-                    "event": "tool_call",
-                    "iteration": iteration,
-                    "tool": name,
-                    "arguments": arguments,
-                    "llm_message": str(data.get("message", ""))[:400],
-                    "llm_reasoning": str(data.get("reasoning", ""))[:400],
-                    "task_plan": task_plan,
-                    "llm_elapsed_s": round(elapsed, 2),
-                    "tool_elapsed_s": round(call_elapsed, 2),
-                    "result_excerpt": _clip(_dumps(result), 1500),
-                    "evidence": toolkit.evidence_report(),
+                    "event": "decision",
+                    "decision": decision,
+                    "iteration": decision,
+                    "choice": choice,
+                    # Kept whole. A rationale cut off mid-sentence cannot be
+                    # reviewed, and reviewing it is the point of writing it.
+                    "message": message,
+                    "rationale": reasoning,
+                    "thinking": thinking,
+                    "llm_elapsed_s": elapsed,
                 }
             )
 
-        notes.append(
-            f"tool loop reached max_tool_iterations={self.settings.max_tool_iterations} "
-            "without an accepted final_proposal"
-        )
-        return self._rule_fallback(
-            toolkit, trace, reason="max_iterations", notes=notes, task_plan=task_plan
-        )
+            if choice == "finish":
+                if not toolkit.candidates:
+                    # Nothing was ever tried, so there is nothing to finish on.
+                    notes.append(
+                        "decision %d: asked to finish before proposing a candidate" % decision
+                    )
+                    return self._rule_fallback(
+                        toolkit, trace, reason="finished_without_candidate", notes=notes
+                    )
+                return {
+                    "final_proposal": {
+                        "candidate_id": parsed.get("selected_candidate_id"),
+                        "changes": [],
+                    },
+                    "message": message,
+                    "reasoning": reasoning,
+                    "parse_notes": notes,
+                    "decision_source": "design_decision_loop",
+                    "iterations_used": decision,
+                }
 
-    # ------------------------------------------------------------------ #
-    def _build_prompt(
-        self,
-        toolkit: DesignToolkit,
-        *,
-        observations: Sequence[Mapping[str, Any]],
-        task_plan: Sequence[str],
-        iteration: int,
-        gate_feedback: Optional[str],
-    ) -> str:
-        evidence = toolkit.evidence_report()
-        history_lines: List[str] = []
-        total = len(observations)
-        for index, obs in enumerate(observations):
-            budget = (
-                _RECENT_OBSERVATION_CHARS
-                if index >= total - _FULL_OBSERVATIONS
-                else _OLDER_OBSERVATION_CHARS
-            )
-            history_lines.append(
-                f"[turn {obs['iteration']}] {obs['tool']}({_dumps(obs['arguments'])}) -> "
-                f"{_clip(_dumps(obs['result']), budget)}"
-            )
-        history = "\n".join(history_lines) or "(no tool has been called yet)"
-        plan = "\n".join(f"- {item}" for item in task_plan) or "(you have not written one yet)"
+            if choice != "propose_candidate":
+                notes.append("decision %d: unknown decision %r" % (decision, choice))
+                return self._rule_fallback(toolkit, trace, reason="unknown_decision", notes=notes)
 
+            self._run_candidate_pipeline(
+                toolkit, trace, parsed.get("fields") or {}, decision=decision
+            )
+            self._session_append(
+                {
+                    "event": "decision",
+                    "decision": decision,
+                    "choice": choice,
+                    "selected_candidate_id": None,
+                    "fields": parsed.get("fields") or {},
+                }
+            )
+
+        if not toolkit.candidates:
+            # Nothing was ever built, so there is nothing to adopt. The
+            # deterministic sizing is the only way this run ends with a design.
+            notes.append("no candidate was produced within the budget")
+            return self._rule_fallback(toolkit, trace, reason="no_candidate", notes=notes)
+        # A spent budget is how a round is meant to end. The verified design is
+        # adopted by the ranking and handed to the next iteration; the chain,
+        # not this loop, is where the search continues.
+        return {
+            "final_proposal": None,
+            "message": message,
+            "reasoning": reasoning,
+            "parse_notes": notes,
+            "decision_source": "design_decision_loop:budget_reached",
+            "iterations_used": min(self._llm_calls, self.settings.max_decisions),
+            "llm_calls": self._llm_calls,
+        }
+
+    def _ask(self, state: Mapping[str, Any], *, repair: bool):
+        """One question, one answer.
+
+        Returns the usable decision (``None`` when the reply could not be
+        read), how long it took, and the untouched generation and parse so the
+        caller can record what was actually said either way.
+        """
+        prompt = self._build_prompt(state, repair=repair)
+        started = time.monotonic()
+        self._llm_calls += 1
+        generation = invoke_llm(self.llm_client, prompt)
+        elapsed = round(time.monotonic() - started, 2)
+        parsed = parse_json_response(generation.text, required=("decision",))
+        if parsed.status in {"fallback", "empty_response"}:
+            return None, elapsed, generation, parsed
+        data = parsed.data if isinstance(parsed.data, Mapping) else {}
+        return (dict(data) or None), elapsed, generation, parsed
+
+    def _build_prompt(self, state: Mapping[str, Any], *, repair: bool = False) -> str:
+        """Four blocks and nothing else: who, where things stand, aim, format.
+
+        No history is included. The state above is assembled fresh for every
+        decision, so there is nothing earlier to re-read and nothing to forget.
+        """
         sections = [
-            f"You are {self.agent_id}, the post-run ECLSS capacity design engineer.",
+            "You are %s, the post-run ECLSS capacity design engineer." % self.agent_id,
             self.persona.strip(),
             "",
-            "The simulation is finished. You cannot change what happened; you decide how the "
-            "next build should be sized. You do not get the data up front — call tools to "
-            "fetch, compute and verify it.",
-            "",
             EXPERT_CONTEXT_PACK,
-            "",
-            "### Tool catalog (one call per turn)",
-            toolkit.catalog_text(),
-            "",
-            f"### Turn {iteration} of at most {self.settings.max_tool_iterations}",
-            f"Candidate simulations used: {evidence['candidates_run']} of "
-            f"{self.settings.max_candidate_runs}.",
-            "",
-            "### Your task plan",
-            plan,
-            "",
-            "### Evidence collected so far",
-            f"collected: {evidence['collected'] or 'none'}",
-            f"still required before any final_proposal: {evidence['missing'] or 'none'}",
-            "",
-            "### Tool results so far",
-            history,
         ]
-        if gate_feedback:
-            sections += ["", "### Feedback on your last reply", gate_feedback]
-        sections += ["", "### Output contract", TOOL_LOOP_CONTRACT]
+        if self.bias_direction:
+            sections += [
+                "",
+                "### Declared bias of this run",
+                self.bias_direction,
+            ]
+        sections += [
+            "",
+            "### Where the design stands",
+            _dumps(state),
+            "",
+            "### Your decision",
+            "Propose one sizing to try, or finish. Everything else -- checking, "
+            "simulating, auditing and comparing -- is done for you before you are "
+            "asked again.",
+            "",
+            "### Output contract",
+            DECISION_CONTRACT,
+        ]
+        if repair:
+            sections += [
+                "",
+                "### Your last reply could not be read",
+                "It was empty or was not valid JSON. Reply with exactly one JSON "
+                "object in the format above and no other text.",
+            ]
         return "\n".join(sections)
 
+    # ------------------------------------------------------------------ #
     # ------------------------------------------------------------------ #
     # deterministic fallback
     # ------------------------------------------------------------------ #
@@ -449,30 +807,57 @@ class ToolUseDesignAgent:
     ) -> Dict[str, Any]:
         """Theory-driven sizing, run and compared without the LLM.
 
-        Used when the model is unavailable, keeps failing to parse, or burns the
-        iteration budget. It performs the same evidence-collecting sequence the
-        agent is asked to perform, so the run still ends with a verified design.
+        Used when the model is unavailable or its replies cannot be read. It
+        keeps every candidate already simulated -- losing them would throw away
+        verified work because the link dropped -- and spends whatever candidate
+        budget is left on theory-sized machines, so the run still ends with a
+        design somebody checked.
+
+        Evidence is already gathered before the first decision, so this does not
+        collect it again.
         """
         notes = list(notes or [])
-        trace.append({"event": "rule_fallback_start", "reason": reason})
+        trace.append(
+            {
+                "event": "rule_fallback_start",
+                "reason": reason,
+                "candidates_kept": len(toolkit.candidates),
+            }
+        )
+        self._append_turn_message(
+            message=(
+                "Deterministic fallback is sizing and verifying capacity candidates "
+                "(%s)." % reason
+            ),
+            reasoning="Fallback reason: %s." % reason,
+            thinking="",
+            decision=0,
+            extra={"decision_source": "tool_use_rule_fallback:%s" % reason},
+        )
 
-        toolkit.call("load_run_artifacts", {"files": ["summary", "scenario_config", "agents_config"]})
-        toolkit.call("summarize_timeseries", {"source": "telemetry"})
-        toolkit.call("summarize_timeseries", {"source": "health_metrics"})
-        toolkit.call("compute_eclss_features", {})
-        theory = toolkit.call("compute_theoretical_capacity", {})
+        def call(name: str, arguments: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+            return self._traced_tool_call(
+                toolkit, trace, name, arguments, decision=0, source="rule_fallback"
+            )
+
+        theory = call("compute_theoretical_capacity", {})
 
         remaining = self.settings.max_candidate_runs - len(toolkit.candidates)
-        margins = [1.15, 1.0, 1.35][: max(1, min(remaining, 3))]
+        margins = [1.15, 1.0, 1.35][: max(0, min(remaining, 3))]
         for margin in margins:
-            candidate = toolkit.call("propose_capacity_candidate", {"margin": margin})
+            candidate = call("propose_capacity_candidate", {"margin": margin})
             fields = candidate.get("fields")
             if not fields:
                 continue
-            toolkit.call("evaluate_design_constraints", {"fields": fields})
-            run = toolkit.call(
-                "run_design_candidate",
-                {"fields": fields, "label": f"rule_margin_{margin}"},
+            if find_duplicate(toolkit.candidates, fields) is not None:
+                continue
+            run = self._run_candidate_pipeline(
+                toolkit,
+                trace,
+                fields,
+                decision=0,
+                label=f"rule_margin_{margin}",
+                source="rule_fallback",
             )
             outcome = (run or {}).get("outcome") or {}
             if outcome.get("full_survival"):
@@ -480,7 +865,7 @@ class ToolUseDesignAgent:
                 # interesting comparison, not larger ones.
                 if margin <= 1.0:
                     break
-        comparison = toolkit.call("compare_design_runs", {})
+        comparison = call("compare_design_runs", {})
         trace.append(
             {
                 "event": "rule_fallback_done",
@@ -502,7 +887,7 @@ class ToolUseDesignAgent:
             ),
             "final_proposal": None,
             "task_plan": list(task_plan or []),
-            "iterations_used": self.settings.max_tool_iterations,
+            "iterations_used": self.settings.max_decisions,
             "parse_notes": notes,
         }
 
@@ -517,6 +902,7 @@ class ToolUseDesignAgent:
         result: Mapping[str, Any],
     ) -> Dict[str, Any]:
         run_dir = Path(getattr(bundle, "run_dir", None) or ".")
+        work_dir = self.work_dir or run_dir
         # Housekeeping, not designer work: re-rank whatever was simulated without
         # crediting the evidence ledger, so `evidence` still reports what the
         # designer itself collected.
@@ -613,8 +999,8 @@ class ToolUseDesignAgent:
                 }
             )
 
-        rankings_path = run_dir / "candidate_rankings.json"
-        report_path = run_dir / "design_review_report.json"
+        rankings_path = work_dir / "candidate_rankings.json"
+        report_path = work_dir / "design_review_report.json"
         rankings_doc = {
             "baseline": toolkit.baseline_outcome,
             "ranking": [DesignToolkit._ranking_row(record) for record in ranked],
@@ -622,6 +1008,21 @@ class ToolUseDesignAgent:
         }
         _write_json(rankings_path, rankings_doc)
 
+        # One row per exchange, in order, so the report alone shows how the
+        # design was reached even if the trace file is not at hand.
+        thinking_turns = [
+            {
+                "decision": record.get("decision"),
+                "iteration": record.get("iteration"),
+                "parse_status": record.get("parse_status"),
+                "choice": record.get("choice"),
+                "message": record.get("message"),
+                "reasoning": record.get("reasoning"),
+                "thinking": record.get("thinking") or "",
+            }
+            for record in trace.records
+            if record.get("event") == "llm_turn"
+        ]
         report = {
             "design_family": DESIGN_FAMILY,
             "agent_id": self.agent_id,
@@ -630,6 +1031,8 @@ class ToolUseDesignAgent:
             "reasoning": result.get("reasoning"),
             "task_plan": result.get("task_plan"),
             "iterations_used": result.get("iterations_used"),
+            "llm_turn_count": len(thinking_turns),
+            "thinking_turns": thinking_turns,
             "evidence": evidence,
             "constraints": toolkit.constraints.describe(),
             "baseline_outcome": toolkit.baseline_outcome,
@@ -690,25 +1093,39 @@ class ToolUseDesignAgent:
             "tool_trace_path": str(trace.path),
             "candidate_rankings_path": str(rankings_path),
             "design_review_report_path": str(report_path),
+            "llm_turn_count": len(thinking_turns),
             "candidate_run_dirs": [
                 record.get("run_dir") for record in ranked if record.get("run_dir")
             ],
+            "ranked_candidates": [dict(record) for record in ranked],
+            "baseline_outcome": dict(toolkit.baseline_outcome),
         }
-        proposals["deliberation_messages"] = [
+        final_thinking = ""
+        for record in reversed(trace.records):
+            if record.get("event") == "llm_turn" and record.get("thinking"):
+                final_thinking = str(record.get("thinking") or "")
+                break
+        final_meta: Dict[str, Any] = {
+            "decision_source": proposals["decision_source"],
+            "deliberation_phase": DeliberationPhase.POST_RUN,
+            "final_status": final_status,
+            "selected_candidate_id": selection.get("selected_candidate_id"),
+            "tool_iterations": result.get("iterations_used"),
+            "llm_turn_count": len(thinking_turns),
+        }
+        if final_thinking:
+            final_meta["thinking"] = final_thinking
+        # Every turn, then the closing statement: the record reads as the
+        # deliberation it was, not as a verdict with no argument behind it.
+        proposals["deliberation_messages"] = list(self._turn_messages) + [
             AgentMessage(
-                step=_post_run_step(getattr(bundle, "summary", {}) or {}),
+                step=self._message_step,
                 from_role=self.agent_id,
                 to_role="team",
-                message=message or "Tool-use capacity design complete.",
+                message=message or "Capacity design complete.",
                 message_type="comment",
                 reasoning=str(result.get("reasoning") or ""),
-                metadata={
-                    "decision_source": proposals["decision_source"],
-                    "deliberation_phase": DeliberationPhase.POST_RUN,
-                    "final_status": final_status,
-                    "selected_candidate_id": selection.get("selected_candidate_id"),
-                    "tool_iterations": result.get("iterations_used"),
-                },
+                metadata=final_meta,
             ).to_dict()
         ]
         return proposals
@@ -788,7 +1205,8 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
 __all__ = [
     "DESIGN_FAMILY",
     "EXPERT_CONTEXT_PACK",
-    "TOOL_LOOP_CONTRACT",
+    "DECISION_CONTRACT",
+    "DESIGN_STATE_FILENAME",
     "ToolTrace",
     "ToolUseDesignAgent",
     "ToolUseSettings",

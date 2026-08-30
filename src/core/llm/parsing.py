@@ -17,11 +17,15 @@ This module exposes:
   block in a response. Prefers the LAST balanced object (LLMs that
   emit thinking and then JSON tend to put the answer at the end).
 
+- `extract_thinking_text(text)` / `combine_thinking(...)` — capture
+  think-tag bodies (and merge them with provider reasoning) so a run
+  can log chain-of-thought even though parsing strips it for JSON.
+
 - `parse_json_response(text, required, alias)` — runs the strip +
   extract + json.loads pipeline and returns a `ParsedResponse` with
-  `data`, `status`, `error`, `raw_excerpt`, `clean_excerpt`. The caller
-  classifies status (`ok` / `partial` / `fallback` / `empty_response`)
-  using the parsed data and required-field set.
+  `data`, `status`, `error`, `raw_excerpt`, `clean_excerpt`, `thinking`.
+  The caller classifies status (`ok` / `partial` / `fallback` /
+  `empty_response`) using the parsed data and required-field set.
 
 Status semantics (used downstream by emergence_metrics for
 `parse_fallback_rate`):
@@ -39,7 +43,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 # Multiple thinking-tag conventions seen across Ollama- and vLLM-served models.
@@ -50,6 +54,12 @@ _THINKING_TAG_RE = re.compile(
 )
 _UNCLOSED_THINKING_RE = re.compile(
     r"<(?:think|thinking|thought)>.*$",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+_THINKING_CAPTURE_RE = re.compile(
+    r"<(?:think|thinking|thought)>(.*?)</(?:think|thinking|thought)>",
     re.DOTALL | re.IGNORECASE,
 )
 
@@ -68,6 +78,45 @@ def strip_thinking_tags(text: str) -> str:
     text = _THINKING_TAG_RE.sub("", text)
     text = _UNCLOSED_THINKING_RE.sub("", text)
     return text
+
+
+def extract_thinking_text(text: str) -> str:
+    """Return thinking-tag bodies so callers can log them before stripping.
+
+    Closed `<think>` / `<thinking>` / `<thought>` blocks are concatenated.
+    If the model truncated inside an unclosed tag, that remainder is kept
+    so a run still has the chain-of-thought that consumed the budget.
+    """
+    if not text:
+        return ""
+    closed = [block.strip() for block in _THINKING_CAPTURE_RE.findall(text) if block.strip()]
+    if closed:
+        return "\n\n".join(closed)
+    unclosed = _UNCLOSED_THINKING_RE.search(text)
+    if unclosed is None:
+        return ""
+    body = re.sub(
+        r"^<(?:think|thinking|thought)>",
+        "",
+        unclosed.group(0),
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    return body.strip()
+
+
+def combine_thinking(*parts: str) -> str:
+    """Merge provider reasoning and in-text think tags without duplicating."""
+    ordered: List[str] = []
+    for part in parts:
+        text = (part or "").strip()
+        if not text:
+            continue
+        if any(text == existing or text in existing for existing in ordered):
+            continue
+        ordered = [existing for existing in ordered if existing not in text]
+        ordered.append(text)
+    return "\n\n".join(ordered)
 
 
 def extract_json_block(text: str) -> Optional[str]:
@@ -137,14 +186,18 @@ class ParsedResponse:
     error: Optional[str]
     raw_excerpt: str     # truncated raw response for logging
     clean_excerpt: str   # post strip-thinking-tags excerpt
+    thinking: str = ""   # think-tag bodies captured before they are stripped
 
     def to_log_fields(self) -> Dict[str, Any]:
         """Flat fields ready to embed in a JSONL log row."""
-        return {
+        fields = {
             "parse_status": self.status,
             "parse_error": self.error,
             "raw_response_excerpt": self.raw_excerpt,
         }
+        if self.thinking:
+            fields["thinking_excerpt"] = _excerpt(self.thinking)
+        return fields
 
 
 def _excerpt(text: str, head: int = 240, tail: int = 240) -> str:
@@ -176,24 +229,25 @@ def parse_json_response(
     caller substitutes defaults.
     """
     raw_excerpt = _excerpt(text or "")
+    thinking = extract_thinking_text(text or "")
     if not text or not text.strip():
         return ParsedResponse({}, "empty_response", "empty or whitespace only",
-                              raw_excerpt, "")
+                              raw_excerpt, "", thinking)
 
     cleaned = strip_thinking_tags(text)
     clean_excerpt = _excerpt(cleaned)
     block = extract_json_block(cleaned)
     if block is None:
         return ParsedResponse({}, "fallback", "no balanced JSON object found",
-                              raw_excerpt, clean_excerpt)
+                              raw_excerpt, clean_excerpt, thinking)
     try:
         data = json.loads(block)
     except json.JSONDecodeError as exc:
         return ParsedResponse({}, "fallback", f"json decode: {exc.msg}",
-                              raw_excerpt, clean_excerpt)
+                              raw_excerpt, clean_excerpt, thinking)
     if not isinstance(data, dict):
         return ParsedResponse({}, "fallback", "JSON root is not an object",
-                              raw_excerpt, clean_excerpt)
+                              raw_excerpt, clean_excerpt, thinking)
 
     aliases = aliases or {}
     used_alias = False
@@ -210,9 +264,9 @@ def parse_json_response(
         return ParsedResponse(
             data, "partial",
             f"missing required: {', '.join(missing)}",
-            raw_excerpt, clean_excerpt,
+            raw_excerpt, clean_excerpt, thinking,
         )
     if used_alias:
         return ParsedResponse(data, "partial", "used alias mapping",
-                              raw_excerpt, clean_excerpt)
-    return ParsedResponse(data, "ok", None, raw_excerpt, clean_excerpt)
+                              raw_excerpt, clean_excerpt, thinking)
+    return ParsedResponse(data, "ok", None, raw_excerpt, clean_excerpt, thinking)

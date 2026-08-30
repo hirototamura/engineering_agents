@@ -7,6 +7,11 @@ Full page index for the MkDocs site. Use the header language switcher for 日本
 | Start | [Quick start](index.md) | Install, CLI golden path, result files |
 | | [Overview](overview.md) | Project goals, dashboard, detailed setup |
 | Design | [Architecture](architecture.md) | Layers, execution flow, agents |
+| | [Agent design](agent-design.md) | What the world enforces, what the model decides; memory tiers; LLM contract |
+| | [Extending](extending.md) | Backend, scenario, agent mode, world rules, design variable |
+| Results | [Experiment record](results.md) | Three 50-round chains, measured |
+| | [Roadmap](roadmap.md) | Priorities, each traced to a measurement |
+| Specs | [Implementation specs](specs/index.md) | The specs each rebuild was written against, verbatim |
 | | [API contracts](api-contracts.md) | JSONL schemas, protocols |
 | | [Engineering guide](AGENTS.md) | Mission, coding discipline |
 | Scenarios | [scrubber_degradation](scenario-scrubber-degradation.md) | Mock CO₂ scrubber scenario |
@@ -24,7 +29,7 @@ Full page index for the MkDocs site. Use the header language switcher for 日本
 | | [Occupant survival](memo/ssos_eclss_loop/occupant_survival.md) | plant_sim crew/actor attrition |
 | | [Labeled rule-base](memo/ssos_eclss_loop/labeled_rule_base.md) | In-sim labeled ops: sized ARS/OGS/WRS, then cap |
 | | [Post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md) | Actor / designer split (as shipped) |
-| | [Tool-use design agent](memo/ssos_eclss_loop/tool_use_design_agent.md) | Capacity sizing: tool loop, Evidence Gate, candidate re-simulation |
+| | [Design agent](memo/ssos_eclss_loop/tool_use_design_agent.md) | Capacity sizing: decision loop, integrity guard, physics gate, candidate re-simulation |
 | | [SSOS EPS ROS2 plan](memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS bridge (Phase 3) |
 | | [ROS2 graph investigation](memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | Launch remap research |
 | | [ECLSS physical phenomena](memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md) | ECLSS physics memo |

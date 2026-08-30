@@ -5,12 +5,17 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Optional
 
 from scenario.jobs.spec import RunResult, RunSpec
 
 
-def execute_run(spec: RunSpec) -> RunResult:
+def execute_run(
+    spec: RunSpec,
+    *,
+    on_step: Optional[Callable[[int, int], None]] = None,
+    on_phase: Optional[Callable[[str], None]] = None,
+) -> RunResult:
     from scenario.runner import _scenario_registry
 
     start = time.monotonic()
@@ -38,6 +43,9 @@ def execute_run(spec: RunSpec) -> RunResult:
                 approve_provisional=spec.approve_provisional,
                 run_id=spec.run_id,
                 results_root=spec.results_root,
+                design_history=spec.design_history,
+                on_step=on_step,
+                on_phase=on_phase,
             )
         else:
             run_dir = scenario.run(

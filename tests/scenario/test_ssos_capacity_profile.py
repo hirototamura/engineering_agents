@@ -16,6 +16,7 @@ from scenario.ssos_eclss_loop.design_proposals import (
 )
 from scenario.ssos_eclss_loop.design_variables import (
     CAPACITY_KEYS,
+    complete_capacity_fields,
     expected_urine_l_per_step,
     read_capacity_fields,
     required_ogs_input_water_mass,
@@ -149,6 +150,17 @@ def test_capacity_keys_are_exactly_the_three_design_variables():
         "plant_sim.ogs.max_o2_kg_day",
         "plant_sim.wrs.max_feed_l_per_operation",
     }
+
+
+def test_complete_capacity_fields_keeps_omitted_keys_at_installed():
+    ars = "plant_sim.ars.capacity_kg_day"
+    ogs = "plant_sim.ogs.max_o2_kg_day"
+    wrs = "plant_sim.wrs.max_feed_l_per_operation"
+    complete = complete_capacity_fields(
+        {ogs: 48.0},
+        {ars: 4.5, ogs: 50.0, wrs: 10.0},
+    )
+    assert complete == {ars: 4.5, ogs: 48.0, wrs: 10.0}
 
 
 def test_document_with_capacity_profile_validates():

@@ -4,7 +4,8 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from core.llm.base import LLMClient
+from core.llm.base import LLMClient, LLMGeneration
+from core.llm.parsing import combine_thinking, extract_thinking_text
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,26 @@ def resolve_ollama_base_url(llm_cfg: Optional[Dict[str, Any]] = None) -> str:
     return cfg_url.rstrip("/") or DEFAULT_BASE_URL
 
 
+def _extract_ollama_thinking(payload: Dict[str, Any]) -> str:
+    """Return Ollama ``thinking`` / ``reasoning`` from a generate response."""
+    for key in ("thinking", "reasoning"):
+        value = payload.get(key)
+        if value is None:
+            continue
+        if isinstance(value, list):
+            text = "\n".join(str(item).strip() for item in value if str(item).strip())
+        else:
+            text = str(value).strip()
+        if text:
+            return text
+    message = payload.get("message")
+    if isinstance(message, dict):
+        nested = message.get("thinking") or message.get("reasoning")
+        if nested:
+            return str(nested).strip()
+    return ""
+
+
 class OllamaClient(LLMClient):
     def __init__(
         self,
@@ -68,6 +89,9 @@ class OllamaClient(LLMClient):
         self.api_url = f"{self.base_url}/api/generate"
 
     def generate(self, prompt: str) -> str:
+        return self.generate_result(prompt).text
+
+    def generate_result(self, prompt: str) -> LLMGeneration:
         try:
             payload = {
                 "model": self.model,
@@ -87,10 +111,18 @@ class OllamaClient(LLMClient):
                 payload["think"] = self.think
             response = requests.post(self.api_url, json=payload, timeout=self.api_timeout)
             response.raise_for_status()
-            return response.json().get("response", "").strip()
+            body = response.json() if response.content else {}
+            if not isinstance(body, dict):
+                body = {}
+            text = str(body.get("response", "") or "").strip()
+            thinking = combine_thinking(
+                _extract_ollama_thinking(body),
+                extract_thinking_text(text),
+            )
+            return LLMGeneration(text=text, thinking=thinking)
         except Exception as e:
             logger.error("OllamaClient.generate error: %s", e)
-            return ""
+            return LLMGeneration(text="")
 
     def check_connection(self) -> bool:
         try:

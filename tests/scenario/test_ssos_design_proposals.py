@@ -414,3 +414,172 @@ def test_a_document_without_a_status_still_applies():
         _capacity_document(),
     )
     assert merged["plant_sim"]["ars"]["capacity_kg_day"] == 30.0
+
+
+# --------------------------------------------------------------------------- #
+# why one design beat another (spec §15, decision C)
+# --------------------------------------------------------------------------- #
+def _candidate(
+    cid: str,
+    *,
+    warn: int,
+    mass: float,
+    crit: int = 0,
+    eligible: bool = True,
+    crew: int = 50,
+    score: float = 70.0,
+    max_score: float = 90.0,
+) -> dict:
+    return {
+        "candidate_id": cid,
+        "final_eligible": eligible,
+        "outcome": {
+            "crew_remaining": crew,
+            "crew_initial": 50,
+            "critical_step_count": crit,
+            "warning_step_count": warn,
+            "evaluation_compact": {"score": score, "max_score": max_score},
+        },
+        "constraint_evaluation": {
+            "total_mass_kg": mass,
+            "total_volume_m3": mass / 280.0,
+            "total_cost_musd": mass / 6.7,
+        },
+    }
+
+
+def test_the_scorecard_is_named_as_the_deciding_criterion():
+    """With everyone alive on both sides, the sheet is what is left to say."""
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(
+        _candidate("candidate_001", warn=65, mass=4689.9, score=72.0),
+        _candidate("candidate_002", warn=69, mass=4196.2, score=64.8),
+    )
+
+    assert rationale["decided_by"] == "evaluation_score_pct"
+    assert rationale["winner_value"] == 80.0  # 72 of 90
+    assert rationale["runner_up_value"] == 72.0  # 64.8 of 90
+    # It is the last criterion, so nothing was skipped over.
+    assert rationale["not_compared"] == []
+
+
+def test_dwell_and_mass_are_no_longer_criteria_at_all():
+    """They are marked inside the score; they are not compared beside it."""
+    from scenario.ssos_eclss_loop.design_eval import RANK_CRITERIA, rank_rationale
+
+    assert RANK_CRITERIA == ("final_eligible", "crew_remaining", "evaluation_score_pct")
+
+    # Wildly different dwell and mass, identical score: nothing decides.
+    rationale = rank_rationale(
+        _candidate("candidate_002", warn=1, mass=1900.0, score=70.0),
+        _candidate("candidate_001", warn=67, mass=5800.0, score=70.0),
+    )
+    assert rationale["decided_by"] is None
+
+
+def test_eligibility_decides_before_anything_else():
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(
+        _candidate("candidate_001", warn=99, mass=9999.0),
+        _candidate("candidate_002", warn=1, mass=100.0, eligible=False),
+    )
+    assert rationale["decided_by"] == "final_eligible"
+
+
+def test_a_lone_candidate_has_nothing_to_be_decided_against():
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(_candidate("candidate_001", warn=65, mass=4689.9), None)
+    assert rationale["decided_by"] is None
+    assert "only one candidate" in rationale["detail"]
+
+
+# --------------------------------------------------------------------------- #
+# handing a design to the next run
+# --------------------------------------------------------------------------- #
+def _whole_or_partial(**fields):
+    return {
+        "design_domain": "ssos_graph",
+        "changes": [
+            {
+                "change_kind": "capacity_profile",
+                "payload": {"backend": "plant_sim", "fields": dict(fields)},
+                "why": "test",
+                "what": "test",
+                "how": "test",
+            }
+        ],
+    }
+
+
+ARS_KEY = "plant_sim.ars.capacity_kg_day"
+OGS_KEY = "plant_sim.ogs.max_o2_kg_day"
+WRS_KEY = "plant_sim.wrs.max_feed_l_per_operation"
+FLYING = {ARS_KEY: 20.8, OGS_KEY: 42.0, WRS_KEY: 2.0}
+
+
+def test_a_proposal_naming_one_subsystem_hands_on_the_whole_machine():
+    """A capacity proposal is merged into the scenario file, not into the run.
+
+    So a proposal that mentions only the water recycler used to return the CO2
+    scrubber and the oxygen generator to their shipped sizes -- and a chain that
+    had grown them enough to keep fifty occupants alive handed the next round a
+    station sized for none of them.
+    """
+    from scenario.ssos_eclss_loop.design_proposals import complete_capacity_profile
+
+    completed = complete_capacity_profile(_whole_or_partial(**{WRS_KEY: 2.5}), FLYING)
+    fields = completed["changes"][0]["payload"]["fields"]
+    assert fields == {ARS_KEY: 20.8, OGS_KEY: 42.0, WRS_KEY: 2.5}
+    # What was proposed wins; only the silence is filled in, and it is recorded.
+    assert completed["changes"][0]["carried_forward"] == sorted([ARS_KEY, OGS_KEY])
+
+
+def test_completing_a_proposal_never_overrides_what_it_asked_for():
+    from scenario.ssos_eclss_loop.design_proposals import complete_capacity_profile
+
+    asked = {ARS_KEY: 30.0, OGS_KEY: 60.0, WRS_KEY: 5.0}
+    completed = complete_capacity_profile(_whole_or_partial(**asked), FLYING)
+    assert completed["changes"][0]["payload"]["fields"] == asked
+    assert "carried_forward" not in completed["changes"][0]
+
+
+def test_completing_leaves_other_kinds_of_change_alone():
+    from scenario.ssos_eclss_loop.design_proposals import complete_capacity_profile
+
+    document = {
+        "design_domain": "ssos_graph",
+        "changes": [
+            {"change_kind": "action_profile", "payload": {"subsystem": "ars"}},
+            {"change_kind": "capacity_profile", "payload": {"fields": {WRS_KEY: 2.5}}},
+        ],
+    }
+    completed = complete_capacity_profile(document, FLYING)
+    assert completed["changes"][0]["payload"] == {"subsystem": "ars"}
+    assert set(completed["changes"][1]["payload"]["fields"]) == set(FLYING)
+
+
+def test_a_completed_proposal_applies_to_the_machine_it_names():
+    """End to end: the omitted subsystems survive the trip to the next run."""
+    import yaml
+
+    from scenario.runner import scenario_config_path
+    from scenario.ssos_eclss_loop.design_proposals import (
+        apply_design_proposals,
+        complete_capacity_profile,
+    )
+    from scenario.ssos_eclss_loop.design_variables import read_capacity_fields
+
+    shipped = yaml.safe_load(scenario_config_path("ssos_eclss_loop").read_text(encoding="utf-8"))
+    water_only = _whole_or_partial(**{WRS_KEY: 2.5})
+
+    # Without completion the two gas subsystems fall back to the shipped sizes.
+    reverted = read_capacity_fields(apply_design_proposals(shipped, water_only))
+    assert reverted[ARS_KEY] != 20.8
+
+    kept = read_capacity_fields(
+        apply_design_proposals(shipped, complete_capacity_profile(water_only, FLYING))
+    )
+    assert kept == {ARS_KEY: 20.8, OGS_KEY: 42.0, WRS_KEY: 2.5}

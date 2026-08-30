@@ -10,10 +10,11 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional
 
 from scenario.ssos_eclss_loop.design_eval import STATUS_APPROVED as FINAL_STATUS_APPROVED
 from scenario.ssos_eclss_loop.design_variables import (
+    CAPACITY_KEYS,
     apply_capacity_fields,
     sync_action_payloads,
     validate_capacity_fields,
@@ -161,6 +162,45 @@ def _apply_action_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> No
             raise ValueError(f"action_profile subsystem must be ars, ogs, or wrs, got {subsystem!r}")
 
 
+def complete_capacity_profile(
+    document: Dict[str, Any],
+    installed: Mapping[str, float],
+) -> Dict[str, Any]:
+    """Fill in the design variables a proposal did not mention.
+
+    A capacity proposal is applied by merging it into the *scenario file*, not
+    into the machine the run that produced it was flying. So a proposal naming
+    one subsystem silently returns the other two to their shipped sizes. That is
+    how a chain that had grown its CO2 scrubber and oxygen generator enough to
+    keep all fifty occupants alive handed the next round a station sized for
+    none of them, and read the loss as the design's fault.
+
+    Completing the document here makes every hand-off a whole machine: what was
+    proposed, plus what was already flying wherever the proposal was silent.
+    Nothing is overridden -- an omission simply stops meaning "revert this".
+    """
+    completed = copy.deepcopy(document)
+    for change in completed.get("changes") or []:
+        if not isinstance(change, dict) or change.get("change_kind") != "capacity_profile":
+            continue
+        payload = change.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        fields = payload.get("fields")
+        if not isinstance(fields, dict):
+            continue
+        carried = {
+            key: float(value)
+            for key, value in installed.items()
+            if key in CAPACITY_KEYS and key not in fields
+        }
+        if not carried:
+            continue
+        payload["fields"] = {**fields, **carried}
+        change["carried_forward"] = sorted(carried)
+    return completed
+
+
 def _apply_capacity_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> None:
     """Size ARS / OGS / WRS throughput and keep the action payloads usable."""
     backend = str(payload.get("backend", "plant_sim")).lower()
@@ -297,6 +337,16 @@ def supervisor_approval_reasons(proposals: Dict[str, Any]) -> List[str]:
     return reasons
 
 
+# CLI simulation default is to pass approve_provisional=True so the
+# design→verify loop can close without a human. The library still refuses
+# unless the caller opts in. Note whenever that sim default is in effect.
+APPROVE_PROVISIONAL_SIM_INFO = (
+    "This simulation auto-approves LLM design proposals (--approve-provisional) "
+    "so the design–verify loop can proceed without a human supervisor. "
+    "Pass --no-approve-provisional to restore the supervisor gate."
+)
+
+
 def apply_design_proposals(
     config: Dict[str, Any],
     proposals: Dict[str, Any],
@@ -306,9 +356,9 @@ def apply_design_proposals(
     """Merge proposal changes into scenario config for the *next* run.
 
     A document that needs supervisor approval is refused unless the caller
-    passes ``approve_provisional=True`` (CLI: ``--approve-provisional``). Being
-    handed the file is not approval — a human deciding to accept an over-budget
-    or lossy design is.
+    passes ``approve_provisional=True``. ``ea run`` defaults that flag on
+    (with an INFO note) so the simulation can close the loop without a human;
+    ``--no-approve-provisional`` restores this library gate.
     """
     errors = validate_design_proposals(proposals)
     if errors:
