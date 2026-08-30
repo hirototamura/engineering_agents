@@ -44,7 +44,7 @@ eclss_designer_1 ── 決定ループ ── 検証済み candidate
 
 `count > 1` でも tool-use は先頭の 1 人だけを使う。追加の designer は古典 LLM 議論用の名簿に残る。
 
-設定は [`src/scenario/ssos_eclss_loop/agents.yaml`](../../../src/scenario/ssos_eclss_loop/agents.yaml)。
+設定は [`src/scenario/ssos_eclss_loop/agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)。
 
 | 項目 | 値 |
 | --- | --- |
@@ -53,7 +53,7 @@ eclss_designer_1 ── 決定ループ ── 検証済み candidate
 | `design.team.archetypes` | `[]` |
 | `design.team.bias_direction` | 空なら objective から生成（生存 → CRITICAL 減 → 小型） |
 
-実装: [`src/scenario/agents/ssos_post_run_design.py`](../../../src/scenario/agents/ssos_post_run_design.py) の `_tool_use_propose`。`audit.enabled` が無い設定は従来どおり designer 1 人で終わり、root に `tool_trace.jsonl` を書く。
+実装: [`src/scenario/agents/ssos_post_run_design.py`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/agents/ssos_post_run_design.py) の `_tool_use_propose`。`audit.enabled` が無い設定は従来どおり designer 1 人で終わり、root に `tool_trace.jsonl` を書く。
 
 ## 監査エージェント
 
@@ -83,7 +83,7 @@ flowchart LR
 
 ### レンズ
 
-定義は [`src/core/agents/persona.py`](../../../src/core/agents/persona.py) の `ARCHETYPE_LENSES`。
+定義は [`src/core/agents/persona.py`](https://github.com/hirototamura/engineering_agents/blob/main/src/core/agents/persona.py) の `ARCHETYPE_LENSES`。
 
 | レンズ | 見るもの |
 | --- | --- |
@@ -108,7 +108,7 @@ flowchart LR
 
 ### 項目マージ
 
-実装は [`src/scenario/ssos_eclss_loop/design_ensemble.py`](../../../src/scenario/ssos_eclss_loop/design_ensemble.py) の `integrate_audit_panel`。
+実装は [`src/scenario/ssos_eclss_loop/design_ensemble.py`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/design_ensemble.py) の `integrate_audit_panel`。
 
 1. designer の検証済み field を起点にする  
 2. 3 人の `rejected_fields` の和集合を取る  
@@ -130,7 +130,7 @@ flowchart LR
 
 ADK の Runner / LlmAgent / tool-use ループは移植しない。残すのは Storage / Service スライスだけ。`core/` は `scenario/` を import しない。
 
-実装は [`src/core/storage/`](../../../src/core/storage/)。
+実装は [`src/core/storage/`](https://github.com/hirototamura/engineering_agents/tree/main/src/core/storage/)。
 
 ```text
 <run_dir>/

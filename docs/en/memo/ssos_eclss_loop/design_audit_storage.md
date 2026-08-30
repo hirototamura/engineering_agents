@@ -44,7 +44,7 @@ eclss_designer_1 ── decision loop ── verified candidate
 
 Even if `count > 1`, tool-use uses the first designer only. Extra ids remain on the classic LLM roster.
 
-Config: [`src/scenario/ssos_eclss_loop/agents.yaml`](../../../src/scenario/ssos_eclss_loop/agents.yaml).
+Config: [`src/scenario/ssos_eclss_loop/agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml).
 
 | Key | Value |
 | --- | --- |
@@ -53,7 +53,7 @@ Config: [`src/scenario/ssos_eclss_loop/agents.yaml`](../../../src/scenario/ssos_
 | `design.team.archetypes` | `[]` |
 | `design.team.bias_direction` | empty ⇒ derived from the objective (survive, then less CRITICAL, then smaller) |
 
-Implementation: `_tool_use_propose` in [`src/scenario/agents/ssos_post_run_design.py`](../../../src/scenario/agents/ssos_post_run_design.py). A config with no `audit` block still ends after the one designer and writes `tool_trace.jsonl` at the run root.
+Implementation: `_tool_use_propose` in [`src/scenario/agents/ssos_post_run_design.py`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/agents/ssos_post_run_design.py). A config with no `audit` block still ends after the one designer and writes `tool_trace.jsonl` at the run root.
 
 ## Audit agents
 
@@ -83,7 +83,7 @@ All three see the same slim brief (scorecard, clipped speech, installed vs propo
 
 ### Lenses
 
-Defined in `ARCHETYPE_LENSES` in [`src/core/agents/persona.py`](../../../src/core/agents/persona.py).
+Defined in `ARCHETYPE_LENSES` in [`src/core/agents/persona.py`](https://github.com/hirototamura/engineering_agents/blob/main/src/core/agents/persona.py).
 
 | Lens | Job |
 | --- | --- |
@@ -108,7 +108,7 @@ One JSON object each. No invented machine, field, or value.
 
 ### Item merge
 
-`integrate_audit_panel` in [`src/scenario/ssos_eclss_loop/design_ensemble.py`](../../../src/scenario/ssos_eclss_loop/design_ensemble.py):
+`integrate_audit_panel` in [`src/scenario/ssos_eclss_loop/design_ensemble.py`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/design_ensemble.py):
 
 1. Start from the designer's verified fields  
 2. Take the union of named `rejected_fields`  
@@ -130,7 +130,7 @@ The body is the designer message / reasoning, then the three write-ups. There is
 
 The ADK Runner / LlmAgent / tool-use loop is not ported. Only the Storage / Service slice is. `core/` does not import `scenario/`.
 
-Implementation: [`src/core/storage/`](../../../src/core/storage/).
+Implementation: [`src/core/storage/`](https://github.com/hirototamura/engineering_agents/tree/main/src/core/storage/).
 
 ```text
 <run_dir>/
