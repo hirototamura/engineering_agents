@@ -16,7 +16,10 @@ Per-round metrics behind [the experiment record](../en/results.md) / [実験記�
 | --- | --- |
 | `phaseN_iteration_metrics.csv` | one row per round, 54 columns |
 | `phaseN_iteration_findings.json` | derived findings for that chain (resets, best round, stagnation) |
-| `phaseN_score_components_grouped.csv` | the scorecard rolled up into four blocks per round: survival, system behaviour (B–D), footprint (cost + mass), ops/physics. The seven individual axes are the `axis_*` columns of the metrics CSV |
+| `phaseN_score_components_grouped.csv` | the scorecard rolled up into four blocks per round: survival, system behaviour (B–D), footprint (cost + mass), ops/physics |
+| `phaseN_chain_key_summary.csv` | the chain's own headline figures: rounds requested and completed, survivors first / last / baseline replay / final replay, verdict |
+| `ssos_three_way_comparison_summary.json` | the three phases side by side — the source of the comparison table in the experiment record |
+| `phaseN_score_components_split.csv` | the same score with all seven axes separate — A survival, B TCL, C environment, D recovery, **E cost, F mass**, G ops/physics. Use this one when the question is cost *against* mass; the grouped file adds them together |
 
 ## Columns worth knowing
 

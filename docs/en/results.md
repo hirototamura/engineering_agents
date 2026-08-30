@@ -88,6 +88,14 @@ Score composition, phase 1 (survivable designs squeezed into a narrow cost/mass 
 
 ![Phase 3 score composition](../images/results/phase3_score_components_grouped.svg)
 
+Those four blocks roll cost and mass together, and cost and mass are the whole argument here, so the same score split into all seven axes — A survival, B time-to-clear, C environment, D recovery, **E cost, F mass**, G ops/physics:
+
+![Phase 1, all seven axes](../images/results/phase1_score_components_stacked_split.svg)
+
+![Phase 3, all seven axes](../images/results/phase3_score_components_stacked_split.svg)
+
+E and F move together and by almost the same amount, which is the point: nothing about the design made it disproportionately cheaper *or* lighter. The anchor moved, and both axes started paying out. Per-round values for all three phases are in `docs/data/phaseN_score_components_split.csv`.
+
 Best round (41) against final round (50):
 
 | Axis | Round 41 | Round 50 |

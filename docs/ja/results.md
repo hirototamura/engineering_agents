@@ -88,6 +88,14 @@ evaluation:
 
 ![段階③ 点数内訳](../images/results/phase3_score_components_grouped.svg)
 
+この集約版は費用と質量を1ブロックにまとめている。しかしここでの論点はまさにその費用と質量なので、同じ点数を7軸すべてに分解した詳細版も出す——A生存・B収束時間・C環境・D回復・**E費用・F質量**・G運用/物理。
+
+![段階① 7軸内訳](../images/results/phase1_score_components_stacked_split.svg)
+
+![段階③ 7軸内訳](../images/results/phase3_score_components_stacked_split.svg)
+
+E と F がほぼ同じ量だけ一緒に動いている。これが要点である。設計が特別に安くなったのでも軽くなったのでもない。**基準点が動いて、両軸が払われるようになっただけ**である。3段階すべての周ごとの値は `docs/data/phaseN_score_components_split.csv` にある。
+
 最高周（41）と最終周（50）:
 
 | 軸 | 41周 | 50周 |

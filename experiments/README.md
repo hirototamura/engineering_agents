@@ -85,6 +85,12 @@ python3 analysis/make_parameter_comparison.py
 python3 analysis/make_score_group_components.py --prefix phase1 --title "段階① 初期: 点数内訳 集約版" --output phase1_score_components_grouped
 python3 analysis/make_score_group_components.py --prefix phase2 --title "段階② 記憶あり改善: 点数内訳 集約版" --output phase2_score_components_grouped
 python3 analysis/make_score_group_components.py --prefix phase3 --title "段階③ 記憶+評価変更: 点数内訳 集約版" --output phase3_score_components_grouped
+
+# the same score, split into all seven axes -- this is the one that shows cost and mass apart
+python3 analysis/make_score_components_split.py --prefix phase1 --title "段階① 初期: 点数内訳 詳細版"
+python3 analysis/make_score_components_split.py --prefix phase2 --title "段階② 記憶あり改善: 点数内訳 詳細版"
+python3 analysis/make_score_components_split.py --prefix phase3 --title "段階③ 記憶+評価変更: 点数内訳 詳細版"
+
 python3 analysis/summarize_three_way_inputs.py
 ```
 
@@ -101,24 +107,30 @@ python analysis\analyze_ssos_iter.py --root runs/phase2-chain-memory    --prefix
 python analysis\analyze_ssos_iter.py --root runs/phase3-rescored        --prefix phase3
 python analysis\make_comparison_trend.py
 python analysis\make_parameter_comparison.py
+python analysis\make_score_components_split.py --prefix phase3 --title "段階③ 記憶+評価変更: 点数内訳 詳細版"
 python analysis\summarize_three_way_inputs.py
 ```
 </details>
 
 ### Then check it against what is committed
 
-Every one of these is byte-identical, or the docs are wrong:
+**Everything the pipeline writes is committed, and every file is byte-identical.**
+Not a list of files to keep in sync — the check is over the whole directory, so a
+new artifact that nobody committed fails it:
 
 ```bash
-for n in 1 2 3; do
-  diff outputs/phase${n}_iteration_metrics.csv          ../docs/data/phase${n}_iteration_metrics.csv
-  diff outputs/phase${n}_iteration_findings.json        ../docs/data/phase${n}_iteration_findings.json
-  diff outputs/phase${n}_score_components_grouped.csv   ../docs/data/phase${n}_score_components_grouped.csv
-  diff outputs/phase${n}_score_components_grouped.svg   ../docs/images/results/phase${n}_score_components_grouped.svg
+for f in outputs/*; do
+  b=$(basename "$f")
+  for c in "../docs/data/$b" "../docs/images/results/$b"; do
+    [ -f "$c" ] && { cmp -s "$f" "$c" && echo "OK   $b" || echo "DIFF $b"; continue 2; }
+  done
+  echo "MISSING $b — the pipeline writes this and nothing in the repo holds it"
 done
-diff outputs/ssos_phase1_phase2_phase3_survival_score_trend.svg ../docs/images/results/ssos_phase1_phase2_phase3_survival_score_trend.svg
-diff outputs/ssos_phase1_phase2_phase3_parameter_trends.svg     ../docs/images/results/ssos_phase1_phase2_phase3_parameter_trends.svg
 ```
+
+33 files: 3 phases × (metrics CSV, findings JSON, chain key summary, grouped CSV +
+SVG, split CSV + stacked SVG, design-space, design-variables, survival-score) plus
+the two cross-phase trends and the three-way comparison summary.
 
 ## 4. What each script does
 
@@ -128,7 +140,7 @@ diff outputs/ssos_phase1_phase2_phase3_parameter_trends.svg     ../docs/images/r
 | `make_comparison_trend.py` | the three metrics CSVs | survivors and score, all three phases on one axis |
 | `make_parameter_comparison.py` | the three metrics CSVs | ARS / OGS / WRS across all three phases |
 | `make_score_group_components.py` | one metrics CSV | the scorecard in four blocks — survival, system behaviour, footprint, ops/physics |
-| `make_score_components_split.py` | one metrics CSV | the same, split into all seven axes |
+| `make_score_components_split.py` | one metrics CSV | `<prefix>_score_components_split.csv` and `<prefix>_score_components_stacked_split.svg` — the same score split into all seven axes, cost and mass apart |
 | `summarize_three_way_inputs.py` | all three, metrics **and** chain roots | the cross-phase totals the comparison table is built from |
 
 Column meanings: [`docs/data/README.md`](../docs/data/README.md).
