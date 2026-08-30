@@ -134,7 +134,7 @@ def test_run_ssos_bare_defaults_plant_sim_labeled_llm(tmp_path: Path):
     assert payload["approve_provisional"] is True
     assert "inject_failures" not in overrides
     assert "inject_failures: false" in result.stdout
-    assert "iterate: 10" in result.stdout
+    assert "iterate: 50" in result.stdout
     assert "actor=labeled_rule_base" in result.stdout
     assert "design=llm" in result.stdout
     assert "backend: plant_sim" in result.stdout
@@ -770,7 +770,7 @@ def test_ssos_bare_run_chains_from_yaml(tmp_path: Path):
         ],
     )
     assert result.exit_code == 0
-    assert "iterate: 10" in result.stdout
+    assert "iterate: 50" in result.stdout
 
 
 def test_yaml_chain_without_iterate_flag_uses_live_reporter(monkeypatch, tmp_path: Path):
@@ -805,7 +805,7 @@ def test_yaml_chain_without_iterate_flag_uses_live_reporter(monkeypatch, tmp_pat
     )
     assert result.exit_code == 0
     assert isinstance(captured.get("reporter"), ChainLiveReporter)
-    assert captured["reporter"].iterations == 10
+    assert captured["reporter"].iterations == 50
 
 
 def test_single_ssos_run_hooks_step_progress(monkeypatch, tmp_path: Path):

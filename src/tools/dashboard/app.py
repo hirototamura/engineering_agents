@@ -50,7 +50,9 @@ def _has_telemetry(path: Path) -> bool:
 
 def _run_label(path: Path, results_root: Path = RESULTS_ROOT) -> str:
     try:
-        return str(path.resolve().relative_to(results_root.resolve()))
+        # POSIX separators so a chain child reads as ``chain/01`` on every OS —
+        # the label is a display name and a dict key, not a filesystem path.
+        return path.resolve().relative_to(results_root.resolve()).as_posix()
     except ValueError:
         return path.name
 
