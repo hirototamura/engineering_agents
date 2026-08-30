@@ -303,7 +303,7 @@ environment/       EclssBackend Protocol  ──  mock │ plant_sim │ ros2（
 
 **並行実行と再現性。** 50体は128ワーカーのプールで1バッチとして討議する。セマフォはループ非依存の `threading.BoundedSemaphore`（`asyncio.Semaphore` は次 step の `asyncio.run` で壊れる）。step は同期で、全エージェントが同じスナップショットを見てから、プラントが1回進む。シミュレータに乱数は無い——同じ設定・同じコマンドなら軌跡は小数点まで同じであり、それが「候補の**予測**」と「次周の**実測**」を突き合わせられる理由である。
 
-**テスト。** 820 passed / 4 skipped。
+**テスト。** 849 passed / 4 skipped。
 
 ```bash
 pytest tests --ignore=tests/e2e

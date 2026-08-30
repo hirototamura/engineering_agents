@@ -307,7 +307,7 @@ Provider reasoning (vLLM `reasoning_content`, Ollama `thinking`) is merged with 
 
 **Concurrency and reproducibility.** Fifty agents deliberate in one batch through a 128-worker pool with a loop-agnostic `threading.BoundedSemaphore` (an `asyncio.Semaphore` breaks on the next step's `asyncio.run`). Steps are synchronous: all agents observe the same snapshot, then the plant advances once. The simulator has no RNG — same config, same commands, same trajectory to the decimal, which is what lets a candidate's *predicted* outcome be checked against the next round's *measured* one.
 
-**Tests.** 820 passing, 4 skipped.
+**Tests.** 849 passing, 4 skipped.
 
 ```bash
 pytest tests --ignore=tests/e2e
