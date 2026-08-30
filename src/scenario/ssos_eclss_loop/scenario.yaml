@@ -217,7 +217,7 @@ evaluation:
 # single `ea run` (CLI pins plant_sim + labeled actors + llm design).
 iteration:
   enabled: true  # true → chain without --iterate
-  count: 10  # [-] 1–50 chained sims; --iterate N wins
+  count: 50  # [-] 1–50 chained sims; --iterate N wins
   paired_replay: true  # baseline vs final replay after the chain
   approve_provisional: true  # auto-adopt provisional_final (INFO on ssos). --no-approve-provisional restores the gate
   run_id: ssos_eclss_loop_design_iter  # default chain directory name
