@@ -110,24 +110,25 @@ step は 0-based（`0 .. steps-1`）。actor `eclss_actor_{step % N}` が運用�
 | ファイル | 用途 |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | step 数、初期ストレージ、backend 種別、閾値、`agents.actor.mode` / `agents.design.mode`、run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | actor チーム（`eclss_actor_*`）、designer チーム（`eclss_designer_*`）、actor `policy`（labeled のみ）、いまは両側とも vLLM `qwen3-8b` |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | actor チーム（`eclss_actor_*`）、designer チーム（`eclss_designer_*`）、actor `policy`（labeled のみ）、vLLM `qwen3.5-9b`（`:8000`）/ `qwen3.8-27b-uncensored`（`:8001`） |
 
 ### scenario.yaml（主要項目）
 
 ```yaml
 simulation:
-  steps: 8
-  initial_co2_storage_kg: 1.5
+  steps: 50
+  initial_co2_storage_kg: 1.3
   initial_o2_storage_kg: 8.0
   initial_product_water_l: 80.0
 
 backend:
   kind: mock  # mock | plant_sim | ros2 — SSOS_ECLSS_BACKEND 環境変数でも上書き可
 
-mock_dynamics:
+mock_dynamics:  # LoopMock のみ
   co2_growth_kg_per_step: 0.06
   ars_co2_reduction_kg: 0.35
-  ogs_o2_gain_kg: 0.1
+  ars_reference_co2_mass_kg: 1.8
+  sabatier_co2_kg_per_water_kg: 2.0
 
 thresholds:
   co2_storage_high_kg: 2.0
@@ -192,7 +193,9 @@ actor:
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b  # いまの既定。後で変える
+    model: qwen3.5-9b  # いまの既定。後で変える
+    max_tokens: 768
+    think: false
 
 design:
   team:
@@ -200,9 +203,10 @@ design:
     id_prefix: eclss_designer
   llm:
     provider: vllm
-    base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b
-    max_tokens: 2048
+    base_url: http://10.10.0.108:8001/v1
+    model: qwen3.8-27b-uncensored
+    max_tokens: 16384
+    think: true
 ```
 
 ---

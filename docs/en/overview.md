@@ -360,16 +360,24 @@ The lab box `gpu-sv-008` (`10.10.0.108`) serves OpenAI-compatible APIs. Reachabl
 
 | Use | URL | `model` |
 | --- | --- | --- |
-| Daily deliberation (default) | `http://10.10.0.108:8000/v1` | `qwen3-8b` |
-| Heavier judgment | `http://10.10.0.108:8001/v1` | `qwen3-32b` |
+| Daily deliberation (ssos actors) | `http://10.10.0.108:8000/v1` | `qwen3.5-9b` |
+| Post-run design (ssos designers) | `http://10.10.0.108:8001/v1` | `qwen3.8-27b-uncensored` |
+| Client fallback (Ollama-style `model` with `:`) | same URL | `qwen3-8b` (`VllmClient.DEFAULT_MODEL`) |
 
 ```bash
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
-ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3-32b \
-  --set agents.llm.base_url=http://10.10.0.108:8001/v1
+ea run ssos_eclss_loop --backend mock --actor-mode llm --design-mode llm --llm-provider vllm
+# Distinct actor/designer endpoints: do not set VLLM_BASE_URL / VLLM_MODEL / --llm-model
 ```
 
-Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. `agents.llm.api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set.
+Pitfalls (`src/core/llm/vllm.py`):
+
+- `VLLM_BASE_URL`, `VLLM_MODEL`, and `--llm-model` stamp **every** vLLM client. That collapses the actor `:8000` / designer `:8001` split. Use `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (and `.model`) instead.
+- A yaml `model` that contains `:` (Ollama tags such as `qwen3.5:9b`) is rejected; the client sends `qwen3-8b`.
+- YAML `api_timeout` is Ollama-only. vLLM keeps a 300s client default unless `VLLM_API_TIMEOUT` is set.
+- `think: true` reserves `max(2048, max_tokens/4)` of `max_tokens` for the non-reasoning answer.
+
+Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1` (this also stamps both ssos sides).
 
 Default LLM settings are in each scenario's `agents.yaml` (scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml), ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)). `llm` mode fails if the selected backend is not reachable.
 

@@ -25,8 +25,8 @@
 
 | 種類 | いつ動く | 役割 | id_prefix | モデル（いまの既定。後で変える） |
 | --- | --- | --- | --- | --- |
-| actor | 各ステップ | 会話 + ARS/OGS/WRS 運用コマンドのみ | `eclss_actor` → `eclss_actor_1` … `_50` | vLLM `qwen3-8b`。`labeled_rule_base` 可 |
-| designer | **ラン終了後だけ** | 初期値・テレメトリ・actor 最終状態を見て `design_proposals.json` | `eclss_designer` → `eclss_designer_1` … `_4` | vLLM `qwen3-8b`。`max_tokens: 2048` |
+| actor | 各ステップ | 会話 + ARS/OGS/WRS 運用コマンドのみ | `eclss_actor` → `eclss_actor_1` … `_50` | vLLM `qwen3.5-9b`（`:8000`、`think: false`、`max_tokens: 768`）。`labeled_rule_base` 可 |
+| designer | **ラン終了後だけ** | 初期値・テレメトリ・actor 最終状態を見て `design_proposals.json` | `eclss_designer` → `eclss_designer_1` … `_4` | vLLM `qwen3.8-27b-uncensored`（`:8001`、`think: true`、`max_tokens: 16384`） |
 
 検証の合否は `src/scenario/ssos_eclss_loop/health.py` の決定論チェック。設計 LLM に pass/fail はさせない。LLM / Persona は `environment/` に入れない。
 
@@ -71,7 +71,9 @@ CLI（ssos）:
 
 - `--actor-mode` → `agents.actor.mode`
 - `--design-mode` → `agents.design.mode`
-- `--llm-provider` / `--llm-model` — 両方 `llm` だと両側を同じ値で潰す。URL / モデルを分けるなら `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=`（`.model` も同様）
+- `--llm-provider` / `--llm-model` — 両方 `llm` だと両側を同じ値で潰す。URL / モデルを分けるなら `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=`（`.model` も同様）。`VLLM_BASE_URL` / `VLLM_MODEL` も全 vLLM クライアントを上書きする。
+- YAML の `model` に `:` が含まれると Ollama タグ扱いされ、`resolve_vllm_model` は `qwen3-8b` にフォールバックする。
+- `think: true` のとき完了トークンのうち `max(2048, max_tokens/4)` を最終回答用に予約する（`VllmClient`）。
 - `--agents-mode` — ssos では `--actor-mode` の非推奨エイリアス。両方指定はエラー。scrubber は `--agents-mode` のみ
 
 キラー組み合わせ: `--actor-mode labeled_rule_base --design-mode llm`。

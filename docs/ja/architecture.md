@@ -51,6 +51,7 @@ environment/
     eclss/                   # ssos_eclss_loop
       backend.py             # EclssBackend プロトコル
       mock/backend.py        # MockEclssBackend（契約スタブ）
+      plant_sim/             # PlantSimBackend（kg スケールの Python プラント）
       ros2/                  # Ros2EclssBridge, graph_rewire, topics
     eps/ros2/                # Ros2EpsBridge のみ — scrubber EPS オプション。eclss loop 未接続
 ```
@@ -681,7 +682,7 @@ run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
 | SSOS EPS（scrubber 電力）  | scrubber | ✅ `environment/ssos/eps/ros2/` — `Ros2EpsBridge`（`eps.backend: ros2` で任意） |
 | SSOS EPS（eclss loop）   | ssos     | — 未接続。`ssos/eps/ros2/` は eclss loop とは別 |
 | Ollama                 | 両方       | ✅ コンテナは `host.docker.internal` |
-| 研究室 vLLM              | 両方       | ✅ `http://10.10.0.108:8000/v1`（`qwen3-8b`）。LAN または VPN |
+| 研究室 vLLM              | 両方       | ✅ `http://10.10.0.108:8000/v1`（actor `qwen3.5-9b`）と `:8001/v1`（designer `qwen3.8-27b-uncensored`）。LAN または VPN |
 | One Piece Web UI       | —        | スコープ外                          |
 
 

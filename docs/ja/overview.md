@@ -355,16 +355,24 @@ ollama list
 
 | 用途 | URL | `model` |
 | --- | --- | --- |
-| 日常の議論（既定） | `http://10.10.0.108:8000/v1` | `qwen3-8b` |
-| 重い判断 | `http://10.10.0.108:8001/v1` | `qwen3-32b` |
+| 日常の議論（ssos actor） | `http://10.10.0.108:8000/v1` | `qwen3.5-9b` |
+| 事後設計（ssos designer） | `http://10.10.0.108:8001/v1` | `qwen3.8-27b-uncensored` |
+| クライアントフォールバック（`model` に `:`） | 同じ URL | `qwen3-8b`（`VllmClient.DEFAULT_MODEL`） |
 
 ```bash
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
-ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3-32b \
-  --set agents.llm.base_url=http://10.10.0.108:8001/v1
+ea run ssos_eclss_loop --backend mock --actor-mode llm --design-mode llm --llm-provider vllm
+# actor / designer を分けるときは VLLM_BASE_URL / VLLM_MODEL / --llm-model を使わない
 ```
 
-環境変数: `VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT`、`LLM_PROVIDER`。SSH トンネル例: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`。`agents.llm.api_timeout` は Ollama 用。vLLM は既定 300s（`VLLM_API_TIMEOUT` で上書き）。
+落とし穴（`src/core/llm/vllm.py`）:
+
+- `VLLM_BASE_URL`、`VLLM_MODEL`、`--llm-model` は **すべての** vLLM クライアントを上書きし、actor `:8000` / designer `:8001` の分離を潰す。分けるなら `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=`（`.model` も同様）。
+- YAML の `model` に `:` が含まれる（`qwen3.5:9b` のような Ollama タグ）と棄却され、クライアントは `qwen3-8b` を送る。
+- YAML の `api_timeout` は Ollama 専用。vLLM は既定 300s（`VLLM_API_TIMEOUT` で上書き）。
+- `think: true` は `max_tokens` のうち `max(2048, max_tokens/4)` を最終回答用に予約する。
+
+環境変数: `VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT`、`LLM_PROVIDER`。SSH トンネル例: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`（ssos の両側も上書きされる）。
 
 デフォルトの LLM 設定は各シナリオの `agents.yaml`（scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml)、ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)）。選択したバックエンドに届かないと `llm` モードは失敗します。
 
