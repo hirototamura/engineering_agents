@@ -870,7 +870,8 @@ def test_iterate_omitted_scenario_defaults_to_ssos(tmp_path: Path):
     )
     assert result.exit_code == 0
     assert str(tmp_path / "chain") in result.stdout
-    assert "INFO" in result.output
+    assert "approve_provisional: false" in result.stdout
+    assert "auto-approves LLM design proposals" not in result.output
 
 
 def test_run_ssos_no_approve_provisional_skips_info(tmp_path: Path):

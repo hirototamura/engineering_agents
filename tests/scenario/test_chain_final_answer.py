@@ -55,14 +55,13 @@ def _iteration(
             "wrs": {"max_feed_l_per_operation": 10.0},
         },
     }
-    if over_budget:
-        config["design_constraints"] = {
-            "budgets": {
-                "max_total_mass_kg": 1.0,
-                "max_total_cost_musd": 0.01,
-                "max_total_volume_m3": 0.01,
-            }
+    config["design_constraints"] = {
+        "budgets": {
+            "max_total_mass_kg": 1.0 if over_budget else 40000.0,
+            "max_total_cost_musd": 0.01 if over_budget else 50000.0,
+            "max_total_volume_m3": 0.01 if over_budget else 140.0,
         }
+    }
     if summary:
         (run_dir / "summary.json").write_text(
             json.dumps(
@@ -212,10 +211,7 @@ def test_over_budget_is_allowed_through_for_a_human_to_decide(tmp_path: Path):
 
 
 def test_nothing_found_is_reported_as_nothing_found(tmp_path: Path):
-    chain = tmp_path / "chain"
-    (chain / "01").mkdir(parents=True)
-
-    answer = select_chain_final_answer([chain / "01"])
+    answer = select_chain_final_answer([])
 
     assert answer["status"] == STATUS_REJECTED
     assert answer["selected"] is None

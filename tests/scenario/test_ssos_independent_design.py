@@ -21,7 +21,6 @@ from scenario.ssos_eclss_loop.design_ensemble import (
     run_lens_audit,
 )
 from scenario.ssos_eclss_loop.design_eval import STATUS_APPROVED, STATUS_REJECTED
-from scenario.ssos_eclss_loop.design_variables import BASELINE_CAPACITY
 
 ARS = "plant_sim.ars.capacity_kg_day"
 OGS = "plant_sim.ogs.max_o2_kg_day"
@@ -390,8 +389,9 @@ def test_invented_rejected_field_is_ignored(tmp_path: Path):
     merged = integrate_audit_panel(bundle, designer, panel, DesignStorage(tmp_path))
     fields = merged["changes"][0]["payload"]["fields"]
     assert "invented.field" not in fields
-    assert fields[WRS] == BASELINE_CAPACITY[WRS]
+    assert fields[WRS] == 14.0
     assert fields[ARS] == 25.0
+    assert merged["final_status"] == STATUS_REJECTED
 
 
 def test_run_lens_audit_treats_invented_adopt_as_abstain():
