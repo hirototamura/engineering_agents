@@ -218,18 +218,22 @@ class RunRecord:
         gate = self.evaluation.get("physics_gate")
         if not isinstance(gate, Mapping):
             return {}
+        names = {
+            "carbon_ledger": "co2_kg",
+            "oxygen_ledger": "o2_kg",
+            "water_ledger": "water_l",
+        }
+        residuals: Dict[str, float] = {}
         for check in gate.get("checks") or []:
-            if not isinstance(check, Mapping) or check.get("name") != "mass_balance_ledgers":
+            if not isinstance(check, Mapping):
                 continue
-            residuals = check.get("residuals")
-            if not isinstance(residuals, Mapping):
-                return {}
-            return {
-                str(k): abs(v)
-                for k, v in ((k, _finite(v)) for k, v in residuals.items())
-                if v is not None
-            }
-        return {}
+            key = names.get(str(check.get("name") or ""))
+            if key is None:
+                continue
+            residual = _finite(check.get("residual"))
+            if residual is not None:
+                residuals[key] = abs(residual)
+        return residuals
 
     @property
     def time_to_crew_loss(self) -> Tuple[Optional[float], bool]:
@@ -385,7 +389,8 @@ class RunRecord:
         row.update({f"lost_{cause}": count for cause, count in self.crew_lost_by_cause.items()})
         row.update({f"axis_{name}": self.axis_score(name) for name in (
             "actor_survival", "tcl", "environment_trajectory",
-            "resource_recovery", "actor_decision", "physical_response",
+            "resource_recovery", "cost", "mass",
+            "actor_decision", "physical_response",
         )})
         row.update({f"residual_{k}": v for k, v in self.mass_balance_residuals.items()})
         row.update({f"limited_{k}": v for k, v in self.limiter_rates().items()})

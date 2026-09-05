@@ -219,7 +219,7 @@ iteration:
   enabled: true  # true → chain without --iterate
   count: 50  # [-] 1–50 chained sims; --iterate N wins
   paired_replay: true  # baseline vs final replay after the chain
-  approve_provisional: true  # auto-adopt provisional_final (INFO on ssos). --no-approve-provisional restores the gate
+  approve_provisional: false  # refuse provisional_final unless --approve-provisional
   run_id: ssos_eclss_loop_design_iter  # default chain directory name
   exploration:
     # When to tell the designer it is going round in circles. Compared only

@@ -337,8 +337,7 @@ class DesignToolkit:
             ToolSpec(
                 "compare_design_runs",
                 "Rank baseline and every simulated candidate — full survival clears, "
-                "then less CRITICAL dwell, then the smallest mass / volume / cost — "
-                "and report the selected candidate.",
+                "then the scorecard percentage — and report the selected candidate.",
                 {},
                 evidence="compared_runs",
             ),
@@ -349,17 +348,6 @@ class DesignToolkit:
             {"name": spec.name, "description": spec.description, "arguments": spec.arguments}
             for spec in self._specs.values()
         ]
-
-    def catalog_text(self) -> str:
-        lines: List[str] = []
-        for spec in self._specs.values():
-            args = (
-                "; ".join(f"{k}: {v}" for k, v in spec.arguments.items())
-                if spec.arguments
-                else "no arguments"
-            )
-            lines.append(f"- {spec.name}: {spec.description} Arguments: {args}.")
-        return "\n".join(lines)
 
     def tool_names(self) -> List[str]:
         return list(self._specs)

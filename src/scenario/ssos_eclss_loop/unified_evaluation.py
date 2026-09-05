@@ -25,7 +25,6 @@ from scenario.ssos_eclss_loop.evaluation import (
 from scenario.ssos_eclss_loop.evaluation_browser import write_evaluation_browser
 from scenario.ssos_eclss_loop.evaluation_html import render_evaluation_html
 from scenario.ssos_eclss_loop.integrity_guard import evidence_status, integrity_summary
-from scenario.ssos_eclss_loop.physics_gate import run_physics_gate
 
 _SCHEDULING_REJECTIONS = {"subsystem_busy", "duplicate_command_this_step"}
 _SECONDS_PER_DAY = 86400.0
@@ -262,11 +261,10 @@ def finalize_run_evaluation(
     payload = evaluate_run(run_path, scenario_config=config, summary=summary)
     payload = reconcile_scheduler_semantics(payload, run_path, config.get("evaluation") or {})
 
-    # The audit is telemetry-only and replaces the evaluator's own gate rather
-    # than sitting beside it: two physics verdicts on one run is how the
-    # measurement and the artifact drift apart.
-    gate = run_physics_gate(run_path)
-    payload["physics_gate"] = gate
+    # One gate, written once. evaluate_run already ran evaluate_physics; a
+    # second call here used to overwrite that object and leave analysis
+    # looking for a check name the persisted file no longer had.
+    gate = payload.get("physics_gate") if isinstance(payload.get("physics_gate"), Mapping) else {}
     (run_path / "physics_gate.json").write_text(
         json.dumps(gate, ensure_ascii=False, indent=2), encoding="utf-8"
     )

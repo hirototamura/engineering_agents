@@ -2,9 +2,8 @@
 
 Full survival is a **hard eligibility condition**, not a ranking key: a design
 that loses an occupant cannot be adopted at all, so no amount of saved mass can
-buy a human life. Among the designs that keep everyone alive, less time in a
-dangerous band beats a lighter machine: a heavy but calm design wins over a
-light one that lives in CRITICAL.
+buy a human life. Among the designs that keep everyone alive, the scorecard
+percentage decides. Dwell, mass, volume and cost live inside that score.
 
     eligible = preflight valid
                and simulated
@@ -15,11 +14,7 @@ light one that lives in CRITICAL.
     rank_key = (
         not final_eligible,   # eligible candidates first
         -crew_remaining,      # only separates the ineligible ones from each other
-        critical_step_count,  # among eligible: less CRITICAL dwell first
-        warning_step_count,
-        total_mass_kg,        # then the smallest machine
-        total_volume_m3,
-        total_cost_musd,
+        -evaluation_score_pct,
     )
 
 Budgets are deliberately **not** an eligibility condition (they would leave no

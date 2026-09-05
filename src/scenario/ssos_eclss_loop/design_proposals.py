@@ -340,13 +340,13 @@ def supervisor_approval_reasons(proposals: Dict[str, Any]) -> List[str]:
     return reasons
 
 
-# CLI simulation default is to pass approve_provisional=True so the
-# design→verify loop can close without a human. The library still refuses
-# unless the caller opts in. Note whenever that sim default is in effect.
+# The library refuses a provisional document unless the caller opts in.
+# ``ea run`` follows scenario.yaml (default false). Passing
+# ``--approve-provisional`` prints this note so the override is visible.
 APPROVE_PROVISIONAL_SIM_INFO = (
     "This simulation auto-approves LLM design proposals (--approve-provisional) "
     "so the design–verify loop can proceed without a human supervisor. "
-    "Pass --no-approve-provisional to restore the supervisor gate."
+    "Omit the flag to keep the supervisor gate."
 )
 
 
@@ -359,9 +359,9 @@ def apply_design_proposals(
     """Merge proposal changes into scenario config for the *next* run.
 
     A document that needs supervisor approval is refused unless the caller
-    passes ``approve_provisional=True``. ``ea run`` defaults that flag on
-    (with an INFO note) so the simulation can close the loop without a human;
-    ``--no-approve-provisional`` restores this library gate.
+    passes ``approve_provisional=True``. ``ea run`` follows
+    ``iteration.approve_provisional`` (default false). ``--approve-provisional``
+    opts in and prints an INFO note.
     """
     errors = validate_design_proposals(proposals)
     if errors:

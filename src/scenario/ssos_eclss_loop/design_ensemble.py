@@ -15,7 +15,11 @@ from core.storage import DesignStorage
 from core.storage.claims import ClaimsRegistry, rewrite_body_from_selected
 from core.storage.session import SessionStore
 from scenario.ssos_eclss_loop.chain_memory import load_chain_memory
-from scenario.ssos_eclss_loop.design_eval import STATUS_APPROVED, STATUS_PROVISIONAL
+from scenario.ssos_eclss_loop.design_eval import (
+    STATUS_APPROVED,
+    STATUS_PROVISIONAL,
+    STATUS_REJECTED,
+)
 from scenario.ssos_eclss_loop.design_state import _scorecard
 from scenario.ssos_eclss_loop.design_tools import DesignToolkit
 from scenario.ssos_eclss_loop.design_variables import CAPACITY_KEYS, read_capacity_fields
@@ -23,11 +27,10 @@ from scenario.ssos_eclss_loop.design_variables import CAPACITY_KEYS, read_capaci
 DESIGN_FAMILY = "capacity_sizing"
 
 DEFAULT_BIAS_DIRECTION = (
-    "This run's declared bias: after full survival, the ranking rewards less "
-    "CRITICAL dwell then a smaller/cheaper machine, so there is incentive to "
-    "stop at the first surviving design or to undersize. Do not treat that "
-    "incentive as a reason to skip re-deriving numbers or trying to break the "
-    "emerging conclusion."
+    "This run's declared bias: after full survival, the ranking rewards the "
+    "scorecard percentage, so there is incentive to stop at the first surviving "
+    "design. Do not treat that incentive as a reason to skip re-deriving "
+    "numbers or trying to break the emerging conclusion."
 )
 
 INTERNAL_PROPOSAL_KEYS = ("ranked_candidates", "baseline_outcome")
@@ -402,11 +405,11 @@ def integrate_audit_panel(
     verdicts: Sequence[AuditVerdict],
     storage: DesignStorage,
 ) -> Dict[str, Any]:
-    """Keep a runnable proposal; pin vetoed items to the installed machine.
+    """Approve the designer's machine, or reject it. Do not invent a hybrid.
 
-    Auditors cannot invent a machine. Unusable replies abstain. Iterate
-    also completes a partial profile from the machine this run flew, so
-    an omitted key does not revert to the YAML baseline.
+    Auditors cannot invent a machine. A veto refuses the proposal rather
+    than stitching vetoed keys onto the installed nameplate. Unusable
+    replies abstain and leave the designer's document alone.
     """
     proposals = dict(designer)
     notes = list(proposals.get("parse_notes") or [])
@@ -424,10 +427,8 @@ def integrate_audit_panel(
     )
     installed = read_capacity_fields(getattr(bundle, "scenario_config", {}) or {})
     vetoed = _collect_vetoed_fields(verdicts, proposed_fields)
-    kept_fields, emptied = _pin_vetoed_to_installed(proposed_fields, vetoed, installed)
     if selected is not None:
         selected = dict(selected)
-        selected["audited_fields"] = dict(kept_fields)
         selected["fields_unverified_after_audit"] = bool(vetoed)
         for index, row in enumerate(ranked):
             if row.get("candidate_id") == selected_id:
@@ -439,7 +440,7 @@ def integrate_audit_panel(
             agent_id=designer_id,
             candidate_id=str(selected_id),
             local_candidate_id=str(selected.get("candidate_id") or ""),
-            fields=kept_fields,
+            fields=proposed_fields,
         )
         for record in ranked:
             if record.get("candidate_id") == selected_id:
@@ -453,29 +454,17 @@ def integrate_audit_panel(
         storage.claims.retract_except(str(selected_id) if selected_id else None)
 
     usable = [row for row in verdicts if row.decision in {"approve", "reject"}]
-    if emptied:
-        proposals["final_status"] = STATUS_PROVISIONAL
-        proposals["requires_supervisor_approval"] = True
-        proposals["decision_source"] = "tool_use_audit_panel:kept_to_proceed"
+    if vetoed:
+        proposals["final_status"] = STATUS_REJECTED
+        proposals["requires_supervisor_approval"] = False
+        proposals["decision_source"] = "tool_use_audit_panel:rejected"
         notes.append(
-            "audit panel named every proposed change; kept the installed machine "
-            "so the next run can proceed"
-        )
-        reason = str(proposals.get("selection_reason") or "").strip()
-        proposals["selection_reason"] = (
-            f"{reason} | audit panel would have left an empty proposal".strip(" |")
-        )
-    elif vetoed:
-        proposals["final_status"] = STATUS_PROVISIONAL
-        proposals["requires_supervisor_approval"] = True
-        proposals["decision_source"] = "tool_use_audit_panel:item_veto"
-        notes.append(
-            "audit panel pinned vetoed items to the installed machine: "
+            "audit panel rejected the proposal; no hybrid machine was emitted: "
             + ", ".join(sorted(vetoed))
         )
         reason = str(proposals.get("selection_reason") or "").strip()
         proposals["selection_reason"] = (
-            f"{reason} | audit panel dropped {', '.join(sorted(vetoed))}".strip(" |")
+            f"{reason} | audit panel rejected {', '.join(sorted(vetoed))}".strip(" |")
         )
     elif usable:
         proposals["decision_source"] = "tool_use_audit_panel"
@@ -483,10 +472,10 @@ def integrate_audit_panel(
             "audit panel approved: "
             + ", ".join(f"{row.agent_id}/{row.lens}" for row in usable)
         )
+        _write_kept_fields(proposals, proposed_fields, installed=installed)
     else:
         notes.append("audit panel unusable; kept designer proposal")
-
-    _write_kept_fields(proposals, kept_fields, installed=installed)
+        _write_kept_fields(proposals, proposed_fields, installed=installed)
 
     designer_message = str(designer.get("message") or "").strip()
     designer_reasoning = str(designer.get("reasoning") or "").strip()
@@ -611,32 +600,6 @@ def _collect_vetoed_fields(
                 seen.add(key)
                 vetoed.append(key)
     return vetoed
-
-
-def _pin_vetoed_to_installed(
-    proposed_fields: Mapping[str, Any],
-    vetoed: Sequence[str],
-    installed: Mapping[str, Any],
-) -> tuple:
-    """Complete three-key profile. Vetoed keys stay at the installed value."""
-    dropped = set(vetoed)
-    complete: Dict[str, Any] = {}
-    for key in CAPACITY_KEYS:
-        if key in dropped:
-            if key in installed:
-                complete[key] = installed[key]
-            elif key in proposed_fields:
-                complete[key] = proposed_fields[key]
-            continue
-        if key in proposed_fields:
-            complete[key] = proposed_fields[key]
-        elif key in installed:
-            complete[key] = installed[key]
-    proposed_keys = {key for key in proposed_fields if key in CAPACITY_KEYS}
-    emptied = bool(dropped) and bool(proposed_keys) and proposed_keys <= dropped
-    if complete:
-        return complete, emptied
-    return dict(proposed_fields), True
 
 
 def _clip_speech(text: Any, limit: int = AUDIT_SPEECH_CHARS) -> str:

@@ -423,7 +423,29 @@ class ToolUseDesignAgent:
         """
         arguments = dict(arguments or {})
         started = time.monotonic()
-        result = toolkit.call(name, arguments)
+        handler = getattr(toolkit, name, None)
+        if not callable(handler):
+            result = {
+                "error": f"unknown tool {name!r}",
+                "available_tools": toolkit.tool_names(),
+            }
+        else:
+            try:
+                result = handler(**arguments)
+            except TypeError as exc:
+                result = {"error": f"bad arguments for {name}: {exc}"}
+            except Exception as exc:  # tools must never break the loop
+                result = {
+                    "error": f"{name} failed: {type(exc).__name__}: {exc}",
+                }
+            spec = toolkit._specs.get(name)
+            if (
+                spec is not None
+                and spec.evidence
+                and isinstance(result, Mapping)
+                and not result.get("error")
+            ):
+                toolkit.evidence[spec.evidence] = True
         trace.append(
             {
                 "event": "tool_call",
