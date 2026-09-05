@@ -23,7 +23,8 @@
 | H-9 / H-10 / H-11 | 全 subsystem を境界チェック。帯境界を health と一致。`current_best` は採用ランキング前に eligibility。 |
 | H-13 / H-14 / H-16 | 未閉じ `<think` で唯一の JSON を消さない。`partial` も修復。`fields` の型エラーを捕捉。 |
 | H-17 / H-18 / H-19 / H-20 | `trunk`/`main` の push で CI。生存は `>= 1.0`。符号付き幅の logistic。正味は `steps` で割る。 |
-| M-1 / M-3 / M-6 / M-7 / M-13 / M-17 / M-18 / M-21 / M-26 / M-30 | 未知 `--set` 拒否。ランタイム依存を requirements へ。`audit.count: 0` を尊重。空 `summarise` に median。seed は deepcopy。chain スクリプトを実行可能に。非整数 `steps` は ValueError。CI を 3.11+3.12。vLLM max len と summary JSON をガード。 |
+| M-1 / M-3 / M-6 / M-7 / M-13 / M-17 / M-18 / M-21 / M-26 | 未知 `--set` 拒否。ランタイム依存を requirements へ。`audit.count: 0` を尊重。空 `summarise` に median。seed は deepcopy。chain スクリプトを実行可能に。非整数 `steps` は ValueError。CI を 3.11+3.12。vLLM max len をガード。 |
+| M-30 | 欠落 / 壊れた / 空 / 非オブジェクトの `summary.json` は捕捉して `exit_code=1`。ファイルは上書きせず、iterate はそこで止まる。空 dict を成功にはしない。 |
 
 ## 意図して触っていないもの
 

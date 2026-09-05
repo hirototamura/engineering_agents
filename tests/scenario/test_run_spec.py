@@ -7,9 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from scenario.jobs.resolve import resolve_run_id, resolve_run_directory
-from scenario.jobs.spec import RunSpec
 from scenario.jobs.executor import execute_run
+from scenario.jobs.resolve import resolve_run_directory, resolve_run_id
+from scenario.jobs.spec import RunSpec
+from scenario.scrubber_degradation.scenario_run import SCENARIO_REGISTRY
 
 
 def test_run_spec_json_roundtrip(tmp_path: Path):
@@ -111,6 +112,61 @@ def test_execute_run_unknown_scenario():
     result = execute_run(RunSpec(scenario="does_not_exist"))
     assert result.exit_code == 2
     assert "Unknown scenario" in (result.error or "")
+
+
+def _stub_scrubber_run(monkeypatch, run_dir: Path) -> None:
+    monkeypatch.setattr(
+        SCENARIO_REGISTRY["scrubber_degradation"],
+        "run",
+        lambda **_kwargs: run_dir,
+    )
+
+
+def test_execute_run_fails_when_summary_is_missing(tmp_path: Path, monkeypatch):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    _stub_scrubber_run(monkeypatch, run_dir)
+    result = execute_run(RunSpec(scenario="scrubber_degradation", output_dir=run_dir))
+    assert result.exit_code == 1
+    assert "summary.json missing" in (result.error or "")
+    assert not (run_dir / "summary.json").exists()
+
+
+def test_execute_run_fails_when_summary_is_corrupt(tmp_path: Path, monkeypatch):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    broken = "{truncated"
+    (run_dir / "summary.json").write_text(broken, encoding="utf-8")
+    _stub_scrubber_run(monkeypatch, run_dir)
+    result = execute_run(
+        RunSpec(scenario="scrubber_degradation", output_dir=run_dir, seed=7)
+    )
+    assert result.exit_code == 1
+    assert "not valid JSON" in (result.error or "")
+    assert (run_dir / "summary.json").read_text(encoding="utf-8") == broken
+    assert result.summary == {}
+
+
+def test_execute_run_fails_when_summary_is_not_an_object(tmp_path: Path, monkeypatch):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text("[]\n", encoding="utf-8")
+    _stub_scrubber_run(monkeypatch, run_dir)
+    result = execute_run(RunSpec(scenario="scrubber_degradation", output_dir=run_dir))
+    assert result.exit_code == 1
+    assert "non-empty JSON object" in (result.error or "")
+    assert (run_dir / "summary.json").read_text(encoding="utf-8") == "[]\n"
+
+
+def test_execute_run_fails_when_summary_is_empty_object(tmp_path: Path, monkeypatch):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text("{}\n", encoding="utf-8")
+    _stub_scrubber_run(monkeypatch, run_dir)
+    result = execute_run(RunSpec(scenario="scrubber_degradation", output_dir=run_dir))
+    assert result.exit_code == 1
+    assert "non-empty JSON object" in (result.error or "")
+    assert (run_dir / "summary.json").read_text(encoding="utf-8") == "{}\n"
 
 
 def test_scenario_jobs_main_scrubber_short(tmp_path: Path, monkeypatch):

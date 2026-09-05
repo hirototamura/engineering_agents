@@ -69,7 +69,18 @@ def execute_run(
         _teardown_rclpy_telemetry()
 
     duration_s = time.monotonic() - start
-    summary = _read_summary(run_dir)
+    try:
+        summary = _read_summary(run_dir)
+    except ValueError as exc:
+        # Leave a truncated or non-object file on disk. Overwriting it with
+        # duration/seed would hide the failure and look like a finished run.
+        return RunResult(
+            run_dir=run_dir,
+            summary={},
+            duration_s=duration_s,
+            exit_code=1,
+            error=str(exc),
+        )
     summary["duration_wall_s"] = round(duration_s, 3)
     if spec.seed is not None:
         summary["seed"] = spec.seed
@@ -107,14 +118,23 @@ def _apply_seed_override(
 
 
 def _read_summary(run_dir: Path) -> Dict[str, Any]:
+    """Load the persisted summary, or raise if this run did not record one.
+
+    A missing, truncated, or non-object file is not an empty successful
+    outcome. Callers must not treat a failed read as ``{}`` and continue.
+    """
     summary_path = run_dir / "summary.json"
     if not summary_path.exists():
-        return {}
+        raise ValueError(f"summary.json missing at {summary_path}")
     try:
         data = json.loads(summary_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"summary.json is not valid JSON at {summary_path}: {exc}"
+        ) from exc
+    if not isinstance(data, dict) or not data:
+        raise ValueError(f"summary.json must be a non-empty JSON object at {summary_path}")
+    return data
 
 
 def _write_summary(run_dir: Path, summary: Dict[str, Any]) -> None:

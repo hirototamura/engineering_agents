@@ -22,6 +22,7 @@ from scenario.ssos_eclss_loop.chain_memory import (
     load_chain_memory,
 )
 from scenario.ssos_eclss_loop.design_proposals import apply_design_proposals
+from scenario.ssos_eclss_loop.scenario_run import SsosEclssLoopScenario
 
 
 def test_resolve_iteration_disabled_without_cli():
@@ -249,6 +250,33 @@ def test_design_iterate_continues_when_proposals_empty(tmp_path: Path):
         row = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
         assert row.get("apply_proposals_path") in {None, ""}
         assert row.get("design_proposal_count", 0) == 0
+
+
+def test_design_iterate_stops_when_summary_json_is_corrupt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _write_corrupt_summary(_self, output_dir=None, **_kwargs):
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "summary.json").write_text("{nope", encoding="utf-8")
+        return output_dir
+
+    monkeypatch.setattr(SsosEclssLoopScenario, "run", _write_corrupt_summary)
+    chain_dir = tmp_path / "corrupt-chain"
+    summary = run_design_iterate(
+        iterations=3,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=_labeled_overrides(backend="mock", steps=1),
+            approve_provisional=True,
+        ),
+    )
+    assert summary["iterations_completed"] == 0
+    assert summary["runs"][0]["exit_code"] == 1
+    assert summary["replay_runs"] == []
+    assert "summary.json" in (summary.get("stopped_reason") or "")
+    assert (chain_dir / "01" / "summary.json").read_text(encoding="utf-8") == "{nope"
+    assert not (chain_dir / "02").exists()
 
 
 def test_design_iterate_reports_step_and_iteration_progress(tmp_path: Path):
