@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 import yaml
 
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
+from scenario.ssos_eclss_loop.design_eval import occupant_count
 from scenario.ssos_eclss_loop.design_variables import (
     BASELINE_CAPACITY,
     CAPACITY_KEYS,
@@ -432,9 +433,11 @@ def _detect_below_floor(
     crew_remaining: Any,
     crew_initial: Any,
 ) -> Optional[Dict[str, Any]]:
-    if not isinstance(crew_remaining, int) or not isinstance(crew_initial, int):
+    remaining = occupant_count(crew_remaining)
+    initial = occupant_count(crew_initial)
+    if remaining is None or initial is None:
         return None
-    if crew_remaining >= crew_initial:
+    if remaining >= initial:
         return None
     breached: Dict[str, Any] = {}
     for key in (ARS_KEY, OGS_KEY):
@@ -457,13 +460,15 @@ def survival_tier(crew_remaining: Any, crew_initial: Any) -> Optional[str]:
     objective, so a round that saved four more people and scored two points
     lower did not stagnate — it moved, in the direction that counts.
     """
-    if not isinstance(crew_remaining, int) or not isinstance(crew_initial, int):
+    remaining = occupant_count(crew_remaining)
+    initial = occupant_count(crew_initial)
+    if remaining is None or initial is None:
         return None
-    if crew_initial <= 0:
+    if initial <= 0:
         return None
-    if crew_remaining >= crew_initial:
+    if remaining >= initial:
         return TIER_FULL
-    if crew_remaining <= 0:
+    if remaining <= 0:
         return TIER_ZERO
     return TIER_PARTIAL
 
@@ -704,12 +709,9 @@ def update_compact_chain_memory(
             "fields": fields,
         }
 
-    full_survival = (
-        isinstance(crew_initial, int)
-        and isinstance(crew_remaining, int)
-        and crew_initial > 0
-        and crew_remaining == crew_initial
-    )
+    start = occupant_count(crew_initial)
+    left = occupant_count(crew_remaining)
+    full_survival = start is not None and left is not None and start > 0 and left == start
     if full_survival and gate_passed and status == "scored" and score is not None and fields:
         best = memory.get("best_full_survival")
         best = best if isinstance(best, Mapping) else None

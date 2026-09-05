@@ -109,7 +109,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10 --backend plant_sim \
 
 - Proposal **generation** stays on the unified post-run designer (tool-use by default). The chain does not replace that path
 - Run k applies run k-1's adopted `applied_proposals.json` through unified `apply_design_proposals` (including `capacity_profile`)
-- `set_parameter` (`thresholds.*`) is not auto-applied in the chain. `ea run` defaults to `--approve-provisional` (INFO: the sim auto-approves LLM designs so the loop can run without a human). `--no-approve-provisional` restores the supervisor gate
+- `set_parameter` (`thresholds.*`) is not auto-applied in the chain. `iteration.approve_provisional` defaults to false. `--approve-provisional` opts in (INFO) so a labeled/mock loop can adopt `provisional_final` without a human.
 - Empty or not-adoptable proposals do not stop the chain; the last applied file (or the initial YAML) is reused
 - The last run is verification-only; proposals it emits stay unverified
 - After the chain, baseline / final replays with `design.mode=none` decide `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE` from `crew_remaining`

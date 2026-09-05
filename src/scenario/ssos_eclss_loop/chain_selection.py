@@ -11,8 +11,9 @@ A design that saved every occupant in iteration 1 can be replaced in
 iteration 2 by one that does not, and then it is gone: no artifact names it,
 nothing points at it, and the chain reports the loss as its result.
 
-So the answer is chosen once, at the end, over every candidate every iteration
-simulated. Exploration stays free; adoption does not. The design that comes
+So the answer is chosen once, at the end, over the machines that actually flew.
+Intra-run candidates that were ranked but never installed are search notes, not
+answers. Exploration stays free; adoption does not. The design that comes
 back must keep the whole crew alive and be buildable — over budget is allowed
 through as ``provisional_final``, because paying for it is a decision a human
 makes. If nothing in the whole chain qualifies, that is the answer: nothing
@@ -36,15 +37,20 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
+import yaml
+
+from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
 from scenario.ssos_eclss_loop.design_eval import (
     STATUS_APPROVED,
     STATUS_PROVISIONAL,
     STATUS_REJECTED,
+    evaluate_run_outcome,
     mark_final_eligibility,
     rank_candidates,
     rank_rationale,
     select_final_candidate,
 )
+from scenario.ssos_eclss_loop.design_variables import read_capacity_fields
 
 CHAIN_FINAL_ANSWER_FILENAME = "chain_final_answer.json"
 
@@ -123,80 +129,76 @@ def scoring_bar_drift(run_dirs: Sequence[Path]) -> List[Dict[str, Any]]:
     return drifted
 
 
-def _renest(row: Mapping[str, Any], *, backend: str) -> Dict[str, Any]:
-    """Turn a flattened ranking row back into a candidate record.
+def _load_yaml(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        value = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return dict(value) if isinstance(value, Mapping) else {}
 
-    ``candidate_rankings.json`` stores rows flat for reading; the ranking and
-    eligibility functions work on the nested record the toolkit holds. Rather
-    than duplicate either shape's rules here, the row is put back into the
-    shape those functions already understand.
-    """
+
+def _constraint_evaluation(
+    config: Mapping[str, Any],
+    fields: Mapping[str, Any],
+    summary: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Label the flown machine. Summary stamps win when the config is incomplete."""
+    if fields:
+        try:
+            evaluation = DesignConstraints.from_scenario_config(config).evaluate(fields)
+            if evaluation.get("preflight_status") == "valid":
+                return evaluation
+        except Exception:
+            pass
+    status = summary.get("constraint_status")
     return {
-        "candidate_id": row.get("candidate_id"),
-        "label": row.get("label"),
-        "fields": row.get("fields"),
-        # Every row in the file came from a completed candidate run.
-        "simulated": True,
-        "outcome": {
-            "crew_remaining": row.get("crew_remaining"),
-            "crew_initial": row.get("crew_initial"),
-            "critical_step_count": row.get("critical_step_count"),
-            "warning_step_count": row.get("warning_step_count"),
-            "peak_co2_storage_kg": row.get("peak_co2_storage_kg"),
-            "min_o2_storage_kg": row.get("min_o2_storage_kg"),
-            "final_product_water_reserve_l": row.get("final_product_water_reserve_l"),
-            "physics_gate_passed": row.get("physics_gate_passed"),
-            "evaluation_compact": row.get("evaluation_compact"),
-            # The physics gate only applies to a backend that persists the
-            # telemetry it audits, so the run has to say which one it was.
-            "backend": backend,
-        },
-        "constraint_evaluation": {
-            # The file only keeps rows that passed preflight; an invalid
-            # proposal never reaches a ranking.
-            "preflight_status": "valid",
-            "constraint_status": row.get("constraint_status"),
-            "total_mass_kg": row.get("total_mass_kg"),
-            "total_volume_m3": row.get("total_volume_m3"),
-            "total_cost_musd": row.get("total_cost_musd"),
-            "design_penalty": row.get("design_penalty"),
-        },
+        "preflight_status": "valid" if status else "invalid",
+        "constraint_status": status,
+        "total_mass_kg": summary.get("total_mass_kg"),
+        "total_volume_m3": summary.get("total_volume_m3"),
+        "total_cost_musd": summary.get("total_cost_musd"),
+        "design_penalty": summary.get("design_penalty"),
     }
 
 
 def collect_chain_candidates(run_dirs: Sequence[Path]) -> List[Dict[str, Any]]:
-    """Every candidate every iteration simulated, tagged with where it came from.
+    """The machine each completed iteration actually flew.
 
-    Not each iteration's winner: the point is that a design good enough to be
-    the answer must not be lost because the iteration it appeared in went on to
-    prefer something else.
+    Intra-run candidates that were ranked but never installed are search
+    notes. The chain answers with a machine that ran, not one that might have.
     """
     collected: List[Dict[str, Any]] = []
     for index, run_dir in enumerate(run_dirs, start=1):
-        rankings = _read_json(Path(run_dir) / "candidate_rankings.json")
-        if not rankings:
+        run_dir = Path(run_dir)
+        summary = _read_json(run_dir / "summary.json")
+        if not summary:
             continue
-        backend = str((_read_json(Path(run_dir) / "summary.json") or {}).get("backend") or "")
-        for row in rankings.get("ranking") or []:
-            if not isinstance(row, Mapping):
-                continue
-            record = _renest(row, backend=backend)
-            record["iteration"] = index
-            record["iteration_run_dir"] = str(run_dir)
-            record["iteration_rank"] = row.get("rank")
-            # Candidate ids restart at 001 in every iteration, so on their own
-            # they do not name a design across the chain.
-            record["chain_candidate_id"] = "i%d/%s" % (index, row.get("candidate_id"))
-            collected.append(record)
+        config = _load_yaml(run_dir / "scenario_config.yaml")
+        fields = read_capacity_fields(config) if config else {}
+        record = {
+            "candidate_id": "flown",
+            "label": "iteration %d flown machine" % index,
+            "fields": fields,
+            "simulated": True,
+            "outcome": evaluate_run_outcome(run_dir),
+            "constraint_evaluation": _constraint_evaluation(config, fields, summary),
+            "iteration": index,
+            "iteration_run_dir": str(run_dir),
+            "iteration_rank": 1,
+            "chain_candidate_id": "i%d/flown" % index,
+        }
+        collected.append(record)
     return collected
 
 
 def _chain_baseline(run_dirs: Sequence[Path]) -> Dict[str, Any]:
-    """The station the chain started from, before any design was applied."""
+    """The first flown machine: the station the chain started from."""
     for run_dir in run_dirs:
-        rankings = _read_json(Path(run_dir) / "candidate_rankings.json")
-        if rankings and isinstance(rankings.get("baseline"), Mapping):
-            return dict(rankings["baseline"])
+        summary = _read_json(Path(run_dir) / "summary.json")
+        if summary:
+            return evaluate_run_outcome(Path(run_dir))
     return {}
 
 

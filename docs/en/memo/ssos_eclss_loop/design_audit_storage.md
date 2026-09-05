@@ -114,15 +114,14 @@ One JSON object each. No invented machine, field, or value.
 2. Take the union of named `rejected_fields`  
 3. Pin each vetoed key to the installed value; keep the rest of the proposal  
 4. Always emit all three capacity keys so a later apply cannot silently revert one  
-5. If every proposed change was vetoed, emit the installed machine (`kept_to_proceed`)  
+5. If any proposed change was vetoed, reject the proposal (`rejected`). Do not emit a hybrid machine.  
 6. Pinning or a total veto is `provisional_final` (that mix was not re-simulated)  
 7. All approve, or only abstains, keeps the designer's physics status  
 
 | `decision_source` | Meaning |
 | --- | --- |
 | `tool_use_audit_panel` | no item dropped |
-| `tool_use_audit_panel:item_veto` | some fields pinned to the installed machine |
-| `tool_use_audit_panel:kept_to_proceed` | every change was vetoed; the installed machine stays |
+| `tool_use_audit_panel:rejected` | a veto refused the proposal; no new field set |
 
 The body is the designer message / reasoning, then the three write-ups. There is no fourth synthesizer LLM.
 

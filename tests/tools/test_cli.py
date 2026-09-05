@@ -131,15 +131,14 @@ def test_run_ssos_bare_defaults_plant_sim_labeled_llm(tmp_path: Path):
     assert overrides["backend"]["kind"] == "plant_sim"
     assert overrides["agents"]["actor"]["mode"] == "labeled_rule_base"
     assert overrides["agents"]["design"]["mode"] == "llm"
-    assert payload["approve_provisional"] is True
+    assert payload["approve_provisional"] is False
     assert "inject_failures" not in overrides
     assert "inject_failures: false" in result.stdout
     assert "iterate: 50" in result.stdout
     assert "actor=labeled_rule_base" in result.stdout
     assert "design=llm" in result.stdout
     assert "backend: plant_sim" in result.stdout
-    assert "INFO" in result.output
-    assert "auto-approves LLM design proposals" in result.output
+    assert "auto-approves LLM design proposals" not in result.output
 
 
 def test_run_ssos_actor_flag_without_design_inherits(tmp_path: Path):
@@ -589,10 +588,9 @@ def test_iterate_dry_run_defaults(tmp_path: Path):
     )
     assert result.exit_code == 0
     assert str(tmp_path / "chain") in result.stdout
-    assert "approve_provisional: true" in result.stdout
+    assert "approve_provisional: false" in result.stdout
     assert "inject_failures: false" in result.stdout
-    assert "INFO" in result.output
-    assert "auto-approves LLM design proposals" in result.output
+    assert "auto-approves LLM design proposals" not in result.output
 
 
 def test_iterate_inherits_inject_failures_from_scenario(monkeypatch, tmp_path: Path):

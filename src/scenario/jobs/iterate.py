@@ -25,6 +25,7 @@ from scenario.ssos_eclss_loop.chain_selection import (
     write_chain_final_answer,
 )
 from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
+from scenario.ssos_eclss_loop.design_eval import STATUS_REJECTED
 from scenario.ssos_eclss_loop.design_proposals import (
     complete_capacity_profile,
     load_design_proposals,
@@ -117,7 +118,7 @@ def resolve_iteration(
     if cli_paired_replay is not None:
         paired = bool(cli_paired_replay)
 
-    approve = bool(raw.get("approve_provisional", True))
+    approve = bool(raw.get("approve_provisional", False))
     if cli_approve_provisional is not None:
         approve = bool(cli_approve_provisional)
 
@@ -325,6 +326,8 @@ def iterate_apply_document(
     document = accumulate_applied_document(previous, document)
     if installed:
         document = complete_capacity_profile(document, installed)
+    if str(document.get("final_status") or "") == STATUS_REJECTED:
+        return None
     if not approve_provisional and supervisor_approval_reasons(document):
         return None
     return document
@@ -511,12 +514,10 @@ def run_design_iterate(
 
     Generation stays on the unified post-run designer. Run N verifies proposal N-1.
     The last run's newly emitted proposals are recorded but not simulated.
-    Verdict comes from paired baseline/final replays.
 
-    The verdict says whether the chain moved; it does not say what to build.
-    That comes from :func:`select_chain_final_answer`, which ranks every
-    candidate every iteration simulated -- see ``chain_selection`` for why the
-    last iteration's preference is not allowed to be the answer on its own.
+    The adopted answer is chosen first, over the machines that actually flew.
+    The verdict then compares that selected crew count to the first iteration.
+    Paired replays stay as evidence; they do not name a second winner.
     """
     if iterations < 1:
         raise ValueError("iterations must be >= 1")
@@ -706,21 +707,22 @@ def run_design_iterate(
     elif not paired_replay:
         verdict_stop = stopped_reason or "paired replay disabled; no improvement claim"
 
-    verdict = chain_verdict(
-        stopped_reason=verdict_stop,
-        paired_replay=paired_replay,
-        replay_ok=replay_ok,
-        baseline_remaining=baseline_remaining,
-        final_remaining=final_remaining,
-    )
-
     # Over every iteration that completed, including ones the chain moved on
     # from. A run that stopped early still had iterations before it, and a
-    # design found in one of those is still a design.
+    # machine that flew in one of those is still a candidate.
     final_answer = select_chain_final_answer(
         [Path(str(row["run_dir"])) for row in runs if row.get("exit_code") == 0]
     )
     final_answer_path = write_chain_final_answer(chain_dir, final_answer)
+    selected = final_answer.get("selected") if isinstance(final_answer.get("selected"), Mapping) else None
+    adopted_remaining = None if selected is None else selected.get("crew_remaining")
+    verdict = chain_verdict(
+        stopped_reason=verdict_stop,
+        paired_replay=paired_replay,
+        replay_ok=replay_ok,
+        baseline_remaining=first_remaining,
+        final_remaining=adopted_remaining,
+    )
 
     chain_summary = {
         "scenario": ITERATE_SCENARIO,

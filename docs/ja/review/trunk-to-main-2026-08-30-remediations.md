@@ -26,6 +26,16 @@
 | M-1 / M-3 / M-6 / M-7 / M-13 / M-17 / M-18 / M-21 / M-26 | 未知 `--set` 拒否。ランタイム依存を requirements へ。`audit.count: 0` を尊重。空 `summarise` に median。seed は deepcopy。chain スクリプトを実行可能に。非整数 `steps` は ValueError。CI を 3.11+3.12。vLLM max len をガード。 |
 | M-30 | 欠落 / 壊れた / 空 / 非オブジェクトの `summary.json` は捕捉して `exit_code=1`。ファイルは上書きせず、iterate はそこで止まる。空 dict を成功にはしない。 |
 
+## 残っていた穴（この PR）
+
+| 穴 | 対応 |
+| --- | --- |
+| 二重物理ゲート | `_physics_gate` を削除。`evaluate_run` は `evaluate_physics(telemetry)` だけ。`finalize_run_evaluation` は上書きしない。分析残差は `carbon_ledger` / `oxygen_ledger` / `water_ledger` の `residual`。 |
+| 三つの連鎖答え | `collect_chain_candidates` は飛んだ機体（`summary.json` + `scenario_config.yaml`）だけ。`chain_verdict` は選ばれた乗員数と最初の周回。`best_full_survival` は探索メモのまま。 |
+| 監査ハイブリッド | veto は `rejected_final`。新しい field set は出さない。`iterate_apply_document` は `rejected_final` を `approve_provisional` でも載せない。 |
+| `approve_provisional` 既定 | YAML と `resolve_iteration` の既定を `false`。閉ループ smoke は `--approve-provisional`。 |
+| 残骸 | 死んだ `write_evaluation` / `catalog_text` を削除。`_traced_tool_call` は `getattr`。乗員数は `occupant_count`。 |
+
 ## 意図して触っていないもの
 
 | ID | 理由 |
@@ -38,6 +48,6 @@
 
 ## 運用上の注意
 
-- ライブラリの `apply_design_proposals` は `approve_provisional=False`。`ea run` は YAML どおりデフォルトで通す。
-- ルールパスの mock run は乗員数が無いことが多く `provisional_final` になる。閉ループは `--approve-provisional`（CLI デフォルト）が必要。
+- ライブラリの `apply_design_proposals` は `approve_provisional=False`。`ea run` も YAML 既定 `false`。通すなら `--approve-provisional`。
+- ルールパスの mock run は乗員数が無いことが多く `provisional_final` になる。閉ループの `--apply-proposals` は `--approve-provisional` が必要。
 - 既存の **run ディレクトリ** の再作成に `--force` は不要。run に見えない木だけ拒否する。

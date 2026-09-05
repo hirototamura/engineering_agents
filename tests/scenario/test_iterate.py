@@ -72,6 +72,7 @@ def test_resolve_iteration_cli_flags_override_yaml():
 def test_resolve_iteration_missing_block_does_not_chain():
     settings = resolve_iteration({})
     assert settings.chain is False
+    assert settings.approve_provisional is False
 
 
 def test_resolve_iteration_rejects_defaults_block():
@@ -214,10 +215,15 @@ def test_design_iterate_plant_sim_records_crew_remaining(tmp_path: Path):
     assert summary["replay_runs"][1]["design_mode"] == "none"
     baseline = summary["crew_remaining_baseline_replay"]
     final_replay = summary["crew_remaining_final_replay"]
+    selected_crew = (summary.get("final_answer") or {}).get("crew_remaining")
     if summary["verdict"] == "IMPROVED":
-        assert final_replay > baseline
+        assert selected_crew is not None
+        assert selected_crew > summary["crew_remaining_first"]
     elif summary["verdict"] == "NOT_IMPROVED":
-        assert final_replay <= baseline
+        assert selected_crew is not None
+        assert selected_crew <= summary["crew_remaining_first"]
+    assert baseline is not None
+    assert final_replay is not None
     final_apply = json.loads(
         (chain_dir / "final-replay" / "summary.json").read_text(encoding="utf-8")
     )
@@ -418,6 +424,24 @@ def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
         approve_provisional=True,
     )
     assert approved is not None
+
+    rejected = iterate_apply_document(
+        {
+            "design_domain": "ssos_graph",
+            "final_status": "rejected_final",
+            "changes": [
+                {
+                    "change_kind": "capacity_profile",
+                    "payload": {
+                        "backend": "plant_sim",
+                        "fields": {"plant_sim.ars.capacity_kg_day": 30.0},
+                    },
+                }
+            ],
+        },
+        approve_provisional=True,
+    )
+    assert rejected is None
 
 
 def test_iterate_apply_document_keeps_omitted_keys_at_installed():

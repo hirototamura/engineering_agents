@@ -20,7 +20,7 @@ from scenario.ssos_eclss_loop.design_ensemble import (
     resolve_audit_config,
     run_lens_audit,
 )
-from scenario.ssos_eclss_loop.design_eval import STATUS_APPROVED, STATUS_PROVISIONAL
+from scenario.ssos_eclss_loop.design_eval import STATUS_APPROVED, STATUS_REJECTED
 from scenario.ssos_eclss_loop.design_variables import BASELINE_CAPACITY
 
 ARS = "plant_sim.ars.capacity_kg_day"
@@ -217,7 +217,7 @@ def _scenario(*, ars: float = 4.5, ogs: float = 9.25, wrs: float = 10.0) -> dict
     }
 
 
-def test_rejected_items_are_pinned_to_installed(tmp_path: Path):
+def test_rejected_items_reject_the_proposal(tmp_path: Path):
     record = _designer_record()
     designer = _designer_proposal(tmp_path, record)
     bundle = type(
@@ -231,16 +231,16 @@ def test_rejected_items_are_pinned_to_installed(tmp_path: Path):
     fields = merged["changes"][0]["payload"]["fields"]
     assert fields[ARS] == 25.0
     assert fields[OGS] == 12.0
-    assert fields[WRS] == 10.0
+    assert fields[WRS] == 14.0
     ranked = designer["ranked_candidates"][0]
     assert ranked["fields"][WRS] == 14.0
     assert ranked.get("audited_fields") is None
-    assert merged["decision_source"] == "tool_use_audit_panel:item_veto"
-    assert merged["final_status"] == STATUS_PROVISIONAL
-    assert merged["requires_supervisor_approval"] is True
+    assert merged["decision_source"] == "tool_use_audit_panel:rejected"
+    assert merged["final_status"] == STATUS_REJECTED
+    assert merged["requires_supervisor_approval"] is False
 
 
-def test_vetoed_ogs_does_not_revert_to_yaml_baseline(tmp_path: Path):
+def test_vetoed_ogs_does_not_emit_a_hybrid_machine(tmp_path: Path):
     record = _designer_record()
     record["fields"] = {ARS: 4.5, OGS: 48.0, WRS: 10.0}
     designer = _designer_proposal(tmp_path, record)
@@ -254,12 +254,13 @@ def test_vetoed_ogs_does_not_revert_to_yaml_baseline(tmp_path: Path):
     merged = integrate_audit_panel(bundle, designer, panel, DesignStorage(tmp_path))
     fields = merged["changes"][0]["payload"]["fields"]
     assert fields[ARS] == 4.5
-    assert fields[OGS] == 50.0
+    assert fields[OGS] == 48.0
     assert fields[WRS] == 10.0
-    assert set(fields) == {ARS, OGS, WRS}
+    assert merged["final_status"] == STATUS_REJECTED
+    assert merged["decision_source"] == "tool_use_audit_panel:rejected"
 
 
-def test_empty_veto_keeps_installed_machine_so_the_next_run_can_proceed(tmp_path: Path):
+def test_a_full_veto_rejects_instead_of_rewriting_the_installed_machine(tmp_path: Path):
     record = _designer_record()
     designer = _designer_proposal(tmp_path, record)
     bundle = type(
@@ -276,12 +277,12 @@ def test_empty_veto_keeps_installed_machine_so_the_next_run_can_proceed(tmp_path
         verdict.rejected_fields = [key]
     merged = integrate_audit_panel(bundle, designer, panel, DesignStorage(tmp_path))
     assert merged["changes"][0]["payload"]["fields"] == {
-        ARS: 4.5,
-        OGS: 50.0,
-        WRS: 10.0,
+        ARS: 25.0,
+        OGS: 12.0,
+        WRS: 14.0,
     }
-    assert merged["decision_source"] == "tool_use_audit_panel:kept_to_proceed"
-    assert merged["final_status"] == STATUS_PROVISIONAL
+    assert merged["decision_source"] == "tool_use_audit_panel:rejected"
+    assert merged["final_status"] == STATUS_REJECTED
 
 
 def test_unusable_audits_do_not_invent_a_machine(tmp_path: Path):
