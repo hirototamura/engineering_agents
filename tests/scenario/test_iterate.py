@@ -125,9 +125,12 @@ def test_design_iterate_mock_applies_only_previous_applied_file(tmp_path: Path):
 
     second = json.loads((chain_dir / "02" / "summary.json").read_text(encoding="utf-8"))
     apply_path = Path(second["apply_proposals_path"])
-    assert apply_path == chain_dir / "01" / "applied_proposals.json"
+    assert apply_path == chain_dir / "02" / "consumed_proposals.json"
     third = json.loads((chain_dir / "03" / "summary.json").read_text(encoding="utf-8"))
-    assert Path(third["apply_proposals_path"]) == chain_dir / "02" / "applied_proposals.json"
+    assert Path(third["apply_proposals_path"]) == chain_dir / "03" / "consumed_proposals.json"
+    assert json.loads(apply_path.read_text(encoding="utf-8")) == json.loads(
+        (chain_dir / "01" / "applied_proposals.json").read_text(encoding="utf-8")
+    )
     applied = json.loads(apply_path.read_text(encoding="utf-8"))
     scoring_bar_targets = [
         (c.get("payload") or {}).get("target")
@@ -204,7 +207,7 @@ def test_design_iterate_plant_sim_records_crew_remaining(tmp_path: Path):
     assert summary["crew_remaining_last"] == last["crew_remaining"]
     # Last sim verifies iteration-1 proposals; it may still emit unverified ones.
     assert last.get("apply_proposals_path")
-    assert Path(last["apply_proposals_path"]).name == "applied_proposals.json"
+    assert Path(last["apply_proposals_path"]).name == "consumed_proposals.json"
     assert len(summary["replay_runs"]) == 2
     assert summary["replay_runs"][0]["design_mode"] == "none"
     assert summary["replay_runs"][1]["design_mode"] == "none"
@@ -217,8 +220,10 @@ def test_design_iterate_plant_sim_records_crew_remaining(tmp_path: Path):
     final_apply = json.loads(
         (chain_dir / "final-replay" / "summary.json").read_text(encoding="utf-8")
     )
-    verified = Path(last["apply_proposals_path"])
-    assert Path(final_apply["apply_proposals_path"]) == verified
+    assert Path(final_apply["apply_proposals_path"]).name == "consumed_proposals.json"
+    assert json.loads(Path(final_apply["apply_proposals_path"]).read_text(encoding="utf-8")) == json.loads(
+        Path(last["apply_proposals_path"]).read_text(encoding="utf-8")
+    )
 
 
 def test_design_iterate_continues_when_proposals_empty(tmp_path: Path):

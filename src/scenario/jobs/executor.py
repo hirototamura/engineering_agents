@@ -75,21 +75,12 @@ def execute_run(
         summary["seed"] = spec.seed
     _write_summary(run_dir, summary)
 
-    exit_code = 0
-    error = None
-    if summary.get("evaluation_status") == "invalid":
-        reasons = summary.get("evaluation_invalid_reasons") or []
-        exit_code = 1
-        error = "evaluation_status=invalid" + (
-            ": " + ", ".join(str(item) for item in reasons) if reasons else ""
-        )
-
     return RunResult(
         run_dir=run_dir,
         summary=summary,
         duration_s=duration_s,
-        exit_code=exit_code,
-        error=error,
+        exit_code=0,
+        error=None,
     )
 
 

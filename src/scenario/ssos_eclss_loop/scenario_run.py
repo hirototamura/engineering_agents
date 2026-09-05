@@ -376,10 +376,10 @@ class SsosEclssLoopScenario(Scenario):
         applied_proposals: Optional[Dict[str, Any]] = None
         if apply_proposals_path is not None:
             proposals = load_design_proposals(apply_proposals_path)
+            applied_proposals = copy.deepcopy(proposals)
             config = apply_design_proposals(
                 config, proposals, approve_provisional=approve_provisional
             )
-            applied_proposals = proposals
         # Fail before the simulation, not after it: a design_constraints block
         # the ranking does not implement is a config error, and finding it in
         # the post-run designer would waste the whole run.
@@ -416,7 +416,7 @@ class SsosEclssLoopScenario(Scenario):
             force=force,
         )
         if applied_proposals is not None:
-            snapshot = run_dir / "applied_proposals.json"
+            snapshot = run_dir / "consumed_proposals.json"
             write_design_proposals(snapshot, applied_proposals)
             applied_proposals_path = snapshot
         if design_history:

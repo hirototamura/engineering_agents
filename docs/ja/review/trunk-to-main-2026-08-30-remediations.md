@@ -6,12 +6,12 @@
 
 | ID | 対応 |
 | --- | --- |
-| C-1 | 採点バー `set_parameter`（`thresholds.*` など）は提案に出さない。iterate も scoring-bar だけ落とす。`evaluation_status=invalid` は CLI が非ゼロ。 |
+| C-1 | 採点バー `set_parameter`（`thresholds.*` など）は提案に出さない。iterate も scoring-bar だけ落とす。無効な評価は記録し、自動採用しない（シミュレーション自体は完走する）。 |
 | C-2 | 物理ゲートは欠測項を 0 埋めせず `skipped`。欠測があれば全体は `incomplete`。 |
 | C-3 | `final_status` 欠落は未評価として拒否。ルールパス文書も stamp する。 |
 | C-4 | integrity 未計測は `evidence_status=unknown`。未計測フラグは `null`。 |
 | C-5 | run ディレクトリ以外の木は `--force` なしで消さない。評価ブラウザは run 内 `evaluation_browser.html`。 |
-| C-6 | `--apply-proposals` は消す前に読み、run 内 `applied_proposals.json` に写す。 |
+| C-6 | `--apply-proposals` は消す前に読み、run 内 `consumed_proposals.json` に写す（iterate の `applied_proposals.json` 手渡しとは別ファイル）。 |
 | C-7 | TCL の観測終端は `last_sample + step_seconds`。部分採点は有限軸の和と `applicable_max`。 |
 | C-8 | 容量の非数は落とさず拒否。ハッシュは元キー集合を含む。 |
 | C-9 | 監査は順位行の `fields` を上書きしない。`audited_fields` を別記録。 |

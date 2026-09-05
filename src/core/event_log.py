@@ -14,6 +14,7 @@ RUN_DIRECTORY_MARKERS = (
     "events.jsonl",
     "evaluation.json",
     "applied_proposals.json",
+    "consumed_proposals.json",
 )
 
 
