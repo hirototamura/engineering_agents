@@ -154,6 +154,16 @@ def test_no_telemetry_is_incomplete_not_passed():
     assert len(result["skipped"]) == 9
 
 
+def test_missing_ledger_terms_are_skipped_not_passed():
+    rows = _rows()
+    del rows[-1]["raw_topics"]["plant_sim"]["total_co2_generated_kg"]
+    result = evaluate_physics(rows)
+    assert _status(rows, "carbon_ledger") == "skipped"
+    assert result["status"] == "incomplete"
+    assert result["passed"] is False
+    assert "carbon_ledger" in result["skipped"]
+
+
 def test_missing_audit_fields_are_incomplete_not_passed():
     """A run recorded before the audit fields existed must not read as clean."""
     rows = _rows()

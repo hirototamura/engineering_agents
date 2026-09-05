@@ -159,10 +159,14 @@ def test_evaluation_carries_the_integrity_and_physics_summaries(tmp_path: Path):
     payload = json.loads((run_dir / "evaluation.json").read_text(encoding="utf-8"))
 
     assert set(payload["integrity"]) == {
+        "measured",
+        "evidence_status",
         "scoring_bar_modified",
         "operating_point_modified",
         "arm_modified",
     }
+    assert payload["integrity"]["measured"] is True
+    assert payload["integrity"]["evidence_status"] in {"valid", "invalid"}
     assert payload["physics_gate"]["status"] == "passed"
     assert (run_dir / "run_integrity.json").is_file()
     assert (run_dir / "physics_gate.json").is_file()
@@ -196,7 +200,14 @@ def test_unprovable_physics_makes_the_evaluation_invalid(tmp_path: Path):
 
     scenario_config = yaml.safe_load((run_dir / "scenario_config.yaml").read_text(encoding="utf-8"))
     finalize_run_evaluation(
-        run_dir, scenario_config=scenario_config, summary=summary, integrity={}
+        run_dir,
+        scenario_config=scenario_config,
+        summary=summary,
+        integrity={
+            "scoring_bar_modified": False,
+            "operating_point_modified": False,
+            "arm_modified": False,
+        },
     )
 
     payload = json.loads((run_dir / "evaluation.json").read_text(encoding="utf-8"))

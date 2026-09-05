@@ -111,6 +111,7 @@ def test_design_iterate_mock_applies_only_previous_applied_file(tmp_path: Path):
         chain_dir=chain_dir,
         base_spec=RunSpec(
             scenario="ssos_eclss_loop",
+            approve_provisional=True,
             overrides=_labeled_overrides(backend="mock", steps=4),
         ),
         iteration_record={"chain": True, "count": 3},
@@ -128,7 +129,13 @@ def test_design_iterate_mock_applies_only_previous_applied_file(tmp_path: Path):
     third = json.loads((chain_dir / "03" / "summary.json").read_text(encoding="utf-8"))
     assert Path(third["apply_proposals_path"]) == chain_dir / "02" / "applied_proposals.json"
     applied = json.loads(apply_path.read_text(encoding="utf-8"))
-    assert all(c["change_kind"] != "set_parameter" for c in applied.get("changes") or [])
+    scoring_bar_targets = [
+        (c.get("payload") or {}).get("target")
+        for c in applied.get("changes") or []
+        if c.get("change_kind") == "set_parameter"
+        and str((c.get("payload") or {}).get("target") or "").startswith("thresholds.")
+    ]
+    assert scoring_bar_targets == []
     assert applied.get("changes")
     assert summary["verdict"] == VERDICT_INCONCLUSIVE
     assert summary["iteration"]["count"] == 3
@@ -142,6 +149,7 @@ def test_design_iterate_no_paired_replay_is_inconclusive(tmp_path: Path):
         chain_dir=tmp_path / "no-replay",
         base_spec=RunSpec(
             scenario="ssos_eclss_loop",
+            approve_provisional=True,
             overrides=_labeled_overrides(backend="mock", steps=2),
         ),
         paired_replay=False,
@@ -161,6 +169,7 @@ def test_design_iterate_recreates_parent_directory(tmp_path: Path):
         chain_dir=chain_dir,
         base_spec=RunSpec(
             scenario="ssos_eclss_loop",
+            approve_provisional=True,
             overrides=_labeled_overrides(backend="mock", steps=2),
         ),
         recreate=True,
@@ -176,6 +185,7 @@ def test_design_iterate_plant_sim_records_crew_remaining(tmp_path: Path):
         chain_dir=chain_dir,
         base_spec=RunSpec(
             scenario="ssos_eclss_loop",
+            approve_provisional=True,
             overrides={
                 **_labeled_overrides(backend="plant_sim", steps=50, inject_failures=True),
                 "plant_sim": {"crew": {"size": 4}},
@@ -218,7 +228,11 @@ def test_design_iterate_continues_when_proposals_empty(tmp_path: Path):
     summary = run_design_iterate(
         iterations=3,
         chain_dir=chain_dir,
-        base_spec=RunSpec(scenario="ssos_eclss_loop", overrides=overrides),
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=overrides,
+            approve_provisional=True,
+        ),
         paired_replay=False,
     )
     assert summary["iterations_completed"] == 3
@@ -266,7 +280,11 @@ def test_design_iterate_reports_step_and_iteration_progress(tmp_path: Path):
     run_design_iterate(
         iterations=2,
         chain_dir=tmp_path / "progress-chain",
-        base_spec=RunSpec(scenario="ssos_eclss_loop", overrides=overrides),
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            overrides=overrides,
+            approve_provisional=True,
+        ),
         paired_replay=False,
         reporter=reporter,
     )
@@ -288,6 +306,7 @@ def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
     adopted = iterate_apply_document(
         {
             "design_domain": "ssos_graph",
+            "final_status": "approved_final",
             "changes": [
                 {
                     "change_kind": "action_profile",
@@ -302,6 +321,13 @@ def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
                     "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1.0},
                 },
                 {
+                    "change_kind": "set_parameter",
+                    "payload": {
+                        "target": "agents.actor.policy.co2_storage_high_kg",
+                        "value": 1.0,
+                    },
+                },
+                {
                     "change_kind": "capacity_profile",
                     "payload": {
                         "backend": "plant_sim",
@@ -313,9 +339,15 @@ def test_iterate_apply_document_drops_thresholds_and_blocks_provisional():
     )
     assert adopted is not None
     kinds = [c["change_kind"] for c in adopted["changes"]]
-    assert "set_parameter" not in kinds
     assert "action_profile" in kinds
     assert "capacity_profile" in kinds
+    targets = [
+        (c.get("payload") or {}).get("target")
+        for c in adopted["changes"]
+        if c["change_kind"] == "set_parameter"
+    ]
+    assert "thresholds.co2_storage_high_kg" not in targets
+    assert "agents.actor.policy.co2_storage_high_kg" in targets
 
     blocked = iterate_apply_document(
         {
@@ -362,6 +394,7 @@ def test_iterate_apply_document_keeps_omitted_keys_at_installed():
     adopted = iterate_apply_document(
         {
             "design_domain": "ssos_graph",
+            "final_status": "approved_final",
             "changes": [
                 {
                     "change_kind": "capacity_profile",
@@ -492,6 +525,7 @@ def test_iterate_apply_document_folds_previous_partial_into_applied_file():
     adopted = iterate_apply_document(
         {
             "design_domain": "ssos_graph",
+            "final_status": "approved_final",
             "changes": [
                 {
                     "change_kind": "action_profile",
@@ -526,6 +560,7 @@ def test_the_chain_leaves_each_round_a_note_from_the_ones_before_it(tmp_path: Pa
         chain_dir=chain_dir,
         base_spec=RunSpec(
             scenario="ssos_eclss_loop",
+            approve_provisional=True,
             overrides=_labeled_overrides(backend="mock", steps=4),
         ),
         paired_replay=False,
@@ -570,6 +605,7 @@ def test_the_chain_measures_its_own_limits_before_designing_against_them(tmp_pat
         chain_dir=chain_dir,
         base_spec=RunSpec(
             scenario="ssos_eclss_loop",
+            approve_provisional=True,
             overrides=_labeled_overrides(backend="plant_sim", steps=8, inject_failures=False),
         ),
         paired_replay=False,
@@ -604,6 +640,7 @@ def test_the_chain_hands_on_a_whole_machine_not_just_what_changed(tmp_path: Path
         chain_dir=chain_dir,
         base_spec=RunSpec(
             scenario="ssos_eclss_loop",
+            approve_provisional=True,
             overrides=_labeled_overrides(backend="mock", steps=4),
         ),
         paired_replay=False,
@@ -634,6 +671,7 @@ def test_the_chain_writes_a_final_answer_beside_its_verdict(tmp_path: Path):
         chain_dir=chain_dir,
         base_spec=RunSpec(
             scenario="ssos_eclss_loop",
+            approve_provisional=True,
             overrides=_labeled_overrides(backend="mock", steps=4),
         ),
         paired_replay=False,

@@ -184,6 +184,24 @@ def test_run_rejects_invalid_agents_mode_via_set():
     assert "Unsupported agents mode" in result.output
 
 
+def test_run_rejects_unknown_set_keys():
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            *NO_CHAIN,
+            "--backend",
+            "mock",
+            "--set",
+            "this.key.does.not.exist=1",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "Unknown --set key" in result.output
+
+
 def test_run_scrubber_default_agents_mode_from_scenario(tmp_path: Path):
     output_dir = tmp_path / "default-mode"
     result = runner.invoke(
@@ -930,6 +948,22 @@ def test_chain_exit_code_fails_on_run_or_incomplete_chain():
             "stopped_reason": "frozen requirements hash changed",
         }
     ) == exit_codes.RUN_FAILURE
+    assert chain_exit_code(
+        {
+            "iterations_requested": 3,
+            "iterations_completed": 3,
+            "runs": [{"exit_code": 0}, {"exit_code": 0}, {"exit_code": 0}],
+            "stopped_reason": "last iteration aborted after design",
+        }
+    ) == exit_codes.RUN_FAILURE
+    assert chain_exit_code(
+        {
+            "iterations_requested": 2,
+            "iterations_completed": 2,
+            "runs": [{"exit_code": 0}, {"exit_code": 0}],
+            "stopped_reason": "paired replay disabled; no improvement claim",
+        }
+    ) == exit_codes.SUCCESS
 
 
 def test_iterate_exits_nonzero_when_a_chained_run_fails(monkeypatch, tmp_path: Path):
