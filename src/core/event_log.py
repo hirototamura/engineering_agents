@@ -3,8 +3,37 @@
 from __future__ import annotations
 
 import json
+import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+RUN_DIRECTORY_MARKERS = (
+    "summary.json",
+    "telemetry.jsonl",
+    "events.jsonl",
+    "evaluation.json",
+    "applied_proposals.json",
+)
+
+
+def looks_like_run_directory(path: Path) -> bool:
+    """True when *path* already holds simulation artifacts, not arbitrary files."""
+    return path.is_dir() and any((path / name).is_file() for name in RUN_DIRECTORY_MARKERS)
+
+
+def remove_run_directory(path: Path, *, force: bool = False) -> None:
+    """Delete a run directory. Refuse to wipe a non-run tree unless *force*."""
+    if not path.exists():
+        return
+    if path.is_file():
+        raise ValueError(f"Refusing to delete file {path}")
+    if any(path.iterdir()) and not looks_like_run_directory(path) and not force:
+        raise ValueError(
+            f"Refusing to delete {path}: it is not a simulation run directory "
+            f"(missing {', '.join(RUN_DIRECTORY_MARKERS)}). Pass --force to override."
+        )
+    shutil.rmtree(path)
 
 
 class EventLog:
@@ -42,15 +71,18 @@ class EventLog:
         self._handles.clear()
 
     @classmethod
-    def prepare_run_dir(cls, base_dir: Path, run_id: Optional[str] = None) -> Path:
+    def prepare_run_dir(
+        cls,
+        base_dir: Path,
+        run_id: Optional[str] = None,
+        *,
+        force: bool = False,
+    ) -> Path:
         """Create (or recreate) a run output directory."""
-        import shutil
-        from datetime import datetime
-
         if run_id is None:
             run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_dir = base_dir / run_id
         if run_dir.exists():
-            shutil.rmtree(run_dir)
-        run_dir.mkdir(parents=True)
+            remove_run_directory(run_dir, force=force)
+        run_dir.mkdir(parents=True, exist_ok=True)
         return run_dir

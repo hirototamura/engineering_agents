@@ -24,7 +24,7 @@ from scenario.ssos_eclss_loop.evaluation import (
 )
 from scenario.ssos_eclss_loop.evaluation_browser import write_evaluation_browser
 from scenario.ssos_eclss_loop.evaluation_html import render_evaluation_html
-from scenario.ssos_eclss_loop.integrity_guard import integrity_summary
+from scenario.ssos_eclss_loop.integrity_guard import evidence_status, integrity_summary
 from scenario.ssos_eclss_loop.physics_gate import run_physics_gate
 
 _SCHEDULING_REJECTIONS = {"subsystem_busy", "duplicate_command_this_step"}
@@ -164,8 +164,10 @@ def reconcile_scheduler_semantics(
             )
 
     all_scores = [axis.get("score") for axis in axes.values()]
-    complete = all(_finite(score) for score in all_scores)
-    payload["scores"]["total"] = round(sum(float(score) for score in all_scores), 6) if complete else None
+    scored = [float(score) for score in all_scores if _finite(score)]
+    complete = len(scored) == len(all_scores)
+    payload["scores"]["total"] = round(sum(scored), 6) if scored else None
+    payload["scores"]["complete"] = complete
     payload["status"] = "scored" if complete else "incomplete"
     return payload
 
@@ -234,8 +236,11 @@ def _admissibility(
     the run cheated when it merely was not that kind of run.
     """
     reasons: list[str] = []
-    if integrity.get("scoring_bar_modified"):
+    integrity_state = evidence_status(integrity)
+    if integrity_state == "invalid":
         reasons.append("scoring_bar_modified")
+    elif integrity_state == "unknown":
+        reasons.append("integrity_unknown")
     if backend == "plant_sim" and gate.get("status") != "passed":
         reasons.append("physics_gate_" + str(gate.get("status")))
     if reasons:
@@ -266,7 +271,6 @@ def finalize_run_evaluation(
         json.dumps(gate, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    integrity = integrity or {}
     payload["integrity"] = integrity_summary(integrity)
     payload = _admissibility(
         payload,
@@ -279,7 +283,11 @@ def finalize_run_evaluation(
     html_path = run_path / "evaluation.html"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     html_path.write_text(render_evaluation_html(payload), encoding="utf-8")
-    write_evaluation_browser(run_path.parent, default_run_id=run_path.name)
+    write_evaluation_browser(
+        run_path.parent,
+        default_run_id=run_path.name,
+        output_path=run_path / "evaluation_browser.html",
+    )
 
     updated = dict(summary)
     score_block = payload.get("scores") if isinstance(payload.get("scores"), Mapping) else {}
@@ -288,6 +296,7 @@ def finalize_run_evaluation(
             "evaluation_path": str(json_path),
             "evaluation_html_path": str(html_path),
             "evaluation_status": payload.get("status"),
+            "evaluation_invalid_reasons": payload.get("invalid_reasons") or [],
             "evaluation_score": score_block.get("total"),
             "evaluation_max_score": score_block.get("max_score"),
             "physics_gate_passed": bool(gate.get("passed", False)),

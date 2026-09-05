@@ -22,7 +22,12 @@ from tools.cli.output import (
     print_run_plan,
     print_run_result,
 )
-from tools.cli.overrides import load_override_file, merge_overrides, parse_set_values
+from tools.cli.overrides import (
+    load_override_file,
+    merge_overrides,
+    parse_set_values,
+    unknown_override_paths,
+)
 
 DEFAULT_SCENARIO = "scrubber_degradation"
 VALID_AGENTS_MODES = frozenset({"none", "labeled_rule_base", "llm"})
@@ -153,6 +158,11 @@ def run(
         "--no-recreate",
         help="Do not delete an existing output directory before running.",
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Allow deleting a directory that is not a previous simulation run.",
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Build the run plan without executing."),
     write_spec: Optional[Path] = typer.Option(
         None,
@@ -242,6 +252,7 @@ def run(
             set_values=set_values,
             override_file=override_file,
             no_recreate=no_recreate,
+            force=force,
             dry_run=dry_run,
             write_spec=write_spec,
             json_output=json_output,
@@ -270,6 +281,7 @@ def run(
         seed=seed,
         apply_proposals_path=apply_proposals,
         approve_provisional=settings.approve_provisional,
+        force=force,
     )
 
     if write_spec is not None:
@@ -434,17 +446,18 @@ def _build_overrides(
         parts.append({"agents": {"mode": _require_mode(agents_mode, "agents mode")}})
     elif actor_mode is not None or design_mode is not None:
         raise ValueError("--actor-mode and --design-mode apply only to ssos_eclss_loop")
+    named: list = []
     if steps is not None:
-        parts.append({"simulation": {"steps": steps}})
+        named.append({"simulation": {"steps": steps}})
     if backend is not None:
         if backend not in VALID_SSOS_BACKENDS:
             allowed = ", ".join(sorted(VALID_SSOS_BACKENDS))
             raise ValueError(
                 f"Unsupported backend kind: {backend!r}. Choose one of: {allowed}"
             )
-        parts.append({"backend": {"kind": backend}})
+        named.append({"backend": {"kind": backend}})
     if inject_failures is not None:
-        parts.append({"inject_failures": inject_failures})
+        named.append({"inject_failures": inject_failures})
     if llm_provider is not None:
         provider = llm_provider.strip().lower()
         if provider not in VALID_LLM_PROVIDERS:
@@ -454,14 +467,29 @@ def _build_overrides(
             )
         llm_patch = {"provider": provider}
         if not ssos:
-            parts.append({"agents": {"llm": llm_patch}})
+            named.append({"agents": {"llm": llm_patch}})
     if llm_model is not None and not ssos:
-        parts.append({"agents": {"llm": {"model": llm_model}}})
-    if set_values:
-        parts.append(parse_set_values(set_values))
+        named.append({"agents": {"llm": {"model": llm_model}}})
+    # Lowest precedence first: override file, then --set, then named flags.
+    ordered: list = []
     if override_file is not None:
-        parts.append(load_override_file(override_file))
-    return merge_overrides(*parts)
+        ordered.append(load_override_file(override_file))
+    if set_values:
+        parsed_set = parse_set_values(set_values)
+        base_config = load_scenario_config(scenario_name)
+        unknown = [
+            path
+            for path in unknown_override_paths(base_config, parsed_set)
+            if not path.startswith("iteration.defaults")
+        ]
+        if unknown:
+            raise ValueError(
+                "Unknown --set key(s) (not in scenario config): " + ", ".join(unknown)
+            )
+        ordered.append(parsed_set)
+    ordered.extend(parts)
+    ordered.extend(named)
+    return merge_overrides(*ordered)
 
 
 def _apply_cli_defaults(scenario_name: str, overrides: dict | None) -> dict | None:

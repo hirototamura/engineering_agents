@@ -343,6 +343,12 @@ def mark_final_eligibility(
     if outcome.get("backend") == "plant_sim" and outcome.get("physics_gate_passed") is not True:
         reasons.append("physics_gate_not_passed")
 
+    evaluation_status = outcome.get("evaluation_status")
+    if evaluation_status == "invalid":
+        reasons.append("evaluation_invalid")
+    elif evaluation_status == "unknown":
+        reasons.append("evaluation_unknown")
+
     crew = occupant_count(outcome.get("crew_remaining"))
     crew_initial = occupant_count(outcome.get("crew_initial"))
     if crew is None or crew_initial is None or crew_initial <= 0:

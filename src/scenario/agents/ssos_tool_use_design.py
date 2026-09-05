@@ -493,7 +493,16 @@ class ToolUseDesignAgent:
         cannot skip the constraint check or forget to re-simulate, because it
         is never asked which of these to do.
         """
-        normalized = normalize_fields(fields)
+        try:
+            if not isinstance(fields, Mapping):
+                raise TypeError(
+                    f"fields must be a mapping, got {type(fields).__name__}"
+                )
+            normalized = normalize_fields(fields)
+        except (TypeError, ValueError) as exc:
+            record = {"error": str(exc)}
+            trace.append({"event": "candidate_rejected", "decision": decision, **record})
+            return record
         if not normalized:
             record = {"error": "no recognised design variable in the proposal"}
             trace.append({"event": "candidate_rejected", "decision": decision, **record})
@@ -747,7 +756,7 @@ class ToolUseDesignAgent:
         generation = invoke_llm(self.llm_client, prompt)
         elapsed = round(time.monotonic() - started, 2)
         parsed = parse_json_response(generation.text, required=("decision",))
-        if parsed.status in {"fallback", "empty_response"}:
+        if parsed.status in {"fallback", "empty_response", "partial"}:
             return None, elapsed, generation, parsed
         data = parsed.data if isinstance(parsed.data, Mapping) else {}
         return (dict(data) or None), elapsed, generation, parsed

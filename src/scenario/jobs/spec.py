@@ -24,6 +24,7 @@ class RunSpec:
     # `ea run` defaults this True so the sim can close the loop without a human.
     approve_provisional: bool = False
     design_history: Optional[list] = None
+    force: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)

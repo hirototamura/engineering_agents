@@ -20,6 +20,7 @@ recomputing the grid.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -77,6 +78,7 @@ def capacity_proposal(capacity: Mapping[str, float], *, note: str = "experiment 
         "design_domain": "ssos_graph",
         "proposed_by": "tools.analysis.experiments",
         "decision_source": "rule",
+        "final_status": "approved_final",
         "message": note,
         "changes": [
             {
@@ -109,6 +111,24 @@ def capacity_set_flags(capacity: Mapping[str, float]) -> List[str]:
         if key in capacity:
             flags += ["--set", f"{key}={float(capacity[key])}"]
     return flags
+
+
+def spec_fingerprint(spec: RunSpec) -> str:
+    """Cache key for the physics this spec asked for, not just its grid label."""
+    payload = {
+        "capacity": spec.capacity,
+        "overrides": spec.overrides,
+        "steps": spec.steps,
+        "seed": spec.seed,
+        "backend": spec.backend,
+        "actor_mode": spec.actor_mode,
+        "design_mode": spec.design_mode,
+        "inject_failures": spec.inject_failures,
+        "iterate": spec.iterate,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:16]
 
 
 def _command(spec: RunSpec, run_dir: Path, proposal_path: Optional[Path]) -> List[str]:
@@ -148,8 +168,15 @@ def execute(
 
     run_dir = Path(root) / spec.run_id
     marker = run_dir / ("chain_summary.json" if spec.iterate else "summary.json")
-    if cache and marker.is_file():
-        return RunOutcome(spec, run_dir, 0, cached=True)
+    stamp_path = run_dir / "experiment_spec.json"
+    wanted = spec_fingerprint(spec)
+    if cache and marker.is_file() and stamp_path.is_file():
+        try:
+            recorded = json.loads(stamp_path.read_text(encoding="utf-8")).get("fingerprint")
+        except (OSError, json.JSONDecodeError):
+            recorded = None
+        if recorded == wanted:
+            return RunOutcome(spec, run_dir, 0, cached=True)
 
     proposal_path: Optional[Path] = None
     if spec.capacity and not spec.iterate:
@@ -172,6 +199,20 @@ def execute(
         )
     except subprocess.TimeoutExpired:
         return RunOutcome(spec, run_dir, 124, cached=False, stderr="timeout")
+    if result.returncode == 0:
+        stamp_path.write_text(
+            json.dumps(
+                {
+                    "run_id": spec.run_id,
+                    "fingerprint": wanted,
+                    "capacity": spec.capacity,
+                    "steps": spec.steps,
+                    "seed": spec.seed,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
     return RunOutcome(spec, run_dir, result.returncode, cached=False, stderr=result.stderr[-2000:])
 
 

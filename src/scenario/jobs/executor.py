@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import time
 from pathlib import Path
@@ -46,6 +47,7 @@ def execute_run(
                 design_history=spec.design_history,
                 on_step=on_step,
                 on_phase=on_phase,
+                force=spec.force,
             )
         else:
             run_dir = scenario.run(
@@ -54,6 +56,7 @@ def execute_run(
                 recreate_output=spec.recreate_output,
                 run_id=spec.run_id,
                 results_root=spec.results_root,
+                force=spec.force,
             )
     except Exception as exc:
         return RunResult(
@@ -72,11 +75,21 @@ def execute_run(
         summary["seed"] = spec.seed
     _write_summary(run_dir, summary)
 
+    exit_code = 0
+    error = None
+    if summary.get("evaluation_status") == "invalid":
+        reasons = summary.get("evaluation_invalid_reasons") or []
+        exit_code = 1
+        error = "evaluation_status=invalid" + (
+            ": " + ", ".join(str(item) for item in reasons) if reasons else ""
+        )
+
     return RunResult(
         run_dir=run_dir,
         summary=summary,
         duration_s=duration_s,
-        exit_code=0,
+        exit_code=exit_code,
+        error=error,
     )
 
 
@@ -95,8 +108,10 @@ def _apply_seed_override(
 ) -> Dict[str, Any] | None:
     if seed is None:
         return overrides
-    merged: Dict[str, Any] = dict(overrides or {})
-    merged.setdefault("simulation", {})["seed"] = seed
+    merged: Dict[str, Any] = copy.deepcopy(overrides) if overrides else {}
+    simulation = dict(merged.get("simulation") or {})
+    simulation["seed"] = seed
+    merged["simulation"] = simulation
     return merged
 
 
@@ -104,7 +119,11 @@ def _read_summary(run_dir: Path) -> Dict[str, Any]:
     summary_path = run_dir / "summary.json"
     if not summary_path.exists():
         return {}
-    return json.loads(summary_path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(summary_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def _write_summary(run_dir: Path, summary: Dict[str, Any]) -> None:

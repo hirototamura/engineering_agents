@@ -203,9 +203,14 @@ def analyse(
         name: fit_logistic_response(xs, ys)
         for name, (xs, ys) in profiles.items() if len(xs) >= 3
     }
+    published_fits = {
+        name: fit.as_dict()
+        for name, fit in fits.items()
+        if math.isfinite(fit.r_squared) and fit.r_squared >= 0.0 and math.isfinite(fit.x0)
+    }
     findings["criticality"] = {
         "profiles": {name: {"x": xs, "y": ys} for name, (xs, ys) in profiles.items()},
-        "fits": {name: fit.as_dict() for name, fit in fits.items()},
+        "fits": published_fits,
     }
 
     # --- coverage-ratio collapse ------------------------------------------
@@ -315,7 +320,14 @@ def analyse(
     }
 
     # --- predictive law ----------------------------------------------------
-    findings["predictive"] = _predictive_models(surface)
+    crit_fits = findings["criticality"]["fits"]
+    findings["predictive"] = _predictive_models(
+        surface,
+        canonical_coverage={
+            "ARS": (crit_fits.get("ARS (CO2 removal)") or {}).get("x0"),
+            "OGS": (crit_fits.get("OGS (O2 generation)") or {}).get("x0"),
+        },
+    )
     return findings
 
 
@@ -401,7 +413,12 @@ MODEL_NOTES: Dict[str, str] = {
 MARGINAL_SLICE_LEVELS = 3
 
 
-def _predictive_models(surface: Sequence[Mapping[str, Any]], *, seed: int = 20260829) -> Dict[str, Any]:
+def _predictive_models(
+    surface: Sequence[Mapping[str, Any]],
+    *,
+    seed: int = 20260829,
+    canonical_coverage: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
     """Compare candidate laws for survival, fitted and scored out of sample.
 
     The comparison mirrors the structure used for collective-dynamics models: a
@@ -459,8 +476,17 @@ def _predictive_models(surface: Sequence[Mapping[str, Any]], *, seed: int = 2026
     # minimum names the wrong bottleneck wherever the numerically smaller
     # coverage is the one with the lower threshold. Dividing by the per-axis
     # critical coverage puts both on a common margin scale first.
-    star_ars = fit_ars.x0 if math.isfinite(fit_ars.x0) and fit_ars.x0 > 0 else 1.0
-    star_ogs = fit_ogs.x0 if math.isfinite(fit_ogs.x0) and fit_ogs.x0 > 0 else 1.0
+    train_star_ars = fit_ars.x0 if math.isfinite(fit_ars.x0) and fit_ars.x0 > 0 else 1.0
+    train_star_ogs = fit_ogs.x0 if math.isfinite(fit_ogs.x0) and fit_ogs.x0 > 0 else 1.0
+    canonical = canonical_coverage or {}
+    star_ars = canonical.get("ARS")
+    star_ogs = canonical.get("OGS")
+    if not isinstance(star_ars, (int, float)) or not math.isfinite(float(star_ars)) or float(star_ars) <= 0:
+        star_ars = train_star_ars
+    if not isinstance(star_ogs, (int, float)) or not math.isfinite(float(star_ogs)) or float(star_ogs) <= 0:
+        star_ogs = train_star_ogs
+    star_ars = float(star_ars)
+    star_ogs = float(star_ogs)
     margin = np.minimum(rho_ars / star_ars, rho_ogs / star_ogs)
     fit_margin = fit_logistic_response(margin[train], observed[train])
 
@@ -484,7 +510,7 @@ def _predictive_models(surface: Sequence[Mapping[str, Any]], *, seed: int = 2026
             "r_squared": r_squared(observed[test], pred[test]),
             "rmse": rmse(observed[test], pred[test]),
             "balanced_accuracy": balanced_accuracy(
-                list(truth[test]), list(pred[test] >= 0.5)
+                list(truth[test]), list(pred[test] >= 1.0)
             ),
             "r_squared_in_sample": r_squared(observed[train], pred[train]),
             "note": MODEL_NOTES[name],  # type: ignore[dict-item]
@@ -495,6 +521,7 @@ def _predictive_models(surface: Sequence[Mapping[str, Any]], *, seed: int = 2026
         "n_test": int(test.size),
         "models": models,
         "critical_coverage": {"ARS": star_ars, "OGS": star_ogs},
+        "train_split_critical_coverage": {"ARS": train_star_ars, "OGS": train_star_ogs},
         "marginal_slice_levels": MARGINAL_SLICE_LEVELS,
         "fits": {
             "ARS only": fit_ars.as_dict(),

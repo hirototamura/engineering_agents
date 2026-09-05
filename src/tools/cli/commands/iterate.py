@@ -45,6 +45,7 @@ def run_iterate_from_run(
     set_values: List[str],
     override_file: Optional[Path],
     no_recreate: bool,
+    force: bool = False,
     dry_run: bool,
     write_spec: Optional[Path],
     json_output: bool,
@@ -92,6 +93,7 @@ def run_iterate_from_run(
         overrides=overrides,
         seed=seed,
         approve_provisional=approve_provisional,
+        force=force,
     )
     if write_spec is not None:
         spec.write_json(write_spec)
@@ -159,6 +161,13 @@ def run_iterate_from_run(
     raise typer.Exit(exit_codes.SUCCESS)
 
 
+_INFORMATIONAL_STOPS = frozenset(
+    {
+        "paired replay disabled; no improvement claim",
+    }
+)
+
+
 def chain_exit_code(chain_summary: Dict[str, Any]) -> int:
     """Non-zero when a chained sim or replay failed, or the chain aborted early."""
     rows = list(chain_summary.get("runs") or []) + list(chain_summary.get("replay_runs") or [])
@@ -167,6 +176,9 @@ def chain_exit_code(chain_summary: Dict[str, Any]) -> int:
     requested = int(chain_summary.get("iterations_requested") or 0)
     completed = int(chain_summary.get("iterations_completed") or 0)
     if requested > 0 and completed < requested:
+        return exit_codes.RUN_FAILURE
+    stopped = str(chain_summary.get("stopped_reason") or "")
+    if stopped and stopped not in _INFORMATIONAL_STOPS:
         return exit_codes.RUN_FAILURE
     return exit_codes.SUCCESS
 
