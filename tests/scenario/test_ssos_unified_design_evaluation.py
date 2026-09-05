@@ -164,6 +164,8 @@ def test_evaluation_carries_the_integrity_and_physics_summaries(tmp_path: Path):
         "arm_modified",
     }
     assert payload["physics_gate"]["status"] == "passed"
+    assert "scorecard_physics_gate" in payload
+    assert payload["scorecard_physics_gate"].get("checks")
     assert (run_dir / "run_integrity.json").is_file()
     assert (run_dir / "physics_gate.json").is_file()
 
@@ -201,4 +203,4 @@ def test_unprovable_physics_makes_the_evaluation_invalid(tmp_path: Path):
 
     payload = json.loads((run_dir / "evaluation.json").read_text(encoding="utf-8"))
     assert payload["status"] == "invalid"
-    assert payload["invalid_reasons"] == ["physics_gate_incomplete"]
+    assert payload["invalid_reasons"] == ["physics_gate_failed"]

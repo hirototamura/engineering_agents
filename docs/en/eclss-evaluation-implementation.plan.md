@@ -31,7 +31,7 @@ isProject: false
 - Actor survival: `50 × crew_remaining / crew_initial`. Per-cause loss is reported separately as physical floor vs band dwell.
 - A/TCL: use `simulation_time_s` at the first `/eclss/events/crew_lost` observed in the run; score `10 × min(TCL / T_ref, 1)`. No loss with observation time ≥ `T_ref`: 10 points. Run ends before `T_ref` with no loss: right-censored → `incomplete`. No future extrapolation or automatic extension.
 - B/Environment: equal weight on CO₂, O₂, and water; score 10 from time integral of severity normalized 0–1 from safe to critical boundaries. Do not double-count pre/post rows in the same step.
-- C/Resource margin and recovery: equal weight on three resources. Record initial, pre-operation at first fault event, worst, terminal, and deltas; combine terminal safety margin and recovery from post-fault worst at configured ratios.
+- C/Resource margin and recovery: CO₂ carries twice the weight of O₂ and water (`resource_weights` 2:1:1). Record initial, pre-operation at first fault event, worst, terminal, and deltas; combine terminal safety margin and recovery from post-fault worst at configured ratios.
 - D/Actor decision: combine response latency to danger episodes and command validity against observed state, failure state, and payload bounds at configured ratios. Device outcomes are not used for decision scoring.
 - E/Device response: only operations judged valid in D; combine success, processed amount vs requested amount, and expected physical sign. For multiple operations, use individual result details as canonical; do not mis-attribute step-level deltas to individual operations.
 

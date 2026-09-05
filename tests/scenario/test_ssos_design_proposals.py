@@ -36,7 +36,7 @@ def test_apply_action_profile_and_service_config():
             },
             {
                 "change_kind": "set_parameter",
-                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1600.0},
+                "payload": {"target": "agents.actor.policy.co2_storage_high_kg", "value": 1600.0},
             },
         ],
     }
@@ -46,7 +46,7 @@ def test_apply_action_profile_and_service_config():
     assert merged["agents"]["policy"]["request_co2_amount"] == 30.0
     assert merged["agents"]["actor"]["policy"]["request_co2_amount"] == 30.0
     assert merged["agents"]["policy"]["request_co2_before_ogs"] is False
-    assert merged["thresholds"]["co2_storage_high_kg"] == 1600.0
+    assert merged["agents"]["actor"]["policy"]["co2_storage_high_kg"] == 1600.0
     assert merged["agents"]["policy"]["ars_goal"]["initial_co2_mass"] == 1000.0
 
 
@@ -163,7 +163,7 @@ def test_build_design_proposals_fallback_without_goals_uses_threshold():
     assert all(c["change_kind"] == "set_parameter" for c in doc["changes"])
     values = {c["payload"]["target"]: c["payload"]["value"] for c in doc["changes"]}
     assert values["agents.actor.policy.co2_storage_high_kg"] == pytest.approx(1.35)
-    assert values["thresholds.co2_storage_high_kg"] == pytest.approx(1.35)
+    assert "thresholds.co2_storage_high_kg" not in values
 
 
 def test_build_design_proposals_defaults_before_ogs_false_when_absent():
@@ -237,8 +237,23 @@ def test_build_design_proposals_fallback_empty_policy_uses_default_threshold():
     )
     assert doc["changes"]
     assert any(
-        c["payload"]["target"] == "thresholds.co2_storage_high_kg" for c in doc["changes"]
+        c["payload"]["target"] == "agents.actor.policy.co2_storage_high_kg"
+        for c in doc["changes"]
     )
+
+
+def test_apply_rejects_threshold_set_parameter():
+    proposals = {
+        "design_domain": DESIGN_DOMAIN,
+        "changes": [
+            {
+                "change_kind": "set_parameter",
+                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1.0},
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="not allowed"):
+        apply_design_proposals({"agents": {"policy": {}}}, proposals)
 
 
 def test_write_rejects_scrubber_change_kind(tmp_path):
