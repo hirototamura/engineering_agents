@@ -266,10 +266,15 @@ def test_ssos_eclss_loop_apply_proposals(tmp_path: Path):
         output_dir=tmp_path / "second",
         overrides=_ssos_agents("labeled_rule_base"),
         apply_proposals_path=proposals_path,
+        approve_provisional=True,
     )
     summary = json.loads((second / "summary.json").read_text(encoding="utf-8"))
     assert summary["operational_command_count"] >= 1
-    assert summary["apply_proposals_path"] == str(proposals_path)
+    snapshot = second / "consumed_proposals.json"
+    assert snapshot.is_file()
+    assert summary["apply_proposals_path"] == str(snapshot)
+    assert json.loads(snapshot.read_text(encoding="utf-8"))["design_domain"] == "ssos_graph"
+    assert proposals_path.is_file()
     assert (second / "scenario_config.yaml").exists()
     assert (second / "agents_config.yaml").exists()
 

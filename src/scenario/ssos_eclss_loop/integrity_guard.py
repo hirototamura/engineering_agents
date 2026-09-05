@@ -127,17 +127,30 @@ def compare_configs(
     }
 
 
-def evidence_status(integrity: Mapping[str, Any]) -> str:
-    """``invalid`` when the run rewrote what it is judged by, else ``valid``."""
+def evidence_status(integrity: Mapping[str, Any] | None) -> str:
+    """``invalid`` / ``valid`` when the bar was measured, else ``unknown``.
+
+    An empty or omitted integrity block is not a clean bill of health: it means
+    the comparison never ran. Callers must not treat ``unknown`` as ``valid``.
+    """
+    if not integrity or "scoring_bar_modified" not in integrity:
+        return "unknown"
     return "invalid" if integrity.get("scoring_bar_modified") else "valid"
 
 
-def integrity_summary(integrity: Mapping[str, Any]) -> Dict[str, Any]:
+def integrity_summary(integrity: Mapping[str, Any] | None) -> Dict[str, Any]:
     """The compact block embedded in evaluation.json (spec §16)."""
+    measured = bool(integrity) and "scoring_bar_modified" in (integrity or {})
     return {
-        "scoring_bar_modified": bool(integrity.get("scoring_bar_modified")),
-        "operating_point_modified": bool(integrity.get("operating_point_modified")),
-        "arm_modified": bool(integrity.get("arm_modified")),
+        "measured": measured,
+        "evidence_status": evidence_status(integrity),
+        "scoring_bar_modified": (
+            bool(integrity.get("scoring_bar_modified")) if measured else None
+        ),
+        "operating_point_modified": (
+            bool(integrity.get("operating_point_modified")) if measured else None
+        ),
+        "arm_modified": bool(integrity.get("arm_modified")) if measured else None,
     }
 
 

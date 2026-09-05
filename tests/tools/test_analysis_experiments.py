@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -80,3 +81,31 @@ def test_execute_does_not_write_a_proposal_file_for_iterate(tmp_path, monkeypatc
     assert "--apply-proposals" not in captured["cmd"]
     assert not (tmp_path / "_proposals").exists()
     assert "plant_sim.ogs.max_o2_kg_day=42.0" in " ".join(captured["cmd"])
+
+
+def test_execute_cache_misses_when_spec_fingerprint_differs(tmp_path, monkeypatch):
+    spec = RunSpec(run_id="grid-01", capacity=dict(START), steps=20)
+    run_dir = tmp_path / spec.run_id
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text("{}", encoding="utf-8")
+    (run_dir / "experiment_spec.json").write_text(
+        json.dumps({"fingerprint": "stale-label-only"}),
+        encoding="utf-8",
+    )
+    called = {"n": 0}
+
+    def fake_run(cmd, **kwargs):
+        called["n"] += 1
+
+        class Result:
+            returncode = 0
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr("tools.analysis.experiments.subprocess.run", fake_run)
+    outcome = execute(spec, tmp_path, cache=True)
+    assert called["n"] == 1
+    assert outcome.cached is False
+    stamp = json.loads((run_dir / "experiment_spec.json").read_text(encoding="utf-8"))
+    assert stamp["fingerprint"] != "stale-label-only"

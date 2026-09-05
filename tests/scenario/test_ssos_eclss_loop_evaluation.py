@@ -65,9 +65,17 @@ def test_tcl_scores_observed_event_and_right_censors_short_run():
     assert observed["score"] == pytest.approx(5.0)
     assert observed["metrics"]["tcl_causes"] == {"o2_physics": 1}
 
-    censored = _tcl_axis(rows, [], config, 50.0)
+    short = [
+        {"step": 0, "raw_topics": {"plant_sim": {"simulation_time_s": 0.0}}},
+        {"step": 1, "raw_topics": {"plant_sim": {"simulation_time_s": 40.0}}},
+    ]
+    censored = _tcl_axis(short, [], config, 50.0)
     assert censored["status"] == "right_censored"
     assert censored["score"] is None
+
+    covered = _tcl_axis(rows, [], config, 50.0)
+    assert covered["status"] == "scored"
+    assert covered["score"] == pytest.approx(10.0)
 
 
 def test_resource_recovery_uses_actor_pre_event_values():
@@ -160,11 +168,11 @@ def test_plant_run_writes_scored_evaluation_and_summary_index(tmp_path: Path):
     assert evaluation["run_conditions"]["steps"] == 50
     assert evaluation["run_conditions"]["inject_failures"] is False
     assert evaluation["run_conditions"]["actor"]["mode"] == "none"
-    browser = (run_dir.parent / "evaluation.html").read_text(encoding="utf-8")
+    browser = (run_dir / "evaluation_browser.html").read_text(encoding="utf-8")
     assert "ECLSS 評価ブラウザ" in browser
     assert run_dir.name in browser
     assert "別 run と比較" in browser
-    assert "../evaluation.html" in html
+    assert "evaluation_browser.html" in html
 
 
 def test_evaluation_browser_lists_multiple_runs_and_compare_controls(tmp_path: Path):

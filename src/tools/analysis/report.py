@@ -78,6 +78,29 @@ def _num(row: Mapping[str, Any], key: str) -> Optional[float]:
     return float(value) if math.isfinite(float(value)) else None
 
 
+def _num_or(row: Mapping[str, Any], key: str, default: float) -> float:
+    value = _num(row, key)
+    return default if value is None else value
+
+
+def _row_matches_where(
+    row: Mapping[str, Any],
+    where: Optional[Mapping[str, Any]],
+) -> bool:
+    if not where:
+        return True
+    for key, expected in where.items():
+        left = _num(row, key)
+        right = _num({key: expected}, key) if not isinstance(expected, bool) else None
+        if left is not None and right is not None:
+            if left != right:
+                return False
+            continue
+        if row.get(key) != expected:
+            return False
+    return True
+
+
 def _profile(
     rows: Sequence[Mapping[str, Any]],
     x_key: str,
@@ -89,7 +112,7 @@ def _profile(
 
     grouped: Dict[float, List[float]] = {}
     for row in rows:
-        if where and any(row.get(k) != v for k, v in where.items()):
+        if not _row_matches_where(row, where):
             continue
         x, y = _num(row, x_key), _num(row, y_key)
         if x is None or y is None:
@@ -127,10 +150,11 @@ def analyse(
     for key in ("evaluation_score", "crew_remaining", "mean_normalized_severity"):
         values = [v for v in (_num(r, key) for r in seeds) if v is not None]
         spreads[key] = (max(values) - min(values)) if values else None
+    measured_spreads = [s for s in spreads.values() if s is not None]
     findings["determinism"] = {
         "n_seeds": len(seeds),
         "spreads": spreads,
-        "deterministic": all(s == 0.0 for s in spreads.values() if s is not None),
+        "deterministic": bool(measured_spreads) and all(s == 0.0 for s in measured_spreads),
     }
 
     # --- physics validity --------------------------------------------------
@@ -147,16 +171,16 @@ def analyse(
     }
 
     # --- response surface --------------------------------------------------
-    full = [r for r in surface if (_num(r, "survival_fraction") or 0.0) >= 1.0]
+    full = [r for r in surface if _num_or(r, "survival_fraction", 0.0) >= 1.0]
     budgets = budget_limits(config or {})
     within = [
         r for r in full
-        if (_num(r, "total_mass_kg") or math.inf) <= budgets.get("max_total_mass_kg", math.inf)
-        and (_num(r, "total_cost_musd") or math.inf) <= budgets.get("max_total_cost_musd", math.inf)
-        and (_num(r, "total_volume_m3") or math.inf) <= budgets.get("max_total_volume_m3", math.inf)
+        if _num_or(r, "total_mass_kg", math.inf) <= budgets.get("max_total_mass_kg", math.inf)
+        and _num_or(r, "total_cost_musd", math.inf) <= budgets.get("max_total_cost_musd", math.inf)
+        and _num_or(r, "total_volume_m3", math.inf) <= budgets.get("max_total_volume_m3", math.inf)
     ]
-    lightest = min(full, key=lambda r: _num(r, "total_mass_kg") or math.inf) if full else None
-    best = max(surface, key=lambda r: _num(r, "evaluation_score") or -math.inf) if surface else None
+    lightest = min(full, key=lambda r: _num_or(r, "total_mass_kg", math.inf)) if full else None
+    best = max(surface, key=lambda r: _num_or(r, "evaluation_score", -math.inf)) if surface else None
     findings["surface"] = {
         "n": len(surface),
         "n_full_survival": len(full),
@@ -176,18 +200,18 @@ def analyse(
             )
         } if best else None,
         "mass_overrun_ratio": (
-            (_num(lightest, "total_mass_kg") or math.nan) / budgets["max_total_mass_kg"]
+            _num_or(lightest, "total_mass_kg", math.nan) / budgets["max_total_mass_kg"]
             if lightest and budgets.get("max_total_mass_kg") else None
         ),
         "cost_overrun_ratio": (
-            (_num(lightest, "total_cost_musd") or math.nan) / budgets["max_total_cost_musd"]
+            _num_or(lightest, "total_cost_musd", math.nan) / budgets["max_total_cost_musd"]
             if lightest and budgets.get("max_total_cost_musd") else None
         ),
     }
 
     # --- criticality -------------------------------------------------------
-    max_ogs = max((_num(r, "ogs") or -math.inf) for r in surface) if surface else None
-    max_ars = max((_num(r, "ars") or -math.inf) for r in surface) if surface else None
+    max_ogs = max((_num_or(r, "ogs", -math.inf) for r in surface), default=None) if surface else None
+    max_ars = max((_num_or(r, "ars", -math.inf) for r in surface), default=None) if surface else None
     profiles: Dict[str, Tuple[List[float], List[float]]] = {}
     if surface:
         profiles["ARS (CO2 removal)"] = _profile(
@@ -203,9 +227,15 @@ def analyse(
         name: fit_logistic_response(xs, ys)
         for name, (xs, ys) in profiles.items() if len(xs) >= 3
     }
+    published_fits = {
+        name: fit.as_dict()
+        for name, fit in fits.items()
+        if math.isfinite(fit.r_squared) and fit.r_squared >= 0.0 and math.isfinite(fit.x0)
+    }
     findings["criticality"] = {
         "profiles": {name: {"x": xs, "y": ys} for name, (xs, ys) in profiles.items()},
-        "fits": {name: fit.as_dict() for name, fit in fits.items()},
+        "fits": published_fits,
+        "empty_profiles": [name for name, (xs, _ys) in profiles.items() if not xs],
     }
 
     # --- coverage-ratio collapse ------------------------------------------
@@ -307,15 +337,22 @@ def analyse(
         "ogs_payload_sweep": [
             {
                 "multiplier": _num(r, "multiplier"),
-                "clipped_by_capacity": _num(r, "limited_oxygen_generation.ogs_capacity") or 0.0,
+                "clipped_by_capacity": _num_or(r, "limited_oxygen_generation.ogs_capacity", 0.0),
                 "survival_fraction": _num(r, "survival_fraction"),
             }
-            for r in sorted(payload_sweep, key=lambda r: _num(r, "multiplier") or 0.0)
+            for r in sorted(payload_sweep, key=lambda r: _num_or(r, "multiplier", 0.0))
         ],
     }
 
     # --- predictive law ----------------------------------------------------
-    findings["predictive"] = _predictive_models(surface)
+    crit_fits = findings["criticality"]["fits"]
+    findings["predictive"] = _predictive_models(
+        surface,
+        canonical_coverage={
+            "ARS": (crit_fits.get("ARS (CO2 removal)") or {}).get("x0"),
+            "OGS": (crit_fits.get("OGS (O2 generation)") or {}).get("x0"),
+        },
+    )
     return findings
 
 
@@ -357,10 +394,15 @@ def _ruggedness(
         total_steps += steps
         worst_drop = max(worst_drop, worst)
 
-    ars_axis = [
-        (_num(r, "multiplier") or 0.0, _num(r, "survival_fraction") or 0.0)
-        for r in oat_relieved if r.get("axis") == "ars_capacity_kg_day"
-    ]
+    ars_axis = []
+    for r in oat_relieved:
+        if r.get("axis") != "ars_capacity_kg_day":
+            continue
+        multiplier = _num(r, "multiplier")
+        survival = _num(r, "survival_fraction")
+        if multiplier is None or survival is None:
+            continue
+        ars_axis.append((multiplier, survival))
     ars_drops, ars_steps, ars_worst = descents(ars_axis) if ars_axis else (0, 0, 0.0)
 
     return {
@@ -401,7 +443,12 @@ MODEL_NOTES: Dict[str, str] = {
 MARGINAL_SLICE_LEVELS = 3
 
 
-def _predictive_models(surface: Sequence[Mapping[str, Any]], *, seed: int = 20260829) -> Dict[str, Any]:
+def _predictive_models(
+    surface: Sequence[Mapping[str, Any]],
+    *,
+    seed: int = 20260829,
+    canonical_coverage: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
     """Compare candidate laws for survival, fitted and scored out of sample.
 
     The comparison mirrors the structure used for collective-dynamics models: a
@@ -425,12 +472,12 @@ def _predictive_models(surface: Sequence[Mapping[str, Any]], *, seed: int = 2026
     if len(rows) < 12:
         return {"n": len(rows), "models": {}}
 
-    observed = np.array([_num(r, "survival_fraction") or 0.0 for r in rows])
-    rho_ars = np.array([_num(r, "rho_ars") or 0.0 for r in rows])
-    rho_ogs = np.array([_num(r, "rho_ogs") or 0.0 for r in rows])
+    observed = np.array([_num_or(r, "survival_fraction", 0.0) for r in rows])
+    rho_ars = np.array([_num_or(r, "rho_ars", 0.0) for r in rows])
+    rho_ogs = np.array([_num_or(r, "rho_ogs", 0.0) for r in rows])
 
-    nameplate_ars = np.array([_num(r, "ars") or 0.0 for r in rows])
-    nameplate_ogs = np.array([_num(r, "ogs") or 0.0 for r in rows])
+    nameplate_ars = np.array([_num_or(r, "ars", 0.0) for r in rows])
+    nameplate_ogs = np.array([_num_or(r, "ogs", 0.0) for r in rows])
 
     rng = np.random.default_rng(seed)
     order = rng.permutation(len(rows))
@@ -459,8 +506,17 @@ def _predictive_models(surface: Sequence[Mapping[str, Any]], *, seed: int = 2026
     # minimum names the wrong bottleneck wherever the numerically smaller
     # coverage is the one with the lower threshold. Dividing by the per-axis
     # critical coverage puts both on a common margin scale first.
-    star_ars = fit_ars.x0 if math.isfinite(fit_ars.x0) and fit_ars.x0 > 0 else 1.0
-    star_ogs = fit_ogs.x0 if math.isfinite(fit_ogs.x0) and fit_ogs.x0 > 0 else 1.0
+    train_star_ars = fit_ars.x0 if math.isfinite(fit_ars.x0) and fit_ars.x0 > 0 else 1.0
+    train_star_ogs = fit_ogs.x0 if math.isfinite(fit_ogs.x0) and fit_ogs.x0 > 0 else 1.0
+    canonical = canonical_coverage or {}
+    star_ars = canonical.get("ARS")
+    star_ogs = canonical.get("OGS")
+    if not isinstance(star_ars, (int, float)) or not math.isfinite(float(star_ars)) or float(star_ars) <= 0:
+        star_ars = train_star_ars
+    if not isinstance(star_ogs, (int, float)) or not math.isfinite(float(star_ogs)) or float(star_ogs) <= 0:
+        star_ogs = train_star_ogs
+    star_ars = float(star_ars)
+    star_ogs = float(star_ogs)
     margin = np.minimum(rho_ars / star_ars, rho_ogs / star_ogs)
     fit_margin = fit_logistic_response(margin[train], observed[train])
 
@@ -484,7 +540,7 @@ def _predictive_models(surface: Sequence[Mapping[str, Any]], *, seed: int = 2026
             "r_squared": r_squared(observed[test], pred[test]),
             "rmse": rmse(observed[test], pred[test]),
             "balanced_accuracy": balanced_accuracy(
-                list(truth[test]), list(pred[test] >= 0.5)
+                list(truth[test]), list(pred[test] >= 1.0)
             ),
             "r_squared_in_sample": r_squared(observed[train], pred[train]),
             "note": MODEL_NOTES[name],  # type: ignore[dict-item]
@@ -495,6 +551,7 @@ def _predictive_models(surface: Sequence[Mapping[str, Any]], *, seed: int = 2026
         "n_test": int(test.size),
         "models": models,
         "critical_coverage": {"ARS": star_ars, "OGS": star_ogs},
+        "train_split_critical_coverage": {"ARS": train_star_ars, "OGS": train_star_ogs},
         "marginal_slice_levels": MARGINAL_SLICE_LEVELS,
         "fits": {
             "ARS only": fit_ars.as_dict(),

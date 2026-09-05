@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from environment.ssos.eclss.plant_sim.stoichiometry import (
     CH4_PER_H2,
@@ -78,6 +78,19 @@ def _finite(value: Any) -> bool:
 
 def _number(value: Any) -> float:
     return float(value) if _finite(value) else 0.0
+
+
+def _required_floats(
+    mapping: Mapping[str, Any], keys: Sequence[str]
+) -> Optional[Dict[str, float]]:
+    """Return named finite floats, or None if any required term is missing."""
+    out: Dict[str, float] = {}
+    for key in keys:
+        value = mapping.get(key)
+        if not _finite(value):
+            return None
+        out[key] = float(value)
+    return out
 
 
 def _plant(row: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -220,59 +233,75 @@ def _ledger(name: str, inflow: Sequence[float], outflow: Sequence[float]) -> Dic
     return _check(name, PASSED, residual=residual, tolerance=LEDGER_TOLERANCE)
 
 
+def _ledger_or_skip(
+    name: str,
+    sources: Sequence[Tuple[Mapping[str, Any], str]],
+    *,
+    inflow_count: int,
+) -> Dict[str, Any]:
+    missing = [key for mapping, key in sources if not _finite(mapping.get(key))]
+    if missing:
+        return _check(name, SKIPPED, "missing ledger terms: " + ", ".join(missing))
+    values = [float(mapping[key]) for mapping, key in sources]
+    return _ledger(name, values[:inflow_count], values[inflow_count:])
+
+
 def _carbon_ledger(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     first, last = rows[0], rows[-1]
     opening, closing = _plant(first), _plant(last)
-    inflow = (
-        _number(first.get("co2_storage_kg")),
-        _number(opening.get("captured_co2_kg")),
-        _number(closing.get("total_co2_generated_kg")),
+    return _ledger_or_skip(
+        "carbon_ledger",
+        (
+            (first, "co2_storage_kg"),
+            (opening, "captured_co2_kg"),
+            (closing, "total_co2_generated_kg"),
+            (last, "co2_storage_kg"),
+            (closing, "captured_co2_kg"),
+            (closing, "total_co2_vented_kg"),
+            (closing, "total_co2_delivered_kg"),
+            (closing, "total_sabatier_co2_used_kg"),
+        ),
+        inflow_count=3,
     )
-    outflow = (
-        _number(last.get("co2_storage_kg")),
-        _number(closing.get("captured_co2_kg")),
-        _number(closing.get("total_co2_vented_kg")),
-        _number(closing.get("total_co2_delivered_kg")),
-        _number(closing.get("total_sabatier_co2_used_kg")),
-    )
-    return _ledger("carbon_ledger", inflow, outflow)
 
 
 def _oxygen_ledger(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     first, last = rows[0], rows[-1]
     closing = _plant(last)
-    inflow = (
-        _number(first.get("o2_storage_kg")),
-        _number(closing.get("total_o2_generated_kg")),
+    return _ledger_or_skip(
+        "oxygen_ledger",
+        (
+            (first, "o2_storage_kg"),
+            (closing, "total_o2_generated_kg"),
+            (last, "o2_storage_kg"),
+            (closing, "total_o2_consumed_kg"),
+            (closing, "total_o2_delivered_kg"),
+        ),
+        inflow_count=2,
     )
-    outflow = (
-        _number(last.get("o2_storage_kg")),
-        _number(closing.get("total_o2_consumed_kg")),
-        _number(closing.get("total_o2_delivered_kg")),
-    )
-    return _ledger("oxygen_ledger", inflow, outflow)
 
 
 def _water_ledger(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     first, last = rows[0], rows[-1]
     opening, closing = _plant(first), _plant(last)
-    inflow = (
-        _number(first.get("product_water_reserve_l")),
-        _number(opening.get("urine_buffer_l")),
-        _number(first.get("grey_water_collected_l")),
-        _number(closing.get("total_external_grey_water_submitted_l")),
-        _number(closing.get("total_water_regenerated_l")),
+    return _ledger_or_skip(
+        "water_ledger",
+        (
+            (first, "product_water_reserve_l"),
+            (opening, "urine_buffer_l"),
+            (first, "grey_water_collected_l"),
+            (closing, "total_external_grey_water_submitted_l"),
+            (closing, "total_water_regenerated_l"),
+            (last, "product_water_reserve_l"),
+            (closing, "urine_buffer_l"),
+            (last, "grey_water_collected_l"),
+            (closing, "total_unrecoverable_crew_water_l"),
+            (closing, "total_wrs_brine_loss_l"),
+            (closing, "total_electrolysis_water_kg"),
+            (closing, "total_product_water_delivered_l"),
+        ),
+        inflow_count=5,
     )
-    outflow = (
-        _number(last.get("product_water_reserve_l")),
-        _number(closing.get("urine_buffer_l")),
-        _number(last.get("grey_water_collected_l")),
-        _number(closing.get("total_unrecoverable_crew_water_l")),
-        _number(closing.get("total_wrs_brine_loss_l")),
-        _number(closing.get("total_electrolysis_water_kg")),
-        _number(closing.get("total_product_water_delivered_l")),
-    )
-    return _ledger("water_ledger", inflow, outflow)
 
 
 # --------------------------------------------------------------------------- #
@@ -358,32 +387,50 @@ def _failure_quiescence(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     return _check("failure_quiescence", PASSED, steps_observed=len(observed))
 
 
-def _capacity_limits(capacity: Mapping[str, Any]) -> Dict[str, float]:
+def _capacity_limits(capacity: Mapping[str, Any]) -> Optional[Dict[str, float]]:
+    needed = _required_floats(
+        capacity,
+        (
+            "ars_capacity_kg_day",
+            "ars_operation_seconds",
+            "ogs_max_o2_kg_day",
+            "ogs_operation_seconds",
+            "wrs_max_feed_l_per_operation",
+        ),
+    )
+    if needed is None:
+        return None
     return {
-        # The nameplate is a daily rate; one operation only gets its own window.
-        "ars_per_operation_kg": _number(capacity.get("ars_capacity_kg_day"))
-        * _number(capacity.get("ars_operation_seconds"))
-        / SECONDS_PER_DAY,
-        "ogs_per_operation_kg": _number(capacity.get("ogs_max_o2_kg_day"))
-        * _number(capacity.get("ogs_operation_seconds"))
-        / SECONDS_PER_DAY,
-        "wrs_per_operation_l": _number(capacity.get("wrs_max_feed_l_per_operation")),
+        "ars_per_operation_kg": (
+            needed["ars_capacity_kg_day"] * needed["ars_operation_seconds"] / SECONDS_PER_DAY
+        ),
+        "ogs_per_operation_kg": (
+            needed["ogs_max_o2_kg_day"] * needed["ogs_operation_seconds"] / SECONDS_PER_DAY
+        ),
+        "wrs_per_operation_l": needed["wrs_max_feed_l_per_operation"],
     }
 
 
 def _capacity_violation(
     subsystem: str, operation: Mapping[str, Any], limits: Mapping[str, float]
-) -> Optional[Dict[str, float]]:
+) -> Optional[Dict[str, Any]]:
     if subsystem == "ars":
-        # The goal scales the window: a larger goal buys proportionally more.
-        allowed = limits["ars_per_operation_kg"] * _number(operation.get("goal_scale"))
-        actual = _number(operation.get("co2_removed_kg"))
+        if not _finite(operation.get("goal_scale")) or not _finite(operation.get("co2_removed_kg")):
+            return {"missing": True}
+        allowed = limits["ars_per_operation_kg"] * float(operation["goal_scale"])
+        actual = float(operation["co2_removed_kg"])
     elif subsystem == "ogs":
+        if not _finite(operation.get("o2_generated_kg")):
+            return {"missing": True}
         allowed = limits["ogs_per_operation_kg"]
-        actual = _number(operation.get("o2_generated_kg"))
+        actual = float(operation["o2_generated_kg"])
     elif subsystem == "wrs":
+        urine = operation.get("urine_feed_l")
+        grey = operation.get("grey_feed_l")
+        if not _finite(urine) or not _finite(grey):
+            return {"missing": True}
         allowed = limits["wrs_per_operation_l"]
-        actual = _number(operation.get("urine_feed_l")) + _number(operation.get("grey_feed_l"))
+        actual = float(urine) + float(grey)
     else:
         return None
     if actual > allowed + CAPACITY_TOLERANCE:
@@ -402,12 +449,25 @@ def _capacity_bounds(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     for row in observed:
         plant = _plant(row)
         limits = _capacity_limits(plant.get("installed_capacity") or {})
+        if limits is None:
+            return _check(
+                "capacity_bounds",
+                SKIPPED,
+                "installed capacity snapshot is missing required terms",
+            )
         for operation in plant.get("operations_this_step") or []:
             operation = operation or {}
             subsystem = str(operation.get("subsystem") or "")
             breach = _capacity_violation(subsystem, operation, limits)
-            if breach is not None:
-                violations.append({"step": row.get("step"), "subsystem": subsystem, **breach})
+            if breach is None:
+                continue
+            if breach.get("missing"):
+                return _check(
+                    "capacity_bounds",
+                    SKIPPED,
+                    "an operation is missing required capacity terms",
+                )
+            violations.append({"step": row.get("step"), "subsystem": subsystem, **breach})
     if violations:
         return _check(
             "capacity_bounds",

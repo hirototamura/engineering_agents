@@ -209,6 +209,10 @@ def test_candidate_identity_ignores_key_order_and_float_noise():
     assert candidate_hash({ARS: 25.0, OGS: 40.0}) == candidate_hash({OGS: 40.0, ARS: 25.0})
     assert candidate_hash({ARS: 25.0}) == candidate_hash({ARS: 25.0000000001})
     assert candidate_hash({ARS: 25.0}) != candidate_hash({ARS: 25.5})
+    assert candidate_hash({ARS: 25.0}) != candidate_hash({ARS: 25.0, "extra": 1})
+    assert candidate_hash({ARS: "25"}) == candidate_hash({ARS: 25.0})
+    with pytest.raises(ValueError, match="finite number"):
+        candidate_hash({ARS: "not-a-number"})
 
 
 def test_unknown_fields_are_dropped_from_a_proposal():

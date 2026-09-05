@@ -11,8 +11,29 @@ STATUS_STANDING = "standing"
 STATUS_RETRACTED = "retracted"
 
 
+_RETRACTION_NOTES = (
+    "not adopted",
+    "withdrawn",
+    "[retracted]",
+    "this claim is retracted",
+)
+
+
 def _norm(value: Any) -> str:
     return str(value).strip()
+
+
+def _has_unnoted_occurrence(body: str, lowered: str, phrase: str) -> bool:
+    """True when any occurrence of *phrase* lacks a nearby retraction note."""
+    start = 0
+    while True:
+        index = body.find(phrase, start)
+        if index < 0:
+            return False
+        window = lowered[max(0, index - 80) : index + len(phrase) + 80]
+        if not any(token in window for token in _RETRACTION_NOTES):
+            return True
+        start = index + 1
 
 
 def claim_phrases(
@@ -106,12 +127,7 @@ class ClaimsRegistry:
             for phrase in claim.get("phrases") or []:
                 if not phrase or phrase not in body or phrase in standing_phrases:
                     continue
-                index = body.find(phrase)
-                window = lowered[max(0, index - 80) : index + len(phrase) + 80]
-                if any(
-                    token in window
-                    for token in ("not adopted", "withdrawn", "[retracted]", "this claim is retracted")
-                ):
+                if not _has_unnoted_occurrence(body, lowered, phrase):
                     continue
                 hits.append(
                     {

@@ -338,7 +338,8 @@ class SsosEclssLoopScenario(Scenario):
         actor = flatten_actor_config(agents_config)
         if actor.get("mode") not in {"labeled_rule_base", "llm"}:
             return None
-        backend_kind = resolve_backend_kind(config)
+        pinned = (config.get("backend") or {}).get("kind")
+        backend_kind = str(pinned) if pinned else resolve_backend_kind(config)
         merged_backend = dict(config.get("backend") or {})
         if isinstance(actor.get("backend"), dict):
             merged_backend.update(actor["backend"])
@@ -364,6 +365,7 @@ class SsosEclssLoopScenario(Scenario):
         design_history: Optional[List[Dict[str, Any]]] = None,
         on_step: Optional[Callable[[int, int], None]] = None,
         on_phase: Optional[Callable[[str], None]] = None,
+        force: bool = False,
     ) -> Path:
         # Load order (before any simulation step):
         # 1) scenario.yaml (+ CLI overrides)
@@ -371,12 +373,13 @@ class SsosEclssLoopScenario(Scenario):
         # 3) agents.yaml ⊕ scenario.agents, then labeled policy from thresholds
         config = self.load_config(overrides)
         applied_proposals_path: Optional[Path] = None
+        applied_proposals: Optional[Dict[str, Any]] = None
         if apply_proposals_path is not None:
             proposals = load_design_proposals(apply_proposals_path)
+            applied_proposals = copy.deepcopy(proposals)
             config = apply_design_proposals(
                 config, proposals, approve_provisional=approve_provisional
             )
-            applied_proposals_path = Path(apply_proposals_path)
         # Fail before the simulation, not after it: a design_constraints block
         # the ranking does not implement is a config error, and finding it in
         # the post-run designer would waste the whole run.
@@ -388,7 +391,12 @@ class SsosEclssLoopScenario(Scenario):
         backend_kind = resolve_backend_kind(config, overrides)
         bind_plant_sim_crew_and_team(config, agents_config, backend_kind)
         sim_cfg = config.get("simulation", {})
-        steps = int(sim_cfg.get("steps", 8))
+        try:
+            steps = int(sim_cfg.get("steps", 8))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"simulation.steps must be an integer, got {sim_cfg.get('steps')!r}"
+            ) from exc
         output_cfg = config.get("output", {})
         # Persist the resolved kind (CLI / SSOS_ECLSS_BACKEND may differ from YAML).
         backend_section = config.get("backend")
@@ -405,7 +413,12 @@ class SsosEclssLoopScenario(Scenario):
             run_id=run_id,
             results_root=results_root,
             recreate_output=recreate_output,
+            force=force,
         )
+        if applied_proposals is not None:
+            snapshot = run_dir / "consumed_proposals.json"
+            write_design_proposals(snapshot, applied_proposals)
+            applied_proposals_path = snapshot
         if design_history:
             (run_dir / "design_history.json").write_text(
                 json.dumps(design_history, ensure_ascii=False, indent=2) + "\n",

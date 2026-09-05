@@ -11,6 +11,8 @@ AXIS_ORDER = (
     "tcl",
     "environment_trajectory",
     "resource_recovery",
+    "cost",
+    "mass",
     "actor_decision",
     "physical_response",
 )
@@ -47,8 +49,8 @@ def render_evaluation_browser_html(
 
     run_ids = list(catalog.keys())
     preferred = default_run_id if default_run_id in catalog else (run_ids[-1] if run_ids else "")
-    payload_json = json.dumps(catalog, ensure_ascii=False)
-    axis_json = json.dumps(list(AXIS_ORDER), ensure_ascii=False)
+    payload_json = json.dumps(catalog, ensure_ascii=False).replace("<", "\\u003c")
+    axis_json = json.dumps(list(AXIS_ORDER), ensure_ascii=False).replace("<", "\\u003c")
     return f"""<!doctype html>
 <html lang="ja">
 <head>
@@ -239,18 +241,20 @@ def render_evaluation_browser_html(
 
   <section id="compare-summary" hidden></section>
   <section class="panels" id="panels"></section>
-  <p class="note">このファイルは results 直下の evaluation.html です。新規 run の評価書き出し時に自動更新されます。単一 run の詳細スナップショットは各 &lt;run_id&gt;/evaluation.html にも残ります。</p>
+  <p class="note">このファイルは run ディレクトリ内の evaluation_browser.html です。単一 run の詳細スナップショットは同じディレクトリの evaluation.html です。</p>
 </main>
 <script>
 const CATALOG = {payload_json};
 const AXIS_ORDER = {axis_json};
 const AXIS_META = {{
-  actor_survival: {{ short: "残存", css: "s-actor", points: 50 }},
+  actor_survival: {{ short: "残存", css: "s-actor", points: 20 }},
   tcl: {{ short: "A TCL", css: "s-a", points: 10 }},
   environment_trajectory: {{ short: "B 生存環境", css: "s-b", points: 10 }},
   resource_recovery: {{ short: "C 資源余裕", css: "s-c", points: 10 }},
-  actor_decision: {{ short: "D 判断", css: "s-d", points: 10 }},
-  physical_response: {{ short: "E 応答", css: "s-e", points: 10 }},
+  cost: {{ short: "コスト", css: "s-c", points: 20 }},
+  mass: {{ short: "質量", css: "s-e", points: 20 }},
+  actor_decision: {{ short: "D 判断", css: "s-d", points: 5 }},
+  physical_response: {{ short: "E 応答", css: "s-e", points: 5 }},
 }};
 const STATUS = {{
   scored: "採点済",
@@ -464,13 +468,21 @@ def write_evaluation_browser(
     results_root: Path,
     *,
     default_run_id: Optional[str] = None,
+    output_path: Optional[Path] = None,
 ) -> Path:
-    """Write ``evaluation.html`` under the results root for multi-run browsing."""
+    """Write a multi-run evaluation browser.
+
+    The catalog is read from ``results_root``. The HTML is written to
+    ``output_path`` when given; otherwise ``results_root/evaluation.html``.
+    Production runs write inside the run directory so a parent
+    ``evaluation.html`` is never clobbered.
+    """
 
     root = Path(results_root)
     root.mkdir(parents=True, exist_ok=True)
     catalog = discover_evaluation_payloads(root)
-    path = root / "evaluation.html"
+    path = Path(output_path) if output_path is not None else root / "evaluation.html"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         render_evaluation_browser_html(catalog, default_run_id=default_run_id),
         encoding="utf-8",

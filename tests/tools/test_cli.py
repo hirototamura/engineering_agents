@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
+from scenario.jobs.spec import RunResult
+from tools.cli import output
 from tools.cli.main import app
 
 runner = CliRunner()
@@ -182,6 +185,24 @@ def test_run_rejects_invalid_agents_mode_via_set():
     )
     assert result.exit_code == 2
     assert "Unsupported agents mode" in result.output
+
+
+def test_run_rejects_unknown_set_keys():
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            *NO_CHAIN,
+            "--backend",
+            "mock",
+            "--set",
+            "this.key.does.not.exist=1",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "Unknown --set key" in result.output
 
 
 def test_run_scrubber_default_agents_mode_from_scenario(tmp_path: Path):
@@ -533,6 +554,23 @@ def test_iterate_rejects_ros2_backend():
     )
     assert result.exit_code == 2
     assert "plant_sim" in result.output
+
+
+def test_quiet_failed_run_does_not_print_run_dir(monkeypatch: pytest.MonkeyPatch):
+    printed: list[object] = []
+    monkeypatch.setattr(output.console, "print", lambda *args, **_kwargs: printed.append(args))
+    output.print_run_result(RunResult(run_dir=Path("."), exit_code=1, error="boom"), quiet=True)
+    assert printed == []
+    output.print_run_result(RunResult(run_dir=Path("/tmp/run"), exit_code=0), quiet=True)
+    assert printed == [(str(Path("/tmp/run")),)]
+
+
+def test_iterate_names_env_backend_instead_of_got_none(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("SSOS_ECLSS_BACKEND", "ros2")
+    result = runner.invoke(app, ["run", "ssos_eclss_loop", "--iterate", "2", "--dry-run"])
+    assert result.exit_code == 2
+    assert "Got None" not in result.output
+    assert "ros2" in result.output
 
 
 def test_iterate_rejects_apply_proposals(tmp_path: Path):
@@ -930,6 +968,22 @@ def test_chain_exit_code_fails_on_run_or_incomplete_chain():
             "stopped_reason": "frozen requirements hash changed",
         }
     ) == exit_codes.RUN_FAILURE
+    assert chain_exit_code(
+        {
+            "iterations_requested": 3,
+            "iterations_completed": 3,
+            "runs": [{"exit_code": 0}, {"exit_code": 0}, {"exit_code": 0}],
+            "stopped_reason": "last iteration aborted after design",
+        }
+    ) == exit_codes.RUN_FAILURE
+    assert chain_exit_code(
+        {
+            "iterations_requested": 2,
+            "iterations_completed": 2,
+            "runs": [{"exit_code": 0}, {"exit_code": 0}],
+            "stopped_reason": "paired replay disabled; no improvement claim",
+        }
+    ) == exit_codes.SUCCESS
 
 
 def test_iterate_exits_nonzero_when_a_chained_run_fails(monkeypatch, tmp_path: Path):

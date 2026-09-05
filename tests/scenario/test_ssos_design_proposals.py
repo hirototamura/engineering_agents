@@ -22,6 +22,7 @@ def test_apply_action_profile_and_service_config():
         "design_domain": DESIGN_DOMAIN,
         "proposed_by": "op_1",
         "decision_source": "rule",
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "action_profile",
@@ -36,7 +37,10 @@ def test_apply_action_profile_and_service_config():
             },
             {
                 "change_kind": "set_parameter",
-                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1600.0},
+                "payload": {
+                    "target": "agents.actor.policy.co2_storage_high_kg",
+                    "value": 1600.0,
+                },
             },
         ],
     }
@@ -46,7 +50,9 @@ def test_apply_action_profile_and_service_config():
     assert merged["agents"]["policy"]["request_co2_amount"] == 30.0
     assert merged["agents"]["actor"]["policy"]["request_co2_amount"] == 30.0
     assert merged["agents"]["policy"]["request_co2_before_ogs"] is False
-    assert merged["thresholds"]["co2_storage_high_kg"] == 1600.0
+    assert merged["agents"]["policy"]["co2_storage_high_kg"] == 1600.0
+    assert merged["agents"]["actor"]["policy"]["co2_storage_high_kg"] == 1600.0
+    assert "co2_storage_high_kg" not in merged.get("thresholds", {})
     assert merged["agents"]["policy"]["ars_goal"]["initial_co2_mass"] == 1000.0
 
 
@@ -54,6 +60,7 @@ def test_apply_graph_rewire():
     config = {"agents": {"policy": {}}}
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "graph_rewire",
@@ -73,6 +80,7 @@ def test_apply_graph_rewire():
 def test_apply_graph_rewire_rejects_empty_payload():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [{"change_kind": "graph_rewire", "payload": {}}],
     }
     with pytest.raises(ValueError, match="non-empty"):
@@ -163,7 +171,7 @@ def test_build_design_proposals_fallback_without_goals_uses_threshold():
     assert all(c["change_kind"] == "set_parameter" for c in doc["changes"])
     values = {c["payload"]["target"]: c["payload"]["value"] for c in doc["changes"]}
     assert values["agents.actor.policy.co2_storage_high_kg"] == pytest.approx(1.35)
-    assert values["thresholds.co2_storage_high_kg"] == pytest.approx(1.35)
+    assert "thresholds.co2_storage_high_kg" not in values
 
 
 def test_build_design_proposals_defaults_before_ogs_false_when_absent():
@@ -237,7 +245,8 @@ def test_build_design_proposals_fallback_empty_policy_uses_default_threshold():
     )
     assert doc["changes"]
     assert any(
-        c["payload"]["target"] == "thresholds.co2_storage_high_kg" for c in doc["changes"]
+        c["payload"]["target"] == "agents.actor.policy.co2_storage_high_kg"
+        for c in doc["changes"]
     )
 
 
@@ -259,7 +268,9 @@ def test_round_trip_via_json_file(tmp_path):
     path = tmp_path / "design_proposals.json"
     write_design_proposals(path, proposals)
     loaded = json.loads(path.read_text(encoding="utf-8"))
-    merged = apply_design_proposals({"agents": {"policy": {}}}, loaded)
+    merged = apply_design_proposals(
+        {"agents": {"policy": {}}}, loaded, approve_provisional=True
+    )
     assert merged["agents"]["policy"]["ogs_goal"]["input_water_mass"] == pytest.approx(9.9)
     assert merged["agents"]["actor"]["policy"]["ogs_goal"]["input_water_mass"] == pytest.approx(9.9)
 
@@ -267,6 +278,7 @@ def test_round_trip_via_json_file(tmp_path):
 def test_apply_action_profile_rejects_unknown_fields():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "action_profile",
@@ -287,6 +299,7 @@ def test_apply_action_profile_rejects_unknown_fields():
 def test_apply_set_parameter_rejects_arbitrary_target():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "set_parameter",
@@ -301,6 +314,7 @@ def test_apply_set_parameter_rejects_arbitrary_target():
 def test_apply_set_parameter_canonical_target_dual_writes_legacy_alias():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "set_parameter",
@@ -328,6 +342,7 @@ def test_apply_without_legacy_policy_key_still_loads_actor_policy():
         config,
         {
             "design_domain": DESIGN_DOMAIN,
+            "final_status": "approved_final",
             "changes": [
                 {
                     "change_kind": "action_profile",
@@ -407,13 +422,13 @@ def test_a_single_flagged_change_blocks_the_whole_document():
         apply_design_proposals({}, document)
 
 
-def test_a_document_without_a_status_still_applies():
-    """Hand-written and scrubber-style documents carry no design status."""
-    merged = apply_design_proposals(
-        {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}},
-        _capacity_document(),
-    )
-    assert merged["plant_sim"]["ars"]["capacity_kg_day"] == 30.0
+def test_a_document_without_a_status_is_refused():
+    """C-3: missing final_status is unevaluated, not a silent apply."""
+    with pytest.raises(ValueError, match="unevaluated"):
+        apply_design_proposals(
+            {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}},
+            _capacity_document(),
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -502,6 +517,7 @@ def test_a_lone_candidate_has_nothing_to_be_decided_against():
 def _whole_or_partial(**fields):
     return {
         "design_domain": "ssos_graph",
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "capacity_profile",
