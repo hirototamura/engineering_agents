@@ -59,6 +59,23 @@ def test_sweep_ignores_phrases_shared_with_the_standing_claim(tmp_path: Path):
     assert hits == []
 
 
+def test_sweep_finds_a_later_unnoted_occurrence(tmp_path: Path):
+    registry = ClaimsRegistry(tmp_path / "claims.json")
+    registry.register(
+        agent_id="eclss_designer_1",
+        candidate_id="eclss_designer_1:candidate_001",
+        fields={"plant_sim.ars.capacity_kg_day": 10.0},
+    )
+    registry.retract_except("someone_else:candidate_001")
+    hits = registry.sweep_text(
+        "eclss_designer_1:candidate_001 was not adopted in the opening.\n"
+        + ("later text " * 20)
+        + "still ships eclss_designer_1:candidate_001."
+    )
+    assert hits
+    assert hits[0]["candidate_id"] == "eclss_designer_1:candidate_001"
+
+
 def test_claims_sweep_rewrites_naked_retracted_recommendation(tmp_path: Path):
     registry = ClaimsRegistry(tmp_path / "claims.json")
     registry.register(

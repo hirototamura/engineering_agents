@@ -99,6 +99,9 @@ def test_vllm_generate_returns_empty_on_error(monkeypatch):
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("down")),
     )
     assert client.generate("ping") == ""
+    result = client.generate_result("ping")
+    assert result.text == ""
+    assert "down" in result.error
 
 
 def test_vllm_8b_default_concurrency_covers_hundred_agents():

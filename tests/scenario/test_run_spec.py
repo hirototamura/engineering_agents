@@ -13,6 +13,13 @@ from scenario.jobs.spec import RunSpec
 from scenario.scrubber_degradation.scenario_run import SCENARIO_REGISTRY
 
 
+def test_write_json_creates_missing_parent(tmp_path: Path):
+    path = tmp_path / "nested" / "dir" / "job.json"
+    RunSpec(scenario="scrubber_degradation").write_json(path)
+    assert path.is_file()
+    assert RunSpec.read_json(path).scenario == "scrubber_degradation"
+
+
 def test_run_spec_json_roundtrip(tmp_path: Path):
     spec = RunSpec(
         scenario="scrubber_degradation",

@@ -7,13 +7,13 @@ import math
 import pytest
 
 from core.agents.base import Team
-from scenario.agents.eclss_loop_types import EclssLoopObservation
+from scenario.agents.eclss_loop_types import EclssLoopObservation, EclssOperationalCommand
 from scenario.agents.ssos_eclss_loop_team import (
     SsosEclssLoopTeam,
     _ceil_positive,
     interleave_labeled_actions,
 )
-from environment.ssos.eclss.types import ArsGoal, OgsGoal, EclssTelemetrySnapshot
+from environment.ssos.eclss.types import ActionResult, ArsGoal, EclssTelemetrySnapshot, OgsGoal
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
 
 
@@ -399,10 +399,26 @@ def test_llm_operational_parse_rejects_negative_amount():
     assert note is not None
 
 
-def test_apply_command_emits_rejected_on_failure():
-    from environment.ssos.eclss.types import ActionResult, ArsGoal
-    from scenario.agents.eclss_loop_types import EclssOperationalCommand
+def test_apply_command_rejects_unknown_goal_fields_without_raising():
+    class _Backend:
+        def send_air_revitalisation_goal(self, goal):
+            raise AssertionError(f"should not send {goal}")
 
+    team = SsosEclssLoopTeam(_team_config())
+    event = team._apply_command(
+        _Backend(),  # type: ignore[arg-type]
+        EclssOperationalCommand(
+            kind="air_revitalisation",
+            payload={"initial_co2_mass": 1.8, "initial_co2_mss": 9.9},
+            issued_by="op_1",
+        ),
+    )
+    assert event is not None
+    assert event["kind"] == "/eclss/events/operational_rejected"
+    assert "unknown goal fields" in event["message"]
+
+
+def test_apply_command_emits_rejected_on_failure():
     class _FailingBackend:
         def send_air_revitalisation_goal(self, goal: ArsGoal) -> ActionResult:
             return ActionResult(success=False, summary_message="ARS failed")

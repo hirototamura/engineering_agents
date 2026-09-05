@@ -101,15 +101,21 @@ def run_iterate_from_run(
     resolved_mode = run_cmd._resolved_display_mode(scenario_name, overrides)
     resolved_steps = (overrides or {}).get("simulation", {}).get("steps")
     resolved_config = load_scenario_config(scenario_name, overrides)
+    backend_kind = str(((overrides or {}).get("backend") or {}).get("kind"))
     extra_lines = {
         "iterate": str(iterations),
-        "backend": str(((overrides or {}).get("backend") or {}).get("kind")),
+        "backend": backend_kind,
         "inject_failures": str(resolve_inject_subsystem_failures(resolved_config)).lower(),
         "paired_replay": str(paired_replay).lower(),
         "approve_provisional": str(approve_provisional).lower(),
         "chain_dir": str(parent),
         "claim": "chained unified design (thresholds not auto-applied)",
     }
+    if backend_kind == "mock":
+        extra_lines["note"] = (
+            "mock cannot verify plant_sim capacity; the chain records designs "
+            "but will not produce a plant_sim improvement claim"
+        )
     if not quiet and not json_output:
         print_run_plan(
             scenario_name,
@@ -187,6 +193,12 @@ def _validate_iterate_backend(overrides: dict | None) -> None:
     kind = ((overrides or {}).get("backend") or {}).get("kind")
     if kind not in ALLOWED_ITERATE_BACKENDS:
         allowed = ", ".join(sorted(ALLOWED_ITERATE_BACKENDS))
+        if kind is None:
+            raise ValueError(
+                "--iterate needs --backend plant_sim or mock "
+                f"(one of: {allowed}). No backend kind was set; "
+                "pass --backend or set SSOS_ECLSS_BACKEND."
+            )
         raise ValueError(
             f"--iterate backend must be one of: {allowed}. Got {kind!r} "
             "(ros2 would bypass the host container path)."

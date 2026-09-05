@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
+from scenario.jobs.spec import RunResult
+from tools.cli import output
 from tools.cli.main import app
 
 runner = CliRunner()
@@ -551,6 +554,23 @@ def test_iterate_rejects_ros2_backend():
     )
     assert result.exit_code == 2
     assert "plant_sim" in result.output
+
+
+def test_quiet_failed_run_does_not_print_run_dir(monkeypatch: pytest.MonkeyPatch):
+    printed: list[object] = []
+    monkeypatch.setattr(output.console, "print", lambda *args, **_kwargs: printed.append(args))
+    output.print_run_result(RunResult(run_dir=Path("."), exit_code=1, error="boom"), quiet=True)
+    assert printed == []
+    output.print_run_result(RunResult(run_dir=Path("/tmp/run"), exit_code=0), quiet=True)
+    assert printed == [(str(Path("/tmp/run")),)]
+
+
+def test_iterate_names_env_backend_instead_of_got_none(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("SSOS_ECLSS_BACKEND", "ros2")
+    result = runner.invoke(app, ["run", "ssos_eclss_loop", "--iterate", "2", "--dry-run"])
+    assert result.exit_code == 2
+    assert "Got None" not in result.output
+    assert "ros2" in result.output
 
 
 def test_iterate_rejects_apply_proposals(tmp_path: Path):

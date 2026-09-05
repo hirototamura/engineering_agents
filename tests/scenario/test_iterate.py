@@ -182,6 +182,37 @@ def test_design_iterate_recreates_parent_directory(tmp_path: Path):
     assert (chain_dir / "01" / "summary.json").exists()
 
 
+def test_design_iterate_no_recreate_does_not_inherit_foreign_memory(tmp_path: Path):
+    chain_dir = tmp_path / "reuse"
+    chain_dir.mkdir()
+    (chain_dir / CHAIN_MEMORY_FILENAME).write_text(
+        json.dumps(
+            {
+                "schema_version": "foreign",
+                "exploration_directive": {
+                    "preferred_strategies": ["FOREIGN_CHAIN_SECRET"]
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    run_design_iterate(
+        iterations=1,
+        chain_dir=chain_dir,
+        base_spec=RunSpec(
+            scenario="ssos_eclss_loop",
+            approve_provisional=True,
+            overrides=_labeled_overrides(backend="mock", steps=2),
+        ),
+        recreate=False,
+        paired_replay=False,
+    )
+    note_path = chain_dir / CHAIN_MEMORY_FILENAME
+    if note_path.exists():
+        note = json.loads(note_path.read_text(encoding="utf-8"))
+        assert "FOREIGN_CHAIN_SECRET" not in json.dumps(note)
+
+
 def test_design_iterate_plant_sim_records_crew_remaining(tmp_path: Path):
     chain_dir = tmp_path / "plant-chain"
     summary = run_design_iterate(

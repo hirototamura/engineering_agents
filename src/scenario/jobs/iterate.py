@@ -16,6 +16,7 @@ from scenario.jobs.executor import execute_run
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunResult, RunSpec
 from scenario.ssos_eclss_loop.chain_memory import (
+    CHAIN_MEMORY_FILENAME,
     capacity_keys_in_document,
     record_measured_limits,
     update_compact_chain_memory,
@@ -524,6 +525,11 @@ def run_design_iterate(
         raise ValueError(f"iterate supports {ITERATE_SCENARIO} only, got {base_spec.scenario!r}")
 
     chain_dir = prepare_chain_dir(chain_dir, recreate=recreate)
+    leftover_memory = chain_dir / CHAIN_MEMORY_FILENAME
+    if leftover_memory.exists():
+        # --no-recreate keeps the directory but this invocation is still a
+        # new 1..N chain. Do not hand another chain's note to this designer.
+        leftover_memory.unlink()
     reporter = reporter or IterateReporter()
     steps = _sim_steps(base_spec)
     accumulated_history: List[Dict[str, Any]] = []

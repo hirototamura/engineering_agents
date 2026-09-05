@@ -78,6 +78,29 @@ def _num(row: Mapping[str, Any], key: str) -> Optional[float]:
     return float(value) if math.isfinite(float(value)) else None
 
 
+def _num_or(row: Mapping[str, Any], key: str, default: float) -> float:
+    value = _num(row, key)
+    return default if value is None else value
+
+
+def _row_matches_where(
+    row: Mapping[str, Any],
+    where: Optional[Mapping[str, Any]],
+) -> bool:
+    if not where:
+        return True
+    for key, expected in where.items():
+        left = _num(row, key)
+        right = _num({key: expected}, key) if not isinstance(expected, bool) else None
+        if left is not None and right is not None:
+            if left != right:
+                return False
+            continue
+        if row.get(key) != expected:
+            return False
+    return True
+
+
 def _profile(
     rows: Sequence[Mapping[str, Any]],
     x_key: str,
@@ -89,7 +112,7 @@ def _profile(
 
     grouped: Dict[float, List[float]] = {}
     for row in rows:
-        if where and any(row.get(k) != v for k, v in where.items()):
+        if not _row_matches_where(row, where):
             continue
         x, y = _num(row, x_key), _num(row, y_key)
         if x is None or y is None:
@@ -127,10 +150,11 @@ def analyse(
     for key in ("evaluation_score", "crew_remaining", "mean_normalized_severity"):
         values = [v for v in (_num(r, key) for r in seeds) if v is not None]
         spreads[key] = (max(values) - min(values)) if values else None
+    measured_spreads = [s for s in spreads.values() if s is not None]
     findings["determinism"] = {
         "n_seeds": len(seeds),
         "spreads": spreads,
-        "deterministic": all(s == 0.0 for s in spreads.values() if s is not None),
+        "deterministic": bool(measured_spreads) and all(s == 0.0 for s in measured_spreads),
     }
 
     # --- physics validity --------------------------------------------------
@@ -147,16 +171,16 @@ def analyse(
     }
 
     # --- response surface --------------------------------------------------
-    full = [r for r in surface if (_num(r, "survival_fraction") or 0.0) >= 1.0]
+    full = [r for r in surface if _num_or(r, "survival_fraction", 0.0) >= 1.0]
     budgets = budget_limits(config or {})
     within = [
         r for r in full
-        if (_num(r, "total_mass_kg") or math.inf) <= budgets.get("max_total_mass_kg", math.inf)
-        and (_num(r, "total_cost_musd") or math.inf) <= budgets.get("max_total_cost_musd", math.inf)
-        and (_num(r, "total_volume_m3") or math.inf) <= budgets.get("max_total_volume_m3", math.inf)
+        if _num_or(r, "total_mass_kg", math.inf) <= budgets.get("max_total_mass_kg", math.inf)
+        and _num_or(r, "total_cost_musd", math.inf) <= budgets.get("max_total_cost_musd", math.inf)
+        and _num_or(r, "total_volume_m3", math.inf) <= budgets.get("max_total_volume_m3", math.inf)
     ]
-    lightest = min(full, key=lambda r: _num(r, "total_mass_kg") or math.inf) if full else None
-    best = max(surface, key=lambda r: _num(r, "evaluation_score") or -math.inf) if surface else None
+    lightest = min(full, key=lambda r: _num_or(r, "total_mass_kg", math.inf)) if full else None
+    best = max(surface, key=lambda r: _num_or(r, "evaluation_score", -math.inf)) if surface else None
     findings["surface"] = {
         "n": len(surface),
         "n_full_survival": len(full),
@@ -176,18 +200,18 @@ def analyse(
             )
         } if best else None,
         "mass_overrun_ratio": (
-            (_num(lightest, "total_mass_kg") or math.nan) / budgets["max_total_mass_kg"]
+            _num_or(lightest, "total_mass_kg", math.nan) / budgets["max_total_mass_kg"]
             if lightest and budgets.get("max_total_mass_kg") else None
         ),
         "cost_overrun_ratio": (
-            (_num(lightest, "total_cost_musd") or math.nan) / budgets["max_total_cost_musd"]
+            _num_or(lightest, "total_cost_musd", math.nan) / budgets["max_total_cost_musd"]
             if lightest and budgets.get("max_total_cost_musd") else None
         ),
     }
 
     # --- criticality -------------------------------------------------------
-    max_ogs = max((_num(r, "ogs") or -math.inf) for r in surface) if surface else None
-    max_ars = max((_num(r, "ars") or -math.inf) for r in surface) if surface else None
+    max_ogs = max((_num_or(r, "ogs", -math.inf) for r in surface), default=None) if surface else None
+    max_ars = max((_num_or(r, "ars", -math.inf) for r in surface), default=None) if surface else None
     profiles: Dict[str, Tuple[List[float], List[float]]] = {}
     if surface:
         profiles["ARS (CO2 removal)"] = _profile(
@@ -211,6 +235,7 @@ def analyse(
     findings["criticality"] = {
         "profiles": {name: {"x": xs, "y": ys} for name, (xs, ys) in profiles.items()},
         "fits": published_fits,
+        "empty_profiles": [name for name, (xs, _ys) in profiles.items() if not xs],
     }
 
     # --- coverage-ratio collapse ------------------------------------------
@@ -312,10 +337,10 @@ def analyse(
         "ogs_payload_sweep": [
             {
                 "multiplier": _num(r, "multiplier"),
-                "clipped_by_capacity": _num(r, "limited_oxygen_generation.ogs_capacity") or 0.0,
+                "clipped_by_capacity": _num_or(r, "limited_oxygen_generation.ogs_capacity", 0.0),
                 "survival_fraction": _num(r, "survival_fraction"),
             }
-            for r in sorted(payload_sweep, key=lambda r: _num(r, "multiplier") or 0.0)
+            for r in sorted(payload_sweep, key=lambda r: _num_or(r, "multiplier", 0.0))
         ],
     }
 
@@ -369,10 +394,15 @@ def _ruggedness(
         total_steps += steps
         worst_drop = max(worst_drop, worst)
 
-    ars_axis = [
-        (_num(r, "multiplier") or 0.0, _num(r, "survival_fraction") or 0.0)
-        for r in oat_relieved if r.get("axis") == "ars_capacity_kg_day"
-    ]
+    ars_axis = []
+    for r in oat_relieved:
+        if r.get("axis") != "ars_capacity_kg_day":
+            continue
+        multiplier = _num(r, "multiplier")
+        survival = _num(r, "survival_fraction")
+        if multiplier is None or survival is None:
+            continue
+        ars_axis.append((multiplier, survival))
     ars_drops, ars_steps, ars_worst = descents(ars_axis) if ars_axis else (0, 0, 0.0)
 
     return {
@@ -442,12 +472,12 @@ def _predictive_models(
     if len(rows) < 12:
         return {"n": len(rows), "models": {}}
 
-    observed = np.array([_num(r, "survival_fraction") or 0.0 for r in rows])
-    rho_ars = np.array([_num(r, "rho_ars") or 0.0 for r in rows])
-    rho_ogs = np.array([_num(r, "rho_ogs") or 0.0 for r in rows])
+    observed = np.array([_num_or(r, "survival_fraction", 0.0) for r in rows])
+    rho_ars = np.array([_num_or(r, "rho_ars", 0.0) for r in rows])
+    rho_ogs = np.array([_num_or(r, "rho_ogs", 0.0) for r in rows])
 
-    nameplate_ars = np.array([_num(r, "ars") or 0.0 for r in rows])
-    nameplate_ogs = np.array([_num(r, "ogs") or 0.0 for r in rows])
+    nameplate_ars = np.array([_num_or(r, "ars", 0.0) for r in rows])
+    nameplate_ogs = np.array([_num_or(r, "ogs", 0.0) for r in rows])
 
     rng = np.random.default_rng(seed)
     order = rng.permutation(len(rows))

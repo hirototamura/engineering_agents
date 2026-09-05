@@ -132,7 +132,7 @@ def test_run_ssos_in_container_rejects_missing_apply_proposals(tmp_path: Path):
 def test_run_ssos_in_container_copies_apply_proposals(tmp_path: Path):
     proposals = tmp_path / "design_proposals.json"
     proposals.write_text('{"changes": []}', encoding="utf-8")
-    summary_dir = _HOST_RESULTS_MOUNT / "ssos_eclss_loop_labeled_rule_base"
+    summary_dir = tmp_path / "ssos_eclss_loop_labeled_rule_base"
     summary_dir.mkdir(parents=True, exist_ok=True)
     (summary_dir / "summary.json").write_text("{}", encoding="utf-8")
     spec = RunSpec(
@@ -178,7 +178,7 @@ def test_run_ssos_in_container_missing_summary_is_failure(tmp_path: Path):
 
 
 def test_run_ssos_in_container_invokes_host_script(tmp_path: Path):
-    summary_dir = _HOST_RESULTS_MOUNT / "ssos_eclss_loop_labeled_rule_base"
+    summary_dir = tmp_path / "ssos_eclss_loop_labeled_rule_base"
     summary_dir.mkdir(parents=True, exist_ok=True)
     (summary_dir / "summary.json").write_text(
         json.dumps({"scenario": "ssos_eclss_loop", "duration_wall_s": 12.5}),
@@ -201,7 +201,7 @@ def test_run_ssos_in_container_invokes_host_script(tmp_path: Path):
 
 
 def test_run_ssos_in_container_failure_ignores_stale_summary(tmp_path: Path):
-    summary_dir = _HOST_RESULTS_MOUNT / "ssos_eclss_loop_labeled_rule_base"
+    summary_dir = tmp_path / "ssos_eclss_loop_labeled_rule_base"
     summary_dir.mkdir(parents=True, exist_ok=True)
     (summary_dir / "summary.json").write_text(
         json.dumps({"final_co2_storage_kg": 1570.0}),

@@ -13,8 +13,9 @@ import shutil
 from pathlib import Path
 
 import pytest
+import matplotlib.pyplot as plt
 
-from tools.analysis import report
+from tools.analysis import figures, report
 from tools.analysis.loop_dynamics import ChainDynamics, IterationState
 
 SCENARIO = {
@@ -141,6 +142,60 @@ def test_determinism_is_not_claimed_when_seeds_disagree():
     data["seed_replicates"][0]["evaluation_score"] = 99.0
     findings = report.analyse(data, [chain()], config=SCENARIO)
     assert findings["determinism"]["deterministic"] is False
+
+
+def test_determinism_is_not_claimed_without_measured_spreads():
+    data = datasets()
+    data["seed_replicates"] = []
+    findings = report.analyse(data, [chain()], config=SCENARIO)
+    assert findings["determinism"]["n_seeds"] == 0
+    assert findings["determinism"]["deterministic"] is False
+
+
+def test_num_or_keeps_a_legitimate_zero():
+    assert report._num_or({"evaluation_score": 0.0}, "evaluation_score", -math.inf) == 0.0
+    assert report._num_or({}, "evaluation_score", -math.inf) == -math.inf
+
+
+def test_best_score_can_be_zero():
+    data = datasets()
+    for row in data["response_surface"]:
+        row["evaluation_score"] = -1.0
+    data["response_surface"][0]["evaluation_score"] = 0.0
+    findings = report.analyse(data, [chain()], config=SCENARIO)
+    assert findings["surface"]["best_score"]["evaluation_score"] == 0.0
+
+
+def test_missing_survival_is_not_a_full_crew_descent():
+    result = report._ruggedness(
+        [],
+        [
+            {"axis": "ars_capacity_kg_day", "multiplier": 1.0, "survival_fraction": 1.0},
+            {"axis": "ars_capacity_kg_day", "multiplier": 2.0},
+            {"axis": "ars_capacity_kg_day", "multiplier": 3.0, "survival_fraction": 0.76},
+        ],
+    )
+    assert result["ars_axis_worst_descent"] == pytest.approx(0.24)
+
+
+def test_criticality_profile_matches_int_and_float_capacity_labels():
+    assert report._row_matches_where({"ogs": 20}, {"ogs": 20.0}) is True
+    assert report._row_matches_where({"ogs": 19}, {"ogs": 20.0}) is False
+
+
+def test_mass_balance_figure_does_not_claim_zero_when_over_tolerance():
+    svg = figures.fig_mass_balance(
+        [{"residual_o2_kg": 1e-5, "residual_co2_kg": 0.0, "residual_water_l": 0.0}]
+    )
+    assert "machine zero" not in svg
+    assert "over" in svg
+
+
+def test_predictive_law_rejects_empty_models_without_leaking_a_figure():
+    before = len(plt.get_fignums())
+    with pytest.raises(ValueError, match="at least one model"):
+        figures.fig_predictive_law([0.0], {}, {})
+    assert len(plt.get_fignums()) == before
 
 
 def test_physics_gate_pass_count_is_reported():
