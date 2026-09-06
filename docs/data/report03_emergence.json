@@ -1,0 +1,408 @@
+{
+  "phase1": {
+    "label": "\u2460 \u8a18\u61b6\u306a\u3057",
+    "class_counts": {
+      "gas_oversize": 19,
+      "floor_lock": 13,
+      "baseline_revert": 12,
+      "wrs_trim": 1,
+      "wrs_restore": 1,
+      "gas_search": 3
+    },
+    "intent_counts": {
+      "other": 14,
+      "below_floor_avoid": 2,
+      "wrs_trim": 31,
+      "wrs_restore": 3
+    },
+    "unique_designs": 39,
+    "freeze_rounds": 0,
+    "full_survival": 34,
+    "zero_survival": 12,
+    "best_score": 66.175528,
+    "final_score": 55.410613,
+    "mean_score": 61.70686896,
+    "veto_rounds": 0,
+    "audit_decisions": {},
+    "final_answer": {
+      "status": "provisional_final",
+      "selected_candidate_id": "i23/candidate_001",
+      "iteration": 23,
+      "fields": {
+        "plant_sim.ars.capacity_kg_day": 20.8,
+        "plant_sim.ogs.max_o2_kg_day": 42.0,
+        "plant_sim.wrs.max_feed_l_per_operation": 1.8
+      },
+      "crew_remaining": 50,
+      "crew_initial": 50,
+      "reason": "smallest design that keeps 50/50 occupants alive is over_budget: no detail",
+      "requires_supervisor_approval": true,
+      "candidates_considered": 50,
+      "path": "/home/one-piece/hiroto/engineering_agents/src/experiments/results/ssos_eclss_loop_design_iter/chain_final_answer.json"
+    },
+    "most_common_config": [
+      [
+        [
+          20.8,
+          42.0,
+          1.5625
+        ],
+        8
+      ],
+      [
+        [
+          20.8,
+          42.0,
+          1.6
+        ],
+        2
+      ],
+      [
+        [
+          24.0,
+          48.0,
+          1.8
+        ],
+        2
+      ],
+      [
+        [
+          4.5,
+          9.25,
+          1.45
+        ],
+        2
+      ],
+      [
+        [
+          4.5,
+          9.25,
+          1.6
+        ],
+        2
+      ]
+    ],
+    "wrs_surviving_span": [
+      1.40625,
+      10.0
+    ],
+    "said_vs_did": {
+      "n": 49,
+      "agree": 1,
+      "rate": 0.02040816326530612
+    },
+    "lightest_full_survival": [
+      3709.3986486486483,
+      547.2467905405405,
+      20.8,
+      42.0,
+      1.6,
+      34
+    ]
+  },
+  "phase2": {
+    "label": "\u2461 \u8a18\u61b6",
+    "class_counts": {
+      "gas_oversize": 1,
+      "wrs_trim": 19,
+      "floor_lock": 1,
+      "freeze": 8,
+      "wrs_restore": 20
+    },
+    "intent_counts": {
+      "other": 1,
+      "below_floor_avoid": 6,
+      "wrs_trim": 15,
+      "floor_lock": 13,
+      "wrs_restore": 13,
+      "hold_current": 2
+    },
+    "unique_designs": 11,
+    "freeze_rounds": 8,
+    "full_survival": 49,
+    "zero_survival": 1,
+    "best_score": 66.362865,
+    "final_score": 66.362865,
+    "mean_score": 65.94463572,
+    "veto_rounds": 0,
+    "audit_decisions": {},
+    "final_answer": {
+      "status": "provisional_final",
+      "selected_candidate_id": "i32/candidate_001",
+      "iteration": 32,
+      "fields": {
+        "plant_sim.ars.capacity_kg_day": 20.8,
+        "plant_sim.ogs.max_o2_kg_day": 42.0,
+        "plant_sim.wrs.max_feed_l_per_operation": 2.1875
+      },
+      "crew_remaining": 50,
+      "crew_initial": 50,
+      "reason": "smallest design that keeps 50/50 occupants alive is over_budget: no detail",
+      "requires_supervisor_approval": true,
+      "candidates_considered": 50,
+      "path": "/home/one-piece/hiroto/engineering_agents/src/experiments/results/ssos_eclss_loop_design_iter/chain_final_answer.json"
+    },
+    "most_common_config": [
+      [
+        [
+          20.8,
+          42.0,
+          1.875
+        ],
+        17
+      ],
+      [
+        [
+          20.8,
+          42.0,
+          1.5625
+        ],
+        12
+      ],
+      [
+        [
+          20.8,
+          42.0,
+          2.1875
+        ],
+        11
+      ],
+      [
+        [
+          20.8,
+          42.0,
+          1.7188
+        ],
+        3
+      ],
+      [
+        [
+          4.5,
+          9.25,
+          10.0
+        ],
+        1
+      ]
+    ],
+    "wrs_surviving_span": [
+      1.5625,
+      10.0
+    ],
+    "said_vs_did": {
+      "n": 49,
+      "agree": 18,
+      "rate": 0.3673469387755102
+    },
+    "lightest_full_survival": [
+      4075.9307432432433,
+      602.8373207582583,
+      20.8,
+      42.0,
+      1.5625,
+      4
+    ]
+  },
+  "phase3": {
+    "label": "\u2462 \u8a18\u61b6+\u63a1\u70b9",
+    "class_counts": {
+      "floor_lock": 1,
+      "wrs_trim": 26,
+      "wrs_restore": 18,
+      "freeze": 4
+    },
+    "intent_counts": {
+      "floor_lock": 10,
+      "wrs_restore": 6,
+      "wrs_trim": 27,
+      "below_floor_avoid": 5,
+      "hold_current": 2
+    },
+    "unique_designs": 17,
+    "freeze_rounds": 4,
+    "full_survival": 48,
+    "zero_survival": 1,
+    "best_score": 84.233482,
+    "final_score": 84.080125,
+    "mean_score": 83.34438750000001,
+    "veto_rounds": 0,
+    "audit_decisions": {},
+    "final_answer": {
+      "status": "provisional_final",
+      "selected_candidate_id": "i40/candidate_001",
+      "iteration": 40,
+      "fields": {
+        "plant_sim.ars.capacity_kg_day": 20.8,
+        "plant_sim.ogs.max_o2_kg_day": 42.0,
+        "plant_sim.wrs.max_feed_l_per_operation": 2.1
+      },
+      "crew_remaining": 50,
+      "crew_initial": 50,
+      "reason": "smallest design that keeps 50/50 occupants alive is over_budget: no detail",
+      "requires_supervisor_approval": true,
+      "candidates_considered": 50,
+      "path": "/home/one-piece/hiroto/engineering_agents/src/experiments/results/ssos_eclss_loop_design_iter/chain_final_answer.json"
+    },
+    "most_common_config": [
+      [
+        [
+          20.8,
+          42.0,
+          1.5625
+        ],
+        9
+      ],
+      [
+        [
+          20.8,
+          42.0,
+          2.0
+        ],
+        7
+      ],
+      [
+        [
+          20.8,
+          42.0,
+          1.75
+        ],
+        6
+      ],
+      [
+        [
+          20.8,
+          42.0,
+          1.8
+        ],
+        5
+      ],
+      [
+        [
+          20.8,
+          42.0,
+          1.6
+        ],
+        5
+      ]
+    ],
+    "wrs_surviving_span": [
+      1.5625,
+      10.0
+    ],
+    "said_vs_did": {
+      "n": 49,
+      "agree": 21,
+      "rate": 0.42857142857142855
+    },
+    "lightest_full_survival": [
+      4064.9932432432433,
+      601.0795082582583,
+      20.8,
+      42.0,
+      1.5625,
+      33
+    ]
+  },
+  "phase4": {
+    "label": "\u2463 \u76e3\u67fb\u30d1\u30cd\u30eb",
+    "class_counts": {
+      "baseline_revert": 1,
+      "gas_oversize": 2,
+      "freeze": 41,
+      "wrs_trim": 1,
+      "gas_search": 2,
+      "floor_lock": 2
+    },
+    "intent_counts": {
+      "other": 1,
+      "wrs_trim": 45,
+      "floor_lock": 3,
+      "hold_current": 1
+    },
+    "unique_designs": 9,
+    "freeze_rounds": 41,
+    "full_survival": 48,
+    "zero_survival": 1,
+    "best_score": 84.029815,
+    "final_score": 84.029815,
+    "mean_score": 82.59043215999996,
+    "veto_rounds": 45,
+    "audit_decisions": {
+      "rederive_numbers:reject": 15,
+      "avoid_local_optima:reject": 44,
+      "design_validity:reject": 28,
+      "rederive_numbers:approve": 34,
+      "avoid_local_optima:approve": 5,
+      "design_validity:approve": 22,
+      "avoid_local_optima:fallback": 1,
+      "rederive_numbers:fallback": 1
+    },
+    "final_answer": {
+      "status": "provisional_final",
+      "selected_candidate_id": "i18/candidate_001",
+      "iteration": 18,
+      "fields": {
+        "plant_sim.ars.capacity_kg_day": 20.8,
+        "plant_sim.ogs.max_o2_kg_day": 42.0,
+        "plant_sim.wrs.max_feed_l_per_operation": 1.65
+      },
+      "crew_remaining": 50,
+      "crew_initial": 50,
+      "reason": "smallest design that keeps 50/50 occupants alive is over_budget: no detail",
+      "requires_supervisor_approval": true,
+      "candidates_considered": 50,
+      "path": "/Users/hiroto/dev/sigulab-ai-hackathon/engineering_agents/src/experiments/results/ssos_eclss_loop_design_iter/chain_final_answer.json"
+    },
+    "most_common_config": [
+      [
+        [
+          20.8,
+          42.0,
+          1.65
+        ],
+        34
+      ],
+      [
+        [
+          20.9,
+          42.1,
+          1.8
+        ],
+        4
+      ],
+      [
+        [
+          21.6,
+          43.5,
+          3.0
+        ],
+        3
+      ],
+      [
+        [
+          21.0,
+          42.2,
+          1.8
+        ],
+        3
+      ],
+      [
+        [
+          21.6,
+          43.5,
+          2.0
+        ],
+        2
+      ]
+    ],
+    "wrs_surviving_span": [
+      1.6,
+      10.0
+    ],
+    "said_vs_did": {
+      "n": 49,
+      "agree": 3,
+      "rate": 0.061224489795918366
+    },
+    "lightest_full_survival": null
+  }
+}

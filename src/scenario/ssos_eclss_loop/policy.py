@@ -18,7 +18,12 @@ def merge_labeled_policy_from_thresholds(
     agents_config: Dict[str, Any],
     thresholds: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Derive labeled_rule_base policy band keys from scenario verification thresholds."""
+    """Fill unlabeled policy band keys from verification thresholds.
+
+    Keys already present (for example after ``--apply-proposals``) are kept.
+    Overwriting them would discard the only remaining design lever once
+    ``thresholds.*`` left the apply allow-list.
+    """
     actor = agents_config.get("actor")
     design = agents_config.get("design")
     if isinstance(actor, dict) or isinstance(design, dict):
@@ -29,7 +34,7 @@ def merge_labeled_policy_from_thresholds(
         merged = copy.deepcopy(agents_config)
         policy = merged.setdefault("actor", {}).setdefault("policy", {})
         for key in THRESHOLD_POLICY_KEYS:
-            if key in thresholds:
+            if key in thresholds and key not in policy:
                 policy[key] = thresholds[key]
         return merged
 
@@ -39,6 +44,6 @@ def merge_labeled_policy_from_thresholds(
     merged = copy.deepcopy(agents_config)
     policy = merged.setdefault("policy", {})
     for key in THRESHOLD_POLICY_KEYS:
-        if key in thresholds:
+        if key in thresholds and key not in policy:
             policy[key] = thresholds[key]
     return merged
