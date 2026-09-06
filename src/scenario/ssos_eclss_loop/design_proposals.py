@@ -47,6 +47,8 @@ ACTION_PROFILE_FIELDS_BY_SUBSYSTEM = {
     "wrs": frozenset({"urine_volume"}),
 }
 
+# Verification thresholds (`thresholds.*`) are the scoring bar. They are not
+# a design lever: a proposal that rewrites them is moving the yardstick.
 ALLOWED_SET_PARAMETER_TARGETS = frozenset(
     {
         "agents.actor.policy.co2_storage_high_kg",
@@ -55,10 +57,6 @@ ALLOWED_SET_PARAMETER_TARGETS = frozenset(
         "agents.policy.co2_storage_high_kg",  # alias of agents.actor.policy.*
         "agents.policy.o2_storage_low_kg",
         "agents.policy.product_water_low_l",
-        "thresholds.co2_storage_high_kg",
-        "thresholds.co2_storage_critical_kg",
-        "thresholds.o2_storage_low_kg",
-        "thresholds.product_water_low_l",
     }
 )
 
@@ -388,22 +386,20 @@ def _append_threshold_bump(
     changes: List[Dict[str, Any]],
     *,
     target_policy: str,
-    target_thresholds: str,
     value: float,
     why: str,
     what: str,
     how: str,
 ) -> None:
-    for target in (target_policy, target_thresholds):
-        changes.append(
-            {
-                "change_kind": "set_parameter",
-                "payload": {"target": target, "value": value},
-                "why": why,
-                "what": what,
-                "how": how,
-            }
-        )
+    changes.append(
+        {
+            "change_kind": "set_parameter",
+            "payload": {"target": target_policy, "value": value},
+            "why": why,
+            "what": what,
+            "how": how,
+        }
+    )
 
 
 def _annotate_change(
@@ -526,7 +522,6 @@ def build_design_proposals_from_run(
             _append_threshold_bump(
                 changes,
                 target_policy="agents.actor.policy.co2_storage_high_kg",
-                target_thresholds="thresholds.co2_storage_high_kg",
                 value=proposed_high,
                 why=co2_why,
                 what="Lower CO2 warning threshold to align policy with observed stress.",
@@ -627,7 +622,6 @@ def build_design_proposals_from_run(
                 _append_threshold_bump(
                     changes,
                     target_policy="agents.actor.policy.co2_storage_high_kg",
-                    target_thresholds="thresholds.co2_storage_high_kg",
                     value=proposed_high,
                     why="No stressed branch matched; fallback CO2 threshold adjustment.",
                     what="Lower CO2 warning threshold for next run.",
@@ -639,7 +633,6 @@ def build_design_proposals_from_run(
                     _append_threshold_bump(
                         changes,
                         target_policy="agents.actor.policy.o2_storage_low_kg",
-                        target_thresholds="thresholds.o2_storage_low_kg",
                         value=proposed_low,
                         why="No stressed branch matched; fallback O2 threshold adjustment.",
                         what="Raise O2 low threshold for next run.",

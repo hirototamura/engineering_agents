@@ -62,6 +62,7 @@ CHECK_NAMES = (
     "stoichiometric_residual",
     "failure_quiescence",
     "capacity_bounds",
+    "operational_physical_bounds",
 )
 
 
@@ -418,11 +419,116 @@ def _capacity_bounds(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     return _check("capacity_bounds", PASSED, steps_observed=len(observed))
 
 
+def _operational_physical_bounds(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    """Sign and finiteness of processed amounts — the scorecard gate's
+    ``operational_physical_bounds`` check, read from telemetry operations
+    rather than events so this gate stays independently auditable.
+    """
+    observed = _operation_rows(rows)
+    if not observed:
+        return _check(
+            "operational_physical_bounds",
+            SKIPPED,
+            "telemetry carries no per-step operation record",
+        )
+
+    violations: List[Dict[str, Any]] = []
+    for row in observed:
+        for operation in _plant(row).get("operations_this_step") or []:
+            operation = operation or {}
+            subsystem = str(operation.get("subsystem") or "")
+            fields: tuple[str, ...]
+            if subsystem == "ars":
+                fields = ("co2_removed_kg",)
+            elif subsystem == "ogs":
+                fields = ("processed_water_kg", "o2_generated_kg")
+            elif subsystem == "wrs":
+                fields = ("recovered_water_l",)
+            else:
+                continue
+            for field in fields:
+                value = operation.get(field)
+                if value is None:
+                    continue
+                if not _finite(value) or float(value) < -INVENTORY_TOLERANCE:
+                    violations.append(
+                        {
+                            "step": row.get("step"),
+                            "subsystem": subsystem,
+                            "field": field,
+                            "value": value,
+                        }
+                    )
+    if violations:
+        return _check(
+            "operational_physical_bounds",
+            FAILED,
+            "an operation reported a non-finite or negative processed amount",
+            samples=violations[:10],
+        )
+    return _check("operational_physical_bounds", PASSED, steps_observed=len(observed))
+
+
+def _check_failed(check: Mapping[str, Any]) -> bool:
+    if "status" in check:
+        return check["status"] == FAILED
+    return check.get("passed") is False
+
+
+def _check_skipped(check: Mapping[str, Any]) -> bool:
+    if check.get("status") == SKIPPED:
+        return True
+    return "status" not in check and check.get("passed") is None
+
+
+def merge_physics_gates(
+    scorecard: Mapping[str, Any], telemetry: Mapping[str, Any]
+) -> Dict[str, Any]:
+    """Publish the telemetry audit without dropping the scorecard checks.
+
+    A same-name port (for example ``operational_physical_bounds``) is not a
+    replacement: the scorecard formula still compares event details the
+    telemetry-only check cannot see. Both copies stay on the published gate.
+    """
+    telemetry_checks = [dict(check) for check in (telemetry.get("checks") or [])]
+    scorecard_checks = [dict(check) for check in (scorecard.get("checks") or [])]
+    checks = telemetry_checks + scorecard_checks
+    failed = [str(check.get("name")) for check in checks if _check_failed(check)]
+    skipped = [str(check.get("name")) for check in checks if _check_skipped(check)]
+    if failed:
+        status = FAILED
+    elif skipped:
+        status = INCOMPLETE
+    elif checks:
+        status = PASSED
+    else:
+        status = INCOMPLETE
+    return {
+        "status": status,
+        "passed": status == PASSED,
+        "checks": checks,
+        "failed": failed,
+        "skipped": skipped,
+        "scorecard_checks_kept": [str(check.get("name")) for check in scorecard_checks],
+    }
+
+
+def physics_gate_index(backend: str, evaluation_status: str, gate: Mapping[str, Any]) -> Optional[bool]:
+    """``True``/``False`` only when the gate ran on a physics-bearing run.
+
+    Mock / ros2 / evaluation-disabled runs never execute the audit. Reporting
+    ``false`` there would collapse "not run" into "failed".
+    """
+    if backend != "plant_sim" or evaluation_status == "not_applicable":
+        return None
+    return bool(gate.get("passed"))
+
+
 # --------------------------------------------------------------------------- #
 # entry point
 # --------------------------------------------------------------------------- #
 def evaluate_physics(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
-    """Run the nine checks over telemetry rows and fold them into one status."""
+    """Run the checks over telemetry rows and fold them into one status."""
     if not rows:
         checks = [_check(name, SKIPPED, "no telemetry rows") for name in CHECK_NAMES]
     else:
@@ -436,6 +542,7 @@ def evaluate_physics(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
             _stoichiometric_residual(rows),
             _failure_quiescence(rows),
             _capacity_bounds(rows),
+            _operational_physical_bounds(rows),
         ]
 
     statuses = [check["status"] for check in checks]
@@ -467,6 +574,8 @@ __all__ = [
     "PASSED",
     "SKIPPED",
     "evaluate_physics",
+    "merge_physics_gates",
+    "physics_gate_index",
     "read_telemetry",
     "run_physics_gate",
 ]
