@@ -62,24 +62,28 @@ ea job run /tmp/job.json
 | `--actor-mode` | `ssos_eclss_loop` in-sim actors: `none`, `labeled_rule_base`, or `llm` |
 | `--design-mode` | `ssos_eclss_loop` post-run designers: `none`, `labeled_rule_base`, or `llm` (omit to inherit actor mode) |
 | `--llm-provider` | `ollama` (local) or `vllm` (lab GPU server). Applied to whichever side is `llm` |
-| `--llm-model` | Override LLM model; on ssos writes both `agents.actor.llm.model` and `agents.design.llm.model`. Distinct URLs: `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` |
+| `--llm-model` | Override LLM model; on ssos writes both `agents.actor.llm.model` and `agents.design.llm.model`. `VLLM_BASE_URL` / `VLLM_MODEL` stamp every vLLM client. Distinct URLs: `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` |
 | `--steps` | Override `simulation.steps` |
-| `--run-id` | Override output run id when using the default results root |
+| `--run-id` | Override output run id when using the default results root. **Reusing an id deletes the previous directory** (`EventLog.prepare_run_dir`) unless `--no-recreate` |
 | `--output-dir` | Write directly to a directory path |
 | `--results-root` | Override `src/experiments/results` (also `EA_RESULTS_ROOT`) |
 | `--set KEY=VALUE` | Dot-notation deep override |
 | `--override-file` | YAML/JSON patch merged into scenario config |
 | `--backend` | `mock`, `plant_sim`, or `ros2` (`ssos_eclss_loop` only) |
 | `--inject-failures` / `--no-inject-failures` | Apply the `ssos_eclss_loop` `subsystem_failures` schedule (default: off) |
-| `--apply-proposals` | Apply prior `design_proposals.json` (`ssos_eclss_loop`) |
+| `--apply-proposals` | Apply prior `design_proposals.json` (`ssos_eclss_loop` only; use a new `--run-id`) |
 | `--seed` | Record a seed in `summary.json` for future sweeps |
-| `--no-recreate` | Keep an existing output directory |
+| `--no-recreate` | Keep an existing output directory (default is to recreate / wipe the run id) |
 | `--dry-run` | Resolve the plan without executing |
 | `--write-spec` | Write the resolved `RunSpec` JSON |
 | `--json` | Machine-readable result on stdout |
 | `--quiet` | Print only the output path |
 
 On `ssos_eclss_loop`, in-sim actors and post-run designers are separate. See [post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md). `--agents-mode` is a deprecated alias for `--actor-mode`.
+
+## Run-directory pitfall
+
+Default run ids such as `ssos_eclss_loop_labeled_rule_base` are **wiped and recreated** on each `ea run`. For the design→verification loop, pass distinct `--run-id` values, then `--apply-proposals` on the second run. Full example: [ssos_eclss_loop — How to run](scenario-ssos-eclss-loop.md#how-to-run).
 
 ## Exit codes
 

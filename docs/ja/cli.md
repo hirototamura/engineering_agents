@@ -57,6 +57,10 @@ ea job run /tmp/job.json
 
 `ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。
 
+## run ディレクトリの落とし穴
+
+`ssos_eclss_loop_labeled_rule_base` などの既定 run id は、毎回 `ea run` で **削除して作り直される**。設計→検証ループでは `--run-id` を分け、2 本目で `--apply-proposals` する。手順: [ssos_eclss_loop — 実行方法](scenario-ssos-eclss-loop.md#実行方法)。
+
 ## 結果の確認
 
 ```bash

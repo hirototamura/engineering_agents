@@ -27,6 +27,6 @@ SSOS / scrubber バックエンドのドキュメントを更新するときは�
 ## 参照
 
 - [ドキュメント索引](catalog.md) — メインナビ外の memo も含む全ページ一覧
-- [SSOS ECLSS 接合プラン](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)
+- [Plant Sim backend 解説](memo/ssos_eclss_loop/plant_sim_backend.md)
 - [事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)
 - [SSOS ロードマップ](ssos/roadmap.md)
