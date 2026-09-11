@@ -5,7 +5,7 @@ Run your first simulation in a few minutes. Engineering Agents simulates how an 
 !!! tip "What you need"
     - **Python 3.11+** and **Git** on every platform
     - **Docker** only for `ssos_eclss_loop` with `--backend ros2` (live SSOS plant)
-    - **Ollama** or lab **vLLM** only for `--agents-mode llm`
+    - **Ollama** or lab **vLLM** only for `--agents-mode llm` (scrubber) or `--actor-mode llm` / `--design-mode llm` (`ssos_eclss_loop`)
 
 ---
 
@@ -102,7 +102,7 @@ python3 -m tools.cli run scrubber_degradation --agents-mode labeled_rule_base --
 ```
 
 !!! tip "Design → verification loop"
-    Run N issues `design_proposals.json`. Run N+1 with `--apply-proposals` merges config and re-simulates — see [ssos_eclss_loop scenario](scenario-ssos-eclss-loop.md#how-to-run).
+    Run N issues `design_proposals.json`. Run N+1 with `--apply-proposals` and a **different `--run-id`** merges config and re-simulates — see [ssos_eclss_loop scenario](scenario-ssos-eclss-loop.md#how-to-run). Reusing the default run id deletes run N.
 
 ### Mock SSOS scenario (no Docker)
 
@@ -130,7 +130,7 @@ Details: [SSOS Docker setup](ssos/quickstart.md) · Full CLI reference: [CLI gui
 | Scenario | What it simulates | Backend | Typical command |
 | --- | --- | --- | --- |
 | [scrubber_degradation](scenario-scrubber-degradation.md) | CO₂ scrubber anomaly on a Python mock plant | `StationSimulator` | `ea run scrubber_degradation --agents-mode labeled_rule_base` |
-| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | Agent team operating SSOS ECLSS (ARS/OGS/WRS) | `mock` or `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base` |
+| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | Agent team operating SSOS ECLSS (ARS/OGS/WRS) | `mock`, `plant_sim`, or `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base` |
 
 Both scenarios share the same agent pattern: **`none`**, **`labeled_rule_base`** (reproducible regression), or **`llm`** (Ollama or lab vLLM).
 

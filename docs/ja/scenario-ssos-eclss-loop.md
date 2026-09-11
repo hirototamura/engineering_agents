@@ -110,7 +110,7 @@ step は 0-based（`0 .. steps-1`）。actor `eclss_actor_{step % N}` が運用�
 | ファイル | 用途 |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | step 数、初期ストレージ、backend 種別、閾値、`agents.actor.mode` / `agents.design.mode`、run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | actor チーム（`eclss_actor_*`）、designer チーム（`eclss_designer_*`）、actor `policy`（labeled のみ）、いまは両側とも vLLM `qwen3-8b` |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | actor チーム（`eclss_actor_*`）、designer チーム（`eclss_designer_*`）、actor `policy`（labeled のみ）、vLLM は独立（actor `qwen3.5-9b` `:8000`、designer `qwen3.8-27b-uncensored` `:8001`） |
 
 ### scenario.yaml（主要項目）
 
@@ -192,7 +192,9 @@ actor:
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b  # いまの既定。後で変える
+    model: qwen3.5-9b
+    max_tokens: 768
+    think: false
 
 design:
   team:
@@ -200,9 +202,10 @@ design:
     id_prefix: eclss_designer
   llm:
     provider: vllm
-    base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b
-    max_tokens: 2048
+    base_url: http://10.10.0.108:8001/v1
+    model: qwen3.8-27b-uncensored
+    max_tokens: 16384
+    think: true
 ```
 
 ---
@@ -303,10 +306,19 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend plant_sim --actor-mode
 
 `--apply-proposals` は **シミュレーション開始前**に、ディスク上の `scenario.yaml` / `agents.yaml` を書き換えず、**メモリ上にロードした設定へマージ**する。適用後の実効設定は結果ディレクトリの `scenario_config.yaml` / `agents_config.yaml` に出力される。
 
+**`--run-id` は run ごとに別にする。** `EventLog.prepare_run_dir` は同じ id の既存ディレクトリを削除する（`--no-recreate` 以外）。YAML 既定の `ssos_eclss_loop_labeled_rule_base` を N+1 でも使うと、比較前に N の `design_proposals.json` が消える。
+
+この閉ループは **`ssos_eclss_loop` のみ**実装済み。`scrubber_degradation` も `design_proposals.json` は出すが、次 run への再投入は未実装（ダッシュボード Before/After はプレビュー）。
+
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \
-  --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 20 \
+  --run-id loop-run1
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 5 \
+  --run-id loop-run2 \
+  --apply-proposals src/experiments/results/loop-run1/design_proposals.json
 ```
+
+run 1 の `design_domain: ssos_graph` と非空の `changes` を確認する。run 2 の `summary.json` / `telemetry.jsonl` はマージ後設定を反映し、run 1 成果物は残る。
 
 ### graph_rewire E2E スモーク
 

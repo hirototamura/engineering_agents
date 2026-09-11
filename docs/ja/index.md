@@ -5,7 +5,7 @@
 !!! tip "必要なもの"
     - 全プラットフォームで **Python 3.11+** と **Git**
     - `ssos_eclss_loop` の `--backend ros2`（実 SSOS プラント）のみ **Docker**
-    - `--agents-mode llm` のみ **Ollama** または研究室 **vLLM**
+    - `--agents-mode llm`（scrubber）または `--actor-mode llm` / `--design-mode llm`（`ssos_eclss_loop`）のみ **Ollama** または研究室 **vLLM**
 
 ---
 
@@ -102,7 +102,7 @@ python3 -m tools.cli run scrubber_degradation --agents-mode labeled_rule_base --
 ```
 
 !!! tip "設計 → 検証ループ"
-    Run N で `design_proposals.json` が発行されます。Run N+1 を `--apply-proposals` 付きで実行すると設定がマージされ再シミュレーション — [ssos_eclss_loop シナリオ](scenario-ssos-eclss-loop.md#実行方法) を参照。
+    Run N で `design_proposals.json` が発行されます。Run N+1 は **別の `--run-id`** と `--apply-proposals` でマージして再シミュレーション — [ssos_eclss_loop シナリオ](scenario-ssos-eclss-loop.md#実行方法) を参照。既定の run id を再利用すると Run N が消えます。
 
 ### Mock SSOS シナリオ（Docker 不要）
 
@@ -130,7 +130,7 @@ ea results
 | シナリオ | 内容 | バックエンド | 典型コマンド |
 | --- | --- | --- | --- |
 | [scrubber_degradation](scenario-scrubber-degradation.md) | Python モック上の CO₂ スクラバー異常 | `StationSimulator` | `ea run scrubber_degradation --agents-mode labeled_rule_base` |
-| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | SSOS ECLSS（ARS/OGS/WRS）のエージェント運用 | `mock` / `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base` |
+| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | SSOS ECLSS（ARS/OGS/WRS）のエージェント運用 | `mock` / `plant_sim` / `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base` |
 
 両シナリオでエージェントモードは共通: **`none`** / **`labeled_rule_base`**（再現性の高い回帰）/ **`llm`**（Ollama または研究室 vLLM）。
 

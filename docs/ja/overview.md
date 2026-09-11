@@ -353,16 +353,20 @@ ollama list
 
 研究室マシン `gpu-sv-008`（`10.10.0.108`）が OpenAI 互換 API を公開しています。研究室 LAN または VPN から到達できます（公開アドレスではありません）。そのマシンで別の `vllm serve` を立てないこと。セットアップ: [hirototamura/vllm_server](https://github.com/hirototamura/vllm_server)。
 
-| 用途 | URL | `model` |
+| 用途 | URL | 典型 `model` |
 | --- | --- | --- |
-| 日常の議論（既定） | `http://10.10.0.108:8000/v1` | `qwen3-8b` |
-| 重い判断 | `http://10.10.0.108:8001/v1` | `qwen3-32b` |
+| ssos actor（YAML 既定） | `http://10.10.0.108:8000/v1` | `qwen3.5-9b` |
+| ssos designer（YAML 既定） | `http://10.10.0.108:8001/v1` | `qwen3.8-27b-uncensored` |
+| クライアント fallback | 同上 | YAML/env が Ollama タグ（名前に `:`）だと `VllmClient` の `DEFAULT_MODEL` は `qwen3-8b` |
+
+`think: true`（designer）は completion のうち `max(2048, max_tokens/4)` を最終回答用に残す（`src/core/llm/vllm.py`）。
 
 ```bash
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
-ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3-32b \
-  --set agents.llm.base_url=http://10.10.0.108:8001/v1
+ea run ssos_eclss_loop --backend mock --actor-mode llm --design-mode llm --llm-provider vllm
 ```
+
+ssos で `--llm-model` は **両側**の `agents.actor.llm.model` と `agents.design.llm.model` を上書きする。`VLLM_BASE_URL` / `VLLM_MODEL` は全 vLLM クライアントに効き、分離を潰す。エンドポイントを分けるなら `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=`。
 
 環境変数: `VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT`、`LLM_PROVIDER`。SSH トンネル例: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`。`agents.llm.api_timeout` は Ollama 用。vLLM は既定 300s（`VLLM_API_TIMEOUT` で上書き）。
 

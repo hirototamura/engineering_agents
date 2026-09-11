@@ -632,7 +632,7 @@ After the run, one designer representative emits `changes` with no count cap.
 
 | Unique fields | Content |
 | --- | --- |
-| `summary.backend` | `mock` / `ros2` |
+| `summary.backend` | `mock` / `plant_sim` / `ros2` |
 | `summary.operational_command_count` | operational command count |
 | `summary.max_actions_per_step` | llm: action representatives per step |
 | `events.jsonl` | `operational_applied` |
@@ -659,7 +659,7 @@ Connection details: [memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](me
 | SSOS EPS (scrubber power) | scrubber | ✅ `environment/ssos/eps/ros2/` — `Ros2EpsBridge` (optional via `eps.backend: ros2`) |
 | SSOS EPS (eclss loop) | ssos | — not wired; `ssos/eps/ros2/` is separate from eclss loop |
 | Ollama | both | ✅ container uses `host.docker.internal` |
-| Lab vLLM | both | ✅ `http://10.10.0.108:8000/v1` (`qwen3-8b`); LAN or VPN |
+| Lab vLLM | both | ✅ `http://10.10.0.108:8000/v1` (`qwen3.5-9b` actors) and `:8001/v1` (`qwen3.8-27b-uncensored` designers); LAN or VPN |
 | One Piece Web UI | — | out of scope |
 
 ---

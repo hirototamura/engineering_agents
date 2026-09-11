@@ -358,16 +358,20 @@ Container `ea-loop` defaults to `OLLAMA_BASE_URL=host.docker.internal`.
 
 The lab box `gpu-sv-008` (`10.10.0.108`) serves OpenAI-compatible APIs. Reachable on the lab LAN or via VPN — not a public address. Do not start another `vllm serve` on that machine. Setup: [hirototamura/vllm_server](https://github.com/hirototamura/vllm_server).
 
-| Use | URL | `model` |
+| Use | URL | Typical `model` |
 | --- | --- | --- |
-| Daily deliberation (default) | `http://10.10.0.108:8000/v1` | `qwen3-8b` |
-| Heavier judgment | `http://10.10.0.108:8001/v1` | `qwen3-32b` |
+| ssos actors (YAML default) | `http://10.10.0.108:8000/v1` | `qwen3.5-9b` |
+| ssos designers (YAML default) | `http://10.10.0.108:8001/v1` | `qwen3.8-27b-uncensored` |
+| Client fallback | same hosts | `VllmClient` `DEFAULT_MODEL` is `qwen3-8b` when the YAML/env id looks like an Ollama tag (`:` in the name) |
+
+`think: true` (designers) reserves `max(2048, max_tokens/4)` of the completion budget for the final answer (`src/core/llm/vllm.py`).
 
 ```bash
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
-ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3-32b \
-  --set agents.llm.base_url=http://10.10.0.108:8001/v1
+ea run ssos_eclss_loop --backend mock --actor-mode llm --design-mode llm --llm-provider vllm
 ```
+
+`--llm-model` on ssos writes **both** `agents.actor.llm.model` and `agents.design.llm.model`. `VLLM_BASE_URL` / `VLLM_MODEL` stamp every vLLM client and collapse that split. Keep distinct endpoints with `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=`.
 
 Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. `agents.llm.api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set.
 

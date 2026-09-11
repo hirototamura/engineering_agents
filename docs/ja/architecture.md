@@ -650,7 +650,7 @@ N 体同時 deliberation のあと、`agents.actor.max_actions_per_step` 体ま�
 
 | 固有フィールド                             | 内容                    |
 | ----------------------------------- | --------------------- |
-| `summary.backend`                   | `mock` / `ros2`       |
+| `summary.backend`                   | `mock` / `plant_sim` / `ros2` |
 | `summary.operational_command_count` | 運用コマンド数               |
 | `summary.max_actions_per_step`      | llm: step あたりの action 代表数 |
 | `events.jsonl`                      | `operational_applied` |
@@ -681,7 +681,7 @@ run ID: `ssos_eclss_loop_{baseline|labeled_rule_base|llm}`
 | SSOS EPS（scrubber 電力）  | scrubber | ✅ `environment/ssos/eps/ros2/` — `Ros2EpsBridge`（`eps.backend: ros2` で任意） |
 | SSOS EPS（eclss loop）   | ssos     | — 未接続。`ssos/eps/ros2/` は eclss loop とは別 |
 | Ollama                 | 両方       | ✅ コンテナは `host.docker.internal` |
-| 研究室 vLLM              | 両方       | ✅ `http://10.10.0.108:8000/v1`（`qwen3-8b`）。LAN または VPN |
+| 研究室 vLLM              | 両方       | ✅ `http://10.10.0.108:8000/v1`（actor `qwen3.5-9b`）と `:8001/v1`（designer `qwen3.8-27b-uncensored`）。LAN または VPN |
 | One Piece Web UI       | —        | スコープ外                          |
 
 

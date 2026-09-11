@@ -100,8 +100,6 @@ Steps are 0-based (`0 .. steps-1`). Actor `eclss_actor_{step % N}` issues operat
 
 ### llm
 
-### llm
-
 Each step: all N actors deliberate in parallel → up to `agents.actor.max_actions_per_step` rotating representatives issue `operational_command`. After the run, designers deliberate and **one representative** emits `changes`. That representative may emit **any number** of proposals (empty list allowed; file written only when non-empty). `policy` thresholds are not included in prompts. The parameter is the **number of actors who may command**, not a cap on one actor’s `commands` list.
 
 ---
@@ -111,7 +109,7 @@ Each step: all N actors deliberate in parallel → up to `agents.actor.max_actio
 | File | Purpose |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.actor.mode` / `agents.design.mode`, run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Actor team (`eclss_actor_*`), designer team (`eclss_designer_*`), actor `policy` (labeled only), both vLLM `qwen3-8b` for now |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Actor team (`eclss_actor_*`), designer team (`eclss_designer_*`), actor `policy` (labeled only), independent vLLM endpoints (actor `qwen3.5-9b` `:8000`, designer `qwen3.8-27b-uncensored` `:8001`) |
 
 ### scenario.yaml (main fields)
 
@@ -193,7 +191,9 @@ actor:
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b  # current default; may change
+    model: qwen3.5-9b
+    max_tokens: 768
+    think: false
 
 design:
   team:
@@ -201,9 +201,10 @@ design:
     id_prefix: eclss_designer
   llm:
     provider: vllm
-    base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b
-    max_tokens: 2048
+    base_url: http://10.10.0.108:8001/v1
+    model: qwen3.8-27b-uncensored
+    max_tokens: 16384
+    think: true
 ```
 
 ---
@@ -305,10 +306,19 @@ Inside container directly: `ea-loop --actor-mode labeled_rule_base` (default `OL
 
 `--apply-proposals` merges into the **in-memory** config **before simulation starts**; on-disk `scenario.yaml` / `agents.yaml` are not rewritten. The effective configs are written to `scenario_config.yaml` / `agents_config.yaml` in the run directory.
 
+Use **distinct `--run-id` values**. `EventLog.prepare_run_dir` deletes an existing directory for the same id (unless `--no-recreate`). Reusing the YAML default `ssos_eclss_loop_labeled_rule_base` for run N+1 removes run N’s `design_proposals.json` before you can compare.
+
+This closed loop is implemented for **`ssos_eclss_loop` only**. `scrubber_degradation` still writes `design_proposals.json`, but the next run does not re-inject them (dashboard Before/After is a preview).
+
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \
-  --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 20 \
+  --run-id loop-run1
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 5 \
+  --run-id loop-run2 \
+  --apply-proposals src/experiments/results/loop-run1/design_proposals.json
 ```
+
+Confirm run 1 wrote `design_domain: ssos_graph` with non-empty `changes`. Run 2 `summary.json` / `telemetry.jsonl` should reflect the merged config while run 1 artifacts stay intact.
 
 ### graph_rewire E2E smoke
 
