@@ -122,7 +122,7 @@ class OllamaClient(LLMClient):
             return LLMGeneration(text=text, thinking=thinking)
         except Exception as e:
             logger.error("OllamaClient.generate error: %s", e)
-            return LLMGeneration(text="")
+            return LLMGeneration(text="", error=str(e))
 
     def check_connection(self) -> bool:
         try:

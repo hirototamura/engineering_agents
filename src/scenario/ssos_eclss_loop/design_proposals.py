@@ -52,6 +52,8 @@ ACTION_PROFILE_FIELDS_BY_SUBSYSTEM = {
     "wrs": frozenset({"urine_volume"}),
 }
 
+# Verification thresholds (`thresholds.*`) are the scoring bar. They are not
+# a design lever: a proposal that rewrites them is moving the yardstick.
 ALLOWED_SET_PARAMETER_TARGETS = frozenset(
     {
         "agents.actor.policy.co2_storage_high_kg",

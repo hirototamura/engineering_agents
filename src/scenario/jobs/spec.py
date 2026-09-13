@@ -50,7 +50,9 @@ class RunSpec:
         return cls.from_dict(json.loads(text))
 
     def write_json(self, path: Path) -> None:
-        path.write_text(self.to_json(), encoding="utf-8")
+        destination = Path(path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(self.to_json(), encoding="utf-8")
 
     @classmethod
     def read_json(cls, path: Path) -> "RunSpec":

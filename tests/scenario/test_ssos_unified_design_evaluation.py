@@ -168,6 +168,9 @@ def test_evaluation_carries_the_integrity_and_physics_summaries(tmp_path: Path):
     assert payload["integrity"]["measured"] is True
     assert payload["integrity"]["evidence_status"] in {"valid", "invalid"}
     assert payload["physics_gate"]["status"] == "passed"
+    assert "scorecard_physics_gate" not in payload
+    names = {check.get("name") for check in payload["physics_gate"].get("checks") or []}
+    assert {"carbon_ledger", "oxygen_ledger", "water_ledger"} <= names
     assert (run_dir / "run_integrity.json").is_file()
     assert (run_dir / "physics_gate.json").is_file()
 

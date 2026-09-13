@@ -250,6 +250,21 @@ def test_build_design_proposals_fallback_empty_policy_uses_default_threshold():
     )
 
 
+def test_apply_rejects_threshold_set_parameter():
+    proposals = {
+        "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
+        "changes": [
+            {
+                "change_kind": "set_parameter",
+                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1.0},
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="not allowed"):
+        apply_design_proposals({"agents": {"policy": {}}}, proposals)
+
+
 def test_write_rejects_scrubber_change_kind(tmp_path):
     bad = {
         "design_domain": DESIGN_DOMAIN,

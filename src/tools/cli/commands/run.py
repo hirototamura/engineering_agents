@@ -518,9 +518,10 @@ def _apply_cli_defaults(scenario_name: str, overrides: dict | None) -> dict | No
         isinstance(agents.get("design"), dict) and agents["design"].get("mode") is not None
     )
     backend_kind = (merged.get("backend") or {}).get("kind")
+    env_backend = (os.environ.get(BACKEND_ENV_VAR) or "").strip()
     patch: dict = {}
-    if not backend_kind and not os.environ.get(BACKEND_ENV_VAR):
-        patch["backend"] = {"kind": DEFAULT_SSOS_BACKEND}
+    if not backend_kind:
+        patch["backend"] = {"kind": env_backend or DEFAULT_SSOS_BACKEND}
     agents_patch: dict = {}
     if not actor_specified:
         agents_patch["actor"] = {"mode": DEFAULT_SSOS_ACTOR_MODE}

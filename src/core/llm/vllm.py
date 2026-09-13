@@ -308,7 +308,7 @@ class VllmClient(LLMClient):
                 logger.error("VllmClient.generate error: %s | %s", e, detail)
             else:
                 logger.error("VllmClient.generate error: %s", e)
-            return LLMGeneration(text="")
+            return LLMGeneration(text="", error=str(e))
 
     def check_connection(self) -> bool:
         try:

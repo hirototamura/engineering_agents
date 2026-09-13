@@ -928,6 +928,28 @@ class SsosEclssLoopTeam(Team):
             metadata=metadata,
         )
 
+    @staticmethod
+    def _goal_from_payload(
+        payload: Any,
+        allowed: frozenset[str],
+        goal_cls: type,
+    ) -> Tuple[Any, Optional[str]]:
+        if not isinstance(payload, Mapping):
+            return None, "payload must be an object"
+        extra = sorted(str(key) for key in payload if key not in allowed)
+        if extra:
+            return None, "unknown goal fields: " + ", ".join(extra)
+        normalized: Dict[str, float] = {}
+        for key, value in payload.items():
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                return None, f"{key} must be numeric"
+            if not math.isfinite(number) or number < 0.0:
+                return None, f"{key} must be a finite non-negative number"
+            normalized[key] = number
+        return goal_cls(**normalized), None
+
     def _apply_command(
         self,
         backend: EclssBackend,
@@ -936,11 +958,32 @@ class SsosEclssLoopTeam(Team):
         kind = cmd.kind
         payload = cmd.payload
         if kind == "air_revitalisation":
-            result = backend.send_air_revitalisation_goal(ArsGoal(**payload))
+            goal, error = self._goal_from_payload(payload, _ARS_GOAL_FIELDS, ArsGoal)
+            if error:
+                return {
+                    "kind": "/eclss/events/operational_rejected",
+                    "command": cmd.to_dict(),
+                    "message": error,
+                }
+            result = backend.send_air_revitalisation_goal(goal)
         elif kind == "oxygen_generation":
-            result = backend.send_oxygen_generation_goal(OgsGoal(**payload))
+            goal, error = self._goal_from_payload(payload, _OGS_GOAL_FIELDS, OgsGoal)
+            if error:
+                return {
+                    "kind": "/eclss/events/operational_rejected",
+                    "command": cmd.to_dict(),
+                    "message": error,
+                }
+            result = backend.send_oxygen_generation_goal(goal)
         elif kind == "water_recovery":
-            result = backend.send_water_recovery_goal(WrsGoal(**payload))
+            goal, error = self._goal_from_payload(payload, _WRS_GOAL_FIELDS, WrsGoal)
+            if error:
+                return {
+                    "kind": "/eclss/events/operational_rejected",
+                    "command": cmd.to_dict(),
+                    "message": error,
+                }
+            result = backend.send_water_recovery_goal(goal)
         elif kind == "request_co2":
             result = backend.request_co2(float(payload["amount"]))
         elif kind == "request_o2":

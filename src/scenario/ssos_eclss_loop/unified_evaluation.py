@@ -25,6 +25,7 @@ from scenario.ssos_eclss_loop.evaluation import (
 from scenario.ssos_eclss_loop.evaluation_browser import write_evaluation_browser
 from scenario.ssos_eclss_loop.evaluation_html import render_evaluation_html
 from scenario.ssos_eclss_loop.integrity_guard import evidence_status, integrity_summary
+from scenario.ssos_eclss_loop.physics_gate import physics_gate_index
 
 _SCHEDULING_REJECTIONS = {"subsystem_busy", "duplicate_command_this_step"}
 _SECONDS_PER_DAY = 86400.0
@@ -204,7 +205,11 @@ def compact_evaluation(payload: Mapping[str, Any]) -> Dict[str, Any]:
     )
     return {
         "status": payload.get("status"),
-        "physics_gate_passed": bool((payload.get("physics_gate") or {}).get("passed", False)),
+        "physics_gate_passed": physics_gate_index(
+            str((payload.get("applicability") or {}).get("backend") or ""),
+            str(payload.get("status") or ""),
+            payload.get("physics_gate") or {},
+        ),
         "score": scores.get("total"),
         "max_score": scores.get("max_score"),
         "axes": breakdown,
@@ -261,9 +266,9 @@ def finalize_run_evaluation(
     payload = evaluate_run(run_path, scenario_config=config, summary=summary)
     payload = reconcile_scheduler_semantics(payload, run_path, config.get("evaluation") or {})
 
-    # One gate, written once. evaluate_run already ran evaluate_physics; a
-    # second call here used to overwrite that object and leave analysis
-    # looking for a check name the persisted file no longer had.
+    # One gate, written once. evaluate_run already ran evaluate_physics; the
+    # older scorecard _physics_gate is gone, so merging a second telemetry
+    # pass would only duplicate the same checks.
     gate = payload.get("physics_gate") if isinstance(payload.get("physics_gate"), Mapping) else {}
     (run_path / "physics_gate.json").write_text(
         json.dumps(gate, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -297,7 +302,11 @@ def finalize_run_evaluation(
             "evaluation_invalid_reasons": payload.get("invalid_reasons") or [],
             "evaluation_score": score_block.get("total"),
             "evaluation_max_score": score_block.get("max_score"),
-            "physics_gate_passed": bool(gate.get("passed", False)),
+            "physics_gate_passed": physics_gate_index(
+                str(summary.get("backend") or ""),
+                str(payload.get("status") or ""),
+                gate,
+            ),
             "physics_gate_status": gate.get("status"),
             "evaluation_compact": compact_evaluation(payload),
         }

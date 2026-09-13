@@ -48,7 +48,8 @@ def print_run_result(result: RunResult, *, quiet: bool = False, as_json: bool = 
         console.print_json(json.dumps(result.to_dict(), ensure_ascii=False))
         return
     if quiet:
-        console.print(str(result.run_dir))
+        if result.exit_code == 0:
+            console.print(str(result.run_dir))
         return
 
     if result.exit_code != 0:

@@ -23,6 +23,19 @@ def test_merge_labeled_policy_from_thresholds_copies_bands():
     assert merged["policy"]["request_co2_amount"] == 0.025
 
 
+def test_merge_labeled_policy_keeps_an_applied_band():
+    agents_config = {
+        "mode": "labeled_rule_base",
+        "policy": {"co2_storage_high_kg": 1.2, "request_co2_amount": 0.025},
+    }
+    merged = merge_labeled_policy_from_thresholds(
+        agents_config,
+        {"co2_storage_high_kg": 1.55, "o2_storage_low_kg": 0.44},
+    )
+    assert merged["policy"]["co2_storage_high_kg"] == 1.2
+    assert merged["policy"]["o2_storage_low_kg"] == 0.44
+
+
 def test_merge_labeled_policy_skips_llm_mode():
     agents_config = {"mode": "llm", "policy": {"co2_storage_high_kg": 0.999}}
     merged = merge_labeled_policy_from_thresholds(
