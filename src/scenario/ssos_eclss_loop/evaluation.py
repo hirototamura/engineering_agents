@@ -15,9 +15,8 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import yaml
 
-from scenario.ssos_eclss_loop.evaluation_browser import write_evaluation_browser
-from scenario.ssos_eclss_loop.evaluation_html import render_evaluation_html
 from scenario.ssos_eclss_loop.health import build_effective_thresholds
+from scenario.ssos_eclss_loop.physics_gate import evaluate_physics
 
 # 2.0 moved cost and mass inside the score. A 1.0 total is not comparable with
 # a 2.0 total, so the version has to say so.
@@ -264,176 +263,6 @@ def _status(resource: str, value: float, thresholds: Mapping[str, float]) -> str
     if value <= thresholds["product_water_low_l"]:
         return "warning"
     return "safe"
-
-
-def _physics_gate(
-    canonical: Sequence[Mapping[str, Any]],
-    events: Sequence[Mapping[str, Any]],
-    config: Mapping[str, Any],
-    simulation: Mapping[str, Any],
-    *,
-    observations: Optional[Sequence[Mapping[str, Any]]] = None,
-) -> Dict[str, Any]:
-    gate_cfg = dict(config.get("physics_gate") or {})
-    inventory_tolerance = float(gate_cfg.get("inventory_tolerance", 1e-9))
-    ledger_tolerance = float(gate_cfg.get("ledger_tolerance", 2e-6))
-    checks: List[Dict[str, Any]] = []
-
-    required = tuple(TELEMETRY_FIELDS.values())
-    invalid_samples: List[Dict[str, Any]] = []
-    negative_samples: List[Dict[str, Any]] = []
-    ledger_fields = (
-        "captured_co2_kg",
-        "urine_buffer_l",
-        "crew_alive",
-    )
-    for row in observations if observations is not None else canonical:
-        step = row.get("step")
-        for field in required:
-            value = row.get(field)
-            if not _finite_number(value):
-                invalid_samples.append({"step": step, "field": field, "value": value})
-            elif float(value) < -inventory_tolerance:
-                negative_samples.append({"step": step, "field": field, "value": value})
-        plant = _plant_topic(row)
-        for field in ledger_fields:
-            value = plant.get(field)
-            if not _finite_number(value):
-                invalid_samples.append({"step": step, "field": f"plant_sim.{field}", "value": value})
-            elif float(value) < -inventory_tolerance:
-                negative_samples.append(
-                    {"step": step, "field": f"plant_sim.{field}", "value": value}
-                )
-    checks.append(
-        {
-            "name": "required_finite_observations",
-            "passed": not invalid_samples,
-            "details": invalid_samples,
-        }
-    )
-    checks.append(
-        {"name": "non_negative_inventories", "passed": not negative_samples, "details": negative_samples}
-    )
-
-    final = _plant_topic(canonical[-1]) if canonical else {}
-    residuals: Dict[str, Optional[float]] = {"o2_kg": None, "co2_kg": None, "water_l": None}
-    if final:
-        initial_o2 = _number(simulation.get("initial_o2_storage_kg"))
-        initial_co2 = _number(simulation.get("initial_co2_storage_kg"))
-        initial_water = _number(simulation.get("initial_product_water_l"))
-        initial_captured = _number(final.get("initial_captured_co2_kg"))
-        initial_urine = _number(final.get("initial_urine_buffer_l"))
-        initial_grey = _number(final.get("initial_grey_water_l"))
-
-        o2_in = initial_o2 + _number(final.get("total_o2_generated_kg"))
-        o2_out = (
-            _number(canonical[-1].get("o2_storage_kg"))
-            + _number(final.get("total_o2_consumed_kg"))
-            + _number(final.get("total_o2_delivered_kg"))
-        )
-        residuals["o2_kg"] = o2_in - o2_out
-
-        co2_in = initial_co2 + initial_captured + _number(final.get("total_co2_generated_kg"))
-        co2_out = (
-            _number(canonical[-1].get("co2_storage_kg"))
-            + _number(final.get("captured_co2_kg"))
-            + _number(final.get("total_co2_vented_kg"))
-            + _number(final.get("total_co2_delivered_kg"))
-            + _number(final.get("total_sabatier_co2_used_kg"))
-        )
-        residuals["co2_kg"] = co2_in - co2_out
-
-        water_in = (
-            initial_water
-            + initial_urine
-            + initial_grey
-            + _number(final.get("total_external_grey_water_submitted_l"))
-            + _number(final.get("total_water_regenerated_l"))
-        )
-        water_out = (
-            _number(canonical[-1].get("product_water_reserve_l"))
-            + _number(final.get("urine_buffer_l"))
-            + _number(canonical[-1].get("grey_water_collected_l"))
-            + _number(final.get("total_unrecoverable_crew_water_l"))
-            + _number(final.get("total_wrs_brine_loss_l"))
-            + _number(final.get("total_electrolysis_water_kg"))
-            + _number(final.get("total_product_water_delivered_l"))
-        )
-        residuals["water_l"] = water_in - water_out
-    ledger_passed = bool(final) and all(
-        residual is not None and abs(residual) <= ledger_tolerance
-        for residual in residuals.values()
-    )
-    checks.append(
-        {
-            "name": "mass_balance_ledgers",
-            "passed": ledger_passed,
-            "tolerance": ledger_tolerance,
-            "residuals": {key: _round(value, 12) for key, value in residuals.items()},
-        }
-    )
-
-    action_violations: List[Dict[str, Any]] = []
-    _, pre_by_step = select_telemetry_rows(
-        observations if observations is not None else canonical
-    )
-    failure_gating_violations: List[Dict[str, Any]] = []
-    for event in events:
-        if event.get("kind") not in {OPERATIONAL_APPLIED, OPERATIONAL_REJECTED}:
-            continue
-        command = event.get("command") or {}
-        kind = command.get("kind")
-        subsystem = COMMAND_SUBSYSTEM.get(str(kind))
-        step = int(event.get("step") or 0)
-        if (
-            event.get("kind") == OPERATIONAL_APPLIED
-            and subsystem is not None
-            and pre_by_step.get(step, {}).get(f"{subsystem}_failure_enabled") is True
-        ):
-            failure_gating_violations.append({"step": step, "kind": kind, "subsystem": subsystem})
-        result = event.get("result") or {}
-        details = result.get("details") if isinstance(result, Mapping) else {}
-        details = details if isinstance(details, Mapping) else {}
-        if kind == "air_revitalisation":
-            removed = details.get("co2_removed_kg")
-            maximum = details.get("max_removable_kg")
-            if event.get("kind") == OPERATIONAL_APPLIED and (
-                not _finite_number(removed)
-                or not _finite_number(maximum)
-                or float(removed) < -inventory_tolerance
-                or float(removed) > float(maximum) + inventory_tolerance
-            ):
-                action_violations.append({"step": event.get("step"), "kind": kind})
-        elif kind == "oxygen_generation":
-            requested = details.get("requested_water_kg")
-            processed = details.get("processed_water_kg")
-            generated = details.get("o2_generated_kg")
-            if event.get("kind") == OPERATIONAL_APPLIED and (
-                not all(_finite_number(v) for v in (requested, processed, generated))
-                or float(processed) < -inventory_tolerance
-                or float(processed) > float(requested) + inventory_tolerance
-                or float(generated) < -inventory_tolerance
-            ):
-                action_violations.append({"step": event.get("step"), "kind": kind})
-        elif kind == "water_recovery":
-            recovered = details.get("recovered_water_l")
-            if event.get("kind") == OPERATIONAL_APPLIED and (
-                not _finite_number(recovered) or float(recovered) < -inventory_tolerance
-            ):
-                action_violations.append({"step": event.get("step"), "kind": kind})
-    checks.append(
-        {"name": "operational_physical_bounds", "passed": not action_violations, "details": action_violations}
-    )
-    checks.append(
-        {
-            "name": "failed_subsystems_do_not_process",
-            "passed": not failure_gating_violations,
-            "details": failure_gating_violations,
-        }
-    )
-
-    passed = bool(canonical) and all(bool(check.get("passed")) for check in checks)
-    return {"passed": passed, "checks": checks}
 
 
 def _crew_axis(summary: Mapping[str, Any]) -> Dict[str, Any]:
@@ -1026,13 +855,7 @@ def evaluate_run(
         ((scenario_config.get("plant_sim") or {}).get("time") or {}).get("step_seconds", 1200)
     )
     thresholds = build_effective_thresholds(dict(scenario_config.get("thresholds") or {}))
-    gate = _physics_gate(
-        canonical,
-        events,
-        evaluation_cfg,
-        dict(scenario_config.get("simulation") or {}),
-        observations=telemetry,
-    )
+    gate = evaluate_physics(telemetry)
     base["physics_gate"] = gate
     if not gate["passed"]:
         base["status"] = "invalid"
@@ -1090,32 +913,8 @@ def evaluate_run(
     return base
 
 
-def write_evaluation(
-    run_dir: Path,
-    *,
-    scenario_config: Mapping[str, Any],
-    summary: Mapping[str, Any],
-) -> Tuple[Path, Path, Dict[str, Any]]:
-    """Evaluate and persist ``evaluation.json`` plus ``evaluation.html``."""
-
-    run_path = Path(run_dir)
-    json_path = run_path / "evaluation.json"
-    html_path = run_path / "evaluation.html"
-    payload = evaluate_run(run_dir, scenario_config=scenario_config, summary=summary)
-    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    html_path.write_text(render_evaluation_html(payload), encoding="utf-8")
-    write_evaluation_browser(
-        run_path.parent,
-        default_run_id=run_path.name,
-        output_path=run_path / "evaluation_browser.html",
-    )
-    return json_path, html_path, payload
-
-
 __all__ = [
     "build_run_conditions",
     "evaluate_run",
     "select_telemetry_rows",
-    "write_evaluation",
-    "write_evaluation_browser",
 ]

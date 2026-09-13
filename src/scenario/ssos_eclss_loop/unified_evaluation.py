@@ -25,11 +25,7 @@ from scenario.ssos_eclss_loop.evaluation import (
 from scenario.ssos_eclss_loop.evaluation_browser import write_evaluation_browser
 from scenario.ssos_eclss_loop.evaluation_html import render_evaluation_html
 from scenario.ssos_eclss_loop.integrity_guard import evidence_status, integrity_summary
-from scenario.ssos_eclss_loop.physics_gate import (
-    merge_physics_gates,
-    physics_gate_index,
-    run_physics_gate,
-)
+from scenario.ssos_eclss_loop.physics_gate import physics_gate_index
 
 _SCHEDULING_REJECTIONS = {"subsystem_busy", "duplicate_command_this_step"}
 _SECONDS_PER_DAY = 86400.0
@@ -270,13 +266,10 @@ def finalize_run_evaluation(
     payload = evaluate_run(run_path, scenario_config=config, summary=summary)
     payload = reconcile_scheduler_semantics(payload, run_path, config.get("evaluation") or {})
 
-    # Keep the scorecard gate. The telemetry-only audit sits beside it and
-    # receives any check the older gate still has that the new one lacked.
-    scorecard_gate = payload.get("physics_gate") or {}
-    telemetry_gate = run_physics_gate(run_path)
-    gate = merge_physics_gates(scorecard_gate, telemetry_gate)
-    payload["scorecard_physics_gate"] = scorecard_gate
-    payload["physics_gate"] = gate
+    # One gate, written once. evaluate_run already ran evaluate_physics; the
+    # older scorecard _physics_gate is gone, so merging a second telemetry
+    # pass would only duplicate the same checks.
+    gate = payload.get("physics_gate") if isinstance(payload.get("physics_gate"), Mapping) else {}
     (run_path / "physics_gate.json").write_text(
         json.dumps(gate, ensure_ascii=False, indent=2), encoding="utf-8"
     )

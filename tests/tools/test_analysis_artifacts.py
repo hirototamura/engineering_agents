@@ -70,8 +70,9 @@ def write_run(
     (directory / "evaluation.json").write_text(json.dumps({
         "schema_version": "1.0", "status": "scored",
         "physics_gate": {"passed": True, "checks": [
-            {"name": "mass_balance_ledgers", "passed": True,
-             "residuals": {"o2_kg": 0.0, "co2_kg": 0.0, "water_l": 1e-12}},
+            {"name": "carbon_ledger", "status": "passed", "residual": 0.0},
+            {"name": "oxygen_ledger", "status": "passed", "residual": 0.0},
+            {"name": "water_ledger", "status": "passed", "residual": 1e-12},
         ]},
         "scores": {"total": score, "max_score": 100, "axes": {
             "tcl": {"status": "scored" if tcl_observed else "right_censored", "score": 1.0,

@@ -114,15 +114,14 @@ flowchart LR
 2. 3 人の `rejected_fields` の和集合を取る  
 3. veto したキーは搭載中の値に固定し、残りは提案を採用する  
 4. 3 キーそろった profile を出す（後の apply が 1 項目を黙って戻さないように）  
-5. 提案した変更が全部 veto されたら搭載中の機械を残す（`kept_to_proceed`）  
+5. 提案した変更が 1 件でも veto されたら提案を拒否する（`rejected`）。ハイブリッド機体は出さない。  
 6. ピン留め、または全部 veto は `provisional_final`（その組み合わせは未検証）  
 7. 3 人が approve、または棄権だけなら designer の物理ステータスを残す  
 
 | `decision_source` | 意味 |
 | --- | --- |
 | `tool_use_audit_panel` | 項目は落ちていない |
-| `tool_use_audit_panel:item_veto` | 一部の field を搭載中の値に戻した |
-| `tool_use_audit_panel:kept_to_proceed` | 変更が全部 veto され、搭載中の機械のまま |
+| `tool_use_audit_panel:rejected` | veto で提案を拒否。新しい field set は出さない |
 
 本文は designer の message / reasoning のあとに、3 人の所見を足す。4 人目の合成 LLM は置かない。
 
