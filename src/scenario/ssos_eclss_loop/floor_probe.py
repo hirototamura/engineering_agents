@@ -36,6 +36,7 @@ import math
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
+from scenario.ssos_eclss_loop.design_eval import occupant_count
 from scenario.ssos_eclss_loop.design_variables import (
     CAPACITY_KEYS,
     CAPACITY_VARIABLES,
@@ -69,10 +70,9 @@ STATUS_SKIPPED = "skipped"
 
 
 def _crew(summary: Mapping[str, Any]) -> Tuple[Optional[int], Optional[int]]:
-    remaining, initial = summary.get("crew_remaining"), summary.get("crew_initial")
     return (
-        remaining if isinstance(remaining, int) else None,
-        initial if isinstance(initial, int) else None,
+        occupant_count(summary.get("crew_remaining")),
+        occupant_count(summary.get("crew_initial")),
     )
 
 

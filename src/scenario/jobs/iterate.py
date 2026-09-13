@@ -16,6 +16,7 @@ from scenario.jobs.executor import execute_run
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunResult, RunSpec
 from scenario.ssos_eclss_loop.chain_memory import (
+    CHAIN_MEMORY_FILENAME,
     capacity_keys_in_document,
     record_measured_limits,
     update_compact_chain_memory,
@@ -32,6 +33,7 @@ from scenario.ssos_eclss_loop.design_proposals import (
     write_design_proposals,
 )
 from scenario.ssos_eclss_loop.design_variables import read_capacity_fields
+from scenario.ssos_eclss_loop.integrity_guard import SCORING_BAR, classify_path
 from scenario.ssos_eclss_loop.floor_probe import (
     measure_survival_limits,
     scenario_runner,
@@ -208,7 +210,10 @@ def _change_merge_key(change: Mapping[str, Any]) -> Optional[Tuple[str, str]]:
     if kind == "graph_rewire":
         return ("graph_rewire", _canonical_payload(payload))
     if kind == "set_parameter":
-        return None
+        target = str(payload.get("target") or "")
+        if classify_path(target) == SCORING_BAR:
+            return None
+        return ("set_parameter", target)
     return ("other", _canonical_payload({"kind": kind, "payload": payload}))
 
 
@@ -245,7 +250,7 @@ def accumulate_applied_document(
         merged["changes"] = [
             copy.deepcopy(change)
             for change in incoming
-            if change.get("change_kind") != "set_parameter"
+            if not _is_scoring_bar_set_parameter(change)
         ]
         return merged
 
@@ -253,7 +258,9 @@ def accumulate_applied_document(
     by_key: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
     def ingest(change: Mapping[str, Any], *, overlay: bool) -> None:
-        if not isinstance(change, dict) or change.get("change_kind") == "set_parameter":
+        if not isinstance(change, dict):
+            return
+        if _is_scoring_bar_set_parameter(change):
             return
         key = _change_merge_key(change)
         if key is None:
@@ -275,6 +282,13 @@ def accumulate_applied_document(
     return merged
 
 
+def _is_scoring_bar_set_parameter(change: Mapping[str, Any]) -> bool:
+    if change.get("change_kind") != "set_parameter":
+        return False
+    target = str((change.get("payload") or {}).get("target") or "")
+    return classify_path(target) == SCORING_BAR
+
+
 def iterate_apply_document(
     proposals: Dict[str, Any],
     *,
@@ -284,9 +298,11 @@ def iterate_apply_document(
 ) -> Optional[Dict[str, Any]]:
     """Document the next iterate sim should apply.
 
-    Unified generation (capacity_profile, action_profile, …) is kept. ``set_parameter``
-    is dropped so verification thresholds stay frozen across the chain. Documents
-    that still need supervisor approval are skipped unless *approve_provisional*.
+    Unified generation (capacity_profile, action_profile, …) is kept.
+    Scoring-bar ``set_parameter`` targets (``thresholds.*`` and friends) are
+    dropped so verification thresholds stay frozen. ARM policy parameters are
+    kept. Documents that still need supervisor approval are skipped unless
+    *approve_provisional*.
 
     A capacity_profile that names only some keys is completed from *installed*
     (the machine this run actually flew). Omit means keep that value, not
@@ -300,7 +316,7 @@ def iterate_apply_document(
     for change in proposals.get("changes") or []:
         if not isinstance(change, dict):
             continue
-        if change.get("change_kind") == "set_parameter":
+        if _is_scoring_bar_set_parameter(change):
             continue
         kept.append(change)
     if not kept:
@@ -509,6 +525,11 @@ def run_design_iterate(
         raise ValueError(f"iterate supports {ITERATE_SCENARIO} only, got {base_spec.scenario!r}")
 
     chain_dir = prepare_chain_dir(chain_dir, recreate=recreate)
+    leftover_memory = chain_dir / CHAIN_MEMORY_FILENAME
+    if leftover_memory.exists():
+        # --no-recreate keeps the directory but this invocation is still a
+        # new 1..N chain. Do not hand another chain's note to this designer.
+        leftover_memory.unlink()
     reporter = reporter or IterateReporter()
     steps = _sim_steps(base_spec)
     accumulated_history: List[Dict[str, Any]] = []
@@ -533,6 +554,7 @@ def run_design_iterate(
             apply_proposals_path=apply_this_run,
             approve_provisional=base_spec.approve_provisional,
             design_history=list(accumulated_history),
+            force=base_spec.force,
         )
         reporter.on_run_start(
             index=index,
@@ -654,6 +676,7 @@ def run_design_iterate(
                     seed=base_spec.seed,
                     apply_proposals_path=apply_path,
                     approve_provisional=base_spec.approve_provisional,
+                    force=base_spec.force,
                 ),
                 on_step=lambda step, n: reporter.on_step(step=step, steps=n),
                 on_phase=lambda detail: reporter.on_phase(detail),

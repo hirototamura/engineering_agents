@@ -256,7 +256,9 @@ def test_all_mode_ending_tank_is_campaign_not_per_step():
     all_row = next(row for row in rows if row.mode == ALL_MODE)
     stepped = all_row.per_step()
     assert tank_effect(stepped, "o2", "level") == pytest.approx(all_row.final_o2_kg)
-    assert tank_effect(stepped, "o2", "net") == pytest.approx(all_row.o2_net_kg / max(1, all_row.metabolism_steps))
+    assert tank_effect(stepped, "o2", "net") == pytest.approx(
+        all_row.o2_net_kg / max(1, all_row.steps)
+    )
 
 
 def test_metabolism_demand_scales_with_n():

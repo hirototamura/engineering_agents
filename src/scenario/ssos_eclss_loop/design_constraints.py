@@ -413,8 +413,6 @@ class DesignConstraints:
         if self.enabled:
             for sub in _SUBSYSTEMS:
                 key = _CAPACITY_KEY_BY_SUBSYSTEM[sub]
-                if key not in fields:
-                    continue
                 low, high = self.bounds[sub]["min"], self.bounds[sub]["max"]
                 value = capacity[sub]
                 if value < low:

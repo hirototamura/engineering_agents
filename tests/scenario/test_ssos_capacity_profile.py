@@ -33,6 +33,7 @@ def _scenario_config() -> dict:
 def _proposal(fields: dict, **payload) -> dict:
     return {
         "design_domain": "ssos_graph",
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "capacity_profile",

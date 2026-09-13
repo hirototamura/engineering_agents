@@ -21,7 +21,7 @@ from scenario.ssos_eclss_loop.health import build_effective_thresholds
 
 # 2.0 moved cost and mass inside the score. A 1.0 total is not comparable with
 # a 2.0 total, so the version has to say so.
-SCHEMA_VERSION = "2.0"
+SCHEMA_VERSION = "2.1"
 
 # The scorecard, in points. Survival still leads every ranking on its own, so it
 # does not also need to dominate the sheet: what the score is for is telling a
@@ -246,10 +246,22 @@ def _severity(resource: str, value: float, thresholds: Mapping[str, float]) -> f
 
 
 def _status(resource: str, value: float, thresholds: Mapping[str, float]) -> str:
-    severity = _severity(resource, value, thresholds)
-    if severity >= 1.0:
+    """Inclusive boundaries, matching :mod:`health` so actors and scores agree."""
+    if resource == "co2":
+        if value >= thresholds["co2_storage_critical_kg"]:
+            return "critical"
+        if value >= thresholds["co2_storage_high_kg"]:
+            return "warning"
+        return "safe"
+    if resource == "o2":
+        if value <= thresholds["o2_storage_critical_kg"]:
+            return "critical"
+        if value <= thresholds["o2_storage_low_kg"]:
+            return "warning"
+        return "safe"
+    if value <= thresholds["product_water_critical_l"]:
         return "critical"
-    if severity > 0.0:
+    if value <= thresholds["product_water_low_l"]:
         return "warning"
     return "safe"
 
@@ -460,7 +472,8 @@ def _tcl_axis(
     if reference <= 0.0 or not canonical:
         return {"status": "incomplete", "score": None, "max_score": TCL_MAX}
     first_loss = next((event for event in events if event.get("kind") == CREW_LOST_EVENT), None)
-    end_time = _time_s(canonical[-1], step_seconds)
+    last_sample = _time_s(canonical[-1], step_seconds)
+    end_time = last_sample + step_seconds
     if first_loss is None:
         if end_time + 1e-9 >= reference:
             score: Optional[float] = 10.0
@@ -1058,9 +1071,21 @@ def evaluate_run(
         axes["physical_response"] = _response_axis(events, validity, evaluation_cfg)
 
     scores = [axis.get("score") for axis in axes.values()]
-    complete = all(_finite_number(score) for score in scores)
-    total = sum(float(score) for score in scores) if complete else None
-    base["scores"] = {"total": _round(total), "max_score": max_score, "axes": axes}
+    scored = [float(score) for score in scores if _finite_number(score)]
+    complete = len(scored) == len(scores)
+    applicable_max = sum(
+        float(axis.get("max_score") or 0.0)
+        for axis in axes.values()
+        if _finite_number(axis.get("score")) and _finite_number(axis.get("max_score"))
+    )
+    total = sum(scored) if scored else None
+    base["scores"] = {
+        "total": _round(total),
+        "max_score": max_score,
+        "applicable_max": _round(applicable_max) if scored else 0.0,
+        "complete": complete,
+        "axes": axes,
+    }
     base["status"] = "scored" if complete else "incomplete"
     return base
 
@@ -1079,7 +1104,11 @@ def write_evaluation(
     payload = evaluate_run(run_dir, scenario_config=scenario_config, summary=summary)
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     html_path.write_text(render_evaluation_html(payload), encoding="utf-8")
-    write_evaluation_browser(run_path.parent, default_run_id=run_path.name)
+    write_evaluation_browser(
+        run_path.parent,
+        default_run_id=run_path.name,
+        output_path=run_path / "evaluation_browser.html",
+    )
     return json_path, html_path, payload
 
 

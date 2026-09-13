@@ -12,7 +12,7 @@ AXIS_META = {
         "short": "残存",
         "css": "s-actor",
         "card": "actor",
-        "points": 50,
+        "points": 20,
     },
     "tcl": {
         "label": "A. Time to Crew Loss（TCL）",
@@ -40,14 +40,28 @@ AXIS_META = {
         "short": "D 判断",
         "css": "s-d",
         "card": "d",
-        "points": 10,
+        "points": 5,
+    },
+    "cost": {
+        "label": "コスト",
+        "short": "コスト",
+        "css": "s-c",
+        "card": "c",
+        "points": 20,
+    },
+    "mass": {
+        "label": "質量",
+        "short": "質量",
+        "css": "s-e",
+        "card": "e",
+        "points": 20,
     },
     "physical_response": {
         "label": "E. 設計・装置の物理応答",
         "short": "E 応答",
         "css": "s-e",
         "card": "e",
-        "points": 10,
+        "points": 5,
     },
 }
 
@@ -465,7 +479,7 @@ def render_evaluation_html(payload: Mapping[str, Any]) -> str:
       <h1>ECLSSシミュレーション 評価結果</h1>
       <p class="subtitle">{_esc(scenario)} — schema {_esc(payload.get('schema_version'))}</p>
       <p class="note">複数 run の切替・比較は
-        <a href="../evaluation.html">../evaluation.html</a>（results 直下の評価ブラウザ）へ。</p>
+        <a href="evaluation_browser.html">evaluation_browser.html</a>（同一 run の評価ブラウザ）へ。</p>
     </div>
     <div class="principle">
       最重要要求：物理法則を守ること

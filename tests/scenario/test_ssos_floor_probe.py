@@ -20,6 +20,8 @@ from scenario.ssos_eclss_loop.floor_probe import (
     STATUS_BRACKETED,
     STATUS_NO_CLIFF_FOUND,
     STATUS_NO_SAFE_ANCHOR,
+    _crew,
+    _full_survival,
     measure_survival_limits,
     scenario_runner,
     write_measured_limits,
@@ -50,6 +52,14 @@ def _fake_station(cliffs: Mapping[str, float] = CLIFFS, *, crew: int = 50):
 
     run.tried = tried  # type: ignore[attr-defined]
     return run
+
+
+def test_crew_counts_accept_whole_floats_like_design_eval():
+    remaining, initial = _crew({"crew_remaining": 50.0, "crew_initial": 50.0})
+    assert remaining == 50
+    assert initial == 50
+    assert _full_survival({"crew_remaining": 50.0, "crew_initial": 50.0}) is True
+    assert _crew({"crew_remaining": True, "crew_initial": 4}) == (None, 4)
 
 
 def test_the_cliff_is_found_from_a_starting_sizing_that_does_not_work():

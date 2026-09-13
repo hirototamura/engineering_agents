@@ -12,7 +12,12 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
-from scenario.ssos_eclss_loop.design_eval import STATUS_APPROVED as FINAL_STATUS_APPROVED
+from scenario.ssos_eclss_loop.design_eval import (
+    STATUS_APPROVED as FINAL_STATUS_APPROVED,
+    STATUS_PROVISIONAL,
+    mark_final_eligibility,
+    select_final_candidate,
+)
 from scenario.ssos_eclss_loop.design_variables import (
     CAPACITY_KEYS,
     apply_capacity_fields,
@@ -320,7 +325,9 @@ def supervisor_approval_reasons(proposals: Dict[str, Any]) -> List[str]:
     """
     reasons: List[str] = []
     status = proposals.get("final_status")
-    if status is not None and status != FINAL_STATUS_APPROVED:
+    if status is None:
+        reasons.append("final_status missing (unevaluated)")
+    elif status != FINAL_STATUS_APPROVED:
         selection = proposals.get("selection")
         detail = proposals.get("selection_reason")
         if not detail and isinstance(selection, dict):
@@ -382,7 +389,7 @@ def apply_design_proposals(
     return merged
 
 
-def _append_threshold_bump(
+def _append_policy_bump(
     changes: List[Dict[str, Any]],
     *,
     target_policy: str,
@@ -391,6 +398,7 @@ def _append_threshold_bump(
     what: str,
     how: str,
 ) -> None:
+    """ARM policy only. Scoring-bar ``thresholds.*`` must not be writable here."""
     changes.append(
         {
             "change_kind": "set_parameter",
@@ -519,7 +527,7 @@ def build_design_proposals_from_run(
             )
         proposed_high = round(co2_high * 0.9, 6)
         if proposed_high > 0.0 and proposed_high != co2_high:
-            _append_threshold_bump(
+            _append_policy_bump(
                 changes,
                 target_policy="agents.actor.policy.co2_storage_high_kg",
                 value=proposed_high,
@@ -619,23 +627,23 @@ def build_design_proposals_from_run(
         if not changes:
             proposed_high = round(co2_high * 0.9, 6)
             if proposed_high > 0.0 and proposed_high != co2_high:
-                _append_threshold_bump(
+                _append_policy_bump(
                     changes,
                     target_policy="agents.actor.policy.co2_storage_high_kg",
                     value=proposed_high,
-                    why="No stressed branch matched; fallback CO2 threshold adjustment.",
-                    what="Lower CO2 warning threshold for next run.",
+                    why="No stressed branch matched; fallback CO2 policy adjustment.",
+                    what="Lower CO2 warning policy for next run.",
                     how=f"co2_storage_high_kg: {co2_high} → {proposed_high}",
                 )
             else:
                 proposed_low = round(o2_low * 1.1, 6)
                 if proposed_low > 0.0 and proposed_low != o2_low:
-                    _append_threshold_bump(
+                    _append_policy_bump(
                         changes,
                         target_policy="agents.actor.policy.o2_storage_low_kg",
                         value=proposed_low,
-                        why="No stressed branch matched; fallback O2 threshold adjustment.",
-                        what="Raise O2 low threshold for next run.",
+                        why="No stressed branch matched; fallback O2 policy adjustment.",
+                        what="Raise O2 low policy for next run.",
                         how=f"o2_storage_low_kg: {o2_low} → {proposed_low}",
                     )
                 elif "request_co2_amount" in policy:
@@ -670,7 +678,38 @@ def build_design_proposals_from_run(
     }
     if baseline_graph is not None:
         doc["baseline_graph"] = baseline_graph
+    _stamp_rule_path_eligibility(doc, summary)
     return doc
+
+
+def _stamp_rule_path_eligibility(doc: Dict[str, Any], summary: Mapping[str, Any]) -> None:
+    """Write ``final_status`` so the supervisor gate can refuse an unevaluated doc."""
+    outcome = {
+        "backend": summary.get("backend"),
+        "physics_gate_passed": summary.get("physics_gate_passed"),
+        "evaluation_status": summary.get("evaluation_status"),
+        "crew_initial": summary.get("crew_initial"),
+        "crew_remaining": summary.get("crew_remaining"),
+    }
+    record: Dict[str, Any] = {
+        "candidate_id": "rule_path",
+        "simulated": True,
+        "constraint_evaluation": {
+            "preflight_status": "valid",
+            "constraint_status": "feasible",
+        },
+        "outcome": outcome,
+    }
+    mark_final_eligibility(record, baseline_outcome=outcome)
+    selection = select_final_candidate([record], baseline_outcome=outcome)
+    doc["final_status"] = selection.get("final_status") or STATUS_PROVISIONAL
+    doc["requires_supervisor_approval"] = bool(
+        selection.get("requires_supervisor_approval") or not record.get("final_eligible")
+    )
+    if selection.get("reason"):
+        doc["selection_reason"] = selection["reason"]
+    doc["final_eligible"] = record.get("final_eligible")
+    doc["final_ineligible_reasons"] = record.get("final_ineligible_reasons")
 
 
 def write_design_proposals(path: Path, proposals: Dict[str, Any]) -> None:

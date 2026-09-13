@@ -118,8 +118,11 @@ def fig_mass_balance(rows: Sequence[Mapping[str, Any]]) -> str:
                         xytext=(13, 0), va="center", fontsize=8, color=INK)
         else:
             ax.plot([worst], [y], marker="o", markersize=8, color=color, zorder=4)
-            ax.annotate(f"{worst:.0e}  ({tolerance / worst:,.0f}x inside tolerance)",
-                        (worst, y), textcoords="offset points", xytext=(13, 0),
+            if worst <= tolerance:
+                caption = f"{worst:.0e}  ({tolerance / worst:,.0f}x inside tolerance)"
+            else:
+                caption = f"{worst:.0e}  ({worst / tolerance:,.0f}x over tolerance)"
+            ax.annotate(caption, (worst, y), textcoords="offset points", xytext=(13, 0),
                         va="center", fontsize=8, color=INK)
         ax.hlines(y, floor, max(worst, floor), color=color, linewidth=1.0, alpha=0.35)
 
@@ -133,7 +136,7 @@ def fig_mass_balance(rows: Sequence[Mapping[str, Any]]) -> str:
     ax.set_yticks(np.arange(len(keys))[::-1])
     ax.set_yticklabels(labels, fontsize=9)
     _style(ax, xlabel="worst |residual| over every run (log scale)",
-           title="Mass-balance residuals sit at machine zero in all runs")
+           title="Mass-balance residuals versus the physics-gate tolerance")
     return to_svg(fig)
 
 
@@ -480,23 +483,29 @@ def fig_predictive_law(
     """Observed against predicted survival for each candidate law."""
 
     names = list(predictions)
+    if not names:
+        raise ValueError("predictive law figure needs at least one model")
     fig, axes = plt.subplots(1, len(names), figsize=(2.5 * len(names), 2.8), squeeze=False)
-    obs = np.asarray(list(observed), dtype=float)
-    for index, name in enumerate(names):
-        ax = axes[0][index]
-        pred = np.asarray(list(predictions[name]), dtype=float)
-        ax.plot([0, 1], [0, 1], linewidth=0.9, color=MUTED, linestyle=":")
-        ax.scatter(pred, obs, s=14, color=ACCENT, alpha=0.65, edgecolors="none", zorder=3)
-        stats = scores.get(name, {})
-        r2 = stats.get("r_squared", math.nan)
-        bacc = stats.get("balanced_accuracy", math.nan)
-        ax.text(0.04, 0.95, f"$R^2$ = {r2:.3f}\nbal. acc. = {bacc:.3f}",
-                transform=ax.transAxes, fontsize=7.5, va="top", color=INK)
-        ax.set_xlim(-0.05, 1.05)
-        ax.set_ylim(-0.05, 1.05)
-        _style(ax, xlabel="predicted", ylabel="observed" if index == 0 else "",
-               title=name)
-    return to_svg(fig)
+    try:
+        obs = np.asarray(list(observed), dtype=float)
+        for index, name in enumerate(names):
+            ax = axes[0][index]
+            pred = np.asarray(list(predictions[name]), dtype=float)
+            ax.plot([0, 1], [0, 1], linewidth=0.9, color=MUTED, linestyle=":")
+            ax.scatter(pred, obs, s=14, color=ACCENT, alpha=0.65, edgecolors="none", zorder=3)
+            stats = scores.get(name, {})
+            r2 = stats.get("r_squared", math.nan)
+            bacc = stats.get("balanced_accuracy", math.nan)
+            ax.text(0.04, 0.95, f"$R^2$ = {r2:.3f}\nbal. acc. = {bacc:.3f}",
+                    transform=ax.transAxes, fontsize=7.5, va="top", color=INK)
+            ax.set_xlim(-0.05, 1.05)
+            ax.set_ylim(-0.05, 1.05)
+            _style(ax, xlabel="predicted", ylabel="observed" if index == 0 else "",
+                   title=name)
+        return to_svg(fig)
+    except Exception:
+        plt.close(fig)
+        raise
 
 
 # --------------------------------------------------------------------------- #
@@ -539,7 +548,7 @@ def fig_saturation(rows: Sequence[Mapping[str, Any]]) -> str:
     ax.set_ylim(-0.05, 1.1)
     _style(ax, xlabel="OGS request payload, relative to the shipped value",
            ylabel="fraction",
-           title="A larger O2 request is discarded before it reaches the plant")
+           title="OGS request payload versus capacity limiting and survival")
     ax.legend(fontsize=8, frameon=False, loc="center right")
     return to_svg(fig)
 
@@ -567,7 +576,7 @@ def fig_crew_scaling(
     ax.set_ylim(-0.05, 1.08)
     _style(ax, xlabel=r"binding coverage $\rho_{min}$ (dimensionless)",
            ylabel="surviving crew fraction",
-           title="Coverage ratio collapses two independent sweeps onto one curve")
+           title="Survival fraction versus coverage ratio from two independent sweeps")
     ax.legend(fontsize=8, frameon=False, loc="lower right")
     return to_svg(fig)
 

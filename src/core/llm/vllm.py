@@ -128,7 +128,10 @@ def vllm_auth_headers(llm_cfg: Optional[Dict[str, Any]] = None) -> Dict[str, str
 def resolve_vllm_max_model_len() -> int:
     env_raw = os.environ.get(VLLM_MAX_MODEL_LEN_ENV, "").strip()
     if env_raw:
-        return int(env_raw)
+        try:
+            return int(env_raw)
+        except ValueError:
+            return DEFAULT_MAX_MODEL_LEN
     return DEFAULT_MAX_MODEL_LEN
 
 
@@ -305,7 +308,7 @@ class VllmClient(LLMClient):
                 logger.error("VllmClient.generate error: %s | %s", e, detail)
             else:
                 logger.error("VllmClient.generate error: %s", e)
-            return LLMGeneration(text="")
+            return LLMGeneration(text="", error=str(e))
 
     def check_connection(self) -> bool:
         try:

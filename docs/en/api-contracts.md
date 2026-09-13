@@ -553,18 +553,20 @@ Evaluation order:
 
 1. Unscored `physics_gate` (finite values, non-negative inventories, O2/CO2/water
    ledgers, and physical operation bounds)
-2. Actor survival: 50 points
+2. Actor survival: 20 points
 3. TCL, environment trajectory, and resource margin/recovery: 10 points each
-4. Actor decision and device response: 10 points each, only when actors are enabled
+4. Cost and mass: 20 points each
+5. Actor decision and device response: 5 points each, only when actors are enabled
 
 Actor-enabled runs have a maximum of 100 points. `actor.mode: none` excludes
-decision and response, for a maximum of 80. Inapplicable points are not
+decision and response, for a maximum of 90. Inapplicable points are not
 redistributed. A failed physics gate produces `status: invalid` and no axis or
-total score.
+total score. Partial scores keep the sum of scored axes and report
+`applicable_max` / `complete` rather than discarding the total.
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.1",
   "status": "scored",
   "physics_gate": {
     "passed": true,
@@ -572,10 +574,14 @@ total score.
   },
   "scores": {
     "total": 74.2,
-    "max_score": 80,
+    "max_score": 90,
+    "applicable_max": 90,
+    "complete": true,
     "axes": {
-      "actor_survival": {"score": 45.0, "max_score": 50},
-      "tcl": {"score": 8.0, "max_score": 10}
+      "actor_survival": {"score": 18.0, "max_score": 20},
+      "tcl": {"score": 8.0, "max_score": 10},
+      "cost": {"score": 16.0, "max_score": 20},
+      "mass": {"score": 16.0, "max_score": 20}
     }
   }
 }

@@ -140,7 +140,20 @@ def test_classification_prefers_the_more_specific_subtree():
 def test_summary_block_carries_only_the_three_flags():
     pristine, effective = _with(**{"plant_sim.ogs.max_o2_kg_day": 48.3})
     assert integrity_summary(compare_configs(pristine, effective)) == {
+        "measured": True,
+        "evidence_status": "valid",
         "scoring_bar_modified": False,
         "operating_point_modified": True,
         "arm_modified": False,
     }
+
+
+def test_missing_integrity_is_unknown_not_valid():
+    assert evidence_status({}) == "unknown"
+    assert evidence_status(None) == "unknown"
+    summary = integrity_summary({})
+    assert summary["measured"] is False
+    assert summary["evidence_status"] == "unknown"
+    assert summary["scoring_bar_modified"] is None
+    assert summary["operating_point_modified"] is None
+    assert summary["arm_modified"] is None

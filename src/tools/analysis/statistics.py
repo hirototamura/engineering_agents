@@ -201,12 +201,12 @@ class LogisticFit:
 
     def predict(self, x: Sequence[float] | float) -> np.ndarray:
         arr = np.asarray(x, dtype=float)
-        z = (arr - self.x0) / max(self.width, 1e-9)
+        z = (arr - self.x0) / _signed_width(self.width)
         return 1.0 / (1.0 + np.exp(-np.clip(z, -60.0, 60.0)))
 
     @property
     def max_slope(self) -> float:
-        return 1.0 / (4.0 * max(self.width, 1e-9))
+        return 1.0 / (4.0 * abs(_signed_width(self.width)))
 
     def as_dict(self) -> Dict[str, float]:
         return {
@@ -216,11 +216,23 @@ class LogisticFit:
             "r_squared": self.r_squared,
             "rmse": self.rmse,
             "n": float(self.n),
+            "published": bool(
+                math.isfinite(self.r_squared)
+                and self.r_squared >= 0.0
+                and math.isfinite(self.x0)
+                and math.isfinite(self.width)
+            ),
         }
 
 
+def _signed_width(width: float) -> float:
+    if not math.isfinite(width) or abs(width) < 1e-9:
+        return 1e-9 if (not math.isfinite(width) or width >= 0) else -1e-9
+    return width
+
+
 def _logistic_sse(x: np.ndarray, y: np.ndarray, x0: float, width: float) -> float:
-    z = (x - x0) / max(width, 1e-9)
+    z = (x - x0) / _signed_width(width)
     pred = 1.0 / (1.0 + np.exp(-np.clip(z, -60.0, 60.0)))
     return float(np.sum((y - pred) ** 2))
 
@@ -255,14 +267,16 @@ def fit_logistic_response(
     for _ in range(refinements):
         for x0 in np.linspace(lo_x0, hi_x0, grid):
             for log_w in np.linspace(lo_w, hi_w, grid):
-                sse = _logistic_sse(xs, ys, float(x0), float(math.exp(log_w)))
-                if sse < best[0]:
-                    best = (sse, float(x0), float(math.exp(log_w)))
+                magnitude = float(math.exp(log_w))
+                for signed in (magnitude, -magnitude):
+                    sse = _logistic_sse(xs, ys, float(x0), signed)
+                    if sse < best[0]:
+                        best = (sse, float(x0), signed)
         _, x0_hat, w_hat = best
         pad_x = (hi_x0 - lo_x0) / (grid - 1) * 2.0
         pad_w = (hi_w - lo_w) / (grid - 1) * 2.0
         lo_x0, hi_x0 = x0_hat - pad_x, x0_hat + pad_x
-        lo_w, hi_w = math.log(w_hat) - pad_w, math.log(w_hat) + pad_w
+        lo_w, hi_w = math.log(abs(w_hat)) - pad_w, math.log(abs(w_hat)) + pad_w
 
     sse, x0_hat, w_hat = best
     sst = float(np.sum((ys - ys.mean()) ** 2))
@@ -521,7 +535,14 @@ def summarise(values: Iterable[float]) -> Dict[str, float]:
     arr = np.asarray([v for v in values], dtype=float)
     arr = arr[np.isfinite(arr)]
     if arr.size == 0:
-        return {"n": 0.0, "mean": math.nan, "sd": math.nan, "min": math.nan, "max": math.nan}
+        return {
+            "n": 0.0,
+            "mean": math.nan,
+            "sd": math.nan,
+            "median": math.nan,
+            "min": math.nan,
+            "max": math.nan,
+        }
     return {
         "n": float(arr.size),
         "mean": float(arr.mean()),

@@ -75,9 +75,15 @@ def strip_thinking_tags(text: str) -> str:
     """
     if not text:
         return text
-    text = _THINKING_TAG_RE.sub("", text)
-    text = _UNCLOSED_THINKING_RE.sub("", text)
-    return text
+    closed = _THINKING_TAG_RE.sub("", text)
+    without_unclosed = _UNCLOSED_THINKING_RE.sub("", closed)
+    if extract_json_block(without_unclosed) is not None:
+        return without_unclosed
+    if extract_json_block(closed) is not None:
+        # An unclosed ``<think`` inside a JSON string would wipe the only
+        # remaining object. Keep the closed-tag strip and leave the rest.
+        return closed
+    return without_unclosed
 
 
 def extract_thinking_text(text: str) -> str:

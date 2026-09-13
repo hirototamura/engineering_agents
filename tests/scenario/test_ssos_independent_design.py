@@ -232,6 +232,9 @@ def test_rejected_items_are_pinned_to_installed(tmp_path: Path):
     assert fields[ARS] == 25.0
     assert fields[OGS] == 12.0
     assert fields[WRS] == 10.0
+    ranked = designer["ranked_candidates"][0]
+    assert ranked["fields"][WRS] == 14.0
+    assert ranked.get("audited_fields") is None
     assert merged["decision_source"] == "tool_use_audit_panel:item_veto"
     assert merged["final_status"] == STATUS_PROVISIONAL
     assert merged["requires_supervisor_approval"] is True

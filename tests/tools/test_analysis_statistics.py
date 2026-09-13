@@ -110,6 +110,15 @@ def test_fit_logistic_with_too_few_points_returns_nan():
     assert math.isnan(fit.x0)
 
 
+def test_fit_logistic_can_represent_a_decreasing_response():
+    x = np.linspace(0.0, 8.0, 40)
+    y = 1.0 / (1.0 + np.exp((x - 3.0) / 0.5))
+    fit = st.fit_logistic_response(x, y)
+    assert fit.width < 0
+    assert fit.r_squared > 0.99
+    assert fit.as_dict()["published"] is True
+
+
 # --------------------------------------------------------------------------- #
 # goodness of fit
 # --------------------------------------------------------------------------- #
@@ -219,3 +228,10 @@ def test_summarise_reports_the_expected_moments():
     assert out["mean"] == pytest.approx(2.0)
     assert out["median"] == pytest.approx(2.0)
     assert out["min"] == pytest.approx(1.0)
+
+
+def test_summarise_empty_includes_median():
+    out = st.summarise([])
+    assert out["n"] == 0.0
+    assert math.isnan(out["median"])
+    assert math.isnan(out["mean"])

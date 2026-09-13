@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from core.event_log import EventLog
+from core.event_log import EventLog, remove_run_directory
 
 _DEFAULT_RESULTS_ROOT = Path(__file__).resolve().parents[2] / "experiments" / "results"
 RESULTS_ROOT_ENV_VAR = "EA_RESULTS_ROOT"
@@ -83,6 +82,7 @@ def resolve_run_directory(
     run_id: Optional[str] = None,
     results_root: Optional[Path] = None,
     recreate_output: bool = True,
+    force: bool = False,
 ) -> Path:
     """Resolve (and optionally create) the run output directory."""
     if output_dir is None:
@@ -90,13 +90,13 @@ def resolve_run_directory(
         resolved_run_id = resolve_run_id(scenario_name, output_cfg, agents_config, run_id)
         resolved_run_id = sanitize_run_id(resolved_run_id)
         if recreate_output:
-            return EventLog.prepare_run_dir(base, run_id=resolved_run_id)
+            return EventLog.prepare_run_dir(base, run_id=resolved_run_id, force=force)
         run_dir = base / resolved_run_id
         run_dir.mkdir(parents=True, exist_ok=True)
         return run_dir
 
     run_dir = Path(output_dir)
     if recreate_output and run_dir.exists():
-        shutil.rmtree(run_dir)
+        remove_run_directory(run_dir, force=force)
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir

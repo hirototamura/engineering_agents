@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
-from scenario.ssos_eclss_loop.design_eval import rank_candidates
+from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
+from scenario.ssos_eclss_loop.design_eval import mark_final_eligibility, rank_candidates
 from scenario.ssos_eclss_loop.design_variables import CAPACITY_KEYS
 
 # Two capacities that differ by less than this are the same machine. Rounding
@@ -51,22 +53,46 @@ OBJECTIVE_NOTE = (
 )
 
 
+def _as_capacity_number(key: str, value: Any) -> float:
+    """Coerce a capacity value. Numeric strings are accepted; anything else fails."""
+    if isinstance(value, bool) or value is None:
+        raise ValueError(f"{key} must be a finite number, got {value!r}")
+    if isinstance(value, str):
+        value = value.strip()
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{key} must be a finite number, got {value!r}") from exc
+    if not math.isfinite(number):
+        raise ValueError(f"{key} must be a finite number, got {value!r}")
+    return number
+
+
 def normalize_fields(fields: Mapping[str, Any]) -> Dict[str, float]:
-    """Canonical form of a capacity proposal: known keys, sorted, rounded."""
+    """Canonical form of a capacity proposal: known keys, sorted, rounded.
+
+    Non-numeric capacity values are refused rather than dropped: silently
+    discarding them made unrelated proposals hash to the empty machine.
+    """
+    if not isinstance(fields, Mapping):
+        raise TypeError(f"fields must be a mapping, got {type(fields).__name__}")
     normalized: Dict[str, float] = {}
     for key in sorted(fields):
         if key not in CAPACITY_KEYS:
             continue
-        value = fields[key]
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            continue
-        normalized[key] = round(float(value), FIELD_PRECISION)
+        normalized[key] = round(_as_capacity_number(key, fields[key]), FIELD_PRECISION)
     return normalized
 
 
 def candidate_hash(fields: Mapping[str, Any]) -> str:
     """Identity of a machine, independent of how the proposal was written."""
-    canonical = json.dumps(normalize_fields(fields), sort_keys=True, separators=(",", ":"))
+    if not isinstance(fields, Mapping):
+        raise TypeError(f"fields must be a mapping, got {type(fields).__name__}")
+    payload = {
+        "fields": normalize_fields(fields),
+        "keys": sorted(str(key) for key in fields),
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
 
 
@@ -156,11 +182,25 @@ def _scorecard(outcome: Mapping[str, Any]) -> Dict[str, Any]:
     return card
 
 
-def current_best(candidates: Sequence[Mapping[str, Any]]) -> Optional[str]:
+def current_best(
+    candidates: Sequence[Mapping[str, Any]],
+    *,
+    baseline_outcome: Optional[Mapping[str, Any]] = None,
+    scenario_config: Optional[Mapping[str, Any]] = None,
+) -> Optional[str]:
     """The leading candidate under the adoption ranking, if anything ran."""
     simulated = [dict(record) for record in candidates if record.get("simulated")]
     if not simulated:
         return None
+    if baseline_outcome is not None:
+        constraints = DesignConstraints.from_scenario_config(scenario_config or {})
+        for record in simulated:
+            mark_final_eligibility(
+                record,
+                baseline_outcome=baseline_outcome,
+                require_in_bounds=constraints.require_in_bounds_final,
+                require_within_budget=constraints.require_feasible_final,
+            )
     return rank_candidates(simulated)[0].get("candidate_id")
 
 
@@ -275,7 +315,11 @@ def build_design_state(
         "installed_capacity": _installed(scenario_config),
         "theoretical_capacity": _capacity_need(theory),
         "candidates": views,
-        "current_best": current_best(candidates),
+        "current_best": current_best(
+            candidates,
+            baseline_outcome=baseline_outcome,
+            scenario_config=scenario_config,
+        ),
         "decisions_left": max(0, int(decisions_left)),
         "remaining_candidate_budget": max(0, int(candidate_budget_left)),
         "decision_needed": "refine_or_finish" if views else "first_candidate",

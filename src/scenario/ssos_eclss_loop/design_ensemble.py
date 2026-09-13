@@ -85,7 +85,10 @@ def resolve_audit_config(design_cfg: Mapping[str, Any]) -> Dict[str, Any]:
     if not isinstance(raw, Mapping):
         return {"enabled": False, "agents": []}
     enabled = True if raw.get("enabled") is None else bool(raw.get("enabled"))
-    count = max(1, int(raw.get("count") or len(DEFAULT_AUDIT_LENSES)))
+    if "count" in raw and raw.get("count") is not None:
+        count = max(0, int(raw["count"]))
+    else:
+        count = len(DEFAULT_AUDIT_LENSES)
     id_prefix = str(raw.get("id_prefix") or DEFAULT_AUDITOR_PREFIX)
     if raw.get("id") and not raw.get("id_prefix") and raw.get("count") is None:
         agent_ids = [str(raw["id"])]
@@ -424,7 +427,8 @@ def integrate_audit_panel(
     kept_fields, emptied = _pin_vetoed_to_installed(proposed_fields, vetoed, installed)
     if selected is not None:
         selected = dict(selected)
-        selected["fields"] = dict(kept_fields)
+        selected["audited_fields"] = dict(kept_fields)
+        selected["fields_unverified_after_audit"] = bool(vetoed)
         for index, row in enumerate(ranked):
             if row.get("candidate_id") == selected_id:
                 ranked[index] = selected
@@ -692,6 +696,8 @@ def _write_kept_fields(
     wrote = False
     for change in proposals.get("changes") or []:
         if not isinstance(change, dict):
+            continue
+        if change.get("change_kind") != "capacity_profile":
             continue
         payload = change.get("payload")
         if not isinstance(payload, dict) or "fields" not in payload:
