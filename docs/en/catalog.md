@@ -22,6 +22,7 @@ Full page index for the MkDocs site. Use the header language switcher for 日本
 | | [Homogeneous agent team](memo/agents/homogeneous_agent_team_plan.md) | Agent team design |
 | | [SSOS ECLSS connection plan](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | Phase 0–7 details |
 | | [Post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md) | Actor / designer split (as shipped) |
+| | [Occupant survival](memo/ssos_eclss_loop/occupant_survival.md) | plant_sim crew/actor attrition |
 | | [SSOS EPS ROS2 plan](memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md) | EPS bridge (Phase 3) |
 | | [ROS2 graph investigation](memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | Launch remap research |
 | | [ECLSS physical phenomena](memo/ssos_eclss_loop/ssos_eclss_physical_phenomena_overview.md) | ECLSS physics memo |

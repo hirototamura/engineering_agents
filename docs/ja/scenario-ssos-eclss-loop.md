@@ -50,7 +50,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | --- | --- | --- |
 | **ARS** | Air Revitalisation System | CO₂ ストレージからの除去（`air_revitalisation` Action） |
 | **OGS** | Oxygen Generation System | O₂ 生成（`oxygen_generation` Action）。Sabatier には CO₂ feedstock が必要 |
-| **WRS** | Water Recovery System | 水回収（`water_recovery_systems` Action）— チーム運用はバックログ（BL-004） |
+| **WRS** | Water Recovery System | 水回収（`water_recovery_systems` Action）。labeled actor は尿+grey が `wrs_feed_trigger_l` 以上で `water_recovery` を出す。**LoopMock** の WRS はまだ `NotImplementedError` — `plant_sim` または `ros2` を使う |
 
 ### ROS2 インターフェース（主要）
 
@@ -90,6 +90,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | --- | --- |
 | CO₂ ≥ `co2_storage_high_kg`（デフォルト 2.0 kg） | `air_revitalisation`（ARS） |
 | O₂ ≤ `o2_storage_low_kg`（デフォルト 6.0 kg） | `oxygen_generation`（OGS）。`request_co2_before_ogs: true` のときだけ先に `request_co2`（既定は **false**） |
+| 尿 + grey ≥ `wrs_feed_trigger_l`（既定 0.5 L） | `water_recovery`（WRS）。plant_sim の尿バッファ / grey が必要。LoopMock に WRS はない |
 
 **`request_co2_before_ogs`:** 既定 OFF。実 SSOS では OGS が Sabatier 用に `/ars/request_co2` を内部呼び出しするため。`true` にすると（設計提案含む）、同一 step で明示 `request_co2` と LoopMock の OGS Sabatier 減算が両方走り、**バッファなしの簡略 mock では CO₂ が二重減算されうる**。
 
@@ -110,7 +111,7 @@ step は 0-based（`0 .. steps-1`）。actor `eclss_actor_{step % N}` が運用�
 | ファイル | 用途 |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | step 数、初期ストレージ、backend 種別、閾値、`agents.actor.mode` / `agents.design.mode`、run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | actor チーム（`eclss_actor_*`）、designer チーム（`eclss_designer_*`）、actor `policy`（labeled のみ）、いまは両側とも vLLM `qwen3-8b` |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | actor チーム（`eclss_actor_*`）、designer チーム（`eclss_designer_*`）、actor `policy`（labeled のみ）、actor は vLLM `qwen3.5-9b`（`:8000`）、designer は `qwen3.8-27b-uncensored`（`:8001`） |
 
 ### scenario.yaml（主要項目）
 
@@ -185,14 +186,19 @@ actor:
   policy:   # labeled_rule_base のみ。閾値は scenario.yaml から実行時マージ
     request_co2_before_ogs: false
     request_co2_amount: 0.025
+    wrs_feed_trigger_l: 0.5
     ars_goal:
       initial_co2_mass: 1.8
     ogs_goal:
       input_water_mass: 0.15
+    wrs_goal:
+      urine_volume: 2.0
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b  # いまの既定。後で変える
+    model: qwen3.5-9b  # いまの既定。後で変える
+    max_tokens: 768
+    think: false
 
 design:
   team:
@@ -200,9 +206,10 @@ design:
     id_prefix: eclss_designer
   llm:
     provider: vllm
-    base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b
-    max_tokens: 2048
+    base_url: http://10.10.0.108:8001/v1
+    model: qwen3.8-27b-uncensored
+    max_tokens: 16384
+    think: true
 ```
 
 ---

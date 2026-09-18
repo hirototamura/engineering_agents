@@ -83,7 +83,7 @@ This document aggregates **features not yet complete** and the **research backlo
 | One Piece Web / SSOT UI | Not connected (JSON provenance only) | [one-piece-integration.md](one-piece-integration.md) |
 | `agents.mode: base` | Not implemented (emergent roles) | [backlog.md](memo/backlog.md) BL-001 |
 | Evolving persona research | Backlog | BL-002 |
-| WRS in `SsosEclssLoopTeam` | Backlog | BL-004 |
+| WRS in `SsosEclssLoopTeam` | Shipped (labeled + LLM `water_recovery`). LoopMock WRS still unimplemented | BL-004 remainder: LoopMock |
 | upstream CO₂ scrubber | Waiting on SSOS extension | BL-004 |
 | MkDocs CI deploy | `docs/ssos-mkdocs` branch | BL-004 |
 | SSOS ↔ EA step sync | Under consideration (mock vs upstream) | [BL-007](memo/backlog.md#bl-007) |

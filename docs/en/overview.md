@@ -358,18 +358,21 @@ Container `ea-loop` defaults to `OLLAMA_BASE_URL=host.docker.internal`.
 
 The lab box `gpu-sv-008` (`10.10.0.108`) serves OpenAI-compatible APIs. Reachable on the lab LAN or via VPN — not a public address. Do not start another `vllm serve` on that machine. Setup: [hirototamura/vllm_server](https://github.com/hirototamura/vllm_server).
 
-| Use | URL | `model` |
+| Use | URL | `model` (served id; may change) |
 | --- | --- | --- |
-| Daily deliberation (default) | `http://10.10.0.108:8000/v1` | `qwen3-8b` |
-| Heavier judgment | `http://10.10.0.108:8001/v1` | `qwen3-32b` |
+| ssos actors / daily (YAML default) | `http://10.10.0.108:8000/v1` | `qwen3.5-9b` |
+| ssos designers (YAML default) | `http://10.10.0.108:8001/v1` | `qwen3.8-27b-uncensored` |
+| Client fallback if YAML model looks like an Ollama tag (`:`) | same as URL in use | `qwen3-8b` (`VllmClient.DEFAULT_MODEL`) |
 
 ```bash
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
-ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3-32b \
-  --set agents.llm.base_url=http://10.10.0.108:8001/v1
+ea run ssos_eclss_loop --backend mock --actor-mode llm --design-mode llm --llm-provider vllm
 ```
 
-Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. `agents.llm.api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set.
+!!! warning "Do not collapse actor vs designer with env"
+    `VLLM_BASE_URL` / `VLLM_MODEL` apply to **every** vLLM client. `--llm-model` stamps every ssos side whose mode is `llm`. To keep the 9B/27B split, omit those globals and use `--set agents.actor.llm.model=` / `--set agents.design.llm.model=` (and matching `base_url`).
+
+Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. `agents.llm.api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set. YAML `api_timeout` on ssos is ignored for vLLM.
 
 Default LLM settings are in each scenario's `agents.yaml` (scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml), ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)). `llm` mode fails if the selected backend is not reachable.
 

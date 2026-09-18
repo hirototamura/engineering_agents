@@ -103,7 +103,7 @@
 | One Piece Web / SSOT UI    | 未接続（JSON provenance のみ）  | [one-piece-integration.md](one-piece-integration.md)      |
 | `agents.mode: base`        | 未実装（創発ロール）               | [backlog.md](memo/backlog.md) BL-001                      |
 | 進化ペルソナ研究                   | バックログ                    | BL-002                                                    |
-| WRS in `SsosEclssLoopTeam` | バックログ                    | BL-004                                                    |
+| WRS in `SsosEclssLoopTeam` | 実装済み（labeled + LLM の `water_recovery`）。LoopMock WRS は未実装 | BL-004 残り: LoopMock |
 | upstream CO₂ スクラバ          | SSOS 拡張待ち                | BL-004                                                    |
 | MkDocs CI deploy           | `docs/ssos-mkdocs`       | BL-004                                                    |
 | SSOS ↔ EA step 同期          | 検討中（Mock 拡充 vs upstream） | [BL-007](memo/backlog.md#bl-007) |

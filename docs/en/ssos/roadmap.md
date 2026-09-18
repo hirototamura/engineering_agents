@@ -183,7 +183,7 @@ Verification: potable vs electrolysis water tradeoff, `water_tradeoff_signal`
 | rclpy native clients | Migrate from CLI bridge (performance) |
 | `/bcdu/operation` Action | SSOS upstream PR (Phase 3c / [BL-005](../memo/backlog.md)) |
 | One Piece requirement pull | Canonical supervision requirements (separate repo) |
-| WRS in `SsosEclssLoopTeam` | [BL-004](../memo/backlog.md) |
+| LoopMock WRS Action/Service | Team already issues `water_recovery`; mock backend still `NotImplementedError` ([BL-004](../memo/backlog.md)) |
 
 ---
 

@@ -51,7 +51,7 @@ Questions this scenario answers:
 | --- | --- | --- |
 | **ARS** | Air Revitalisation System | CO₂ removal from storage (`air_revitalisation` Action) |
 | **OGS** | Oxygen Generation System | O₂ generation (`oxygen_generation` Action). Sabatier needs CO₂ feedstock |
-| **WRS** | Water Recovery System | Water recovery (`water_recovery_systems` Action) — team operation is backlog (BL-004) |
+| **WRS** | Water Recovery System | Water recovery (`water_recovery_systems` Action). Labeled actors fire `water_recovery` when urine+grey feed ≥ `wrs_feed_trigger_l`. **LoopMock** still raises `NotImplementedError` for WRS — use `plant_sim` or `ros2` |
 
 ### ROS2 interfaces (main)
 
@@ -91,14 +91,13 @@ Baseline runs show how storage evolves without agent intervention.
 | --- | --- |
 | CO₂ ≥ `co2_storage_high_kg` (default 2.0 kg) | `air_revitalisation` (ARS) |
 | O₂ ≤ `o2_storage_low_kg` (default 6.0 kg) | `oxygen_generation` (OGS); optional `request_co2` first when `request_co2_before_ogs: true` (default **false**) |
+| urine + grey water ≥ `wrs_feed_trigger_l` (default 0.5 L) | `water_recovery` (WRS). Needs plant_sim urine buffer / grey water; LoopMock has no WRS |
 
 **`request_co2_before_ogs`:** default off so feedstock matches real SSOS (OGS calls `/ars/request_co2` itself). Opt-in `true` (including via design proposals) can **double-debit CO₂ on LoopMock** in the same step: explicit `request_co2` plus OGS Sabatier storage subtract — LoopMock has no intermediate CO₂ buffer.
 
 **Re-arm**: If storage does not improve after ARS / OGS, the next step can retry (`co2_at_ars_dispatch` / `o2_at_ogs_dispatch` boundaries).
 
 Steps are 0-based (`0 .. steps-1`). Actor `eclss_actor_{step % N}` issues operational commands (one policy representative; `max_actions_per_step` does not apply). After the run, a separate designer team (`eclss_designer_*`) writes `design_proposals.json` (`ssos_graph`).
-
-### llm
 
 ### llm
 
@@ -111,7 +110,7 @@ Each step: all N actors deliberate in parallel → up to `agents.actor.max_actio
 | File | Purpose |
 | --- | --- |
 | [`scenario.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/scenario.yaml) | Step count, initial storage, backend kind, thresholds, `agents.actor.mode` / `agents.design.mode`, run ID |
-| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Actor team (`eclss_actor_*`), designer team (`eclss_designer_*`), actor `policy` (labeled only), both vLLM `qwen3-8b` for now |
+| [`agents.yaml`](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml) | Actor team (`eclss_actor_*`), designer team (`eclss_designer_*`), actor `policy` (labeled only), actor vLLM `qwen3.5-9b` (`:8000`), designer `qwen3.8-27b-uncensored` (`:8001`) |
 
 ### scenario.yaml (main fields)
 
@@ -186,14 +185,19 @@ actor:
   policy:   # labeled_rule_base only. Thresholds merged from scenario.yaml at runtime
     request_co2_before_ogs: false
     request_co2_amount: 0.025
+    wrs_feed_trigger_l: 0.5
     ars_goal:
       initial_co2_mass: 1.8
     ogs_goal:
       input_water_mass: 0.15
+    wrs_goal:
+      urine_volume: 2.0
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b  # current default; may change
+    model: qwen3.5-9b  # current default; may change
+    max_tokens: 768
+    think: false
 
 design:
   team:
@@ -201,9 +205,10 @@ design:
     id_prefix: eclss_designer
   llm:
     provider: vllm
-    base_url: http://10.10.0.108:8000/v1
-    model: qwen3-8b
-    max_tokens: 2048
+    base_url: http://10.10.0.108:8001/v1
+    model: qwen3.8-27b-uncensored
+    max_tokens: 16384
+    think: true
 ```
 
 ---

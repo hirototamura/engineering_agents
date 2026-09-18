@@ -25,8 +25,8 @@ Naming: **actor** (in-sim operational agents) and **designer** (post-run design 
 
 | Kind | When | Role | id_prefix | Model (current default; may change) |
 | --- | --- | --- | --- | --- |
-| actor | Each step | Discourse + ARS/OGS/WRS operational commands only | `eclss_actor` → `eclss_actor_1` … `_50` | vLLM `qwen3-8b`; `labeled_rule_base` allowed |
-| designer | **After the run only** | Read ICs, telemetry, and actor final state; write `design_proposals.json` | `eclss_designer` → `eclss_designer_1` … `_4` | vLLM `qwen3-8b`; `max_tokens: 2048` |
+| actor | Each step | Discourse + ARS/OGS/WRS operational commands only | `eclss_actor` → `eclss_actor_1` … `_50` | vLLM `qwen3.5-9b` (`:8000`); `labeled_rule_base` allowed |
+| designer | **After the run only** | Read ICs, telemetry, and actor final state; write `design_proposals.json` | `eclss_designer` → `eclss_designer_1` … `_4` | vLLM `qwen3.8-27b-uncensored` (`:8001`); `max_tokens: 16384`; `think: true` |
 
 Pass/fail stays deterministic in `src/scenario/ssos_eclss_loop/health.py`. The design LLM does not judge. LLM / Persona stay out of `environment/`.
 
@@ -71,7 +71,7 @@ CLI (ssos):
 
 - `--actor-mode` → `agents.actor.mode`
 - `--design-mode` → `agents.design.mode`
-- `--llm-provider` / `--llm-model` stamp both sides when both are `llm`. Keep distinct URLs/models with `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (same for `.model`)
+- `--llm-provider` / `--llm-model` stamp **only sides whose resolved mode is `llm`**. Keep distinct URLs/models with `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (same for `.model`). `VLLM_MODEL` / `VLLM_BASE_URL` override every vLLM client and collapse the split.
 - `--agents-mode` — deprecated alias for `--actor-mode` on ssos. Specifying both is an error. Scrubber still uses `--agents-mode` only
 
 Killer combo: `--actor-mode labeled_rule_base --design-mode llm`.
