@@ -353,18 +353,29 @@ ollama list
 
 研究室マシン `gpu-sv-008`（`10.10.0.108`）が OpenAI 互換 API を公開しています。研究室 LAN または VPN から到達できます（公開アドレスではありません）。そのマシンで別の `vllm serve` を立てないこと。セットアップ: [hirototamura/vllm_server](https://github.com/hirototamura/vllm_server)。
 
-| 用途 | URL | `model` |
+| 用途 | URL | `model`（いまの研究室 ID。後で変える） |
 | --- | --- | --- |
-| 日常の議論（既定） | `http://10.10.0.108:8000/v1` | `qwen3-8b` |
-| 重い判断 | `http://10.10.0.108:8001/v1` | `qwen3-32b` |
+| シミュレーション内 actor（`ssos_eclss_loop` 既定） | `http://10.10.0.108:8000/v1` | `qwen3.5-9b` |
+| 事後 designer（`ssos_eclss_loop` 既定） | `http://10.10.0.108:8001/v1` | `qwen3.8-27b-uncensored` |
+
+`ssos_eclss_loop/agents.yaml` は各側を上記 URL に向けている。scrubber の既定はローカル Ollama（`gemma4:e4b`）。研究室を使うときは `--llm-provider vllm`。
 
 ```bash
+# yaml の分割を保つ（--llm-model / VLLM_MODEL を渡さない）
+ea run ssos_eclss_loop --actor-mode llm --design-mode llm --llm-provider vllm
+# scrubber はチーム 1 つ。モデルと URL は任意で上書き
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
-ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3-32b \
+ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3.8-27b-uncensored \
   --set agents.llm.base_url=http://10.10.0.108:8001/v1
 ```
 
 環境変数: `VLLM_BASE_URL`、`VLLM_MODEL`、`VLLM_API_KEY`、`VLLM_API_TIMEOUT`、`LLM_PROVIDER`。SSH トンネル例: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`。`agents.llm.api_timeout` は Ollama 用。vLLM は既定 300s（`VLLM_API_TIMEOUT` で上書き）。
+
+落とし穴（`src/core/llm/vllm.py` / CLI）:
+
+- `VLLM_BASE_URL` と `VLLM_MODEL` は **すべての** vLLM クライアントに効く。ssos では actor（`:8000` / 9B）と designer（`:8001` / 27B）が潰れる。`--llm-model` も `llm` の両側に同じ値を書く。
+- `:` を含む Ollama タグ（例: `qwen3.5:9b`）は vLLM の served-model id ではない。`resolve_vllm_model` はクライアントの `DEFAULT_MODEL`（`qwen3-8b`）に落ちる。yaml のドット付き id（`qwen3.5-9b`）を使う。
+- URL / モデルを分けるときは `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=`（`.model` も同様）。
 
 デフォルトの LLM 設定は各シナリオの `agents.yaml`（scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml)、ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)）。選択したバックエンドに届かないと `llm` モードは失敗します。
 
