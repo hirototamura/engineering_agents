@@ -5,13 +5,13 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import yaml
 
+from core.event_log import remove_run_directory
 from scenario.jobs.executor import execute_run
 from scenario.jobs.progress import IterateReporter
 from scenario.jobs.spec import RunResult, RunSpec
@@ -186,10 +186,16 @@ def chain_verdict(
     return VERDICT_NOT_IMPROVED
 
 
-def prepare_chain_dir(chain_dir: Path, *, recreate: bool = True) -> Path:
+def prepare_chain_dir(
+    chain_dir: Path,
+    *,
+    recreate: bool = True,
+    force: bool = False,
+) -> Path:
+    """Create the chain parent. Refuse to wipe a non-run tree unless *force*."""
     chain_dir = Path(chain_dir)
     if recreate and chain_dir.exists():
-        shutil.rmtree(chain_dir)
+        remove_run_directory(chain_dir, force=force)
     chain_dir.mkdir(parents=True, exist_ok=True)
     return chain_dir
 
@@ -525,7 +531,7 @@ def run_design_iterate(
     if base_spec.scenario != ITERATE_SCENARIO:
         raise ValueError(f"iterate supports {ITERATE_SCENARIO} only, got {base_spec.scenario!r}")
 
-    chain_dir = prepare_chain_dir(chain_dir, recreate=recreate)
+    chain_dir = prepare_chain_dir(chain_dir, recreate=recreate, force=base_spec.force)
     leftover_memory = chain_dir / CHAIN_MEMORY_FILENAME
     if leftover_memory.exists():
         # --no-recreate keeps the directory but this invocation is still a

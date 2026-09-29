@@ -169,13 +169,23 @@ def test_design_iterate_recreates_parent_directory(tmp_path: Path):
     leftover = chain_dir / "99"
     leftover.mkdir()
     (leftover / "stale.txt").write_text("old\n", encoding="utf-8")
+    spec = RunSpec(
+        scenario="ssos_eclss_loop",
+        approve_provisional=True,
+        overrides=_labeled_overrides(backend="mock", steps=2),
+    )
+    with pytest.raises(ValueError, match="not a simulation run directory"):
+        run_design_iterate(iterations=1, chain_dir=chain_dir, base_spec=spec, recreate=True)
+    assert (leftover / "stale.txt").is_file()
+
     run_design_iterate(
         iterations=1,
         chain_dir=chain_dir,
         base_spec=RunSpec(
-            scenario="ssos_eclss_loop",
+            scenario=spec.scenario,
             approve_provisional=True,
-            overrides=_labeled_overrides(backend="mock", steps=2),
+            overrides=spec.overrides,
+            force=True,
         ),
         recreate=True,
     )

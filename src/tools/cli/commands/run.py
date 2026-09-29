@@ -476,20 +476,36 @@ def _build_overrides(
         ordered.append(load_override_file(override_file))
     if set_values:
         parsed_set = parse_set_values(set_values)
-        base_config = load_scenario_config(scenario_name)
         unknown = [
             path
-            for path in unknown_override_paths(base_config, parsed_set)
+            for path in unknown_override_paths(
+                _config_for_set_validation(scenario_name), parsed_set
+            )
             if not path.startswith("iteration.defaults")
         ]
         if unknown:
             raise ValueError(
-                "Unknown --set key(s) (not in scenario config): " + ", ".join(unknown)
+                "Unknown --set key(s) (not in scenario or agents config): "
+                + ", ".join(unknown)
             )
         ordered.append(parsed_set)
     ordered.extend(parts)
     ordered.extend(named)
     return merge_overrides(*ordered)
+
+
+def _config_for_set_validation(scenario_name: str) -> dict:
+    """Scenario YAML plus the merged agents config.
+
+    ``agents.actor.policy`` and ``agents.*.llm`` live in ``agents.yaml``.
+    Checking ``scenario.yaml`` alone rejects those ``--set`` paths before
+    ``load_agents_config`` can merge them.
+    """
+    base = load_scenario_config(scenario_name)
+    agents = load_agents_config(scenario_name, base)
+    if not isinstance(agents, dict):
+        return base
+    return merge_overrides(base, {"agents": agents}) or base
 
 
 def _apply_cli_defaults(scenario_name: str, overrides: dict | None) -> dict | None:

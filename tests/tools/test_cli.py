@@ -204,6 +204,88 @@ def test_run_rejects_unknown_set_keys():
     assert "Unknown --set key" in result.output
 
 
+def test_run_accepts_agents_yaml_set_keys(tmp_path: Path):
+    spec_path = tmp_path / "spec.json"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            *NO_CHAIN,
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "labeled_rule_base",
+            "--design-mode",
+            "none",
+            "--set",
+            "agents.design.llm.base_url=http://127.0.0.1:8001/v1",
+            "--set",
+            "plant_sim.crew.size=4",
+            "--set",
+            "agents.actor.team.count=4",
+            "--set",
+            "agents.actor.policy.ars_goal.initial_co2_mass=5",
+            "--dry-run",
+            "--write-spec",
+            str(spec_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(spec_path.read_text(encoding="utf-8"))
+    overrides = payload["overrides"]
+    agents = overrides["agents"]
+    assert agents["design"]["llm"]["base_url"] == "http://127.0.0.1:8001/v1"
+    assert agents["actor"]["team"]["count"] == 4
+    assert agents["actor"]["policy"]["ars_goal"]["initial_co2_mass"] == 5
+    assert overrides["plant_sim"]["crew"]["size"] == 4
+
+
+def test_run_rejects_unknown_agent_set_key():
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            *NO_CHAIN,
+            "--backend",
+            "mock",
+            "--set",
+            "agents.actor.policy.not_a_knob=1",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "agents.actor.policy.not_a_knob" in result.output
+
+
+def test_iterate_refuses_to_wipe_a_non_run_directory(tmp_path: Path):
+    alien = tmp_path / "notes"
+    alien.mkdir()
+    (alien / "readme.txt").write_text("keep me\n", encoding="utf-8")
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "ssos_eclss_loop",
+            "--iterate",
+            "1",
+            "--backend",
+            "mock",
+            "--actor-mode",
+            "none",
+            "--design-mode",
+            "none",
+            "--output-dir",
+            str(alien),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "Refusing to delete" in result.output
+    assert (alien / "readme.txt").read_text(encoding="utf-8") == "keep me\n"
+
+
 def test_run_scrubber_default_agents_mode_from_scenario(tmp_path: Path):
     output_dir = tmp_path / "default-mode"
     result = runner.invoke(

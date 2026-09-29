@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from core.event_log import EventLog, looks_like_run_directory, remove_run_directory
-from scenario.jobs.iterate import iterate_apply_document, resolve_iteration
+from scenario.jobs.iterate import iterate_apply_document, prepare_chain_dir, resolve_iteration
 from scenario.ssos_eclss_loop.design_eval import STATUS_REJECTED
 from scenario.ssos_eclss_loop.design_proposals import (
     ALLOWED_SET_PARAMETER_TARGETS,
@@ -119,6 +119,30 @@ def test_analysis_residuals_read_ledger_checks():
         "o2_kg": 0.0,
         "water_l": 0.4,
     }
+
+
+def test_prepare_chain_dir_refuses_a_non_run_tree(tmp_path: Path):
+    alien = tmp_path / "notes"
+    alien.mkdir()
+    (alien / "readme.txt").write_text("keep me\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="not a simulation run directory"):
+        prepare_chain_dir(alien)
+    assert (alien / "readme.txt").is_file()
+
+    prepare_chain_dir(alien, force=True)
+    assert alien.is_dir()
+    assert not (alien / "readme.txt").exists()
+
+
+def test_prepare_chain_dir_recreates_a_previous_chain(tmp_path: Path):
+    chain = tmp_path / "chain"
+    chain.mkdir()
+    (chain / "chain_summary.json").write_text("{}\n", encoding="utf-8")
+    (chain / "01").mkdir()
+    prepare_chain_dir(chain)
+    assert chain.is_dir()
+    assert not (chain / "chain_summary.json").exists()
+    assert not (chain / "01").exists()
 
 
 def test_approve_provisional_defaults_closed():

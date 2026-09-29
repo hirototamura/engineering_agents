@@ -15,6 +15,7 @@ RUN_DIRECTORY_MARKERS = (
     "evaluation.json",
     "applied_proposals.json",
     "consumed_proposals.json",
+    "chain_summary.json",
 )
 
 

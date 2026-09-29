@@ -151,6 +151,12 @@ def run_iterate_from_run(
             reporter=live,
             iteration_record=iteration_record,
         )
+    except ValueError as exc:
+        print_error(
+            str(exc),
+            hint="Pass --force to replace a directory that is not a previous run or chain.",
+        )
+        raise typer.Exit(exit_codes.USER_ERROR) from exc
     finally:
         if live is not None:
             live.close()
