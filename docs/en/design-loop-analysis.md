@@ -227,5 +227,5 @@ The self-contained HTML reports at `src/experiments/analysis/design_loop_analysi
 - [ssos_eclss_loop scenario](scenario-ssos-eclss-loop.md) — the simulation being analysed
 - [CLI guide](cli.md) — the commands the harness drives
 - [Tool-use design agent](memo/ssos_eclss_loop/tool_use_design_agent.md) — the designer that can act in the capacity subspace
-- [技術説明 ver.04](/ja/eclss_ai_agent_technical_report_04/) — Japanese hackathon report; chapter 8 is the emergence visualization
+- [Technical report v4](eclss_ai_agent_technical_report_04.md) — hackathon report; chapter 8 is the emergence visualization
 - [技術説明 ver.03](/ja/eclss_ai_agent_technical_report_03/) — same report plus the quantitative analysis chapters

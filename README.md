@@ -2,7 +2,7 @@
 
 [日本語 README](README.ja.md) · [Docs](docs/en/index.md) · [Experiment record](docs/en/results.md) · [Measured data](docs/data) · [Agent design](docs/en/agent-design.md)
 
-**Full results write-up (Japanese):** [technical report](docs/ja/eclss_ai_agent_technical_report_04.md) — the four fifty-round chains and the emergence chapter.
+**Full results write-up:** [technical report](docs/en/eclss_ai_agent_technical_report_04.md) ([日本語](docs/ja/eclss_ai_agent_technical_report_04.md)) — the four fifty-round chains and the emergence chapter.
 
 Engineering Agents is a simulation environment for testing whether AI agents can improve the design of a spacecraft Environmental Control and Life Support System (ECLSS).
 
@@ -89,7 +89,7 @@ The README keeps only the headline results. Details are kept in the experiment r
 
 | Link | Contents |
 | --- | --- |
-| [docs/ja/eclss_ai_agent_technical_report_04.md](docs/ja/eclss_ai_agent_technical_report_04.md) | Full technical report (Japanese) |
+| [docs/en/eclss_ai_agent_technical_report_04.md](docs/en/eclss_ai_agent_technical_report_04.md) | Full technical report ([日本語](docs/ja/eclss_ai_agent_technical_report_04.md)) |
 | [docs/en/results.md](docs/en/results.md) | Experiment results |
 | [docs/data/](docs/data) | Per-iteration CSV / JSON files |
 | [docs/data/README.md](docs/data/README.md) | Data column descriptions |
@@ -212,7 +212,7 @@ See [architecture](docs/en/architecture.md) and [API contracts](docs/en/api-cont
 
 | Topic | English |
 | --- | --- |
-| Technical report | [docs/ja/eclss_ai_agent_technical_report_04.md](docs/ja/eclss_ai_agent_technical_report_04.md) |
+| Technical report | [docs/en/eclss_ai_agent_technical_report_04.md](docs/en/eclss_ai_agent_technical_report_04.md) |
 | Overview | [docs/en/overview.md](docs/en/overview.md) |
 | Experiment record | [docs/en/results.md](docs/en/results.md) |
 | Agent design | [docs/en/agent-design.md](docs/en/agent-design.md) |

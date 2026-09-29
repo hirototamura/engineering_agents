@@ -20,6 +20,7 @@ Full page index for the MkDocs site. Use the header language switcher for 日本
 | | [Roadmap](ssos/roadmap.md) | Phase 0–8 status |
 | More | [CLI guide](cli.md) | `ea` command reference |
 | | [Design-loop analysis](design-loop-analysis.md) | Order parameters, criticality, controllability of the design→verify loop |
+| | [Technical report v4](eclss_ai_agent_technical_report_04.md) | Hackathon report. Chapter 8 is the emergence visualization |
 | | [Development plan](development-plan.md) | Roadmap and backlog index |
 | | [Maintenance guide](MAINTENANCE.md) | How to edit and preview docs |
 | Memos | [Backlog](memo/backlog.md) | BL-001–BL-007 |

@@ -79,6 +79,7 @@ plugins:
             - More:
               - CLI guide: cli.md
               - Design-loop analysis: design-loop-analysis.md
+              - Technical report v4: eclss_ai_agent_technical_report_04.md
               - Development plan: development-plan.md
               - One Piece integration: one-piece-integration.md
               - Document catalog: catalog.md

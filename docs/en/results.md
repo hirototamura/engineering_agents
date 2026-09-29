@@ -194,6 +194,7 @@ The simulator is deterministic, so a chain re-run with the same LLM replies repr
 
 ## See also
 
+- [Technical report v4](eclss_ai_agent_technical_report_04.md) — full write-up, including the emergence chapter
 - [Implementation specs](specs/index.md) — the spec each of these changes was written against
 - [Agent design](agent-design.md) — what the model was shown at each of these points
 - [Design agent](memo/ssos_eclss_loop/tool_use_design_agent.md) — the loop in detail
