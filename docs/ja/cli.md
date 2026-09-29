@@ -55,7 +55,7 @@ ea job run /tmp/job.json
 
 英語版の詳細（フラグ一覧・exit code）: [en/cli.md](../en/cli.md)
 
-`ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。
+`ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。`--llm-model` と `VLLM_MODEL` は両側を同じモデルで潰す。yaml の 9B/27B 分割を保つなら渡さない。
 
 ## 結果の確認
 

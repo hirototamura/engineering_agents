@@ -358,18 +358,29 @@ Container `ea-loop` defaults to `OLLAMA_BASE_URL=host.docker.internal`.
 
 The lab box `gpu-sv-008` (`10.10.0.108`) serves OpenAI-compatible APIs. Reachable on the lab LAN or via VPN — not a public address. Do not start another `vllm serve` on that machine. Setup: [hirototamura/vllm_server](https://github.com/hirototamura/vllm_server).
 
-| Use | URL | `model` |
+| Use | URL | `model` (current lab ids; may change) |
 | --- | --- | --- |
-| Daily deliberation (default) | `http://10.10.0.108:8000/v1` | `qwen3-8b` |
-| Heavier judgment | `http://10.10.0.108:8001/v1` | `qwen3-32b` |
+| In-sim actors (`ssos_eclss_loop` default) | `http://10.10.0.108:8000/v1` | `qwen3.5-9b` |
+| Post-run designers (`ssos_eclss_loop` default) | `http://10.10.0.108:8001/v1` | `qwen3.8-27b-uncensored` |
+
+`ssos_eclss_loop/agents.yaml` already points each side at those URLs. Scrubber still defaults to local Ollama (`gemma4:e4b`); pass `--llm-provider vllm` to use the lab.
 
 ```bash
+# Keep the yaml split (do not pass --llm-model / VLLM_MODEL)
+ea run ssos_eclss_loop --actor-mode llm --design-mode llm --llm-provider vllm
+# Scrubber: one team; optional explicit model + URL
 ea run scrubber_degradation --agents-mode llm --llm-provider vllm
-ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3-32b \
+ea run scrubber_degradation --agents-mode llm --llm-provider vllm --llm-model qwen3.8-27b-uncensored \
   --set agents.llm.base_url=http://10.10.0.108:8001/v1
 ```
 
 Env overrides: `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_API_KEY`, `VLLM_API_TIMEOUT`, `LLM_PROVIDER`. SSH tunnel example: `VLLM_BASE_URL=http://127.0.0.1:8000/v1`. `agents.llm.api_timeout` applies to Ollama; vLLM keeps a 300s default unless `VLLM_API_TIMEOUT` is set.
+
+Pitfalls (`src/core/llm/vllm.py` / CLI):
+
+- `VLLM_BASE_URL` and `VLLM_MODEL` stamp **every** vLLM client. On ssos that collapses actor (`:8000` / 9B) and designer (`:8001` / 27B). `--llm-model` does the same for both `llm` sides.
+- Ollama tags that contain `:` (for example `qwen3.5:9b`) are not vLLM served-model ids. `resolve_vllm_model` then falls back to client `DEFAULT_MODEL` (`qwen3-8b`). Use dotted ids from yaml (`qwen3.5-9b`).
+- Distinct URLs/models: `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (same for `.model`).
 
 Default LLM settings are in each scenario's `agents.yaml` (scrubber: [``scrubber_degradation/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/scrubber_degradation/agents.yaml), ssos: [``ssos_eclss_loop/agents.yaml``](https://github.com/hirototamura/engineering_agents/blob/main/src/scenario/ssos_eclss_loop/agents.yaml)). `llm` mode fails if the selected backend is not reachable.
 

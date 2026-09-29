@@ -3,8 +3,11 @@
 The GPU box (gpu-sv-008) exposes two endpoints — see
 https://github.com/hirototamura/vllm_server :
 
-- http://10.10.0.108:8000/v1  model qwen3-8b   (daily deliberation)
-- http://10.10.0.108:8001/v1  model qwen3-32b  (heavier judgment)
+- http://10.10.0.108:8000/v1  model qwen3.5-9b              (ssos actors)
+- http://10.10.0.108:8001/v1  model qwen3.8-27b-uncensored  (ssos designers)
+
+Yaml ids use a hyphen after the size (qwen3.5-9b). Ollama tags with ':'
+fall back to DEFAULT_MODEL (qwen3-8b) in resolve_vllm_model.
 
 Reachable on the lab LAN or via VPN; not a public address.
 """
