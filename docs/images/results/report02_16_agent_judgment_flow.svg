@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="520" viewBox="0 0 1180 520">
+<rect width="100%" height="100%" fill="white"/>
+<text x="590" y="34" font-size="23" font-family="Arial" text-anchor="middle">エージェント判断が結果へつながった流れ</text>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#355c7d"/></marker></defs>
+<rect x="40" y="90" width="230" height="250" rx="8" fill="#e7f0fb" stroke="#8aa6c1"/>
+<text x="155.0" y="126" font-size="18" font-family="Arial" text-anchor="middle" font-weight="700">観測</text>
+<text x="60" y="168" font-size="15" font-family="Arial">全員生存は達成済み</text>
+<text x="60" y="202" font-size="15" font-family="Arial">主な失点はCost/Mass</text>
+<text x="60" y="236" font-size="15" font-family="Arial">ARS/OGS不足は過去に乗員損失</text>
+<line x1="284" y1="215.0" x2="306" y2="215.0" stroke="#355c7d" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="320" y="90" width="240" height="250" rx="8" fill="#d6e5f6" stroke="#8aa6c1"/>
+<text x="440.0" y="126" font-size="18" font-family="Arial" text-anchor="middle" font-weight="700">エージェント判断</text>
+<text x="340" y="168" font-size="15" font-family="Arial">ARS/OGSは理論下限に固定</text>
+<text x="340" y="202" font-size="15" font-family="Arial">余剰容量は重量・コスト増</text>
+<text x="340" y="236" font-size="15" font-family="Arial">WRSを中心に探索</text>
+<line x1="574" y1="215.0" x2="596" y2="215.0" stroke="#355c7d" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="610" y="90" width="230" height="250" rx="8" fill="#bdd7ee" stroke="#8aa6c1"/>
+<text x="725.0" y="126" font-size="18" font-family="Arial" text-anchor="middle" font-weight="700">設計操作</text>
+<text x="630" y="168" font-size="15" font-family="Arial">ARS = 20.8 kg/day</text>
+<text x="630" y="202" font-size="15" font-family="Arial">OGS = 42.0 kg/day</text>
+<text x="630" y="236" font-size="15" font-family="Arial">WRS = 1.8-2.2を重点探索</text>
+<line x1="854" y1="215.0" x2="876" y2="215.0" stroke="#355c7d" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="890" y="90" width="250" height="250" rx="8" fill="#9ecae1" stroke="#8aa6c1"/>
+<text x="1015.0" y="126" font-size="18" font-family="Arial" text-anchor="middle" font-weight="700">結果</text>
+<text x="910" y="168" font-size="15" font-family="Arial">段階②: 49/50回で全員生存</text>
+<text x="910" y="202" font-size="15" font-family="Arial">段階③: 最高84.23点</text>
+<text x="910" y="236" font-size="15" font-family="Arial">WRS=1.25で45/50へ低下</text>
+<text x="590" y="410" font-size="16" font-family="Arial" text-anchor="middle">引用例: "Hold ARS and OGS at their theoretical floors ... Use WRS 2.0 L/operation"</text>
+<text x="590" y="442" font-size="14" font-family="Arial" text-anchor="middle" fill="#555">ログ上の判断文を短く抜粋。内部推論ではなく、保存された設計提案の説明文を引用。</text>
+</svg>

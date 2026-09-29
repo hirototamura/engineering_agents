@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.agents.memory import TeamMemoryStore
@@ -19,6 +20,16 @@ from core.agents.persona import (
 from core.agents.types import AgentMessage, DeliberationPhase
 from core.llm.base import LLMClient
 from core.llm.factory import build_llm_client
+from core.storage import DesignStorage
+from scenario.agents.ssos_tool_use_design import ToolUseDesignAgent, ToolUseSettings
+from scenario.ssos_eclss_loop.design_ensemble import (
+    integrate_audit_panel,
+    merge_audit_llm_cfg,
+    resolve_audit_config,
+    resolve_bias_direction,
+    run_audit_panel,
+    strip_internal_proposal_keys,
+)
 from scenario.ssos_eclss_loop.design_proposals import (
     DESIGN_DOMAIN,
     SSOS_CHANGE_KINDS,
@@ -43,6 +54,10 @@ class DesignReviewBundle:
     baseline_graph: Dict[str, Any]
     policy: Dict[str, Any]
     actor_snapshot: Optional[ActorTeamSnapshot] = None
+    # Tool-use designers read the run's artifacts and write candidate runs
+    # underneath it; the classic summary-only designers ignore both fields.
+    run_dir: Optional[Path] = None
+    agents_config: Optional[Dict[str, Any]] = None
 
 
 def post_run_message_step(summary: Dict[str, Any]) -> int:
@@ -62,6 +77,7 @@ class PostRunDesignAgent:
         self.config = config
         self.mode = config.get("mode", "none")
         self.llm_mode = self.mode == "llm"
+        self.tool_use = ToolUseSettings.from_design_config(config)
         self.llm_client = self._build_llm_client(config.get("llm", {})) if self.llm_mode else None
         team_cfg = dict(config)
         team_raw = dict(team_cfg.get("team") or {})
@@ -86,6 +102,8 @@ class PostRunDesignAgent:
 
     def propose(self, bundle: DesignReviewBundle) -> Dict[str, Any]:
         baseline_graph = dict(bundle.baseline_graph or {})
+        if self.llm_mode and self.tool_use.enabled:
+            return self._tool_use_propose(bundle)
         if self.llm_mode:
             return self._llm_propose(bundle, baseline_graph)
         proposed_by = self.team_cfg.agent_ids[0] if self.team_cfg.agent_ids else "eclss_designer_1"
@@ -111,6 +129,75 @@ class PostRunDesignAgent:
             ).to_dict()
         ]
         return proposals
+
+    def _tool_use_llm_client(self) -> Optional[Any]:
+        llm_client = self.llm_client
+        if self.tool_use.llm_overrides and llm_client is not None:
+            merged = {**dict(self.config.get("llm") or {}), **self.tool_use.llm_overrides}
+            return self._build_llm_client(merged)
+        return llm_client
+
+    def _audit_llm_client(self) -> Optional[Any]:
+        if self.llm_client is None:
+            return None
+        return self._build_llm_client(
+            merge_audit_llm_cfg(self.config, self.tool_use.llm_overrides)
+        )
+
+    def _run_one_tool_use(
+        self,
+        bundle: DesignReviewBundle,
+        agent_id: str,
+        *,
+        session: Optional[Any] = None,
+        work_dir: Optional[Path] = None,
+        bias_direction: str = "",
+    ) -> Dict[str, Any]:
+        persona = self.personas[agent_id].persona if agent_id in self.personas else ""
+        agent = ToolUseDesignAgent(
+            agent_id=agent_id,
+            persona=persona,
+            settings=self.tool_use,
+            llm_client=self._tool_use_llm_client(),
+            session=session,
+            work_dir=work_dir,
+            bias_direction=bias_direction,
+        )
+        return agent.propose(bundle)
+
+    def _tool_use_propose(self, bundle: DesignReviewBundle) -> Dict[str, Any]:
+        """One designer proposes; an optional audit panel checks, then we merge."""
+        agent_ids = list(self.team_cfg.agent_ids) or ["eclss_designer_1"]
+        designer_id = agent_ids[0]
+        audit_cfg = resolve_audit_config(self.config)
+        if not audit_cfg["enabled"]:
+            return strip_internal_proposal_keys(self._run_one_tool_use(bundle, designer_id))
+
+        run_dir = Path(bundle.run_dir or ".")
+        storage = DesignStorage(run_dir)
+        bias = resolve_bias_direction(self.config)
+        designer = self._run_one_tool_use(
+            bundle,
+            designer_id,
+            session=storage.session,
+            bias_direction=bias,
+        )
+        ranked = [
+            row
+            for row in (designer.get("ranked_candidates") or [])
+            if isinstance(row, dict)
+        ]
+        verdicts = run_audit_panel(
+            llm_client=self._audit_llm_client(),
+            designer=designer,
+            ranked=ranked,
+            bias_direction=bias,
+            auditors=audit_cfg["agents"],
+            session=storage.session,
+            scenario_config=bundle.scenario_config,
+            run_dir=run_dir,
+        )
+        return integrate_audit_panel(bundle, designer, verdicts, storage)
 
     def _rep_id(self, summary: Dict[str, Any]) -> str:
         # Designers are a separate team from actors. Labeled always uses
@@ -146,6 +233,13 @@ class PostRunDesignAgent:
         for agent_id, parsed in zip(self.team_cfg.agent_ids, turns):
             if parsed is None:
                 continue
+            thinking = _last_thinking(self.agents.get(agent_id))
+            metadata: Dict[str, Any] = {
+                "decision_source": "llm",
+                "deliberation_phase": DeliberationPhase.DELIBERATION,
+            }
+            if thinking:
+                metadata["thinking"] = thinking
             step_discourse.append(
                 AgentMessage(
                     step=step,
@@ -154,10 +248,7 @@ class PostRunDesignAgent:
                     message=str(parsed.data.get("message", "")),
                     message_type="comment",
                     reasoning=str(parsed.data.get("reasoning", "")),
-                    metadata={
-                        "decision_source": "llm",
-                        "deliberation_phase": DeliberationPhase.DELIBERATION,
-                    },
+                    metadata=metadata,
                 )
             )
 
@@ -177,6 +268,7 @@ class PostRunDesignAgent:
             PersonaAgent.phase_hint(DeliberationPhase.POST_RUN),
             ("message", "reasoning", "changes"),
         )
+        post_run_thinking = _last_thinking(agent)
         if parsed is None:
             fallback = build_design_proposals_from_run(
                 proposed_by=rep,
@@ -200,11 +292,18 @@ class PostRunDesignAgent:
                     metadata={
                         "decision_source": "llm_parse_fail",
                         "deliberation_phase": DeliberationPhase.POST_RUN,
+                        **({"thinking": post_run_thinking} if post_run_thinking else {}),
                     },
                 ).to_dict()
             ]
             return fallback
 
+        post_run_meta: Dict[str, Any] = {
+            "decision_source": "llm",
+            "deliberation_phase": DeliberationPhase.POST_RUN,
+        }
+        if post_run_thinking:
+            post_run_meta["thinking"] = post_run_thinking
         changes, parse_notes = parse_llm_design_proposals(parsed.data.get("changes", []))
         return {
             "design_domain": DESIGN_DOMAIN,
@@ -227,10 +326,7 @@ class PostRunDesignAgent:
                     message=str(parsed.data.get("message", "")),
                     message_type="comment",
                     reasoning=str(parsed.data.get("reasoning", "")),
-                    metadata={
-                        "decision_source": "llm",
-                        "deliberation_phase": DeliberationPhase.POST_RUN,
-                    },
+                    metadata=post_run_meta,
                 ).to_dict()
             ],
         }
@@ -344,3 +440,8 @@ def actor_snapshot_from_team(team: Any) -> ActorTeamSnapshot:
         discourse=discourse,
         policy=dict(getattr(team, "policy", {}) or {}),
     )
+
+
+def _last_thinking(agent: Optional[PersonaAgent]) -> str:
+    generation = getattr(agent, "last_generation", None)
+    return str(getattr(generation, "thinking", "") or "")

@@ -111,4 +111,4 @@ python3 -m tools.cli run ssos_eclss_loop \
 | `src/scenario/ssos_eclss_loop/health.py` | WARNING/CRITICAL from thresholds |
 | `tests/scenario/test_ssos_eclss_loop_survival.py` | Dwell unit tables |
 
-Plant mass-balance (not survival) is in [plant_sim_backend.md](plant_sim_backend.md). Designers are a separate team: [post-run design agent](post_run_design_agent.md).
+Plant mass-balance (not survival) is in [plant_sim_backend.md](plant_sim_backend.md). In-sim labeled ops: [labeled rule-base](labeled_rule_base.md). Designers are a separate team: [post-run design agent](post_run_design_agent.md).

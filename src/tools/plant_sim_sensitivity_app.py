@@ -21,9 +21,11 @@ import matplotlib.pyplot as plt
 import streamlit as st
 
 from tools.plant_sim_sensitivity import (
+    POLICY_GROUP,
     SLIDER_SPECS,
     SliderSpec,
     SweepRow,
+    combo_sensitivity_figure,
     run_sensitivity,
     sensitivity_figure,
     yaml_defaults,
@@ -92,8 +94,9 @@ def render() -> None:
     st.set_page_config(page_title="plant_sim sensitivity", layout="wide")
     st.title("plant_sim sensitivity")
     st.caption(
-        "Not the Streamlit run dashboard. Sliders patch scenario.yaml in memory "
-        "(initial storage + plant_sim). Survival stays off. Dashed lines are the YAML baseline. "
+        "Not the Streamlit run dashboard. Sliders patch scenario.yaml and labeled "
+        "policy payloads in memory (initial storage + plant_sim + agents.yaml actor.policy). "
+        "Survival stays off. Dotted lines (no markers) are the YAML baseline. "
         "Crew water sinks are rescaled so urine + condensate + unrecoverable = potable."
     )
 
@@ -108,12 +111,17 @@ def render() -> None:
             for spec in SLIDER_SPECS:
                 st.session_state[spec.key] = defaults[spec.key]
             st.rerun()
-        n_max = st.slider("N max (x-axis)", min_value=2, max_value=64, value=8, step=1)
-        steps = st.slider("Campaign steps", min_value=4, max_value=36, value=20, step=1)
+        n_max = st.slider("N max (x-axis)", min_value=2, max_value=64, value=50, step=1)
+        steps = st.slider("Campaign steps", min_value=1, max_value=50, value=20, step=1)
         overlay = st.checkbox("Overlay YAML baseline", value=True)
         overrides: Dict[str, Any] = {}
         for group, specs in grouped.items():
-            with st.expander(group, expanded=(group in {"Initial storage", "Crew"})):
+            if group == POLICY_GROUP:
+                st.caption(
+                    "labeled_rule_base knobs (llm ignores them). "
+                    "WRS campaigns skip run_wrs until urine+grey ≥ wrs_feed_trigger_l."
+                )
+            with st.expander(group, expanded=(group in {"Initial storage", "Crew", POLICY_GROUP})):
                 for spec in specs:
                     overrides[spec.key] = _slider(spec, defaults[spec.key])
 
@@ -128,10 +136,22 @@ def render() -> None:
     plt.close(fig)
     st.markdown(
         "- **Crew metabolism**: unconstrained demand ∝ N × activity × rates × dt/86400.\n"
-        "- **One subsystem action**: ARS/OGS/WRS nameplate, inventory ignored.\n"
+        "- **One subsystem action**: ARS/OGS/WRS nameplate from labeled policy goals, inventory ignored "
+        "(WRS nameplate still preloads `urine_volume`; `wrs_feed_trigger_l` does not change it).\n"
         "- **Tank inventory**: simulated Δ tank / step from `simulation.initial_*`.\n"
-        "- **Tank + initial**: ending tank = initial + campaign Δ (own y-scale; dotted = initial fill).\n"
+        "- **Tank + initial**: ending tank = initial + (Δ tank/step × steps) "
+        "(own y-scale; dotted = initial fill).\n"
         "- Dotted vertical line: `plant_sim.crew.size` (scenario operating point; x-axis still sweeps N)."
+    )
+    fig_combo = combo_sensitivity_figure(current, baseline_rows=baseline, yaml_n=yaml_n)
+    st.pyplot(fig_combo, clear_figure=True, use_container_width=True)
+    plt.close(fig_combo)
+    st.markdown(
+        "- **1 subsystem action**: one of ARS / OGS / WRS each step (simulated Δ tank / step; "
+        "WRS waits until urine+grey ≥ `wrs_feed_trigger_l`).\n"
+        "- **2 subsystem actions**: ARS+OGS, ARS+WRS, or OGS+WRS each step.\n"
+        "- **All subsystems**: ARS, OGS, and WRS each called once per step.\n"
+        "- **Tank + initial**: ending tank after the campaign (not per-step), same convention as the grid above."
     )
 
 

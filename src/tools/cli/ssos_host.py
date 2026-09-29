@@ -54,9 +54,9 @@ def check_ssos_ros2_host_environment(spec: RunSpec) -> RunResult | None:
         run_dir=Path("."),
         exit_code=exit_codes.ENVIRONMENT_ERROR,
         error=(
-            "Docker is required for ssos_eclss_loop with the default ros2 backend. "
+            "Docker is required for ssos_eclss_loop with the ros2 backend. "
             "Install Docker, start the SSOS container (./scripts/ssos/mac/ssos-run-detached.sh), "
-            "or pass --backend mock / --backend plant_sim for local runs."
+            "or omit --backend (plant_sim) / pass --backend mock for local runs."
         ),
     )
 
@@ -233,6 +233,7 @@ def _container_spec(
         recreate_output=spec.recreate_output,
         seed=spec.seed,
         apply_proposals_path=apply_proposals_path if apply_proposals_path is not None else spec.apply_proposals_path,
+        approve_provisional=spec.approve_provisional,
     )
 
 

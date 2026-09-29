@@ -62,6 +62,12 @@ class PlantSimConfig:
     initial_urine_buffer_l: float = 0.0
     initial_grey_water_l: float = 0.0
 
+    # --- operations (subsystem busy window; design doc §7.1) ---
+    # A subsystem accepted at step t stays busy for
+    # ceil(operation_seconds / step_seconds) steps; commands arriving while busy
+    # are rejected instead of silently running a second operation.
+    operation_busy_guard_enabled: bool = True
+
     # --- survival (off for library/unit tests; scenario YAML turns it on) ---
     survival_enabled: bool = False
     cabin_co2_critical_kg: float = 2.2
@@ -172,6 +178,7 @@ class PlantSimConfig:
         sab = dict(ps.get("sabatier", {}) or {})
         wrs = dict(ps.get("wrs", {}) or {})
         survival = dict(ps.get("survival", {}) or {})
+        operations = dict(ps.get("operations", {}) or {})
         diag = dict(ps.get("diagnostics", {}) or {})
         thresholds = dict(config.get("thresholds", {}) or {})
 
@@ -219,6 +226,9 @@ class PlantSimConfig:
             initial_cabin_co2_kg=pick(sim, "initial_co2_storage_kg", "initial_cabin_co2_kg"),
             initial_o2_kg=pick(sim, "initial_o2_storage_kg", "initial_o2_kg"),
             initial_product_water_l=pick(sim, "initial_product_water_l", "initial_product_water_l"),
+            operation_busy_guard_enabled=bool(
+                pick(operations, "busy_guard_enabled", "operation_busy_guard_enabled")
+            ),
             survival_enabled=bool(pick(survival, "enabled", "survival_enabled")),
             cabin_co2_critical_kg=pick(
                 thresholds, "co2_storage_critical_kg", "cabin_co2_critical_kg"

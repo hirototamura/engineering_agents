@@ -154,6 +154,7 @@
 | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | [mvp_plan.md](memo/scrubber_degradation/mvp_plan.md)                                                                                         | Week ロードマップ、Day 1–10                                          |
 | [ssos_eclss_loop/ssos_eclss_loop_connection_plan.md](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md)           | SSOS ECLSS Phase 0–7 詳細・検証手順                                  |
+| [ssos_eclss_loop/labeled_rule_base.md](memo/ssos_eclss_loop/labeled_rule_base.md)                             | シミュレーション内 labeled 運用。必要量を積んでから上限                     |
 | [ssos_eclss_loop/post_run_design_agent.md](memo/ssos_eclss_loop/post_run_design_agent.md)                             | actor / designer 分離。事後 `changes` に件数上限なし                     |
 | [ssos_eclss_loop/ssos_eps_ros2_connection_plan.md](memo/ssos_eclss_loop/ssos_eps_ros2_connection_plan.md)               | EPS ROS2 ブリッジ（Phase 3）                                        |
 | [ssos_eclss_loop/ssos_ros2_graph_design_investigation.md](memo/ssos_eclss_loop/ssos_ros2_graph_design_investigation.md) | ゲートウェイ・remap 調査                                               |

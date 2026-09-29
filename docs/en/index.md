@@ -167,6 +167,11 @@ python3 -m streamlit run src/tools/dashboard/app.py   # optional dashboard
 
 | Topic | Page |
 | --- | --- |
+| **What the model decides, and what the world enforces** | [Agent design](agent-design.md) |
+| **What happened over 150 rounds** | [Experiment record](results.md) |
+| **Adding a backend, scenario, agent mode, or design variable** | [Extending](extending.md) |
+| **What is planned, and what measured it as needed** | [Roadmap](roadmap.md) |
+| **The specs each rebuild was written against** | [Implementation specs](specs/index.md) |
 | Project goals and dashboard | [Overview](overview.md) |
 | Layer design and agent flow | [Architecture](architecture.md) |
 | JSONL and API contracts | [API contracts](api-contracts.md) |

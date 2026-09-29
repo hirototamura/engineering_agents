@@ -55,6 +55,22 @@ def test_archetypes_round_robin_when_fewer_lenses_than_agents():
     }
 
 
+def test_avoid_local_optima_lens_is_known():
+    assert "avoid_local_optima" in ARCHETYPE_LENSES
+
+
+def test_independent_design_lenses_are_known():
+    lenses = ["rederive_numbers", "avoid_local_optima", "design_validity"]
+    team = load_team(
+        {"team": {"count": 3, "id_prefix": "eclss_designer", "archetypes": lenses}}
+    )
+    assert dict(team.archetypes) == {
+        "eclss_designer_1": "rederive_numbers",
+        "eclss_designer_2": "avoid_local_optima",
+        "eclss_designer_3": "design_validity",
+    }
+
+
 def test_unknown_lens_name_raises():
     with pytest.raises(ValueError, match="Unknown archetype lens"):
         load_team({"team": {"count": 2, "archetypes": ["first_principles", "bogus"]}})

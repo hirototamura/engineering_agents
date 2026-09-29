@@ -4,6 +4,7 @@ from core.agents import AgentMessage, Persona, Team
 from core.agents.memory import AgentMemory, DiscourseBuffer, TeamMemoryStore
 from core.agents.persona import PersonaAgent, PersonaPromptBuilder
 from core.event_log import EventLog
+from core.storage import DesignStorage, SessionStore
 from core.llm.base import LLMClient
 from core.llm.factory import build_llm_client
 from core.llm.ollama import OllamaClient
@@ -18,6 +19,8 @@ def test_core_imports():
     assert Persona is not None
     assert PersonaAgent is not None
     assert EventLog is not None
+    assert DesignStorage is not None
+    assert SessionStore is not None
     assert LLMClient is not None
     assert OllamaClient is not None
     assert VllmClient is not None

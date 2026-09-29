@@ -10,7 +10,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import yaml
 
@@ -49,11 +49,15 @@ from scenario.ssos_eclss_loop.survival import (
     map_physics_limiting,
 )
 from scenario.ssos_eclss_loop.loop_mock_backend import LoopMockEclssBackend
+from scenario.ssos_eclss_loop.design_constraints import DesignConstraints
+from scenario.ssos_eclss_loop.integrity_guard import compare_configs, integrity_summary
 from scenario.ssos_eclss_loop.design_proposals import (
+    APPROVE_PROVISIONAL_SIM_INFO,
     apply_design_proposals,
     load_design_proposals,
     write_design_proposals,
 )
+from scenario.ssos_eclss_loop.unified_evaluation import finalize_run_evaluation
 from environment.ssos.eclss.ros2.graph_rewire import build_topic_remap
 from environment.ssos.eclss.ros2.telemetry import reset_rclpy_telemetry_reader
 
@@ -334,6 +338,19 @@ class SsosEclssLoopScenario(Scenario):
         actor = flatten_actor_config(agents_config)
         if actor.get("mode") not in {"labeled_rule_base", "llm"}:
             return None
+        pinned = (config.get("backend") or {}).get("kind")
+        backend_kind = str(pinned) if pinned else resolve_backend_kind(config)
+        merged_backend = dict(config.get("backend") or {})
+        if isinstance(actor.get("backend"), dict):
+            merged_backend.update(actor["backend"])
+        merged_backend["kind"] = backend_kind
+        actor["backend"] = merged_backend
+        merge_keys = ("simulation", "mock_dynamics", "thresholds")
+        if backend_kind != "mock":
+            merge_keys = ("plant_sim",) + merge_keys
+        for key in merge_keys:
+            if key not in actor and config.get(key) is not None:
+                actor[key] = config.get(key)
         return SsosEclssLoopTeam(actor)
 
     def run(
@@ -344,6 +361,11 @@ class SsosEclssLoopScenario(Scenario):
         apply_proposals_path: Optional[Path] = None,
         run_id: Optional[str] = None,
         results_root: Optional[Path] = None,
+        approve_provisional: bool = False,
+        design_history: Optional[List[Dict[str, Any]]] = None,
+        on_step: Optional[Callable[[int, int], None]] = None,
+        on_phase: Optional[Callable[[str], None]] = None,
+        force: bool = False,
     ) -> Path:
         # Load order (before any simulation step):
         # 1) scenario.yaml (+ CLI overrides)
@@ -351,10 +373,17 @@ class SsosEclssLoopScenario(Scenario):
         # 3) agents.yaml ⊕ scenario.agents, then labeled policy from thresholds
         config = self.load_config(overrides)
         applied_proposals_path: Optional[Path] = None
+        applied_proposals: Optional[Dict[str, Any]] = None
         if apply_proposals_path is not None:
             proposals = load_design_proposals(apply_proposals_path)
-            config = apply_design_proposals(config, proposals)
-            applied_proposals_path = Path(apply_proposals_path)
+            applied_proposals = copy.deepcopy(proposals)
+            config = apply_design_proposals(
+                config, proposals, approve_provisional=approve_provisional
+            )
+        # Fail before the simulation, not after it: a design_constraints block
+        # the ranking does not implement is a config error, and finding it in
+        # the post-run designer would waste the whole run.
+        DesignConstraints.from_scenario_config(config)
         thresholds = config.get("thresholds", {}) or {}
         agents_config = load_agents_config(self.name, config)
         if agents_config:
@@ -362,7 +391,12 @@ class SsosEclssLoopScenario(Scenario):
         backend_kind = resolve_backend_kind(config, overrides)
         bind_plant_sim_crew_and_team(config, agents_config, backend_kind)
         sim_cfg = config.get("simulation", {})
-        steps = int(sim_cfg.get("steps", 8))
+        try:
+            steps = int(sim_cfg.get("steps", 8))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"simulation.steps must be an integer, got {sim_cfg.get('steps')!r}"
+            ) from exc
         output_cfg = config.get("output", {})
         # Persist the resolved kind (CLI / SSOS_ECLSS_BACKEND may differ from YAML).
         backend_section = config.get("backend")
@@ -379,11 +413,30 @@ class SsosEclssLoopScenario(Scenario):
             run_id=run_id,
             results_root=results_root,
             recreate_output=recreate_output,
+            force=force,
         )
+        if applied_proposals is not None:
+            snapshot = run_dir / "consumed_proposals.json"
+            write_design_proposals(snapshot, applied_proposals)
+            applied_proposals_path = snapshot
+        if design_history:
+            (run_dir / "design_history.json").write_text(
+                json.dumps(design_history, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
         config_paths = write_effective_configs(
             run_dir,
             scenario_config=config,
             agents_config=agents_config,
+        )
+
+        # Before the first step: what does this run differ from the pristine
+        # scenario in, and is any of it the yardstick? Recorded whatever the
+        # answer, so the classification travels with the run rather than being
+        # reconstructed later from the config that produced it.
+        integrity = compare_configs(self.load_config(None), config)
+        (run_dir / "run_integrity.json").write_text(
+            json.dumps(integrity, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
         backend = build_eclss_backend(config, kind=backend_kind)
@@ -421,6 +474,8 @@ class SsosEclssLoopScenario(Scenario):
         try:
             # 0-based steps: step 0 observes configured initial state; advance before 1..steps-1.
             for step in range(steps):
+                if on_step is not None:
+                    on_step(step, steps)
                 commands_this_step = False
                 if step > 0 and hasattr(backend, "advance_step"):
                     backend.advance_step()
@@ -557,12 +612,25 @@ class SsosEclssLoopScenario(Scenario):
             summary["team_count"] = team.team_cfg.count
             summary["agent_ids"] = list(team.team_cfg.agent_ids)
             summary["agent_ids_remaining"] = list(team.active_ids)
-            if team.mode == "llm":
-                summary["max_actions_per_step"] = team.max_actions_per_step
+            summary["max_actions_per_step"] = team.max_actions_per_step
+
+        # Canonical run measurement precedes design reasoning. The tool-use
+        # designer therefore sees the same deterministic diagnosis used by the
+        # dashboard, and candidate runs are evaluated identically.
+        summary["run_integrity"] = integrity_summary(integrity)
+        summary = finalize_run_evaluation(
+            run_dir, scenario_config=config, summary=summary, integrity=integrity
+        )
 
         if design_mode in {"labeled_rule_base", "llm"} and agents_config:
+            if on_phase is not None:
+                on_phase("design review")
             actor_cfg = flatten_actor_config(agents_config)
             design_cfg = flatten_design_config(agents_config)
+            # Persist the summary before design so a tool-use designer can read
+            # the run's own artifacts (summary.json included) from disk. It is
+            # rewritten below with the design fields added.
+            log.write_summary(summary)
             designer = PostRunDesignAgent(design_cfg)
             proposals = designer.propose(
                 DesignReviewBundle(
@@ -571,6 +639,8 @@ class SsosEclssLoopScenario(Scenario):
                     baseline_graph=dict(config.get("ssos_graph") or {}),
                     policy=dict(actor_cfg.get("policy") or {}),
                     actor_snapshot=actor_snapshot_from_team(team) if team is not None else None,
+                    run_dir=run_dir,
+                    agents_config=agents_config,
                 )
             )
             # L8/B: only persist when there is at least one change so
@@ -579,6 +649,22 @@ class SsosEclssLoopScenario(Scenario):
             summary["design_proposal_count"] = change_count
             summary["design_proposed_by"] = proposals.get("proposed_by")
             summary["design_decision_source"] = proposals.get("decision_source")
+            # Tool-use design (design doc §11) adds its artifacts to the summary.
+            for key in (
+                "design_family",
+                "final_status",
+                "selected_candidate_id",
+                "requires_supervisor_approval",
+                "tool_trace_path",
+                "candidate_rankings_path",
+                "design_review_report_path",
+                "candidate_run_dirs",
+                "llm_turn_count",
+            ):
+                if proposals.get(key) is not None:
+                    summary[f"design_{key}" if not key.startswith("design_") else key] = (
+                        proposals[key]
+                    )
             for msg in proposals.pop("deliberation_messages", []) or []:
                 if isinstance(msg, dict):
                     log.append("messages", msg)
@@ -589,6 +675,11 @@ class SsosEclssLoopScenario(Scenario):
                 write_design_proposals(proposals_path, proposals)
                 summary["design_proposals_path"] = str(proposals_path)
 
+        # The evaluation is written once, by ``finalize_run_evaluation`` above.
+        # Re-running the evaluator here would overwrite that measurement with a
+        # differently-configured one, so summary.json and evaluation.json would
+        # disagree about the same run and the designer's evidence would not be
+        # what a human opens afterwards.
         log.write_summary(summary)
 
         provenance_path = run_dir / "provenance.jsonl"
@@ -640,7 +731,20 @@ def main(argv: Optional[list[str]] = None) -> int:
         metavar="PATH",
         help="Apply design_proposals.json from a prior run before executing",
     )
+    parser.add_argument(
+        "--approve-provisional",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Adopt a proposal marked provisional_final / requires_supervisor_approval. "
+            "Default on so the sim can close the design loop without a human "
+            "(prints an INFO note). Pass --no-approve-provisional to restore the gate."
+        ),
+    )
     args = parser.parse_args(argv)
+
+    if args.approve_provisional:
+        print(f"INFO: {APPROVE_PROVISIONAL_SIM_INFO}", file=sys.stderr)
 
     overrides: Dict[str, Any] = {}
     if args.backend:
@@ -665,6 +769,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             output_dir=args.output_dir,
             overrides=overrides or None,
             apply_proposals_path=args.apply_proposals,
+            approve_provisional=args.approve_provisional,
         )
     )
     if result.exit_code != 0:

@@ -1,0 +1,399 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="660" viewBox="0 0 1260 660">
+<rect width="100%" height="100%" fill="white"/>
+<text x="630.0" y="34" font-size="22" text-anchor="middle" font-family="Arial">段階① 初期: 点数内訳 詳細版</text>
+<line x1="84" y1="578" x2="1030" y2="578" stroke="#333"/>
+<line x1="84" y1="578" x2="84" y2="62" stroke="#333"/>
+<line x1="84" y1="578.0" x2="1030" y2="578.0" stroke="#e7e7e7"/>
+<text x="74" y="583.0" font-size="12" text-anchor="end" font-family="Arial">0</text>
+<line x1="84" y1="526.4" x2="1030" y2="526.4" stroke="#e7e7e7"/>
+<text x="74" y="531.4" font-size="12" text-anchor="end" font-family="Arial">10</text>
+<line x1="84" y1="474.8" x2="1030" y2="474.8" stroke="#e7e7e7"/>
+<text x="74" y="479.8" font-size="12" text-anchor="end" font-family="Arial">20</text>
+<line x1="84" y1="423.2" x2="1030" y2="423.2" stroke="#e7e7e7"/>
+<text x="74" y="428.2" font-size="12" text-anchor="end" font-family="Arial">30</text>
+<line x1="84" y1="371.6" x2="1030" y2="371.6" stroke="#e7e7e7"/>
+<text x="74" y="376.6" font-size="12" text-anchor="end" font-family="Arial">40</text>
+<line x1="84" y1="320.0" x2="1030" y2="320.0" stroke="#e7e7e7"/>
+<text x="74" y="325.0" font-size="12" text-anchor="end" font-family="Arial">50</text>
+<line x1="84" y1="268.4" x2="1030" y2="268.4" stroke="#e7e7e7"/>
+<text x="74" y="273.4" font-size="12" text-anchor="end" font-family="Arial">60</text>
+<line x1="84" y1="216.8" x2="1030" y2="216.8" stroke="#e7e7e7"/>
+<text x="74" y="221.8" font-size="12" text-anchor="end" font-family="Arial">70</text>
+<line x1="84" y1="165.2" x2="1030" y2="165.2" stroke="#e7e7e7"/>
+<text x="74" y="170.2" font-size="12" text-anchor="end" font-family="Arial">80</text>
+<line x1="84" y1="113.6" x2="1030" y2="113.6" stroke="#e7e7e7"/>
+<text x="74" y="118.6" font-size="12" text-anchor="end" font-family="Arial">90</text>
+<line x1="84" y1="62.0" x2="1030" y2="62.0" stroke="#e7e7e7"/>
+<text x="74" y="67.0" font-size="12" text-anchor="end" font-family="Arial">100</text>
+<rect x="84.0" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 1: B TCL 0.62 points</title></rect>
+<rect x="84.0" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 1: C Environment 5.53 points</title></rect>
+<rect x="84.0" y="526.8" width="13.9" height="19.5" fill="#f9c74f"><title>Iteration 1: D Recovery 3.78 points</title></rect>
+<rect x="84.0" y="423.6" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 1: E Cost 20.00 points</title></rect>
+<rect x="84.0" y="320.4" width="13.9" height="103.2" fill="#b56576"><title>Iteration 1: F Mass 20.00 points</title></rect>
+<rect x="84.0" y="277.3" width="13.9" height="43.1" fill="#9d4edd"><title>Iteration 1: G Ops/Physics 8.34 points</title></rect>
+<text x="91.0" y="601" font-size="12" text-anchor="middle" font-family="Arial">1</text>
+<rect x="103.0" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 2: A Survival 20.00 points</title></rect>
+<rect x="103.0" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 2: B TCL 10.00 points</title></rect>
+<rect x="103.0" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 2: C Environment 9.98 points</title></rect>
+<rect x="103.0" y="340.8" width="13.9" height="30.9" fill="#f9c74f"><title>Iteration 2: D Recovery 5.99 points</title></rect>
+<rect x="103.0" y="296.4" width="13.9" height="44.4" fill="#9d4edd"><title>Iteration 2: G Ops/Physics 8.60 points</title></rect>
+<rect x="122.0" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 3: A Survival 20.00 points</title></rect>
+<rect x="122.0" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 3: B TCL 10.00 points</title></rect>
+<rect x="122.0" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 3: C Environment 9.98 points</title></rect>
+<rect x="122.0" y="340.6" width="13.9" height="31.1" fill="#f9c74f"><title>Iteration 3: D Recovery 6.02 points</title></rect>
+<rect x="122.0" y="323.9" width="13.9" height="16.7" fill="#f3722c"><title>Iteration 3: E Cost 3.24 points</title></rect>
+<rect x="122.0" y="308.5" width="13.9" height="15.5" fill="#b56576"><title>Iteration 3: F Mass 3.00 points</title></rect>
+<rect x="122.0" y="263.5" width="13.9" height="44.9" fill="#9d4edd"><title>Iteration 3: G Ops/Physics 8.70 points</title></rect>
+<rect x="141.1" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 4: A Survival 20.00 points</title></rect>
+<rect x="141.1" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 4: B TCL 10.00 points</title></rect>
+<rect x="141.1" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 4: C Environment 9.98 points</title></rect>
+<rect x="141.1" y="340.4" width="13.9" height="31.3" fill="#f9c74f"><title>Iteration 4: D Recovery 6.07 points</title></rect>
+<rect x="141.1" y="315.2" width="13.9" height="25.2" fill="#f3722c"><title>Iteration 4: E Cost 4.89 points</title></rect>
+<rect x="141.1" y="291.1" width="13.9" height="24.1" fill="#b56576"><title>Iteration 4: F Mass 4.67 points</title></rect>
+<rect x="141.1" y="247.5" width="13.9" height="43.6" fill="#9d4edd"><title>Iteration 4: G Ops/Physics 8.46 points</title></rect>
+<rect x="160.1" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 5: A Survival 20.00 points</title></rect>
+<rect x="160.1" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 5: B TCL 10.00 points</title></rect>
+<rect x="160.1" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 5: C Environment 9.98 points</title></rect>
+<rect x="160.1" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 5: D Recovery 6.04 points</title></rect>
+<rect x="160.1" y="313.4" width="13.9" height="27.1" fill="#f3722c"><title>Iteration 5: E Cost 5.25 points</title></rect>
+<rect x="160.1" y="287.5" width="13.9" height="25.9" fill="#b56576"><title>Iteration 5: F Mass 5.03 points</title></rect>
+<rect x="160.1" y="244.4" width="13.9" height="43.1" fill="#9d4edd"><title>Iteration 5: G Ops/Physics 8.36 points</title></rect>
+<text x="167.0" y="601" font-size="12" text-anchor="middle" font-family="Arial">5</text>
+<rect x="179.1" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 6: A Survival 20.00 points</title></rect>
+<rect x="179.1" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 6: B TCL 10.00 points</title></rect>
+<rect x="179.1" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 6: C Environment 9.98 points</title></rect>
+<rect x="179.1" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 6: D Recovery 6.05 points</title></rect>
+<rect x="179.1" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 6: E Cost 5.99 points</title></rect>
+<rect x="179.1" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 6: F Mass 5.77 points</title></rect>
+<rect x="179.1" y="236.9" width="13.9" height="43.0" fill="#9d4edd"><title>Iteration 6: G Ops/Physics 8.33 points</title></rect>
+<rect x="198.1" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 7: B TCL 0.62 points</title></rect>
+<rect x="198.1" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 7: C Environment 5.53 points</title></rect>
+<rect x="198.1" y="526.7" width="13.9" height="19.6" fill="#f9c74f"><title>Iteration 7: D Recovery 3.79 points</title></rect>
+<rect x="198.1" y="423.5" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 7: E Cost 20.00 points</title></rect>
+<rect x="198.1" y="320.3" width="13.9" height="103.2" fill="#b56576"><title>Iteration 7: F Mass 20.00 points</title></rect>
+<rect x="198.1" y="278.4" width="13.9" height="41.9" fill="#9d4edd"><title>Iteration 7: G Ops/Physics 8.13 points</title></rect>
+<rect x="217.2" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 8: A Survival 20.00 points</title></rect>
+<rect x="217.2" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 8: B TCL 10.00 points</title></rect>
+<rect x="217.2" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 8: C Environment 9.98 points</title></rect>
+<rect x="217.2" y="340.8" width="13.9" height="31.0" fill="#f9c74f"><title>Iteration 8: D Recovery 6.00 points</title></rect>
+<rect x="217.2" y="325.6" width="13.9" height="15.2" fill="#f3722c"><title>Iteration 8: E Cost 2.94 points</title></rect>
+<rect x="217.2" y="311.6" width="13.9" height="13.9" fill="#b56576"><title>Iteration 8: F Mass 2.70 points</title></rect>
+<rect x="217.2" y="268.3" width="13.9" height="43.4" fill="#9d4edd"><title>Iteration 8: G Ops/Physics 8.41 points</title></rect>
+<rect x="236.2" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 9: A Survival 20.00 points</title></rect>
+<rect x="236.2" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 9: B TCL 10.00 points</title></rect>
+<rect x="236.2" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 9: C Environment 9.98 points</title></rect>
+<rect x="236.2" y="340.3" width="13.9" height="31.4" fill="#f9c74f"><title>Iteration 9: D Recovery 6.09 points</title></rect>
+<rect x="236.2" y="312.9" width="13.9" height="27.4" fill="#f3722c"><title>Iteration 9: E Cost 5.30 points</title></rect>
+<rect x="236.2" y="286.7" width="13.9" height="26.2" fill="#b56576"><title>Iteration 9: F Mass 5.08 points</title></rect>
+<rect x="236.2" y="243.5" width="13.9" height="43.3" fill="#9d4edd"><title>Iteration 9: G Ops/Physics 8.38 points</title></rect>
+<rect x="255.2" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 10: A Survival 20.00 points</title></rect>
+<rect x="255.2" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 10: B TCL 10.00 points</title></rect>
+<rect x="255.2" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 10: C Environment 9.98 points</title></rect>
+<rect x="255.2" y="340.4" width="13.9" height="31.3" fill="#f9c74f"><title>Iteration 10: D Recovery 6.06 points</title></rect>
+<rect x="255.2" y="309.5" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 10: E Cost 5.99 points</title></rect>
+<rect x="255.2" y="279.7" width="13.9" height="29.8" fill="#b56576"><title>Iteration 10: F Mass 5.77 points</title></rect>
+<rect x="255.2" y="236.8" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 10: G Ops/Physics 8.31 points</title></rect>
+<text x="262.2" y="601" font-size="12" text-anchor="middle" font-family="Arial">10</text>
+<rect x="274.2" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 11: B TCL 0.62 points</title></rect>
+<rect x="274.2" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 11: C Environment 5.53 points</title></rect>
+<rect x="274.2" y="526.6" width="13.9" height="19.6" fill="#f9c74f"><title>Iteration 11: D Recovery 3.80 points</title></rect>
+<rect x="274.2" y="423.4" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 11: E Cost 20.00 points</title></rect>
+<rect x="274.2" y="320.2" width="13.9" height="103.2" fill="#b56576"><title>Iteration 11: F Mass 20.00 points</title></rect>
+<rect x="274.2" y="278.3" width="13.9" height="41.9" fill="#9d4edd"><title>Iteration 11: G Ops/Physics 8.13 points</title></rect>
+<rect x="293.2" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 12: A Survival 20.00 points</title></rect>
+<rect x="293.2" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 12: B TCL 10.00 points</title></rect>
+<rect x="293.2" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 12: C Environment 9.98 points</title></rect>
+<rect x="293.2" y="340.3" width="13.9" height="31.4" fill="#f9c74f"><title>Iteration 12: D Recovery 6.09 points</title></rect>
+<rect x="293.2" y="336.2" width="13.9" height="4.1" fill="#f3722c"><title>Iteration 12: E Cost 0.79 points</title></rect>
+<rect x="293.2" y="333.4" width="13.9" height="2.8" fill="#b56576"><title>Iteration 12: F Mass 0.54 points</title></rect>
+<rect x="293.2" y="289.3" width="13.9" height="44.1" fill="#9d4edd"><title>Iteration 12: G Ops/Physics 8.54 points</title></rect>
+<rect x="312.3" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 13: A Survival 20.00 points</title></rect>
+<rect x="312.3" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 13: B TCL 10.00 points</title></rect>
+<rect x="312.3" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 13: C Environment 9.98 points</title></rect>
+<rect x="312.3" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 13: D Recovery 6.04 points</title></rect>
+<rect x="312.3" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 13: E Cost 5.99 points</title></rect>
+<rect x="312.3" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 13: F Mass 5.78 points</title></rect>
+<rect x="312.3" y="236.9" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 13: G Ops/Physics 8.31 points</title></rect>
+<rect x="331.3" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 14: A Survival 20.00 points</title></rect>
+<rect x="331.3" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 14: B TCL 10.00 points</title></rect>
+<rect x="331.3" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 14: C Environment 9.98 points</title></rect>
+<rect x="331.3" y="351.2" width="13.9" height="20.5" fill="#f9c74f"><title>Iteration 14: D Recovery 3.97 points</title></rect>
+<rect x="331.3" y="320.1" width="13.9" height="31.1" fill="#f3722c"><title>Iteration 14: E Cost 6.03 points</title></rect>
+<rect x="331.3" y="290.1" width="13.9" height="30.0" fill="#b56576"><title>Iteration 14: F Mass 5.81 points</title></rect>
+<rect x="331.3" y="247.4" width="13.9" height="42.8" fill="#9d4edd"><title>Iteration 14: G Ops/Physics 8.29 points</title></rect>
+<rect x="350.3" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 15: A Survival 20.00 points</title></rect>
+<rect x="350.3" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 15: B TCL 10.00 points</title></rect>
+<rect x="350.3" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 15: C Environment 9.98 points</title></rect>
+<rect x="350.3" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 15: D Recovery 6.04 points</title></rect>
+<rect x="350.3" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 15: E Cost 5.99 points</title></rect>
+<rect x="350.3" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 15: F Mass 5.78 points</title></rect>
+<rect x="350.3" y="236.9" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 15: G Ops/Physics 8.31 points</title></rect>
+<text x="357.3" y="601" font-size="12" text-anchor="middle" font-family="Arial">15</text>
+<rect x="369.3" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 16: B TCL 0.62 points</title></rect>
+<rect x="369.3" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 16: C Environment 5.53 points</title></rect>
+<rect x="369.3" y="526.4" width="13.9" height="19.9" fill="#f9c74f"><title>Iteration 16: D Recovery 3.85 points</title></rect>
+<rect x="369.3" y="423.2" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 16: E Cost 20.00 points</title></rect>
+<rect x="369.3" y="320.0" width="13.9" height="103.2" fill="#b56576"><title>Iteration 16: F Mass 20.00 points</title></rect>
+<rect x="369.3" y="278.0" width="13.9" height="42.0" fill="#9d4edd"><title>Iteration 16: G Ops/Physics 8.13 points</title></rect>
+<rect x="388.4" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 17: A Survival 20.00 points</title></rect>
+<rect x="388.4" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 17: B TCL 10.00 points</title></rect>
+<rect x="388.4" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 17: C Environment 9.98 points</title></rect>
+<rect x="388.4" y="340.4" width="13.9" height="31.3" fill="#f9c74f"><title>Iteration 17: D Recovery 6.06 points</title></rect>
+<rect x="388.4" y="309.7" width="13.9" height="30.7" fill="#f3722c"><title>Iteration 17: E Cost 5.96 points</title></rect>
+<rect x="388.4" y="280.1" width="13.9" height="29.6" fill="#b56576"><title>Iteration 17: F Mass 5.74 points</title></rect>
+<rect x="388.4" y="236.6" width="13.9" height="43.4" fill="#9d4edd"><title>Iteration 17: G Ops/Physics 8.42 points</title></rect>
+<rect x="407.4" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 18: B TCL 0.62 points</title></rect>
+<rect x="407.4" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 18: C Environment 5.53 points</title></rect>
+<rect x="407.4" y="526.6" width="13.9" height="19.6" fill="#f9c74f"><title>Iteration 18: D Recovery 3.80 points</title></rect>
+<rect x="407.4" y="423.4" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 18: E Cost 20.00 points</title></rect>
+<rect x="407.4" y="320.2" width="13.9" height="103.2" fill="#b56576"><title>Iteration 18: F Mass 20.00 points</title></rect>
+<rect x="407.4" y="278.4" width="13.9" height="41.9" fill="#9d4edd"><title>Iteration 18: G Ops/Physics 8.12 points</title></rect>
+<rect x="426.4" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 19: A Survival 20.00 points</title></rect>
+<rect x="426.4" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 19: B TCL 10.00 points</title></rect>
+<rect x="426.4" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 19: C Environment 9.98 points</title></rect>
+<rect x="426.4" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 19: D Recovery 6.05 points</title></rect>
+<rect x="426.4" y="331.1" width="13.9" height="9.4" fill="#f3722c"><title>Iteration 19: E Cost 1.83 points</title></rect>
+<rect x="426.4" y="322.9" width="13.9" height="8.1" fill="#b56576"><title>Iteration 19: F Mass 1.58 points</title></rect>
+<rect x="426.4" y="279.3" width="13.9" height="43.6" fill="#9d4edd"><title>Iteration 19: G Ops/Physics 8.45 points</title></rect>
+<rect x="445.4" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 20: A Survival 20.00 points</title></rect>
+<rect x="445.4" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 20: B TCL 10.00 points</title></rect>
+<rect x="445.4" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 20: C Environment 9.98 points</title></rect>
+<rect x="445.4" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 20: D Recovery 6.04 points</title></rect>
+<rect x="445.4" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 20: E Cost 5.99 points</title></rect>
+<rect x="445.4" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 20: F Mass 5.78 points</title></rect>
+<rect x="445.4" y="236.9" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 20: G Ops/Physics 8.31 points</title></rect>
+<text x="452.4" y="601" font-size="12" text-anchor="middle" font-family="Arial">20</text>
+<rect x="464.4" y="538.8" width="13.9" height="39.2" fill="#2d6a4f"><title>Iteration 21: A Survival 7.60 points</title></rect>
+<rect x="464.4" y="535.6" width="13.9" height="3.2" fill="#40916c"><title>Iteration 21: B TCL 0.62 points</title></rect>
+<rect x="464.4" y="498.1" width="13.9" height="37.5" fill="#277da1"><title>Iteration 21: C Environment 7.26 points</title></rect>
+<rect x="464.4" y="474.5" width="13.9" height="23.5" fill="#f9c74f"><title>Iteration 21: D Recovery 4.56 points</title></rect>
+<rect x="464.4" y="410.0" width="13.9" height="64.5" fill="#f3722c"><title>Iteration 21: E Cost 12.50 points</title></rect>
+<rect x="464.4" y="345.5" width="13.9" height="64.5" fill="#b56576"><title>Iteration 21: F Mass 12.51 points</title></rect>
+<rect x="464.4" y="304.7" width="13.9" height="40.8" fill="#9d4edd"><title>Iteration 21: G Ops/Physics 7.91 points</title></rect>
+<rect x="483.5" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 22: A Survival 20.00 points</title></rect>
+<rect x="483.5" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 22: B TCL 10.00 points</title></rect>
+<rect x="483.5" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 22: C Environment 9.98 points</title></rect>
+<rect x="483.5" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 22: D Recovery 6.05 points</title></rect>
+<rect x="483.5" y="313.6" width="13.9" height="26.9" fill="#f3722c"><title>Iteration 22: E Cost 5.21 points</title></rect>
+<rect x="483.5" y="287.9" width="13.9" height="25.7" fill="#b56576"><title>Iteration 22: F Mass 4.98 points</title></rect>
+<rect x="483.5" y="244.5" width="13.9" height="43.5" fill="#9d4edd"><title>Iteration 22: G Ops/Physics 8.42 points</title></rect>
+<rect x="502.5" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 23: B TCL 0.62 points</title></rect>
+<rect x="502.5" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 23: C Environment 5.53 points</title></rect>
+<rect x="502.5" y="526.5" width="13.9" height="19.8" fill="#f9c74f"><title>Iteration 23: D Recovery 3.83 points</title></rect>
+<rect x="502.5" y="423.3" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 23: E Cost 20.00 points</title></rect>
+<rect x="502.5" y="320.1" width="13.9" height="103.2" fill="#b56576"><title>Iteration 23: F Mass 20.00 points</title></rect>
+<rect x="502.5" y="278.2" width="13.9" height="41.9" fill="#9d4edd"><title>Iteration 23: G Ops/Physics 8.12 points</title></rect>
+<rect x="521.5" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 24: A Survival 20.00 points</title></rect>
+<rect x="521.5" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 24: B TCL 10.00 points</title></rect>
+<rect x="521.5" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 24: C Environment 9.98 points</title></rect>
+<rect x="521.5" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 24: D Recovery 6.05 points</title></rect>
+<rect x="521.5" y="309.9" width="13.9" height="30.7" fill="#f3722c"><title>Iteration 24: E Cost 5.94 points</title></rect>
+<rect x="521.5" y="280.3" width="13.9" height="29.5" fill="#b56576"><title>Iteration 24: F Mass 5.72 points</title></rect>
+<rect x="521.5" y="236.5" width="13.9" height="43.8" fill="#9d4edd"><title>Iteration 24: G Ops/Physics 8.49 points</title></rect>
+<rect x="540.5" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 25: B TCL 0.62 points</title></rect>
+<rect x="540.5" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 25: C Environment 5.53 points</title></rect>
+<rect x="540.5" y="526.5" width="13.9" height="19.8" fill="#f9c74f"><title>Iteration 25: D Recovery 3.83 points</title></rect>
+<rect x="540.5" y="423.3" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 25: E Cost 20.00 points</title></rect>
+<rect x="540.5" y="320.1" width="13.9" height="103.2" fill="#b56576"><title>Iteration 25: F Mass 20.00 points</title></rect>
+<rect x="540.5" y="278.2" width="13.9" height="41.9" fill="#9d4edd"><title>Iteration 25: G Ops/Physics 8.12 points</title></rect>
+<text x="547.5" y="601" font-size="12" text-anchor="middle" font-family="Arial">25</text>
+<rect x="559.6" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 26: A Survival 20.00 points</title></rect>
+<rect x="559.6" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 26: B TCL 10.00 points</title></rect>
+<rect x="559.6" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 26: C Environment 9.98 points</title></rect>
+<rect x="559.6" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 26: D Recovery 6.05 points</title></rect>
+<rect x="559.6" y="321.9" width="13.9" height="18.6" fill="#f3722c"><title>Iteration 26: E Cost 3.60 points</title></rect>
+<rect x="559.6" y="304.6" width="13.9" height="17.3" fill="#b56576"><title>Iteration 26: F Mass 3.35 points</title></rect>
+<rect x="559.6" y="262.0" width="13.9" height="42.6" fill="#9d4edd"><title>Iteration 26: G Ops/Physics 8.27 points</title></rect>
+<rect x="578.6" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 27: A Survival 20.00 points</title></rect>
+<rect x="578.6" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 27: B TCL 10.00 points</title></rect>
+<rect x="578.6" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 27: C Environment 9.98 points</title></rect>
+<rect x="578.6" y="340.2" width="13.9" height="31.5" fill="#f9c74f"><title>Iteration 27: D Recovery 6.11 points</title></rect>
+<rect x="578.6" y="314.7" width="13.9" height="25.5" fill="#f3722c"><title>Iteration 27: E Cost 4.94 points</title></rect>
+<rect x="578.6" y="290.4" width="13.9" height="24.3" fill="#b56576"><title>Iteration 27: F Mass 4.71 points</title></rect>
+<rect x="578.6" y="247.6" width="13.9" height="42.8" fill="#9d4edd"><title>Iteration 27: G Ops/Physics 8.29 points</title></rect>
+<rect x="597.6" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 28: A Survival 20.00 points</title></rect>
+<rect x="597.6" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 28: B TCL 10.00 points</title></rect>
+<rect x="597.6" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 28: C Environment 9.98 points</title></rect>
+<rect x="597.6" y="340.6" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 28: D Recovery 6.04 points</title></rect>
+<rect x="597.6" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 28: E Cost 5.99 points</title></rect>
+<rect x="597.6" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 28: F Mass 5.78 points</title></rect>
+<rect x="597.6" y="237.3" width="13.9" height="42.5" fill="#9d4edd"><title>Iteration 28: G Ops/Physics 8.23 points</title></rect>
+<rect x="616.6" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 29: B TCL 0.62 points</title></rect>
+<rect x="616.6" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 29: C Environment 5.53 points</title></rect>
+<rect x="616.6" y="526.6" width="13.9" height="19.6" fill="#f9c74f"><title>Iteration 29: D Recovery 3.80 points</title></rect>
+<rect x="616.6" y="423.4" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 29: E Cost 20.00 points</title></rect>
+<rect x="616.6" y="320.2" width="13.9" height="103.2" fill="#b56576"><title>Iteration 29: F Mass 20.00 points</title></rect>
+<rect x="616.6" y="278.3" width="13.9" height="41.9" fill="#9d4edd"><title>Iteration 29: G Ops/Physics 8.13 points</title></rect>
+<rect x="635.6" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 30: A Survival 20.00 points</title></rect>
+<rect x="635.6" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 30: B TCL 10.00 points</title></rect>
+<rect x="635.6" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 30: C Environment 9.98 points</title></rect>
+<rect x="635.6" y="340.8" width="13.9" height="31.0" fill="#f9c74f"><title>Iteration 30: D Recovery 6.00 points</title></rect>
+<rect x="635.6" y="325.6" width="13.9" height="15.2" fill="#f3722c"><title>Iteration 30: E Cost 2.94 points</title></rect>
+<rect x="635.6" y="311.6" width="13.9" height="13.9" fill="#b56576"><title>Iteration 30: F Mass 2.70 points</title></rect>
+<rect x="635.6" y="268.3" width="13.9" height="43.4" fill="#9d4edd"><title>Iteration 30: G Ops/Physics 8.41 points</title></rect>
+<text x="642.6" y="601" font-size="12" text-anchor="middle" font-family="Arial">30</text>
+<rect x="654.7" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 31: A Survival 20.00 points</title></rect>
+<rect x="654.7" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 31: B TCL 10.00 points</title></rect>
+<rect x="654.7" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 31: C Environment 9.98 points</title></rect>
+<rect x="654.7" y="340.4" width="13.9" height="31.3" fill="#f9c74f"><title>Iteration 31: D Recovery 6.07 points</title></rect>
+<rect x="654.7" y="314.9" width="13.9" height="25.5" fill="#f3722c"><title>Iteration 31: E Cost 4.94 points</title></rect>
+<rect x="654.7" y="290.6" width="13.9" height="24.3" fill="#b56576"><title>Iteration 31: F Mass 4.71 points</title></rect>
+<rect x="654.7" y="247.8" width="13.9" height="42.8" fill="#9d4edd"><title>Iteration 31: G Ops/Physics 8.30 points</title></rect>
+<rect x="673.7" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 32: A Survival 20.00 points</title></rect>
+<rect x="673.7" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 32: B TCL 10.00 points</title></rect>
+<rect x="673.7" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 32: C Environment 9.98 points</title></rect>
+<rect x="673.7" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 32: D Recovery 6.04 points</title></rect>
+<rect x="673.7" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 32: E Cost 5.99 points</title></rect>
+<rect x="673.7" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 32: F Mass 5.78 points</title></rect>
+<rect x="673.7" y="236.9" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 32: G Ops/Physics 8.31 points</title></rect>
+<rect x="692.7" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 33: B TCL 0.62 points</title></rect>
+<rect x="692.7" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 33: C Environment 5.53 points</title></rect>
+<rect x="692.7" y="526.4" width="13.9" height="19.9" fill="#f9c74f"><title>Iteration 33: D Recovery 3.85 points</title></rect>
+<rect x="692.7" y="423.2" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 33: E Cost 20.00 points</title></rect>
+<rect x="692.7" y="320.0" width="13.9" height="103.2" fill="#b56576"><title>Iteration 33: F Mass 20.00 points</title></rect>
+<rect x="692.7" y="278.0" width="13.9" height="42.0" fill="#9d4edd"><title>Iteration 33: G Ops/Physics 8.14 points</title></rect>
+<rect x="711.7" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 34: A Survival 20.00 points</title></rect>
+<rect x="711.7" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 34: B TCL 10.00 points</title></rect>
+<rect x="711.7" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 34: C Environment 9.98 points</title></rect>
+<rect x="711.7" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 34: D Recovery 6.05 points</title></rect>
+<rect x="711.7" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 34: E Cost 5.99 points</title></rect>
+<rect x="711.7" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 34: F Mass 5.77 points</title></rect>
+<rect x="711.7" y="236.9" width="13.9" height="43.0" fill="#9d4edd"><title>Iteration 34: G Ops/Physics 8.33 points</title></rect>
+<rect x="730.7" y="505.8" width="13.9" height="72.2" fill="#2d6a4f"><title>Iteration 35: A Survival 14.00 points</title></rect>
+<rect x="730.7" y="496.1" width="13.9" height="9.7" fill="#40916c"><title>Iteration 35: B TCL 1.88 points</title></rect>
+<rect x="730.7" y="444.7" width="13.9" height="51.4" fill="#277da1"><title>Iteration 35: C Environment 9.97 points</title></rect>
+<rect x="730.7" y="411.3" width="13.9" height="33.4" fill="#f9c74f"><title>Iteration 35: D Recovery 6.47 points</title></rect>
+<rect x="730.7" y="368.6" width="13.9" height="42.6" fill="#f3722c"><title>Iteration 35: E Cost 8.26 points</title></rect>
+<rect x="730.7" y="327.0" width="13.9" height="41.6" fill="#b56576"><title>Iteration 35: F Mass 8.07 points</title></rect>
+<rect x="730.7" y="284.2" width="13.9" height="42.8" fill="#9d4edd"><title>Iteration 35: G Ops/Physics 8.29 points</title></rect>
+<text x="737.7" y="601" font-size="12" text-anchor="middle" font-family="Arial">35</text>
+<rect x="749.8" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 36: A Survival 20.00 points</title></rect>
+<rect x="749.8" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 36: B TCL 10.00 points</title></rect>
+<rect x="749.8" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 36: C Environment 9.98 points</title></rect>
+<rect x="749.8" y="340.1" width="13.9" height="31.6" fill="#f9c74f"><title>Iteration 36: D Recovery 6.12 points</title></rect>
+<rect x="749.8" y="321.7" width="13.9" height="18.5" fill="#f3722c"><title>Iteration 36: E Cost 3.58 points</title></rect>
+<rect x="749.8" y="304.5" width="13.9" height="17.2" fill="#b56576"><title>Iteration 36: F Mass 3.33 points</title></rect>
+<rect x="749.8" y="261.5" width="13.9" height="43.0" fill="#9d4edd"><title>Iteration 36: G Ops/Physics 8.32 points</title></rect>
+<rect x="768.8" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 37: B TCL 0.62 points</title></rect>
+<rect x="768.8" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 37: C Environment 5.53 points</title></rect>
+<rect x="768.8" y="526.3" width="13.9" height="20.0" fill="#f9c74f"><title>Iteration 37: D Recovery 3.87 points</title></rect>
+<rect x="768.8" y="423.1" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 37: E Cost 20.00 points</title></rect>
+<rect x="768.8" y="319.9" width="13.9" height="103.2" fill="#b56576"><title>Iteration 37: F Mass 20.00 points</title></rect>
+<rect x="768.8" y="277.9" width="13.9" height="42.0" fill="#9d4edd"><title>Iteration 37: G Ops/Physics 8.13 points</title></rect>
+<rect x="787.8" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 38: A Survival 20.00 points</title></rect>
+<rect x="787.8" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 38: B TCL 10.00 points</title></rect>
+<rect x="787.8" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 38: C Environment 9.98 points</title></rect>
+<rect x="787.8" y="340.2" width="13.9" height="31.5" fill="#f9c74f"><title>Iteration 38: D Recovery 6.10 points</title></rect>
+<rect x="787.8" y="316.4" width="13.9" height="23.8" fill="#f3722c"><title>Iteration 38: E Cost 4.62 points</title></rect>
+<rect x="787.8" y="293.7" width="13.9" height="22.7" fill="#b56576"><title>Iteration 38: F Mass 4.39 points</title></rect>
+<rect x="787.8" y="250.8" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 38: G Ops/Physics 8.32 points</title></rect>
+<rect x="806.8" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 39: A Survival 20.00 points</title></rect>
+<rect x="806.8" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 39: B TCL 10.00 points</title></rect>
+<rect x="806.8" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 39: C Environment 9.98 points</title></rect>
+<rect x="806.8" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 39: D Recovery 6.04 points</title></rect>
+<rect x="806.8" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 39: E Cost 5.99 points</title></rect>
+<rect x="806.8" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 39: F Mass 5.78 points</title></rect>
+<rect x="806.8" y="236.9" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 39: G Ops/Physics 8.31 points</title></rect>
+<rect x="825.9" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 40: B TCL 0.62 points</title></rect>
+<rect x="825.9" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 40: C Environment 5.53 points</title></rect>
+<rect x="825.9" y="526.5" width="13.9" height="19.8" fill="#f9c74f"><title>Iteration 40: D Recovery 3.83 points</title></rect>
+<rect x="825.9" y="423.3" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 40: E Cost 20.00 points</title></rect>
+<rect x="825.9" y="320.1" width="13.9" height="103.2" fill="#b56576"><title>Iteration 40: F Mass 20.00 points</title></rect>
+<rect x="825.9" y="278.2" width="13.9" height="41.9" fill="#9d4edd"><title>Iteration 40: G Ops/Physics 8.13 points</title></rect>
+<text x="832.8" y="601" font-size="12" text-anchor="middle" font-family="Arial">40</text>
+<rect x="844.9" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 41: A Survival 20.00 points</title></rect>
+<rect x="844.9" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 41: B TCL 10.00 points</title></rect>
+<rect x="844.9" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 41: C Environment 9.98 points</title></rect>
+<rect x="844.9" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 41: D Recovery 6.04 points</title></rect>
+<rect x="844.9" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 41: E Cost 5.99 points</title></rect>
+<rect x="844.9" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 41: F Mass 5.78 points</title></rect>
+<rect x="844.9" y="236.9" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 41: G Ops/Physics 8.31 points</title></rect>
+<rect x="863.9" y="574.8" width="13.9" height="3.2" fill="#40916c"><title>Iteration 42: B TCL 0.62 points</title></rect>
+<rect x="863.9" y="546.3" width="13.9" height="28.5" fill="#277da1"><title>Iteration 42: C Environment 5.53 points</title></rect>
+<rect x="863.9" y="526.4" width="13.9" height="19.8" fill="#f9c74f"><title>Iteration 42: D Recovery 3.85 points</title></rect>
+<rect x="863.9" y="423.2" width="13.9" height="103.2" fill="#f3722c"><title>Iteration 42: E Cost 20.00 points</title></rect>
+<rect x="863.9" y="320.0" width="13.9" height="103.2" fill="#b56576"><title>Iteration 42: F Mass 20.00 points</title></rect>
+<rect x="863.9" y="278.1" width="13.9" height="41.9" fill="#9d4edd"><title>Iteration 42: G Ops/Physics 8.12 points</title></rect>
+<rect x="882.9" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 43: A Survival 20.00 points</title></rect>
+<rect x="882.9" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 43: B TCL 10.00 points</title></rect>
+<rect x="882.9" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 43: C Environment 9.98 points</title></rect>
+<rect x="882.9" y="340.1" width="13.9" height="31.6" fill="#f9c74f"><title>Iteration 43: D Recovery 6.12 points</title></rect>
+<rect x="882.9" y="319.8" width="13.9" height="20.3" fill="#f3722c"><title>Iteration 43: E Cost 3.94 points</title></rect>
+<rect x="882.9" y="300.7" width="13.9" height="19.1" fill="#b56576"><title>Iteration 43: F Mass 3.70 points</title></rect>
+<rect x="882.9" y="257.7" width="13.9" height="43.0" fill="#9d4edd"><title>Iteration 43: G Ops/Physics 8.33 points</title></rect>
+<rect x="901.9" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 44: A Survival 20.00 points</title></rect>
+<rect x="901.9" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 44: B TCL 10.00 points</title></rect>
+<rect x="901.9" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 44: C Environment 9.98 points</title></rect>
+<rect x="901.9" y="340.4" width="13.9" height="31.3" fill="#f9c74f"><title>Iteration 44: D Recovery 6.06 points</title></rect>
+<rect x="901.9" y="312.4" width="13.9" height="28.0" fill="#f3722c"><title>Iteration 44: E Cost 5.43 points</title></rect>
+<rect x="901.9" y="285.6" width="13.9" height="26.8" fill="#b56576"><title>Iteration 44: F Mass 5.20 points</title></rect>
+<rect x="901.9" y="242.7" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 44: G Ops/Physics 8.31 points</title></rect>
+<rect x="921.0" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 45: A Survival 20.00 points</title></rect>
+<rect x="921.0" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 45: B TCL 10.00 points</title></rect>
+<rect x="921.0" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 45: C Environment 9.98 points</title></rect>
+<rect x="921.0" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 45: D Recovery 6.04 points</title></rect>
+<rect x="921.0" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 45: E Cost 5.99 points</title></rect>
+<rect x="921.0" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 45: F Mass 5.78 points</title></rect>
+<rect x="921.0" y="236.9" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 45: G Ops/Physics 8.31 points</title></rect>
+<text x="927.9" y="601" font-size="12" text-anchor="middle" font-family="Arial">45</text>
+<rect x="940.0" y="505.8" width="13.9" height="72.2" fill="#2d6a4f"><title>Iteration 46: A Survival 14.00 points</title></rect>
+<rect x="940.0" y="493.9" width="13.9" height="11.8" fill="#40916c"><title>Iteration 46: B TCL 2.29 points</title></rect>
+<rect x="940.0" y="442.5" width="13.9" height="51.4" fill="#277da1"><title>Iteration 46: C Environment 9.96 points</title></rect>
+<rect x="940.0" y="409.7" width="13.9" height="32.8" fill="#f9c74f"><title>Iteration 46: D Recovery 6.36 points</title></rect>
+<rect x="940.0" y="371.3" width="13.9" height="38.4" fill="#f3722c"><title>Iteration 46: E Cost 7.45 points</title></rect>
+<rect x="940.0" y="333.9" width="13.9" height="37.4" fill="#b56576"><title>Iteration 46: F Mass 7.25 points</title></rect>
+<rect x="940.0" y="290.2" width="13.9" height="43.7" fill="#9d4edd"><title>Iteration 46: G Ops/Physics 8.47 points</title></rect>
+<rect x="959.0" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 47: A Survival 20.00 points</title></rect>
+<rect x="959.0" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 47: B TCL 10.00 points</title></rect>
+<rect x="959.0" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 47: C Environment 9.98 points</title></rect>
+<rect x="959.0" y="340.0" width="13.9" height="31.8" fill="#f9c74f"><title>Iteration 47: D Recovery 6.15 points</title></rect>
+<rect x="959.0" y="317.4" width="13.9" height="22.6" fill="#f3722c"><title>Iteration 47: E Cost 4.37 points</title></rect>
+<rect x="959.0" y="296.0" width="13.9" height="21.4" fill="#b56576"><title>Iteration 47: F Mass 4.15 points</title></rect>
+<rect x="959.0" y="251.0" width="13.9" height="45.0" fill="#9d4edd"><title>Iteration 47: G Ops/Physics 8.71 points</title></rect>
+<rect x="978.0" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 48: A Survival 20.00 points</title></rect>
+<rect x="978.0" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 48: B TCL 10.00 points</title></rect>
+<rect x="978.0" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 48: C Environment 9.98 points</title></rect>
+<rect x="978.0" y="340.4" width="13.9" height="31.3" fill="#f9c74f"><title>Iteration 48: D Recovery 6.06 points</title></rect>
+<rect x="978.0" y="311.9" width="13.9" height="28.6" fill="#f3722c"><title>Iteration 48: E Cost 5.53 points</title></rect>
+<rect x="978.0" y="284.5" width="13.9" height="27.4" fill="#b56576"><title>Iteration 48: F Mass 5.31 points</title></rect>
+<rect x="978.0" y="241.6" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 48: G Ops/Physics 8.31 points</title></rect>
+<rect x="997.1" y="474.8" width="13.9" height="103.2" fill="#2d6a4f"><title>Iteration 49: A Survival 20.00 points</title></rect>
+<rect x="997.1" y="423.2" width="13.9" height="51.6" fill="#40916c"><title>Iteration 49: B TCL 10.00 points</title></rect>
+<rect x="997.1" y="371.7" width="13.9" height="51.5" fill="#277da1"><title>Iteration 49: C Environment 9.98 points</title></rect>
+<rect x="997.1" y="340.5" width="13.9" height="31.2" fill="#f9c74f"><title>Iteration 49: D Recovery 6.04 points</title></rect>
+<rect x="997.1" y="309.6" width="13.9" height="30.9" fill="#f3722c"><title>Iteration 49: E Cost 5.99 points</title></rect>
+<rect x="997.1" y="279.8" width="13.9" height="29.8" fill="#b56576"><title>Iteration 49: F Mass 5.78 points</title></rect>
+<rect x="997.1" y="236.9" width="13.9" height="42.9" fill="#9d4edd"><title>Iteration 49: G Ops/Physics 8.31 points</title></rect>
+<rect x="1016.1" y="507.8" width="13.9" height="70.2" fill="#2d6a4f"><title>Iteration 50: A Survival 13.60 points</title></rect>
+<rect x="1016.1" y="498.1" width="13.9" height="9.7" fill="#40916c"><title>Iteration 50: B TCL 1.88 points</title></rect>
+<rect x="1016.1" y="446.8" width="13.9" height="51.3" fill="#277da1"><title>Iteration 50: C Environment 9.94 points</title></rect>
+<rect x="1016.1" y="417.0" width="13.9" height="29.9" fill="#f9c74f"><title>Iteration 50: D Recovery 5.79 points</title></rect>
+<rect x="1016.1" y="375.3" width="13.9" height="41.6" fill="#f3722c"><title>Iteration 50: E Cost 8.07 points</title></rect>
+<rect x="1016.1" y="334.7" width="13.9" height="40.6" fill="#b56576"><title>Iteration 50: F Mass 7.87 points</title></rect>
+<rect x="1016.1" y="292.1" width="13.9" height="42.7" fill="#9d4edd"><title>Iteration 50: G Ops/Physics 8.27 points</title></rect>
+<text x="1023.0" y="601" font-size="12" text-anchor="middle" font-family="Arial">50</text>
+<text x="91.0" y="271.3" font-size="10" text-anchor="middle" font-family="Arial">58.3</text>
+<text x="262.2" y="230.8" font-size="10" text-anchor="middle" font-family="Arial">66.1</text>
+<text x="452.4" y="230.9" font-size="10" text-anchor="middle" font-family="Arial">66.1</text>
+<text x="642.6" y="262.3" font-size="10" text-anchor="middle" font-family="Arial">60.0</text>
+<text x="832.8" y="272.2" font-size="10" text-anchor="middle" font-family="Arial">58.1</text>
+<text x="1023.0" y="286.1" font-size="10" text-anchor="middle" font-family="Arial">55.4</text>
+<text x="557.0" y="640" font-size="15" text-anchor="middle" font-family="Arial">Iteration</text>
+<text x="24" y="320.0" font-size="15" text-anchor="middle" transform="rotate(-90,24,320.0)" font-family="Arial">Score contribution / 100</text>
+<rect x="1054" y="74" width="14" height="14" fill="#2d6a4f"/>
+<text x="1076" y="86" font-size="13" font-family="Arial">A: Survival</text>
+<rect x="1054" y="100" width="14" height="14" fill="#40916c"/>
+<text x="1076" y="112" font-size="13" font-family="Arial">B: TCL</text>
+<rect x="1054" y="126" width="14" height="14" fill="#277da1"/>
+<text x="1076" y="138" font-size="13" font-family="Arial">C: Environment</text>
+<rect x="1054" y="152" width="14" height="14" fill="#f9c74f"/>
+<text x="1076" y="164" font-size="13" font-family="Arial">D: Recovery</text>
+<rect x="1054" y="178" width="14" height="14" fill="#f3722c"/>
+<text x="1076" y="190" font-size="13" font-family="Arial">E: Cost</text>
+<rect x="1054" y="204" width="14" height="14" fill="#b56576"/>
+<text x="1076" y="216" font-size="13" font-family="Arial">F: Mass</text>
+<rect x="1054" y="230" width="14" height="14" fill="#9d4edd"/>
+<text x="1076" y="242" font-size="13" font-family="Arial">G: Ops/Physics</text>
+<text x="1054" y="280" font-size="12" font-family="Arial" fill="#555">Cost and mass are separate</text>
+<text x="1054" y="300" font-size="12" font-family="Arial" fill="#555">G = actor decision + physical response</text>
+</svg>

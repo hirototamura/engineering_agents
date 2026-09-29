@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Mapping
 
 import yaml
 
@@ -36,6 +36,23 @@ def load_override_file(path: Path) -> Dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError(f"Override file must contain a mapping: {path}")
     return payload
+
+
+def unknown_override_paths(
+    base: Mapping[str, Any],
+    patch: Mapping[str, Any],
+    prefix: str = "",
+) -> List[str]:
+    """Dotted paths in *patch* that do not exist in *base*."""
+    unknown: List[str] = []
+    for key, value in patch.items():
+        path = f"{prefix}.{key}" if prefix else str(key)
+        if not isinstance(base, Mapping) or key not in base:
+            unknown.append(path)
+            continue
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            unknown.extend(unknown_override_paths(base[key], value, path))
+    return unknown
 
 
 def merge_overrides(*parts: Dict[str, Any] | None) -> Dict[str, Any] | None:

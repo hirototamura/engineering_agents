@@ -167,6 +167,11 @@ python3 -m streamlit run src/tools/dashboard/app.py   # 任意: ダッシュボ�
 
 | トピック | ページ |
 | --- | --- |
+| **モデルが決めることと、世界が強制すること** | [エージェント設計](agent-design.md) |
+| **150周で何が起きたか** | [実験記録](results.md) |
+| **backend / シナリオ / エージェント / 設計変数の足し方** | [拡張ガイド](extending.md) |
+| **次に何をやるか、なぜそれが必要と測れたか** | [ロードマップ](roadmap.md) |
+| **各回の作り直しが何に対して書かれたか** | [実装仕様書](specs/index.md) |
 | プロジェクト目的とダッシュボード | [概要](overview.md) |
 | レイヤ設計とエージェントフロー | [アーキテクチャ](architecture.md) |
 | JSONL と API 契約 | [API 契約](api-contracts.md) |

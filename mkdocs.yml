@@ -4,6 +4,7 @@ docs_dir: docs
 exclude_docs: |
   ja/memo/ssos_eclss_loop/e2e_records/
   en/memo/ssos_eclss_loop/e2e_records/
+  data/
 theme:
   name: material
   palette:
@@ -57,6 +58,11 @@ plugins:
             - Quick start: index.md
             - Overview: overview.md
             - Architecture: architecture.md
+            - Agent design: agent-design.md
+            - Experiment record: results.md
+            - Extending: extending.md
+            - Roadmap: roadmap.md
+            - Implementation specs: specs/index.md
             - API contracts: api-contracts.md
             - Engineering guide: AGENTS.md
             - Scenarios:
@@ -72,6 +78,8 @@ plugins:
               - API reference: ssos/api-reference.md
             - More:
               - CLI guide: cli.md
+              - Design-loop analysis: design-loop-analysis.md
+              - Technical report v4: eclss_ai_agent_technical_report_04.md
               - Development plan: development-plan.md
               - One Piece integration: one-piece-integration.md
               - Document catalog: catalog.md
@@ -88,7 +96,9 @@ plugins:
                 - EPS physical phenomena: memo/ssos_eclss_loop/ssos_eps_physical_phenomena_overview.md
                 - Plant Sim backend: memo/ssos_eclss_loop/plant_sim_backend.md
                 - Occupant survival: memo/ssos_eclss_loop/occupant_survival.md
+                - Labeled rule-base: memo/ssos_eclss_loop/labeled_rule_base.md
                 - Post-run design agent: memo/ssos_eclss_loop/post_run_design_agent.md
+                - Tool-use design agent: memo/ssos_eclss_loop/tool_use_design_agent.md
                 - Persona LLM OOP plan: memo/agents/persona_llm_core_oop_plan.md
                 - Persona workshop draft: memo/agents/persona_workshop_draft.md
         - locale: ja
@@ -114,6 +124,16 @@ plugins:
             - クイックスタート: index.md
             - 概要: overview.md
             - アーキテクチャ: architecture.md
+            - エージェント設計: agent-design.md
+            - 実験記録: results.md
+            - 拡張ガイド: extending.md
+            - ロードマップ: roadmap.md
+            - 実装仕様書:
+              - 索引: specs/index.md
+              - Tool Use 設計エージェント再設計 (2026-08-28): specs/2026-08-28-tool-use-design-agent-redesign.md
+              - Design Decision Loop 改良 (2026-08-29): specs/2026-08-29-design-decision-loop.md
+              - Chain Memory 最小実装 (2026-08-30): specs/2026-08-30-chain-memory.md
+              - Scoring / 停滞探索 (2026-08-30): specs/2026-08-30-scoring-and-stagnation-exploration.md
             - API 契約: api-contracts.md
             - エージェントガイド: AGENTS.md
             - シナリオ:
@@ -129,6 +149,9 @@ plugins:
               - API リファレンス: ssos/api-reference.md
             - その他:
               - CLI ガイド: cli.md
+              - 設計ループ解析: design-loop-analysis.md
+              - 技術説明 ver.04: eclss_ai_agent_technical_report_04.md
+              - 技術説明 ver.03: eclss_ai_agent_technical_report_03.md
               - 開発プラン: development-plan.md
               - One Piece 連携: one-piece-integration.md
               - ドキュメント索引: catalog.md
@@ -145,7 +168,10 @@ plugins:
                 - EPS 物理現象: memo/ssos_eclss_loop/ssos_eps_physical_phenomena_overview.md
                 - Plant Sim backend 解説: memo/ssos_eclss_loop/plant_sim_backend.md
                 - 乗員サバイバル: memo/ssos_eclss_loop/occupant_survival.md
+                - ラベル付きルールベース: memo/ssos_eclss_loop/labeled_rule_base.md
                 - 事後設計エージェント: memo/ssos_eclss_loop/post_run_design_agent.md
+                - Tool Use 設計エージェント: memo/ssos_eclss_loop/tool_use_design_agent.md
+                - Phase 0 実装前調査レポート: memo/ssos_eclss_loop/eclss_recursive_design_phase0_report.md
                 - CLI v3 プラン: memo/cli_v3_plan.md
                 - Persona LLM OOP: memo/agents/persona_llm_core_oop_plan.md
                 - Persona ワークショップ: memo/agents/persona_workshop_draft.md

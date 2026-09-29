@@ -37,7 +37,10 @@ def test_regression_job_spec_labeled_ros2():
     assert payload["overrides"]["backend"]["kind"] == "ros2"
     assert payload["overrides"]["agents"]["mode"] == "labeled_rule_base"
     assert payload["overrides"]["simulation"]["steps"] == 5
-    assert payload["output_dir"] == "/tmp/ea_regression/loop"
+    # RunSpec serialises a Path, so the separator is the host's. The shell
+    # helper this mirrors only ever runs on POSIX; compare as a path so the
+    # suite is honest on Windows too.
+    assert Path(payload["output_dir"]) == Path("/tmp/ea_regression/loop")
     assert payload["recreate_output"] is True
 
 

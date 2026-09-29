@@ -129,7 +129,7 @@ Extends `Team` ABC. **Homogeneous N agents + representative action**, not rigid 
 
 | Concept | Description |
 | --- | --- |
-| `team.count` | Operator count (scrubber default 4). ssos actors: `actor.team.count` (default 50, lock-step with `plant_sim.crew.size`). Designers: `design.team.count` (default 4; not occupants) |
+| `team.count` | Operator count (scrubber default 4). ssos actors: `actor.team.count` (default 50, lock-step with `plant_sim.crew.size`). Designers: `design.team.count` (default 1, no lens; not occupants). Adoption is a separate `design.audit` panel of 3 independent lenses |
 | `team.archetypes` | Optional list of thinking lenses (scrubber default: all four). Round-robin onto `agent_id`s. Omit or `[]` for legacy homogeneous team |
 | deliberation | llm: one simultaneous (parallel) round for all. labeled: rule-driven fixed messages |
 | action rep | Representative issues commands each step via `(step-1) % N` (ssos actors: `step % N`, 0-based) |
@@ -146,6 +146,10 @@ Implemented in `src/core/agents/persona.py` (`ARCHETYPE_LENSES`, `load_team`, `b
 | `failure_mode` | FMEA-style — secondary failures and worst-case interactions |
 | `improviser` | Smallest intervention reusing resources already on hand |
 | `systems_integrator` | Cross-subsystem coupling and side-effects of local fixes |
+| `rederive_numbers` | Rebuild every quantity; do not accept a figure you have not reconstructed |
+| `break_conclusion` | Treat the emerging design as a claim to falsify |
+| `avoid_local_optima` | Notice a repeated local tweak (for example only WRS) and refuse to bless that basin |
+| `design_validity` | Ask whether the sized machine is buildable and operable as a whole |
 
 **Assignment**: lens names map **round-robin** onto `agent_ids` (`engineer_1` gets the first lens, etc.). Fewer lenses than agents repeats the list.
 
@@ -165,7 +169,7 @@ run_scenario(
 )
 ```
 
-Unknown lens names raise `ValueError` at team load. `ssos_eclss_loop` ships without `team.archetypes` by default.
+Unknown lens names raise `ValueError` at team load. `ssos_eclss_loop` tool-use ships one unlensed designer and an audit panel of `rederive_numbers` / `avoid_local_optima` / `design_validity`. See [design team, audit panel, and storage](memo/ssos_eclss_loop/design_audit_storage.md).
 
 Details: [memo/agents/homogeneous_agent_team_plan.md](memo/agents/homogeneous_agent_team_plan.md). Implementation: `src/core/agents/persona.py`.
 
@@ -608,18 +612,19 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 | Mode | Actors (`agents.actor.mode`) | Designers (`agents.design.mode`) | Tests |
 | --- | --- | --- | --- |
 | `none` | poll only | skip `design_proposals.json` | `test_ssos_eclss_loop.py` |
-| `labeled_rule_base` | thresholds → ARS/OGS | rule `ssos_graph` | `test_ssos_eclss_loop.py`, `test_ssos_agent_config.py` |
+| `labeled_rule_base` | thresholds → needed ARS/OGS/WRS, capped at `max_actions_per_step` | rule `ssos_graph` | `test_ssos_eclss_loop.py`, `test_ssos_agent_config.py` |
 | `llm` | N-way deliberation, then up to `max_actions_per_step` action reps | LLM `changes` (no count cap) | same |
 
 #### labeled_rule_base
 
-`thresholds` (scenario.yaml) + `policy` profile (agents.yaml). Thresholds merged via `merge_labeled_policy_from_thresholds()`.
+`thresholds` (scenario.yaml) + `policy` profile (agents.yaml). Thresholds merged via `merge_labeled_policy_from_thresholds()`. Each step sizes ARS/OGS/WRS repeats to leave warning/critical, then takes `min(needed, max_actions_per_step)`. `request_co2` before a needed OGS does not consume a slot. Details: [labeled rule-base](memo/ssos_eclss_loop/labeled_rule_base.md).
 
 | Behavior | Trigger |
 | --- | --- |
-| `air_revitalisation` | CO₂ ≥ high, ARS not yet dispatched |
+| `air_revitalisation` | CO₂ ≥ high; repeats until estimated exit of the high band |
 | `request_co2` | O₂ ≤ low, before OGS when `request_co2_before_ogs: true` (default OFF; OGS handles Sabatier feedstock). On LoopMock, `true` can double-debit CO₂ with OGS Sabatier (no buffer). |
-| `oxygen_generation` | O₂ ≤ low, OGS not yet dispatched |
+| `oxygen_generation` | O₂ ≤ low; repeats until estimated exit of the low band |
+| `water_recovery` | urine+grey ≥ `wrs_feed_trigger_l`, or product water ≤ low with feed present; repeats to drain the current buffers |
 | re-arm | retry next step if no improvement |
 
 #### llm
@@ -634,7 +639,7 @@ After the run, one designer representative emits `changes` with no count cap.
 | --- | --- |
 | `summary.backend` | `mock` / `ros2` |
 | `summary.operational_command_count` | operational command count |
-| `summary.max_actions_per_step` | llm: action representatives per step |
+| `summary.max_actions_per_step` | llm / labeled: cap on actions per step |
 | `events.jsonl` | `operational_applied` |
 
 **Not in ssos from scrubber**: `eps_telemetry.jsonl`, ppm-based KPIs.

@@ -99,6 +99,9 @@ def test_vllm_generate_returns_empty_on_error(monkeypatch):
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("down")),
     )
     assert client.generate("ping") == ""
+    result = client.generate_result("ping")
+    assert result.text == ""
+    assert "down" in result.error
 
 
 def test_vllm_8b_default_concurrency_covers_hundred_agents():
@@ -110,20 +113,28 @@ def test_vllm_sessions_are_thread_local():
     import threading
 
     client = VllmClient()
-    ids: list[int] = []
+    # The sessions themselves, not their id()s. A thread that has finished can
+    # have its session collected, and the next allocation may land on the same
+    # address -- so comparing addresses fails at random under load even though
+    # the sessions were genuinely distinct. Holding both keeps them alive and
+    # makes the comparison mean what it says.
+    sessions: list[object] = []
+    lock = threading.Lock()
     barrier = threading.Barrier(2)
 
     def grab() -> None:
         barrier.wait()
-        ids.append(id(client._session))
+        session = client._session
+        with lock:
+            sessions.append(session)
 
     threads = [threading.Thread(target=grab) for _ in range(2)]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
-    assert len(ids) == 2
-    assert ids[0] != ids[1]
+    assert len(sessions) == 2
+    assert sessions[0] is not sessions[1]
 
 
 def test_fit_prompt_keeps_short_prompts():
@@ -272,4 +283,7 @@ def test_vllm_generate_empty_content_with_reasoning_logs_warning(monkeypatch, ca
     monkeypatch.setattr(client._session, "post", lambda *args, **kwargs: FakeResponse())
     with caplog.at_level(logging.WARNING):
         assert client.generate("design review") == ""
+        result = client.generate_result("design review")
+    assert result.text == ""
+    assert result.thinking == "thinking consumed the budget"
     assert "reasoning_content but empty content" in caplog.text

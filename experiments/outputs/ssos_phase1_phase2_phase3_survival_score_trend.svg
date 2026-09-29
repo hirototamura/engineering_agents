@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="760" viewBox="0 0 1260 760">
+<rect width="100%" height="100%" fill="white"/>
+<text x="630.0" y="32" font-size="22" text-anchor="middle" font-family="Arial">段階①-④の生存者数・スコア推移</text>
+<text x="78" y="44.0" font-size="15" font-family="Arial">Crew remaining / 50</text>
+<rect x="78" y="58.0" width="1002" height="280.0" fill="none" stroke="#333"/>
+<line x1="78" y1="338.0" x2="1080" y2="338.0" stroke="#e6e6e6"/>
+<text x="68" y="343.0" font-size="12" text-anchor="end" font-family="Arial">0</text>
+<line x1="78" y1="282.0" x2="1080" y2="282.0" stroke="#e6e6e6"/>
+<text x="68" y="287.0" font-size="12" text-anchor="end" font-family="Arial">10</text>
+<line x1="78" y1="226.0" x2="1080" y2="226.0" stroke="#e6e6e6"/>
+<text x="68" y="231.0" font-size="12" text-anchor="end" font-family="Arial">20</text>
+<line x1="78" y1="170.0" x2="1080" y2="170.0" stroke="#e6e6e6"/>
+<text x="68" y="175.0" font-size="12" text-anchor="end" font-family="Arial">30</text>
+<line x1="78" y1="114.0" x2="1080" y2="114.0" stroke="#e6e6e6"/>
+<text x="68" y="119.0" font-size="12" text-anchor="end" font-family="Arial">40</text>
+<line x1="78" y1="58.0" x2="1080" y2="58.0" stroke="#e6e6e6"/>
+<text x="68" y="63.0" font-size="12" text-anchor="end" font-family="Arial">50</text>
+<line x1="78.0" y1="338.0" x2="78.0" y2="343.0" stroke="#333"/>
+<text x="78.0" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">1</text>
+<line x1="180.2" y1="338.0" x2="180.2" y2="343.0" stroke="#333"/>
+<text x="180.2" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">6</text>
+<line x1="282.5" y1="338.0" x2="282.5" y2="343.0" stroke="#333"/>
+<text x="282.5" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">11</text>
+<line x1="384.7" y1="338.0" x2="384.7" y2="343.0" stroke="#333"/>
+<text x="384.7" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">16</text>
+<line x1="487.0" y1="338.0" x2="487.0" y2="343.0" stroke="#333"/>
+<text x="487.0" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">21</text>
+<line x1="589.2" y1="338.0" x2="589.2" y2="343.0" stroke="#333"/>
+<text x="589.2" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">26</text>
+<line x1="691.5" y1="338.0" x2="691.5" y2="343.0" stroke="#333"/>
+<text x="691.5" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">31</text>
+<line x1="793.7" y1="338.0" x2="793.7" y2="343.0" stroke="#333"/>
+<text x="793.7" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">36</text>
+<line x1="896.0" y1="338.0" x2="896.0" y2="343.0" stroke="#333"/>
+<text x="896.0" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">41</text>
+<line x1="998.2" y1="338.0" x2="998.2" y2="343.0" stroke="#333"/>
+<text x="998.2" y="360.0" font-size="11" text-anchor="middle" font-family="Arial">46</text>
+<polyline fill="none" stroke="#9ecae1" stroke-width="2.7" points="78.0,338.0 98.4,58.0 118.9,58.0 139.3,58.0 159.8,58.0 180.2,58.0 200.7,338.0 221.1,58.0 241.6,58.0 262.0,58.0 282.5,338.0 302.9,58.0 323.4,58.0 343.8,58.0 364.3,58.0 384.7,338.0 405.2,58.0 425.6,338.0 446.1,58.0 466.5,58.0 487.0,231.6 507.4,58.0 527.9,338.0 548.3,58.0 568.8,338.0 589.2,58.0 609.7,58.0 630.1,58.0 650.6,338.0 671.0,58.0 691.5,58.0 711.9,58.0 732.4,338.0 752.8,58.0 773.3,142.0 793.7,58.0 814.2,338.0 834.6,58.0 855.1,58.0 875.5,338.0 896.0,58.0 916.4,338.0 936.9,58.0 957.3,58.0 977.8,58.0 998.2,142.0 1018.7,58.0 1039.1,58.0 1059.6,58.0 1080.0,147.6"/>
+<circle cx="78.0" cy="338.0" r="3.5" fill="#9ecae1"><title>段階① 初期 iteration 1: 0.00</title></circle>
+<circle cx="1080.0" cy="147.6" r="3.5" fill="#9ecae1"><title>段階① 初期 iteration 50: 34.00</title></circle>
+<circle cx="98.4" cy="58.0" r="3.5" fill="#9ecae1"><title>段階① 初期 iteration 2: 50.00</title></circle>
+<polyline fill="none" stroke="#2171b5" stroke-width="2.7" points="78.0,338.0 98.4,58.0 118.9,58.0 139.3,58.0 159.8,58.0 180.2,58.0 200.7,58.0 221.1,58.0 241.6,58.0 262.0,58.0 282.5,58.0 302.9,58.0 323.4,58.0 343.8,58.0 364.3,58.0 384.7,58.0 405.2,58.0 425.6,58.0 446.1,58.0 466.5,58.0 487.0,58.0 507.4,58.0 527.9,58.0 548.3,58.0 568.8,58.0 589.2,58.0 609.7,58.0 630.1,58.0 650.6,58.0 671.0,58.0 691.5,58.0 711.9,58.0 732.4,58.0 752.8,58.0 773.3,58.0 793.7,58.0 814.2,58.0 834.6,58.0 855.1,58.0 875.5,58.0 896.0,58.0 916.4,58.0 936.9,58.0 957.3,58.0 977.8,58.0 998.2,58.0 1018.7,58.0 1039.1,58.0 1059.6,58.0 1080.0,58.0"/>
+<circle cx="78.0" cy="338.0" r="3.5" fill="#2171b5"><title>段階② 記憶あり改善 iteration 1: 0.00</title></circle>
+<circle cx="1080.0" cy="58.0" r="3.5" fill="#2171b5"><title>段階② 記憶あり改善 iteration 50: 50.00</title></circle>
+<circle cx="98.4" cy="58.0" r="3.5" fill="#2171b5"><title>段階② 記憶あり改善 iteration 2: 50.00</title></circle>
+<polyline fill="none" stroke="#08306b" stroke-width="2.7" points="78.0,338.0 98.4,58.0 118.9,58.0 139.3,58.0 159.8,58.0 180.2,58.0 200.7,58.0 221.1,58.0 241.6,58.0 262.0,58.0 282.5,58.0 302.9,58.0 323.4,58.0 343.8,58.0 364.3,58.0 384.7,58.0 405.2,58.0 425.6,58.0 446.1,58.0 466.5,58.0 487.0,58.0 507.4,58.0 527.9,58.0 548.3,58.0 568.8,58.0 589.2,58.0 609.7,58.0 630.1,58.0 650.6,58.0 671.0,58.0 691.5,58.0 711.9,58.0 732.4,58.0 752.8,86.0 773.3,58.0 793.7,58.0 814.2,58.0 834.6,58.0 855.1,58.0 875.5,58.0 896.0,58.0 916.4,58.0 936.9,58.0 957.3,58.0 977.8,58.0 998.2,58.0 1018.7,58.0 1039.1,58.0 1059.6,58.0 1080.0,58.0"/>
+<circle cx="78.0" cy="338.0" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 1: 0.00</title></circle>
+<circle cx="1080.0" cy="58.0" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 50: 50.00</title></circle>
+<circle cx="98.4" cy="58.0" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 2: 50.00</title></circle>
+<polyline fill="none" stroke="#d94801" stroke-width="2.7" points="78.0,338.0 98.4,231.6 118.9,58.0 139.3,58.0 159.8,58.0 180.2,58.0 200.7,58.0 221.1,58.0 241.6,58.0 262.0,58.0 282.5,58.0 302.9,58.0 323.4,58.0 343.8,58.0 364.3,58.0 384.7,58.0 405.2,58.0 425.6,58.0 446.1,58.0 466.5,58.0 487.0,58.0 507.4,58.0 527.9,58.0 548.3,58.0 568.8,58.0 589.2,58.0 609.7,58.0 630.1,58.0 650.6,58.0 671.0,58.0 691.5,58.0 711.9,58.0 732.4,58.0 752.8,58.0 773.3,58.0 793.7,58.0 814.2,58.0 834.6,58.0 855.1,58.0 875.5,58.0 896.0,58.0 916.4,58.0 936.9,58.0 957.3,58.0 977.8,58.0 998.2,58.0 1018.7,58.0 1039.1,58.0 1059.6,58.0 1080.0,58.0"/>
+<circle cx="78.0" cy="338.0" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 1: 0.00</title></circle>
+<circle cx="1080.0" cy="58.0" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 50: 50.00</title></circle>
+<circle cx="118.9" cy="58.0" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 3: 50.00</title></circle>
+<text x="78" y="394.0" font-size="15" font-family="Arial">Evaluation score / 100</text>
+<rect x="78" y="408.0" width="1002" height="280.0" fill="none" stroke="#333"/>
+<line x1="78" y1="688.0" x2="1080" y2="688.0" stroke="#e6e6e6"/>
+<text x="68" y="693.0" font-size="12" text-anchor="end" font-family="Arial">50</text>
+<line x1="78" y1="632.0" x2="1080" y2="632.0" stroke="#e6e6e6"/>
+<text x="68" y="637.0" font-size="12" text-anchor="end" font-family="Arial">58</text>
+<line x1="78" y1="576.0" x2="1080" y2="576.0" stroke="#e6e6e6"/>
+<text x="68" y="581.0" font-size="12" text-anchor="end" font-family="Arial">66</text>
+<line x1="78" y1="520.0" x2="1080" y2="520.0" stroke="#e6e6e6"/>
+<text x="68" y="525.0" font-size="12" text-anchor="end" font-family="Arial">74</text>
+<line x1="78" y1="464.0" x2="1080" y2="464.0" stroke="#e6e6e6"/>
+<text x="68" y="469.0" font-size="12" text-anchor="end" font-family="Arial">82</text>
+<line x1="78" y1="408.0" x2="1080" y2="408.0" stroke="#e6e6e6"/>
+<text x="68" y="413.0" font-size="12" text-anchor="end" font-family="Arial">90</text>
+<line x1="78.0" y1="688.0" x2="78.0" y2="693.0" stroke="#333"/>
+<text x="78.0" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">1</text>
+<line x1="180.2" y1="688.0" x2="180.2" y2="693.0" stroke="#333"/>
+<text x="180.2" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">6</text>
+<line x1="282.5" y1="688.0" x2="282.5" y2="693.0" stroke="#333"/>
+<text x="282.5" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">11</text>
+<line x1="384.7" y1="688.0" x2="384.7" y2="693.0" stroke="#333"/>
+<text x="384.7" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">16</text>
+<line x1="487.0" y1="688.0" x2="487.0" y2="693.0" stroke="#333"/>
+<text x="487.0" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">21</text>
+<line x1="589.2" y1="688.0" x2="589.2" y2="693.0" stroke="#333"/>
+<text x="589.2" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">26</text>
+<line x1="691.5" y1="688.0" x2="691.5" y2="693.0" stroke="#333"/>
+<text x="691.5" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">31</text>
+<line x1="793.7" y1="688.0" x2="793.7" y2="693.0" stroke="#333"/>
+<text x="793.7" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">36</text>
+<line x1="896.0" y1="688.0" x2="896.0" y2="693.0" stroke="#333"/>
+<text x="896.0" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">41</text>
+<line x1="998.2" y1="688.0" x2="998.2" y2="693.0" stroke="#333"/>
+<text x="998.2" y="710.0" font-size="11" text-anchor="middle" font-family="Arial">46</text>
+<polyline fill="none" stroke="#9ecae1" stroke-width="2.7" points="78.0,630.1 98.4,656.0 118.9,611.4 139.3,589.6 159.8,585.4 180.2,575.2 200.7,631.5 221.1,617.8 241.6,584.2 262.0,575.1 282.5,631.4 302.9,646.4 323.4,575.3 343.8,589.5 364.3,575.3 384.7,631.0 405.2,574.9 425.6,631.5 446.1,632.8 466.5,575.3 487.0,667.2 507.4,585.5 527.9,631.2 548.3,574.8 568.8,631.2 589.2,609.3 609.7,589.8 630.1,575.9 650.6,631.4 671.0,617.8 691.5,590.1 711.9,575.3 732.4,631.1 752.8,575.2 773.3,639.5 793.7,608.7 814.2,630.9 834.6,594.1 855.1,575.3 875.5,631.2 896.0,575.3 916.4,631.1 936.9,603.5 957.3,583.1 977.8,575.3 998.2,647.5 1018.7,594.5 1039.1,581.6 1059.6,575.3 1080.0,650.1"/>
+<circle cx="78.0" cy="630.1" r="3.5" fill="#9ecae1"><title>段階① 初期 iteration 1: 58.28</title></circle>
+<circle cx="1080.0" cy="650.1" r="3.5" fill="#9ecae1"><title>段階① 初期 iteration 50: 55.41</title></circle>
+<circle cx="548.3" cy="574.8" r="3.5" fill="#9ecae1"><title>段階① 初期 iteration 24: 66.18</title></circle>
+<polyline fill="none" stroke="#2171b5" stroke-width="2.7" points="78.0,630.1 98.4,607.6 118.9,586.0 139.3,575.3 159.8,575.3 180.2,574.1 200.7,574.9 221.1,574.1 241.6,574.1 262.0,575.3 282.5,574.1 302.9,574.1 323.4,575.3 343.8,574.1 364.3,574.1 384.7,575.3 405.2,574.1 425.6,574.9 446.1,574.1 466.5,575.0 487.0,574.1 507.4,575.3 527.9,574.1 548.3,574.1 568.8,575.3 589.2,574.1 609.7,574.9 630.1,574.1 650.6,574.2 671.0,574.1 691.5,575.3 711.9,574.1 732.4,573.5 752.8,574.1 773.3,573.5 793.7,573.5 814.2,575.3 834.6,573.5 855.1,575.0 875.5,573.5 896.0,575.3 916.4,573.5 936.9,576.1 957.3,573.5 977.8,575.3 998.2,573.5 1018.7,573.5 1039.1,575.3 1059.6,573.5 1080.0,573.5"/>
+<circle cx="78.0" cy="630.1" r="3.5" fill="#2171b5"><title>段階② 記憶あり改善 iteration 1: 58.28</title></circle>
+<circle cx="1080.0" cy="573.5" r="3.5" fill="#2171b5"><title>段階② 記憶あり改善 iteration 50: 66.36</title></circle>
+<circle cx="732.4" cy="573.5" r="3.5" fill="#2171b5"><title>段階② 記憶あり改善 iteration 33: 66.36</title></circle>
+<polyline fill="none" stroke="#08306b" stroke-width="2.7" points="78.0,630.1 98.4,479.5 118.9,449.3 139.3,450.0 159.8,449.3 180.2,449.7 200.7,448.6 221.1,449.7 241.6,450.1 262.0,450.0 282.5,449.3 302.9,449.7 323.4,449.8 343.8,449.8 364.3,450.0 384.7,449.3 405.2,449.4 425.6,449.9 446.1,449.9 466.5,450.1 487.0,450.1 507.4,450.0 527.9,449.3 548.3,449.1 568.8,449.9 589.2,449.9 609.7,450.0 630.1,450.1 650.6,449.8 671.0,449.1 691.5,449.9 711.9,450.0 732.4,450.0 752.8,487.3 773.3,449.3 793.7,448.6 814.2,449.7 834.6,449.7 855.1,448.6 875.5,449.3 896.0,448.4 916.4,450.0 936.9,449.7 957.3,449.6 977.8,449.4 998.2,450.1 1018.7,450.0 1039.1,449.7 1059.6,449.9 1080.0,449.4"/>
+<circle cx="78.0" cy="630.1" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 1: 58.28</title></circle>
+<circle cx="1080.0" cy="449.4" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 50: 84.08</title></circle>
+<circle cx="896.0" cy="448.4" r="3.5" fill="#08306b"><title>段階③ 記憶+評価変更 iteration 41: 84.23</title></circle>
+<polyline fill="none" stroke="#d94801" stroke-width="2.7" points="78.0,630.1 98.4,595.6 118.9,538.6 139.3,466.2 159.8,466.2 180.2,466.2 200.7,462.9 221.1,462.9 241.6,453.3 262.0,451.8 282.5,451.8 302.9,451.8 323.4,450.8 343.8,450.8 364.3,450.8 384.7,450.8 405.2,449.8 425.6,449.8 446.1,449.8 466.5,449.8 487.0,449.8 507.4,449.8 527.9,449.8 548.3,449.8 568.8,449.8 589.2,449.8 609.7,449.8 630.1,449.8 650.6,449.8 671.0,449.8 691.5,449.8 711.9,449.8 732.4,449.8 752.8,449.8 773.3,449.8 793.7,449.8 814.2,449.8 834.6,449.8 855.1,449.8 875.5,449.8 896.0,449.8 916.4,449.8 936.9,449.8 957.3,449.8 977.8,449.8 998.2,449.8 1018.7,449.8 1039.1,449.8 1059.6,449.8 1080.0,449.8"/>
+<circle cx="78.0" cy="630.1" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 1: 58.28</title></circle>
+<circle cx="1080.0" cy="449.8" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 50: 84.03</title></circle>
+<circle cx="405.2" cy="449.8" r="3.5" fill="#d94801"><title>段階④ 監査パネル iteration 17: 84.03</title></circle>
+<line x1="1104" y1="84" x2="1148" y2="84" stroke="#9ecae1" stroke-width="3"/>
+<text x="1158" y="89" font-size="14" font-family="Arial">段階① 初期</text>
+<line x1="1104" y1="112" x2="1148" y2="112" stroke="#2171b5" stroke-width="3"/>
+<text x="1158" y="117" font-size="14" font-family="Arial">段階② 記憶あり改善</text>
+<line x1="1104" y1="140" x2="1148" y2="140" stroke="#08306b" stroke-width="3"/>
+<text x="1158" y="145" font-size="14" font-family="Arial">段階③ 記憶+評価変更</text>
+<line x1="1104" y1="168" x2="1148" y2="168" stroke="#d94801" stroke-width="3"/>
+<text x="1158" y="173" font-size="14" font-family="Arial">段階④ 監査パネル</text>
+<text x="579.0" y="742" font-size="15" text-anchor="middle" font-family="Arial">Iteration</text>
+</svg>

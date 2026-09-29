@@ -40,14 +40,50 @@ def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
-def _list_runs() -> List[Path]:
-    if not RESULTS_ROOT.exists():
+def _has_summary(path: Path) -> bool:
+    return path.is_dir() and (path / "summary.json").exists()
+
+
+def _has_telemetry(path: Path) -> bool:
+    return (path / "telemetry.jsonl").exists()
+
+
+def _run_label(path: Path, results_root: Path = RESULTS_ROOT) -> str:
+    try:
+        # POSIX separators so a chain child reads as ``chain/01`` on every OS —
+        # the label is a display name and a dict key, not a filesystem path.
+        return path.resolve().relative_to(results_root.resolve()).as_posix()
+    except ValueError:
+        return path.name
+
+
+def _list_runs(results_root: Optional[Path] = None) -> List[Path]:
+    """List dashboard-selectable runs, including iterate chain children.
+
+    Top-level ``summary.json`` dirs stay listed. If a directory has child
+    folders with ``summary.json`` (``ea run --iterate`` ``01/``, replays, …), those
+    children are listed as ``parent/01`` instead of the empty parent wrapper
+    unless the parent itself has ``telemetry.jsonl``.
+    """
+    root = results_root or RESULTS_ROOT
+    if not root.exists():
         return []
-    runs = []
-    for entry in RESULTS_ROOT.iterdir():
-        if entry.is_dir() and (entry / "summary.json").exists():
+    runs: List[Path] = []
+    for entry in sorted(root.iterdir(), key=lambda p: p.name):
+        if not entry.is_dir():
+            continue
+        children = [
+            child
+            for child in sorted(entry.iterdir(), key=lambda p: p.name)
+            if _has_summary(child)
+        ]
+        if children:
+            runs.extend(children)
+            if _has_summary(entry) and _has_telemetry(entry):
+                runs.append(entry)
+        elif _has_summary(entry):
             runs.append(entry)
-    return sorted(runs, key=lambda p: p.name)
+    return sorted(runs, key=lambda p: _run_label(p, root))
 
 
 def _select_rows_at_step(rows: List[Dict[str, Any]], step: int) -> List[Dict[str, Any]]:
@@ -1939,6 +1975,57 @@ def _render_run_comparison(
     )
 
 
+def _render_evaluation_panel(run_dir: Path, run_name: str) -> None:
+    evaluation = _read_json(run_dir / "evaluation.json")
+    if not evaluation:
+        st.info(f"`{run_name}` に evaluation.json がありません。")
+        return
+    scores = evaluation.get("scores") or {}
+    conditions = evaluation.get("run_conditions") or {}
+    gate = evaluation.get("physics_gate") or {}
+    st.markdown(f"**Evaluation — `{run_name}`**")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("status", str(evaluation.get("status") or "—"))
+    total = scores.get("total")
+    max_score = scores.get("max_score")
+    c2.metric(
+        "score",
+        "—" if total is None else f"{total} / {max_score}",
+    )
+    c3.metric("physics_gate", "PASS" if gate.get("passed") else "FAIL / N/A")
+    c4.metric("inject_failures", str(conditions.get("inject_failures")))
+    actor = conditions.get("actor") or {}
+    design = conditions.get("design") or {}
+    st.caption(
+        f"actor={actor.get('mode')} / design={design.get('mode')} / "
+        f"design.llm.model={design.get('model') or actor.get('model') or '—'}"
+    )
+    axes = scores.get("axes") or {}
+    if axes:
+        rows = []
+        for key, axis in axes.items():
+            if not isinstance(axis, dict):
+                continue
+            rows.append(
+                {
+                    "axis": key,
+                    "status": axis.get("status"),
+                    "score": axis.get("score"),
+                    "max": axis.get("max_score"),
+                }
+            )
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+
+
+def _render_evaluation_browser_link() -> None:
+    browser = RESULTS_ROOT / "evaluation.html"
+    if browser.exists():
+        st.info(
+            "複数 run の切替・比較用 HTML: "
+            f"`{browser}` （ブラウザで直接開くか、下の Evaluation view を使用）"
+        )
+
+
 def main() -> None:
     st.set_page_config(page_title="ECLSS Day6 Dashboard", layout="wide")
     st.title("ECLSS Resilience Dashboard")
@@ -1948,14 +2035,14 @@ def main() -> None:
         st.error(f"No run outputs found under {RESULTS_ROOT}")
         return
 
-    run_map = {run.name: run for run in runs}
+    run_map = {_run_label(run): run for run in runs}
     run_names = list(run_map.keys())
     selected_run_name = st.sidebar.selectbox("Run", options=run_names, index=len(run_names) - 1)
     run_dir = run_map[selected_run_name]
 
     view_mode = st.radio(
         "View",
-        options=["Overview", "Step replay"],
+        options=["Overview", "Step replay", "Evaluation"],
         horizontal=True,
         key="dashboard_view_mode",
     )
@@ -2016,6 +2103,22 @@ def main() -> None:
         _render_run_replay_view(primary_run)
         return
 
+    if view_mode == "Evaluation":
+        _render_evaluation_browser_link()
+        browser_path = RESULTS_ROOT / "evaluation.html"
+        if browser_path.exists():
+            components.html(
+                browser_path.read_text(encoding="utf-8"),
+                height=1100,
+                scrolling=True,
+            )
+        else:
+            st.warning(
+                f"{browser_path} がまだありません。evaluation 付き run を実行すると生成されます。"
+            )
+            _render_evaluation_panel(run_dir, selected_run_name)
+        return
+
     if compare_run_name and compare_run_dir:
         compare_run = RunViewData(
             run_dir=compare_run_dir,
@@ -2031,6 +2134,12 @@ def main() -> None:
         )
         _render_dual_overview(primary_run, compare_run)
         st.divider()
+        left, right = st.columns(2)
+        with left:
+            _render_evaluation_panel(run_dir, selected_run_name)
+        with right:
+            _render_evaluation_panel(compare_run_dir, compare_run_name)
+        st.divider()
         _render_run_comparison(
             primary_name=selected_run_name,
             primary_summary=summary,
@@ -2045,6 +2154,8 @@ def main() -> None:
         )
     else:
         _render_run_detail_view(primary_run)
+        st.divider()
+        _render_evaluation_panel(run_dir, selected_run_name)
 
 
 if __name__ == "__main__":

@@ -81,6 +81,7 @@ class ScrubberDegradationScenario(Scenario):
         recreate_output: bool = True,
         run_id: Optional[str] = None,
         results_root: Optional[Path] = None,
+        force: bool = False,
     ) -> Path:
         config = self.load_config(overrides)
         agents_config = load_agents_config(self.name, config)
@@ -96,6 +97,7 @@ class ScrubberDegradationScenario(Scenario):
             run_id=run_id,
             results_root=results_root,
             recreate_output=recreate_output,
+            force=force,
         )
         config_paths = write_effective_configs(
             run_dir,

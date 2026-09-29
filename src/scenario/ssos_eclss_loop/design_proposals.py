@@ -10,8 +10,20 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional
 
+from scenario.ssos_eclss_loop.design_eval import (
+    STATUS_APPROVED as FINAL_STATUS_APPROVED,
+    STATUS_PROVISIONAL,
+    mark_final_eligibility,
+    select_final_candidate,
+)
+from scenario.ssos_eclss_loop.design_variables import (
+    CAPACITY_KEYS,
+    apply_capacity_fields,
+    sync_action_payloads,
+    validate_capacity_fields,
+)
 from scenario.ssos_eclss_loop.health import (
     DEFAULT_CO2_STORAGE_HIGH_KG,
     DEFAULT_O2_STORAGE_LOW_KG,
@@ -22,11 +34,17 @@ DESIGN_DOMAIN = "ssos_graph"
 SSOS_CHANGE_KINDS = frozenset(
     {
         "action_profile",
+        "capacity_profile",
         "service_config",
         "set_parameter",
         "graph_rewire",
     }
 )
+
+# ``capacity_profile`` is hardware sizing (plant_sim nameplate throughput);
+# ``action_profile`` is the operational payload the crew sends at run time.
+# Design doc §6 keeps them distinct on purpose.
+CAPACITY_PROFILE_BACKENDS = frozenset({"plant_sim"})
 
 ACTION_PROFILE_FIELDS_BY_SUBSYSTEM = {
     "ars": frozenset({"initial_co2_mass", "initial_moisture_content", "initial_contaminants"}),
@@ -34,6 +52,8 @@ ACTION_PROFILE_FIELDS_BY_SUBSYSTEM = {
     "wrs": frozenset({"urine_volume"}),
 }
 
+# Verification thresholds (`thresholds.*`) are the scoring bar. They are not
+# a design lever: a proposal that rewrites them is moving the yardstick.
 ALLOWED_SET_PARAMETER_TARGETS = frozenset(
     {
         "agents.actor.policy.co2_storage_high_kg",
@@ -42,10 +62,6 @@ ALLOWED_SET_PARAMETER_TARGETS = frozenset(
         "agents.policy.co2_storage_high_kg",  # alias of agents.actor.policy.*
         "agents.policy.o2_storage_low_kg",
         "agents.policy.product_water_low_l",
-        "thresholds.co2_storage_high_kg",
-        "thresholds.co2_storage_critical_kg",
-        "thresholds.o2_storage_low_kg",
-        "thresholds.product_water_low_l",
     }
 )
 
@@ -149,6 +165,66 @@ def _apply_action_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> No
             raise ValueError(f"action_profile subsystem must be ars, ogs, or wrs, got {subsystem!r}")
 
 
+def complete_capacity_profile(
+    document: Dict[str, Any],
+    installed: Mapping[str, float],
+) -> Dict[str, Any]:
+    """Fill in the design variables a proposal did not mention.
+
+    A capacity proposal is applied by merging it into the *scenario file*, not
+    into the machine the run that produced it was flying. So a proposal naming
+    one subsystem silently returns the other two to their shipped sizes. That is
+    how a chain that had grown its CO2 scrubber and oxygen generator enough to
+    keep all fifty occupants alive handed the next round a station sized for
+    none of them, and read the loss as the design's fault.
+
+    Completing the document here makes every hand-off a whole machine: what was
+    proposed, plus what was already flying wherever the proposal was silent.
+    Nothing is overridden -- an omission simply stops meaning "revert this".
+    """
+    completed = copy.deepcopy(document)
+    for change in completed.get("changes") or []:
+        if not isinstance(change, dict) or change.get("change_kind") != "capacity_profile":
+            continue
+        payload = change.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        fields = payload.get("fields")
+        if not isinstance(fields, dict):
+            continue
+        carried = {
+            key: float(value)
+            for key, value in installed.items()
+            if key in CAPACITY_KEYS and key not in fields
+        }
+        if not carried:
+            continue
+        payload["fields"] = {**fields, **carried}
+        change["carried_forward"] = sorted(carried)
+    return completed
+
+
+def _apply_capacity_profile(config: Dict[str, Any], payload: Dict[str, Any]) -> None:
+    """Size ARS / OGS / WRS throughput and keep the action payloads usable."""
+    backend = str(payload.get("backend", "plant_sim")).lower()
+    if backend not in CAPACITY_PROFILE_BACKENDS:
+        raise ValueError(
+            f"capacity_profile.backend must be one of {sorted(CAPACITY_PROFILE_BACKENDS)}, "
+            f"got {backend!r}"
+        )
+    fields = payload.get("fields")
+    if not isinstance(fields, dict):
+        raise ValueError("capacity_profile.fields must be an object")
+    errors = validate_capacity_fields(fields)
+    if errors:
+        raise ValueError("; ".join(errors))
+    apply_capacity_fields(config, fields)
+    # Nameplate alone is not reachable: OGS is throttled by ogs_goal.input_water_mass
+    # and WRS by wrs_goal.urine_volume (design doc §6.1 / §6.2).
+    if payload.get("sync_action_payloads", True):
+        sync_action_payloads(config)
+
+
 def _apply_service_config(config: Dict[str, Any], payload: Dict[str, Any]) -> None:
     import math
 
@@ -212,6 +288,7 @@ def _apply_graph_rewire(config: Dict[str, Any], payload: Dict[str, Any]) -> None
 
 _APPLY_HANDLERS: Dict[str, ApplyHandler] = {
     "action_profile": _apply_action_profile,
+    "capacity_profile": _apply_capacity_profile,
     "service_config": _apply_service_config,
     "set_parameter": _apply_set_parameter,
     "graph_rewire": _apply_graph_rewire,
@@ -237,14 +314,69 @@ def validate_ssos_proposal_change(
     return payload
 
 
+def supervisor_approval_reasons(proposals: Dict[str, Any]) -> List[str]:
+    """Why this document may not be adopted without a human saying so.
+
+    ``provisional_final`` means the designer could not clear its own bar — the
+    design loses occupants, or it only exists outside the documented budgets.
+    Design doc §9 says such a design is "not auto-adopted"; this is where that
+    sentence is enforced, because the file plus ``--apply-proposals`` is the
+    adoption path.
+    """
+    reasons: List[str] = []
+    status = proposals.get("final_status")
+    if status is None:
+        reasons.append("final_status missing (unevaluated)")
+    elif status != FINAL_STATUS_APPROVED:
+        selection = proposals.get("selection")
+        detail = proposals.get("selection_reason")
+        if not detail and isinstance(selection, dict):
+            detail = selection.get("reason")
+        detail = str(detail or "").strip()
+        reasons.append(f"final_status={status}" + (f" ({detail})" if detail else ""))
+    if proposals.get("requires_supervisor_approval"):
+        reasons.append("document is flagged requires_supervisor_approval")
+    for index, change in enumerate(proposals.get("changes") or []):
+        if isinstance(change, dict) and change.get("requires_supervisor_approval"):
+            reasons.append(f"changes[{index}] is flagged requires_supervisor_approval")
+    return reasons
+
+
+# The library refuses a provisional document unless the caller opts in.
+# ``ea run`` follows scenario.yaml (default false). Passing
+# ``--approve-provisional`` prints this note so the override is visible.
+APPROVE_PROVISIONAL_SIM_INFO = (
+    "This simulation auto-approves LLM design proposals (--approve-provisional) "
+    "so the design–verify loop can proceed without a human supervisor. "
+    "Omit the flag to keep the supervisor gate."
+)
+
+
 def apply_design_proposals(
     config: Dict[str, Any],
     proposals: Dict[str, Any],
+    *,
+    approve_provisional: bool = False,
 ) -> Dict[str, Any]:
-    """Merge proposal changes into scenario config for the *next* run."""
+    """Merge proposal changes into scenario config for the *next* run.
+
+    A document that needs supervisor approval is refused unless the caller
+    passes ``approve_provisional=True``. ``ea run`` follows
+    ``iteration.approve_provisional`` (default false). ``--approve-provisional``
+    opts in and prints an INFO note.
+    """
     errors = validate_design_proposals(proposals)
     if errors:
         raise ValueError("; ".join(errors))
+
+    if not approve_provisional:
+        blocking = supervisor_approval_reasons(proposals)
+        if blocking:
+            raise ValueError(
+                "design_proposals requires supervisor approval and was not applied: "
+                + "; ".join(blocking)
+                + ". Re-run with --approve-provisional to adopt it anyway."
+            )
 
     merged = copy.deepcopy(config)
     for change in proposals.get("changes", []):
@@ -257,26 +389,25 @@ def apply_design_proposals(
     return merged
 
 
-def _append_threshold_bump(
+def _append_policy_bump(
     changes: List[Dict[str, Any]],
     *,
     target_policy: str,
-    target_thresholds: str,
     value: float,
     why: str,
     what: str,
     how: str,
 ) -> None:
-    for target in (target_policy, target_thresholds):
-        changes.append(
-            {
-                "change_kind": "set_parameter",
-                "payload": {"target": target, "value": value},
-                "why": why,
-                "what": what,
-                "how": how,
-            }
-        )
+    """ARM policy only. Scoring-bar ``thresholds.*`` must not be writable here."""
+    changes.append(
+        {
+            "change_kind": "set_parameter",
+            "payload": {"target": target_policy, "value": value},
+            "why": why,
+            "what": what,
+            "how": how,
+        }
+    )
 
 
 def _annotate_change(
@@ -396,10 +527,9 @@ def build_design_proposals_from_run(
             )
         proposed_high = round(co2_high * 0.9, 6)
         if proposed_high > 0.0 and proposed_high != co2_high:
-            _append_threshold_bump(
+            _append_policy_bump(
                 changes,
                 target_policy="agents.actor.policy.co2_storage_high_kg",
-                target_thresholds="thresholds.co2_storage_high_kg",
                 value=proposed_high,
                 why=co2_why,
                 what="Lower CO2 warning threshold to align policy with observed stress.",
@@ -497,25 +627,23 @@ def build_design_proposals_from_run(
         if not changes:
             proposed_high = round(co2_high * 0.9, 6)
             if proposed_high > 0.0 and proposed_high != co2_high:
-                _append_threshold_bump(
+                _append_policy_bump(
                     changes,
                     target_policy="agents.actor.policy.co2_storage_high_kg",
-                    target_thresholds="thresholds.co2_storage_high_kg",
                     value=proposed_high,
-                    why="No stressed branch matched; fallback CO2 threshold adjustment.",
-                    what="Lower CO2 warning threshold for next run.",
+                    why="No stressed branch matched; fallback CO2 policy adjustment.",
+                    what="Lower CO2 warning policy for next run.",
                     how=f"co2_storage_high_kg: {co2_high} → {proposed_high}",
                 )
             else:
                 proposed_low = round(o2_low * 1.1, 6)
                 if proposed_low > 0.0 and proposed_low != o2_low:
-                    _append_threshold_bump(
+                    _append_policy_bump(
                         changes,
                         target_policy="agents.actor.policy.o2_storage_low_kg",
-                        target_thresholds="thresholds.o2_storage_low_kg",
                         value=proposed_low,
-                        why="No stressed branch matched; fallback O2 threshold adjustment.",
-                        what="Raise O2 low threshold for next run.",
+                        why="No stressed branch matched; fallback O2 policy adjustment.",
+                        what="Raise O2 low policy for next run.",
                         how=f"o2_storage_low_kg: {o2_low} → {proposed_low}",
                     )
                 elif "request_co2_amount" in policy:
@@ -550,7 +678,38 @@ def build_design_proposals_from_run(
     }
     if baseline_graph is not None:
         doc["baseline_graph"] = baseline_graph
+    _stamp_rule_path_eligibility(doc, summary)
     return doc
+
+
+def _stamp_rule_path_eligibility(doc: Dict[str, Any], summary: Mapping[str, Any]) -> None:
+    """Write ``final_status`` so the supervisor gate can refuse an unevaluated doc."""
+    outcome = {
+        "backend": summary.get("backend"),
+        "physics_gate_passed": summary.get("physics_gate_passed"),
+        "evaluation_status": summary.get("evaluation_status"),
+        "crew_initial": summary.get("crew_initial"),
+        "crew_remaining": summary.get("crew_remaining"),
+    }
+    record: Dict[str, Any] = {
+        "candidate_id": "rule_path",
+        "simulated": True,
+        "constraint_evaluation": {
+            "preflight_status": "valid",
+            "constraint_status": "feasible",
+        },
+        "outcome": outcome,
+    }
+    mark_final_eligibility(record, baseline_outcome=outcome)
+    selection = select_final_candidate([record], baseline_outcome=outcome)
+    doc["final_status"] = selection.get("final_status") or STATUS_PROVISIONAL
+    doc["requires_supervisor_approval"] = bool(
+        selection.get("requires_supervisor_approval") or not record.get("final_eligible")
+    )
+    if selection.get("reason"):
+        doc["selection_reason"] = selection["reason"]
+    doc["final_eligible"] = record.get("final_eligible")
+    doc["final_ineligible_reasons"] = record.get("final_ineligible_reasons")
 
 
 def write_design_proposals(path: Path, proposals: Dict[str, Any]) -> None:

@@ -621,6 +621,7 @@ def render_ssos_design_proposals(
     path = run_dir / "design_proposals.json"
     if not path.exists():
         st.caption("No design_proposals.json for this run.")
+        render_ssos_design_tool_trace(run_dir)
         return
     payload = json.loads(path.read_text(encoding="utf-8"))
     changes = list_design_changes(payload)
@@ -659,6 +660,7 @@ def render_ssos_design_proposals(
 
     if not changes:
         st.caption("Proposal file has no changes[].")
+        render_ssos_design_tool_trace(run_dir)
         return
 
     st.markdown("##### Proposed changes")
@@ -680,6 +682,110 @@ def render_ssos_design_proposals(
     if rewires:
         st.markdown("##### Graph rewires")
         st.dataframe(rewires, use_container_width=True, hide_index=True)
+
+    render_ssos_design_tool_trace(run_dir)
+
+
+def render_ssos_design_tool_trace(run_dir: Path) -> None:
+    """Show per-turn tool calls and designer thinking from the run directory."""
+    trace_path = run_dir / "tool_trace.jsonl"
+    report_path = run_dir / "design_review_report.json"
+    if not trace_path.exists() and not report_path.exists():
+        return
+
+    st.markdown("##### Designer tool-use and thinking")
+    if trace_path.exists():
+        st.caption(
+            f"`{trace_path.name}` — `llm_turn` rows are thinking; `tool_call` rows are tools. "
+            "Also in `messages.jsonl` (designer comments) and `design_review_report.json` "
+            "(`thinking_turns`)."
+        )
+        rows = _read_jsonl_records(trace_path)
+        llm_turns = [row for row in rows if row.get("event") == "llm_turn"]
+        tool_calls = [row for row in rows if row.get("event") == "tool_call"]
+        meta_cols = st.columns(3)
+        with meta_cols[0]:
+            st.metric("LLM turns", len(llm_turns))
+        with meta_cols[1]:
+            st.metric("Tool calls", len(tool_calls))
+        with meta_cols[2]:
+            thinking_count = sum(1 for row in llm_turns if row.get("thinking"))
+            st.metric("Turns with thinking", thinking_count)
+
+        if tool_calls:
+            st.markdown("**Tool calls**")
+            table = [
+                {
+                    "turn": row.get("iteration"),
+                    "source": row.get("source") or "llm",
+                    "tool": row.get("tool") or row.get("requested") or "—",
+                    "message": (row.get("llm_message") or "")[:160],
+                }
+                for row in tool_calls
+            ]
+            st.dataframe(table, use_container_width=True, hide_index=True)
+            for row in tool_calls:
+                label = f"Turn {row.get('iteration')}: {row.get('tool') or row.get('requested')}"
+                with st.expander(label, expanded=False):
+                    if row.get("arguments") is not None:
+                        st.markdown("**Arguments**")
+                        st.json(row.get("arguments") or {}, expanded=False)
+                    result = row.get("result")
+                    if result is not None:
+                        st.markdown("**Result**")
+                        st.json(result, expanded=False)
+                    elif row.get("result_excerpt"):
+                        st.code(row["result_excerpt"], language="json")
+
+        if llm_turns:
+            st.markdown("**Thinking / deliberation**")
+            for row in llm_turns:
+                status = row.get("parse_status") or ""
+                title = f"Turn {row.get('iteration')}"
+                if status:
+                    title = f"{title} ({status})"
+                with st.expander(title, expanded=False):
+                    if row.get("message"):
+                        st.markdown(f"**Message:** {row['message']}")
+                    if row.get("reasoning"):
+                        st.markdown(f"**Reasoning:** {row['reasoning']}")
+                    thinking = row.get("thinking") or ""
+                    if thinking:
+                        st.markdown("**Thinking**")
+                        st.text(thinking)
+                    else:
+                        st.caption("No think/reasoning_content captured for this turn.")
+        return
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    turns = report.get("thinking_turns") or []
+    if not turns:
+        return
+    st.caption(f"`{report_path.name}` thinking_turns (tool_trace.jsonl was missing).")
+    for row in turns:
+        with st.expander(f"Turn {row.get('iteration')}", expanded=False):
+            if row.get("thinking"):
+                st.text(row["thinking"])
+            else:
+                st.caption("No thinking recorded.")
+
+
+def _read_jsonl_records(path: Path) -> List[Dict[str, Any]]:
+    if not path.exists():
+        return []
+    rows: List[Dict[str, Any]] = []
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(row, dict):
+                rows.append(row)
+    return rows
 
 
 def render_ssos_summary_highlights(summary: Dict[str, Any]) -> None:

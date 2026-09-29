@@ -22,6 +22,7 @@ def test_apply_action_profile_and_service_config():
         "design_domain": DESIGN_DOMAIN,
         "proposed_by": "op_1",
         "decision_source": "rule",
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "action_profile",
@@ -36,7 +37,10 @@ def test_apply_action_profile_and_service_config():
             },
             {
                 "change_kind": "set_parameter",
-                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1600.0},
+                "payload": {
+                    "target": "agents.actor.policy.co2_storage_high_kg",
+                    "value": 1600.0,
+                },
             },
         ],
     }
@@ -46,7 +50,9 @@ def test_apply_action_profile_and_service_config():
     assert merged["agents"]["policy"]["request_co2_amount"] == 30.0
     assert merged["agents"]["actor"]["policy"]["request_co2_amount"] == 30.0
     assert merged["agents"]["policy"]["request_co2_before_ogs"] is False
-    assert merged["thresholds"]["co2_storage_high_kg"] == 1600.0
+    assert merged["agents"]["policy"]["co2_storage_high_kg"] == 1600.0
+    assert merged["agents"]["actor"]["policy"]["co2_storage_high_kg"] == 1600.0
+    assert "co2_storage_high_kg" not in merged.get("thresholds", {})
     assert merged["agents"]["policy"]["ars_goal"]["initial_co2_mass"] == 1000.0
 
 
@@ -54,6 +60,7 @@ def test_apply_graph_rewire():
     config = {"agents": {"policy": {}}}
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "graph_rewire",
@@ -73,6 +80,7 @@ def test_apply_graph_rewire():
 def test_apply_graph_rewire_rejects_empty_payload():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [{"change_kind": "graph_rewire", "payload": {}}],
     }
     with pytest.raises(ValueError, match="non-empty"):
@@ -163,7 +171,7 @@ def test_build_design_proposals_fallback_without_goals_uses_threshold():
     assert all(c["change_kind"] == "set_parameter" for c in doc["changes"])
     values = {c["payload"]["target"]: c["payload"]["value"] for c in doc["changes"]}
     assert values["agents.actor.policy.co2_storage_high_kg"] == pytest.approx(1.35)
-    assert values["thresholds.co2_storage_high_kg"] == pytest.approx(1.35)
+    assert "thresholds.co2_storage_high_kg" not in values
 
 
 def test_build_design_proposals_defaults_before_ogs_false_when_absent():
@@ -237,8 +245,24 @@ def test_build_design_proposals_fallback_empty_policy_uses_default_threshold():
     )
     assert doc["changes"]
     assert any(
-        c["payload"]["target"] == "thresholds.co2_storage_high_kg" for c in doc["changes"]
+        c["payload"]["target"] == "agents.actor.policy.co2_storage_high_kg"
+        for c in doc["changes"]
     )
+
+
+def test_apply_rejects_threshold_set_parameter():
+    proposals = {
+        "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
+        "changes": [
+            {
+                "change_kind": "set_parameter",
+                "payload": {"target": "thresholds.co2_storage_high_kg", "value": 1.0},
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="not allowed"):
+        apply_design_proposals({"agents": {"policy": {}}}, proposals)
 
 
 def test_write_rejects_scrubber_change_kind(tmp_path):
@@ -259,7 +283,9 @@ def test_round_trip_via_json_file(tmp_path):
     path = tmp_path / "design_proposals.json"
     write_design_proposals(path, proposals)
     loaded = json.loads(path.read_text(encoding="utf-8"))
-    merged = apply_design_proposals({"agents": {"policy": {}}}, loaded)
+    merged = apply_design_proposals(
+        {"agents": {"policy": {}}}, loaded, approve_provisional=True
+    )
     assert merged["agents"]["policy"]["ogs_goal"]["input_water_mass"] == pytest.approx(9.9)
     assert merged["agents"]["actor"]["policy"]["ogs_goal"]["input_water_mass"] == pytest.approx(9.9)
 
@@ -267,6 +293,7 @@ def test_round_trip_via_json_file(tmp_path):
 def test_apply_action_profile_rejects_unknown_fields():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "action_profile",
@@ -287,6 +314,7 @@ def test_apply_action_profile_rejects_unknown_fields():
 def test_apply_set_parameter_rejects_arbitrary_target():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "set_parameter",
@@ -301,6 +329,7 @@ def test_apply_set_parameter_rejects_arbitrary_target():
 def test_apply_set_parameter_canonical_target_dual_writes_legacy_alias():
     proposals = {
         "design_domain": DESIGN_DOMAIN,
+        "final_status": "approved_final",
         "changes": [
             {
                 "change_kind": "set_parameter",
@@ -328,6 +357,7 @@ def test_apply_without_legacy_policy_key_still_loads_actor_policy():
         config,
         {
             "design_domain": DESIGN_DOMAIN,
+            "final_status": "approved_final",
             "changes": [
                 {
                     "change_kind": "action_profile",
@@ -343,3 +373,244 @@ def test_apply_without_legacy_policy_key_still_loads_actor_policy():
     agents = load_agents_config("ssos_eclss_loop", merged)
     assert agents is not None
     assert agents["actor"]["policy"]["ars_goal"]["initial_co2_mass"] == 2.5
+
+
+# --------------------------------------------------------------------------- #
+# supervisor approval gate (design doc §9)
+# --------------------------------------------------------------------------- #
+def _capacity_document(**extra) -> dict:
+    document = {
+        "design_domain": DESIGN_DOMAIN,
+        "changes": [
+            {
+                "change_kind": "capacity_profile",
+                "payload": {
+                    "backend": "plant_sim",
+                    "fields": {"plant_sim.ars.capacity_kg_day": 30.0},
+                },
+            }
+        ],
+    }
+    document.update(extra)
+    return document
+
+
+def test_a_provisional_design_is_not_applied_without_approval():
+    """The file plus --apply-proposals is the adoption path, so it is the gate."""
+    config = {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}}
+    document = _capacity_document(
+        final_status="provisional_final",
+        requires_supervisor_approval=True,
+        selection={"reason": "over budget by 3000 kg"},
+    )
+    with pytest.raises(ValueError) as excinfo:
+        apply_design_proposals(config, document)
+    message = str(excinfo.value)
+    assert "provisional_final" in message
+    assert "over budget by 3000 kg" in message
+    assert "--approve-provisional" in message
+    # and the config it was handed is untouched
+    assert config["plant_sim"]["ars"]["capacity_kg_day"] == 4.5
+
+
+def test_an_approved_design_applies_without_a_flag():
+    merged = apply_design_proposals(
+        {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}},
+        _capacity_document(final_status="approved_final", requires_supervisor_approval=False),
+    )
+    assert merged["plant_sim"]["ars"]["capacity_kg_day"] == 30.0
+
+
+def test_a_human_can_still_adopt_a_provisional_design_on_purpose():
+    merged = apply_design_proposals(
+        {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}},
+        _capacity_document(final_status="provisional_final", requires_supervisor_approval=True),
+        approve_provisional=True,
+    )
+    assert merged["plant_sim"]["ars"]["capacity_kg_day"] == 30.0
+
+
+def test_a_single_flagged_change_blocks_the_whole_document():
+    document = _capacity_document(final_status="approved_final")
+    document["changes"][0]["requires_supervisor_approval"] = True
+    with pytest.raises(ValueError, match="requires_supervisor_approval"):
+        apply_design_proposals({}, document)
+
+
+def test_a_document_without_a_status_is_refused():
+    """C-3: missing final_status is unevaluated, not a silent apply."""
+    with pytest.raises(ValueError, match="unevaluated"):
+        apply_design_proposals(
+            {"plant_sim": {"ars": {"capacity_kg_day": 4.5}}},
+            _capacity_document(),
+        )
+
+
+# --------------------------------------------------------------------------- #
+# why one design beat another (spec §15, decision C)
+# --------------------------------------------------------------------------- #
+def _candidate(
+    cid: str,
+    *,
+    warn: int,
+    mass: float,
+    crit: int = 0,
+    eligible: bool = True,
+    crew: int = 50,
+    score: float = 70.0,
+    max_score: float = 90.0,
+) -> dict:
+    return {
+        "candidate_id": cid,
+        "final_eligible": eligible,
+        "outcome": {
+            "crew_remaining": crew,
+            "crew_initial": 50,
+            "critical_step_count": crit,
+            "warning_step_count": warn,
+            "evaluation_compact": {"score": score, "max_score": max_score},
+        },
+        "constraint_evaluation": {
+            "total_mass_kg": mass,
+            "total_volume_m3": mass / 280.0,
+            "total_cost_musd": mass / 6.7,
+        },
+    }
+
+
+def test_the_scorecard_is_named_as_the_deciding_criterion():
+    """With everyone alive on both sides, the sheet is what is left to say."""
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(
+        _candidate("candidate_001", warn=65, mass=4689.9, score=72.0),
+        _candidate("candidate_002", warn=69, mass=4196.2, score=64.8),
+    )
+
+    assert rationale["decided_by"] == "evaluation_score_pct"
+    assert rationale["winner_value"] == 80.0  # 72 of 90
+    assert rationale["runner_up_value"] == 72.0  # 64.8 of 90
+    # It is the last criterion, so nothing was skipped over.
+    assert rationale["not_compared"] == []
+
+
+def test_dwell_and_mass_are_no_longer_criteria_at_all():
+    """They are marked inside the score; they are not compared beside it."""
+    from scenario.ssos_eclss_loop.design_eval import RANK_CRITERIA, rank_rationale
+
+    assert RANK_CRITERIA == ("final_eligible", "crew_remaining", "evaluation_score_pct")
+
+    # Wildly different dwell and mass, identical score: nothing decides.
+    rationale = rank_rationale(
+        _candidate("candidate_002", warn=1, mass=1900.0, score=70.0),
+        _candidate("candidate_001", warn=67, mass=5800.0, score=70.0),
+    )
+    assert rationale["decided_by"] is None
+
+
+def test_eligibility_decides_before_anything_else():
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(
+        _candidate("candidate_001", warn=99, mass=9999.0),
+        _candidate("candidate_002", warn=1, mass=100.0, eligible=False),
+    )
+    assert rationale["decided_by"] == "final_eligible"
+
+
+def test_a_lone_candidate_has_nothing_to_be_decided_against():
+    from scenario.ssos_eclss_loop.design_eval import rank_rationale
+
+    rationale = rank_rationale(_candidate("candidate_001", warn=65, mass=4689.9), None)
+    assert rationale["decided_by"] is None
+    assert "only one candidate" in rationale["detail"]
+
+
+# --------------------------------------------------------------------------- #
+# handing a design to the next run
+# --------------------------------------------------------------------------- #
+def _whole_or_partial(**fields):
+    return {
+        "design_domain": "ssos_graph",
+        "final_status": "approved_final",
+        "changes": [
+            {
+                "change_kind": "capacity_profile",
+                "payload": {"backend": "plant_sim", "fields": dict(fields)},
+                "why": "test",
+                "what": "test",
+                "how": "test",
+            }
+        ],
+    }
+
+
+ARS_KEY = "plant_sim.ars.capacity_kg_day"
+OGS_KEY = "plant_sim.ogs.max_o2_kg_day"
+WRS_KEY = "plant_sim.wrs.max_feed_l_per_operation"
+FLYING = {ARS_KEY: 20.8, OGS_KEY: 42.0, WRS_KEY: 2.0}
+
+
+def test_a_proposal_naming_one_subsystem_hands_on_the_whole_machine():
+    """A capacity proposal is merged into the scenario file, not into the run.
+
+    So a proposal that mentions only the water recycler used to return the CO2
+    scrubber and the oxygen generator to their shipped sizes -- and a chain that
+    had grown them enough to keep fifty occupants alive handed the next round a
+    station sized for none of them.
+    """
+    from scenario.ssos_eclss_loop.design_proposals import complete_capacity_profile
+
+    completed = complete_capacity_profile(_whole_or_partial(**{WRS_KEY: 2.5}), FLYING)
+    fields = completed["changes"][0]["payload"]["fields"]
+    assert fields == {ARS_KEY: 20.8, OGS_KEY: 42.0, WRS_KEY: 2.5}
+    # What was proposed wins; only the silence is filled in, and it is recorded.
+    assert completed["changes"][0]["carried_forward"] == sorted([ARS_KEY, OGS_KEY])
+
+
+def test_completing_a_proposal_never_overrides_what_it_asked_for():
+    from scenario.ssos_eclss_loop.design_proposals import complete_capacity_profile
+
+    asked = {ARS_KEY: 30.0, OGS_KEY: 60.0, WRS_KEY: 5.0}
+    completed = complete_capacity_profile(_whole_or_partial(**asked), FLYING)
+    assert completed["changes"][0]["payload"]["fields"] == asked
+    assert "carried_forward" not in completed["changes"][0]
+
+
+def test_completing_leaves_other_kinds_of_change_alone():
+    from scenario.ssos_eclss_loop.design_proposals import complete_capacity_profile
+
+    document = {
+        "design_domain": "ssos_graph",
+        "changes": [
+            {"change_kind": "action_profile", "payload": {"subsystem": "ars"}},
+            {"change_kind": "capacity_profile", "payload": {"fields": {WRS_KEY: 2.5}}},
+        ],
+    }
+    completed = complete_capacity_profile(document, FLYING)
+    assert completed["changes"][0]["payload"] == {"subsystem": "ars"}
+    assert set(completed["changes"][1]["payload"]["fields"]) == set(FLYING)
+
+
+def test_a_completed_proposal_applies_to_the_machine_it_names():
+    """End to end: the omitted subsystems survive the trip to the next run."""
+    import yaml
+
+    from scenario.runner import scenario_config_path
+    from scenario.ssos_eclss_loop.design_proposals import (
+        apply_design_proposals,
+        complete_capacity_profile,
+    )
+    from scenario.ssos_eclss_loop.design_variables import read_capacity_fields
+
+    shipped = yaml.safe_load(scenario_config_path("ssos_eclss_loop").read_text(encoding="utf-8"))
+    water_only = _whole_or_partial(**{WRS_KEY: 2.5})
+
+    # Without completion the two gas subsystems fall back to the shipped sizes.
+    reverted = read_capacity_fields(apply_design_proposals(shipped, water_only))
+    assert reverted[ARS_KEY] != 20.8
+
+    kept = read_capacity_fields(
+        apply_design_proposals(shipped, complete_capacity_profile(water_only, FLYING))
+    )
+    assert kept == {ARS_KEY: 20.8, OGS_KEY: 42.0, WRS_KEY: 2.5}

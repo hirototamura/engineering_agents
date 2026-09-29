@@ -21,7 +21,8 @@ from typing import Any, Dict, Optional
 import requests
 from requests.adapters import HTTPAdapter
 
-from core.llm.base import LLMClient
+from core.llm.base import LLMClient, LLMGeneration
+from core.llm.parsing import combine_thinking, extract_thinking_text
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +131,10 @@ def vllm_auth_headers(llm_cfg: Optional[Dict[str, Any]] = None) -> Dict[str, str
 def resolve_vllm_max_model_len() -> int:
     env_raw = os.environ.get(VLLM_MAX_MODEL_LEN_ENV, "").strip()
     if env_raw:
-        return int(env_raw)
+        try:
+            return int(env_raw)
+        except ValueError:
+            return DEFAULT_MAX_MODEL_LEN
     return DEFAULT_MAX_MODEL_LEN
 
 
@@ -157,6 +161,18 @@ def _extract_vllm_message_text(message: Dict[str, Any]) -> str:
     content = message.get("content")
     if content is not None and str(content).strip():
         return str(content).strip()
+    return ""
+
+
+def _extract_vllm_thinking(message: Dict[str, Any]) -> str:
+    """Return provider chain-of-thought from a vLLM chat message."""
+    for key in ("reasoning_content", "reasoning", "thinking"):
+        value = message.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
     return ""
 
 
@@ -236,6 +252,9 @@ class VllmClient(LLMClient):
         return session
 
     def generate(self, prompt: str) -> str:
+        return self.generate_result(prompt).text
+
+    def generate_result(self, prompt: str) -> LLMGeneration:
         max_tokens = _clamp_completion_tokens(self.max_tokens)
         if max_tokens != self.max_tokens:
             logger.warning(
@@ -270,12 +289,16 @@ class VllmClient(LLMClient):
             response.raise_for_status()
             message = (response.json().get("choices") or [{}])[0].get("message") or {}
             content = _extract_vllm_message_text(message)
-            if not content and message.get("reasoning_content"):
+            thinking = combine_thinking(
+                _extract_vllm_thinking(message),
+                extract_thinking_text(content),
+            )
+            if not content and thinking:
                 logger.warning(
                     "VllmClient received reasoning_content but empty content "
                     "(thinking likely consumed the completion budget)"
                 )
-            return content
+            return LLMGeneration(text=content, thinking=thinking)
         except Exception as e:
             detail = ""
             resp = getattr(e, "response", None)
@@ -288,7 +311,7 @@ class VllmClient(LLMClient):
                 logger.error("VllmClient.generate error: %s | %s", e, detail)
             else:
                 logger.error("VllmClient.generate error: %s", e)
-            return ""
+            return LLMGeneration(text="", error=str(e))
 
     def check_connection(self) -> bool:
         try:

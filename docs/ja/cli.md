@@ -29,7 +29,7 @@ ea run
 
 | コマンド | 用途 |
 | --- | --- |
-| `ea run [SCENARIO]` | 1回シミュレーション実行 |
+| `ea run [SCENARIO]` | 1回シミュレーション実行。`ssos_eclss_loop` は `iteration.enabled` または `--iterate N` で設計→検証連鎖 |
 | `ea scenarios` | 利用可能なシナリオ一覧 |
 | `ea results [RUN_ID]` | 直近 run 一覧、または `summary.json` 表示 |
 | `ea doctor` | Python 3.11+・依存関係・Docker/SSOS マウント・Ollama・vLLM の確認 |
@@ -51,11 +51,16 @@ ea run scrubber_degradation --agents-mode llm --llm-provider vllm
 ea run scrubber_degradation --set simulation.steps=10
 ea run --dry-run --write-spec /tmp/job.json
 ea job run /tmp/job.json
+python3 -m tools.cli run ssos_eclss_loop --iterate 10
 ```
 
 英語版の詳細（フラグ一覧・exit code）: [en/cli.md](../en/cli.md)
 
 `ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。`--llm-model` と `VLLM_MODEL` は両側を同じモデルで潰す。yaml の 9B/27B 分割を保つなら渡さない。
+
+連鎖の正本は `ssos_eclss_loop` の `scenario.yaml` の `iteration:`（`enabled` / `count` / `paired_replay` / `approve_provisional` / `run_id`）。`simulation.steps` は 1 回の観測長であり連鎖回数ではない。`--set iteration.count=10` は他の scenario キーと同じマージ。`--iterate` / `--paired-replay` / `--approve-provisional` が YAML より優先。既定の `enabled: true` なら `ea run ssos_eclss_loop` は連鎖。1 回にするには `--set iteration.enabled=false`。
+
+`ea run --iterate N` は unified の事後設計（tool-use / labeled）が出した `design_proposals.json` を次ランに載せる連鎖である。シナリオを省略すると `ssos_eclss_loop`。子ランは単発の `ea run` と同じ backend / actor / design / `inject_failures` を使う（CLI が plant_sim・labeled actor・llm design をピン。`inject_failures` は scenario.yaml の値のまま。入れるなら `--inject-failures` または `--set inject_failures=true`）。`--approve-provisional` オンなら INFO（人間の介在をなくすため LLM 設計提案を自動承認。監督ゲートを戻すには `--no-approve-provisional`）。ラン k のシミュはラン k-1 で採用した `applied_proposals.json` を **unified の `apply_design_proposals`**（`capacity_profile` 含む）で適用する。`set_parameter`（`thresholds.*`）は連鎖では自動適用しない（検証要求を凍結）。空の提案では直前の適用ファイル（まだ無ければ初期 YAML）のまま連鎖回数まで回す。最後のランはそれまでの提案の検証であり、そこで出た提案は未検証。判定は選ばれた飛行機体の `crew_remaining` と最初の周回の比較（`IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`）。replay は証拠。採用する設計は飛んだ機体から 1 本を選び `chain_final_answer.json` に書き出す（全員生存・製造可能・物理監査合格が必須、予算超過は `provisional_final` として人に上げる、該当が無ければ「該当なし」と出す。しきい値・乗員数・step 数・backend が途中で変わっていたら順位づけせず `not_comparable` で止める）。`--no-paired-replay` は判定不能。`ros2` は拒否する。`--apply-proposals` とは同時指定できない。ターミナルには乗員残数テーブルに加え、現在のシミュレーション（ステップ％）と完了したイテレーション（N/M）の進捗を出す（YAML 連鎖でも `--iterate` でも同じ）。`iteration.enabled=false` の単独 ssos も同じステップバーを使う。ダッシュボードは連鎖の子ディレクトリ（`01/`、replay）を個別 run として列挙する。実効設定は `chain_summary.json` の `iteration` に残る。
 
 ## 結果の確認
 
@@ -63,7 +68,10 @@ ea job run /tmp/job.json
 ea results
 python3 -m streamlit run src/tools/dashboard/app.py
 python3 -m tools.plant_sim_sensitivity_app  # plant_sim 3×4 の感度。ラン用ダッシュボードではない (port 8502)
+python3 -m tools.analysis all              # 設計ループのアンサンブル解析と HTML（英・日）
 ```
+
+実行ごとのダッシュボードは「このシミュレーションで何が起きたか」に答えます。解析キャンペーンは**アンサンブル**の性質 — 順序変数、臨界性、可制御性、ミッションが `design_constraints.budgets` の内側で達成可能か — に答えます。[設計ループの学術解析](design-loop-analysis.md) を参照。HTML は `src/experiments/analysis/design_loop_analysis.html` に出力されます。
 
 ## SSOS Docker（`ssos_eclss_loop` + ros2） { #ssos-docker-ssos_eclss_loop--ros2 }
 
@@ -139,11 +147,19 @@ ea results
 
 **Windows / Linux**: 専用ランナーは未整備。`scripts/ssos/README.md` の手動マウント手順を参照。
 
-### Mock / plant_sim（Docker 不要）
+### デフォルトとローカル backend（Docker 不要）
+
+`ea run ssos_eclss_loop` をフラグなしで実行すると、次と同等です:
+
+```bash
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --design-mode llm
+```
+
+このデフォルトは事後 designer 用に LLM（研究室 vLLM または Ollama）が必要です。LLM なしの安価なローカル実行:
 
 ```bash
 ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8
-ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --steps 72
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --design-mode labeled_rule_base --steps 72
 ea run ssos_eclss_loop --backend mock --actor-mode llm --set agents.actor.max_actions_per_step=8
 ```
 

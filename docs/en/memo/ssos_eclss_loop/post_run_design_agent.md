@@ -6,6 +6,8 @@
 
 Naming: **actor** (in-sim operational agents) and **designer** (post-run design agents).
 
+> **Newer path**: with `design.mode: llm` and `design.tool_use.enabled: true` (the shipped default), the designer described here is replaced by the decision-loop capacity designer — see [tool_use_design_agent.md](tool_use_design_agent.md). Everything below still applies to `labeled_rule_base` and to `tool_use.enabled: false`.
+
 ## Status (plan todos)
 
 | ID | Work | State |
@@ -54,7 +56,7 @@ flowchart TD
 agents:
   actor:
     mode: none                 # none | labeled_rule_base | llm
-    max_actions_per_step: 2    # llm actors only; labeled ignores this
+    max_actions_per_step: 2    # llm / labeled cap on commands per step
   design: {}
     # omit design.mode to inherit actor.mode; set none to disable post-run design
 ```
@@ -78,7 +80,7 @@ Killer combo: `--actor-mode labeled_rule_base --design-mode llm`.
 
 ```bash
 python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 20 \
-  --run-id cloud-smoke-run1
+  --run-id cloud-smoke-run1 --set iteration.enabled=false
 ```
 
 ## Where it lives
@@ -95,6 +97,64 @@ In `llm` mode, all designers deliberate once, then **one representative** emits 
 
 `summary` includes `actor_mode`, `design_mode`, `design_proposed_by`. `agents_mode` stays equal to `actor_mode` for dashboard compatibility.
 
+## Chained runs (`scenario.yaml` `iteration:` / `ea run --iterate`)
+
+The chain job lives in `src/scenario/ssos_eclss_loop/scenario.yaml` under `iteration:` (not a separate file). The shipped default is `enabled: true`, so a bare `ea run ssos_eclss_loop` chains and shows the same live iteration/step progress as `--iterate`. Pass `--iterate N` to override `count`. CLI flags override YAML.
+
+```bash
+python3 -m tools.cli run ssos_eclss_loop --iterate 10 --backend plant_sim \
+  --actor-mode labeled_rule_base --design-mode llm --inject-failures --steps 50 \
+  --run-id design-iter-10
+```
+
+- Proposal **generation** stays on the unified post-run designer (tool-use by default). The chain does not replace that path
+- Run k applies run k-1's adopted `applied_proposals.json` through unified `apply_design_proposals` (including `capacity_profile`)
+- `set_parameter` (`thresholds.*`) is not on the apply allow-list and is not auto-applied in the chain. `iteration.approve_provisional` defaults to false. `--approve-provisional` opts in (INFO) so a labeled/mock loop can adopt `provisional_final` without a human.
+- Empty or not-adoptable proposals do not stop the chain; the last applied file (or the initial YAML) is reused
+- The last run is verification-only; proposals it emits stay unverified
+- After the chain, baseline / final replays with `design.mode=none` decide `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE` from `crew_remaining`
+- The terminal and dashboard show iteration progress and child runs (`01/`, replays)
+
+### The chain's final answer (`chain_final_answer.json`)
+
+Exploration is not restricted. A sizing that loses occupants, or one that
+cannot be manufactured, may still be simulated and carried into the next
+iteration -- learning from it is the point of chaining. Only **adoption** is
+restricted.
+
+The verdict answers "did the chain get anywhere". It does not answer "what do
+we build". Without that distinction, a design that saved everyone in iteration
+1 can be replaced in iteration 2 by one that does not, and it is then gone: no
+artifact names it, and the chain reports the loss as its result.
+
+So at the end of the chain one design is chosen from **every candidate every
+iteration simulated** -- not from each iteration's winner -- and written to
+`chain_final_answer.json`.
+
+| Condition | Treatment |
+| --- | --- |
+| Every occupant alive | **Required.** A design that loses one is never the final answer |
+| Manufacturable (in bounds) | **Required.** A machine nobody can build is not a design |
+| Physics gate passed | **Required.** Survival that could not be audited does not count as survival |
+| Over budget | Allowed through as `provisional_final` for a human to decide. Paying for it is their call |
+| Nothing qualifies | Said plainly. **The best of a losing set is not promoted to a result** |
+
+Ranking has one precondition (`scoring_bar_drift`): every iteration must have
+sat the same exam. If thresholds, crew size, step count or backend moved
+partway through, iteration 1 and iteration 3 were asked different questions, so
+the chain stops at `not_comparable` instead of ranking them.
+
+The comparison is between iterations, not against the shipped scenario file. A
+chain deliberately run at six occupants over eight steps differs from the
+scenario in all of those numbers and is entirely self-consistent; what breaks
+it is moving them halfway through.
+
+Eligibility is re-derived here rather than trusted from the iteration files.
+Each iteration marked its candidates against its own baseline -- the design the
+previous iteration handed it -- so "better than baseline" meant something
+different each time. Across the chain there is one reference: the station
+before anything was applied.
+
 ## Out of scope (still not done)
 
 - Splitting scrubber
@@ -110,4 +170,5 @@ In `llm` mode, all designers deliberate once, then **one representative** emits 
 - [AGENTS.md](../../AGENTS.md)
 - [Homogeneous agent team](../agents/homogeneous_agent_team_plan.md)
 - [Occupant survival](occupant_survival.md)
+- [Labeled rule-base](labeled_rule_base.md)
 - [SSOS ECLSS connection plan](ssos_eclss_loop_connection_plan.md)
