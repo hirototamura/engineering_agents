@@ -29,7 +29,7 @@ The current design space focuses on three variables.
 
 Each run is first judged by **how many of the 50 occupants survive**. The design is then evaluated with a 100-point scorecard. The score includes not only survival count, but also TCL (time to first crew loss), environmental safety, resource recovery, cost, mass and operation/physics response.
 
-![Scorecard breakdown](docs/images/results/report02_01_scorecard_pie.png)
+![Scorecard breakdown](docs/images/results/report02_01_scorecard_pie_english.png)
 
 In other words, a design is not good just because everyone survives. If it keeps the crew alive by installing excessive hardware, it loses points on cost and mass. The simulation looks for both survival and a lighter, cheaper feasible design.
 
@@ -69,7 +69,7 @@ The repository currently includes analysed results from four 50-iteration chains
 | Unique designs | 39 | 11 | 17 | 9 |
 | Best / mean score | 66.18 / 61.71 | 66.36 / 65.94 | 84.23 / 83.34 | 84.03 / 82.59 |
 
-![Survivors and score across phases](docs/images/results/ssos_phase1_phase2_phase3_survival_score_trend.svg)
+![Survivors and score across stages](docs/images/results/report02_02_phases_survival_score_english.png)
 
 Main takeaways:
 
