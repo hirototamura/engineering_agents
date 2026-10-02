@@ -182,7 +182,6 @@ gantt
 | rclpy ネイティブクライアント | CLI ブリッジからの移行（性能） |
 | `/bcdu/operation` Action | SSOS upstream PR（Phase 3c / [BL-005](../memo/backlog.md)） |
 | One Piece 要求 pull | 監督要求の正本連携（別リポジトリ） |
-| `SsosEclssLoopTeam` の WRS | [BL-004](../memo/backlog.md) |
 
 ---
 

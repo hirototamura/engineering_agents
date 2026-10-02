@@ -50,7 +50,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | --- | --- | --- |
 | **ARS** | Air Revitalisation System | CO₂ ストレージからの除去（`air_revitalisation` Action） |
 | **OGS** | Oxygen Generation System | O₂ 生成（`oxygen_generation` Action）。Sabatier には CO₂ feedstock が必要 |
-| **WRS** | Water Recovery System | 水回収（`water_recovery_systems` Action）— チーム運用はバックログ（BL-004） |
+| **WRS** | Water Recovery System | 水回収（`water_recovery_systems` Action）。チームは `kind: water_recovery` を発行（labeled / llm）。**`plant_sim` / `ros2` は適用**。`LoopMockEclssBackend` はいまも `NotImplementedError` |
 
 ### ROS2 インターフェース（主要）
 
@@ -116,38 +116,24 @@ step は 0-based（`0 .. steps-1`）。`agents.actor.max_actions_per_step` は *
 
 ```yaml
 simulation:
-  steps: 8
-  initial_co2_storage_kg: 1.5
+  steps: 50  # 1 回の観測長。iteration.count ではない
+  initial_co2_storage_kg: 1.3
   initial_o2_storage_kg: 8.0
   initial_product_water_l: 80.0
 
 backend:
-  kind: mock  # mock | plant_sim | ros2 — SSOS_ECLSS_BACKEND 環境変数でも上書き可
+  kind: plant_sim  # mock | plant_sim | ros2 — SSOS_ECLSS_BACKEND / CLI --backend
 
-mock_dynamics:
-  co2_growth_kg_per_step: 0.06
-  ars_co2_reduction_kg: 0.35
-  ogs_o2_gain_kg: 0.1
-
-thresholds:
-  co2_storage_high_kg: 2.0
-  co2_storage_critical_kg: 8.0
-  o2_storage_low_kg: 6.0
-  o2_storage_critical_kg: 1.0
-  product_water_low_l: 50.0
-
-# 既定はオフ。--inject-failures または inject_failures: true で有効化
-inject_failures: false
-subsystem_failures:
-  - subsystem: ars   # ars | ogs | wrs
-    start_step: 10   # 含む（0-based）
-    end_step: 20     # 任意・含まない
+iteration:
+  enabled: true   # 引数なし `ea run ssos_eclss_loop` は 50 周連鎖
+  count: 50
+  approve_provisional: false
 
 agents:
   actor:
-    mode: none  # none | labeled_rule_base | llm（CLI --actor-mode）
-    max_actions_per_step: 2  # llm / labeled の step あたりコマンド上限
-  design: {}  # design.mode 省略時は actor.mode を継承
+    mode: labeled_rule_base
+    max_actions_per_step: 6  # llm / labeled の step あたりコマンド上限
+  design: {}  # design.mode 省略時は actor.mode を継承。どちらも未指定なら CLI が llm をピン
 
 output:
   run_id: ssos_eclss_loop_baseline
@@ -155,7 +141,7 @@ output:
   run_id_llm: ssos_eclss_loop_llm
 ```
 
-CLI: `--set agents.actor.max_actions_per_step=8`。llm は `actor.team.count` でクランプ（action 代表数）。labeled はクランプせず、warning/critical を抜ける回数の ARS/OGS/WRS を見積もり `min(必要数, max)` で切る。
+出荷 YAML には `thresholds`、`plant_sim`（乗員 50、BVAD）、`design_constraints`、`evaluation` もある。CLI: `--set agents.actor.max_actions_per_step=8`。llm は `actor.team.count` でクランプ。labeled は warning/critical を抜ける回数の ARS/OGS/WRS を見積もり `min(必要数, max)` で切る。単発は `--set iteration.enabled=false`。
 
 `ssos_graph.rewires`（任意）— 前 run の `graph_rewire` 提案を `--apply-proposals` でマージすると、次 run の `Ros2EclssBridge` に client remap が渡る。
 
@@ -186,9 +172,12 @@ actor:
     request_co2_before_ogs: false
     request_co2_amount: 0.025
     ars_goal:
-      initial_co2_mass: 1.8
+      initial_co2_mass: 4.50
     ogs_goal:
       input_water_mass: 0.15
+    wrs_goal:
+      urine_volume: 0.5
+    wrs_feed_trigger_l: 5.0
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8000/v1
@@ -198,7 +187,7 @@ actor:
 
 design:
   team:
-    count: 4
+    count: 1
     id_prefix: eclss_designer
   llm:
     provider: vllm
@@ -231,7 +220,7 @@ design:
 | --- | --- | --- |
 | `air_revitalisation` | `send_air_revitalisation_goal()` | ARS サイクル — CO₂ 除去 |
 | `oxygen_generation` | `send_oxygen_generation_goal()` | OGS サイクル — O₂ 生成 |
-| `water_recovery_systems` | `send_water_recovery_goal()` | WRS サイクル（`plant_sim` と `ros2`；LoopMock は未実装） |
+| `water_recovery` | `send_water_recovery_goal()` | WRS サイクル（`plant_sim` / `ros2`。LoopMock は `NotImplementedError`） |
 | `request_co2` | `request_co2(amount)` | Sabatier feedstock 供給 |
 | `request_o2` | `request_o2(amount)` | O₂ 引き出し |
 
@@ -251,9 +240,9 @@ ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlo
 
 | 概念 | ssos_eclss_loop |
 | --- | --- |
-| ID | actor `eclss_actor_1` … `N`（既定 50）；designer `eclss_designer_1` … `4` |
+| ID | actor `eclss_actor_1` … `N`（既定 50）；designer `eclss_designer_1`（既定 **1**。監査パネルは別） |
 | deliberation | llm: 全員 1 ラウンド。labeled: 運用判断メッセージ |
-| action reps | llm: `eclss_actor_{step % N}` から `max_actions_per_step` 体の回転窓（既定 **2**）。labeled: 必要な ARS/OGS/WRS をその件数でキャップ |
+| action reps | llm: `eclss_actor_{step % N}` から `max_actions_per_step` 体の回転窓（既定 **6**）。labeled: 必要な ARS/OGS/WRS をその件数でキャップ |
 | post-run rep | designer 代表 1 体が `changes` を出す（件数上限なし。非空のときだけ `design_proposals.json`） |
 
 `SsosEclssLoopTeam` は `Team` ABC を継承。`run_step(backend, obs)` / `apply_outcome(backend, outcome)` シグネチャ。
@@ -271,19 +260,24 @@ ROS launch ファイル側の remap（Phase 8）は [backlog BL-003](memo/backlo
 
 ## 実行方法 { #実行方法 }
 
+引数なしの `ea run ssos_eclss_loop` は `--backend plant_sim --actor-mode labeled_rule_base --design-mode llm` をピンし、`iteration.enabled: true` のため **50 周連鎖**になります。以下の単発例には `--set iteration.enabled=false` を付けます。
+
 ### mock（ホスト、ROS2 不要）
 
+算術タンク。LoopMock では labeled の WRS は失敗する。
+
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labeled_rule_base
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base \
+  --set iteration.enabled=false --steps 8 --run-id mock-smoke
 ```
 
 ### plant_sim（ホスト、物質収支プラント）
 
-乗員代謝・WRS 水循環・ledger テレメトリ付きの中忠実度モデル。Docker 不要。
+乗員代謝・WRS 水循環・ledger テレメトリ付き。Docker 不要。乗員生存は既定オン。
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend plant_sim --actor-mode labeled_rule_base --steps 72
+python3 -m tools.cli run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base \
+  --set iteration.enabled=false --steps 20 --run-id plant-smoke
 ```
 
 詳細: [Plant Sim backend 解説](memo/ssos_eclss_loop/plant_sim_backend.md)。乗員減員: [乗員サバイバル](memo/ssos_eclss_loop/occupant_survival.md)。
@@ -334,6 +328,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm 
 | `scenario_config.yaml` | 使用したシナリオ設定一式（overrides / `--apply-proposals` 適用後） |
 | `agents_config.yaml` | 使用したエージェント設定一式（mode ≠ none のとき） |
 | `summary.json` | peak CO₂、operational 回数、backend 種別など |
+| `evaluation.json` | スコアカード + `physics_gate`（`plant_sim` + survival。それ以外は `not_applicable`） |
 | `provenance.jsonl` | 運用レコード（`record_type: operational`） |
 
 **scrubber 専用で ssos には出ないもの**: `eps_telemetry.jsonl`、ppm ベースの回復イベント。
@@ -364,7 +359,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm 
       "change_kind": "action_profile",
       "payload": {
         "action": "air_revitalisation",
-        "fields": {"initial_co2_mass": 2000.0}
+        "fields": {"initial_co2_mass": 4.50}
       }
     }
   ],

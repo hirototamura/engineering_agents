@@ -16,7 +16,7 @@ actor:
   memory_limit: 30  # [-] max memories kept per actor
   # Team discourse is a sliding window of AgentMessage objects. One llm step
   # emits ~count deliberation messages + max_actions_per_step action/skip
-  # messages (~52 with count 50 and 2 action reps). 22 is a vLLM prompt budget
+  # messages (~56 with count 50 and 6 action reps). 22 is a vLLM prompt budget
   # (less than one full 50-person step) so actors can still cite recent
   # teammates (same-step deliberation is still simultaneous).
   discourse_window: 22  # [-] recent utterances visible to each actor

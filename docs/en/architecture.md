@@ -51,7 +51,8 @@ environment/
     ros2/cli.py              # shared ros2 CLI helpers (ECLSS + EPS bridges)
     eclss/                   # ssos_eclss_loop
       backend.py             # EclssBackend protocol
-      mock/backend.py        # MockEclssBackend (contract stub)
+      mock/backend.py        # MockEclssBackend (contract + WRS on the stub)
+      plant_sim/             # PlantSimEclssBackend — CLI default
       ros2/                  # Ros2EclssBridge, graph_rewire, topics
     eps/ros2/                # Ros2EpsBridge only — scrubber EPS option; not wired to eclss loop
 ```
@@ -82,6 +83,7 @@ flowchart TB
     CLI["ros2/cli.py"]
     EB["EclssBackend"]
     LME["LoopMockEclssBackend<br/>(mock)"]
+    PSE["PlantSimEclssBackend<br/>(plant_sim)"]
     REB["Ros2EclssBridge<br/>(ros2)"]
   end
 
@@ -98,6 +100,7 @@ flowchart TB
   EPS --> MEP
   EPS -.->|"eps.backend: ros2"| REP
   EB --> LME
+  EB --> PSE
   EB --> REB
   REB --> CLI
   REP --> CLI
@@ -426,7 +429,7 @@ run ID: `scrubber_degradation_{baseline|labeled_rule_base|llm}`
 
 ## ssos_eclss_loop
 
-Real ROS2 ECLSS inside SSOS Docker (or `LoopMockEclssBackend`). **Does not use `SimulatorProtocol`.**
+Real ROS2 ECLSS inside SSOS Docker, host `plant_sim`, or `LoopMockEclssBackend`. **Does not use `SimulatorProtocol`.**
 
 ### Terminology
 
@@ -444,11 +447,11 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires optional)
         ▼
   scenario/ssos_eclss_loop/scenario_run.py → SsosEclssLoopScenario
         │
-        ├─ build_eclss_backend() → LoopMockEclssBackend | Ros2EclssBridge(topic_remap)
+        ├─ build_eclss_backend() → LoopMockEclssBackend | PlantSimEclssBackend | Ros2EclssBridge(topic_remap)
         ├─ build_team()            → SsosEclssLoopTeam (actors)
         │
         ▼
-  for step in 1..N:
+  for step in 0..N-1:
     1. backend.poll_telemetry()      → EclssTelemetrySnapshot
     2. log telemetry, health, design_state
     3. team.run_step(backend, obs)  → EclssOperationalCommand
@@ -466,8 +469,9 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires optional)
 | --- | --- |
 | `environment/ssos/eclss/backend.py` | `EclssBackend` protocol |
 | `environment/ssos/eclss/types.py` | Storage telemetry, goals, action/service results |
-| `environment/ssos/eclss/mock/backend.py` | `MockEclssBackend` — no-op contract stub |
-| `scenario/ssos_eclss_loop/loop_mock_backend.py` | `LoopMockEclssBackend` — storage dynamics for mock runs |
+| `environment/ssos/eclss/mock/backend.py` | `MockEclssBackend` — contract stub (WRS implemented here) |
+| `scenario/ssos_eclss_loop/loop_mock_backend.py` | `LoopMockEclssBackend` — mock storage dynamics; **WRS still `NotImplementedError`** |
+| `environment/ssos/eclss/plant_sim/` | `PlantSimEclssBackend` — CLI default mass-balance plant |
 | `environment/ssos/eclss/ros2/bridge.py` | `Ros2EclssBridge` — live SSOS ECLSS via ros2 CLI / rclpy |
 | `environment/ssos/eclss/ros2/graph_rewire.py` | `build_topic_remap()` for Phase 7 client remaps |
 | `environment/ssos/eclss/ros2/topics.py` | Action/service/topic names |
@@ -481,10 +485,11 @@ Backend selection (`build_eclss_backend` in `scenario_run.py`):
 
 | `backend.kind` | Implementation |
 | --- | --- |
-| `mock` (default) | `LoopMockEclssBackend` — host dev, simple CO₂/O₂ dynamics |
+| `plant_sim` (CLI default) | `PlantSimEclssBackend` — host mass balance, survival, WRS |
+| `mock` | `LoopMockEclssBackend` — host arithmetic CO₂/O₂; WRS raises |
 | `ros2` | `Ros2EclssBridge` — SSOS Docker; optional `ssos_graph.rewires` → `topic_remap` |
 
-Override via CLI `--backend mock|ros2`, config `backend.kind`, or env `SSOS_ECLSS_BACKEND`.
+Override via CLI `--backend mock|plant_sim|ros2`, config `backend.kind`, or env `SSOS_ECLSS_BACKEND`.
 
 ### Class structure
 
@@ -550,9 +555,11 @@ flowchart TD
   A["SsosEclssLoopScenario.run"] --> B["build_eclss_backend()"]
   B --> B1{"backend.kind"}
   B1 -->|mock| B2["LoopMockEclssBackend"]
+  B1 -->|plant_sim| B2p["PlantSimEclssBackend"]
   B1 -->|ros2| B3["Ros2EclssBridge(topic_remap)"]
   A --> C["build_team() → SsosEclssLoopTeam"]
-  B2 --> D{"step 1..N"}
+  B2 --> D{"step 0..N-1"}
+  B2p --> D
   B3 --> D
   D --> E["backend.poll_telemetry()"]
   E --> F["compute_eclss_storage_health() + EventLog"]
@@ -561,6 +568,7 @@ flowchart TD
   H --> I{"command kind"}
   I -->|air_revitalisation| J["send_air_revitalisation_goal()"]
   I -->|oxygen_generation| K["send_oxygen_generation_goal()"]
+  I -->|water_recovery| Jw["send_water_recovery_goal()"]
   I -->|request_co2 / request_o2| L["Service call"]
   D -->|mock only| M["LoopMockEclssBackend.advance_step()"]
   D -->|done| N["propose_post_run_design()"]
@@ -629,7 +637,7 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 
 #### llm
 
-N-way simultaneous deliberation, then up to `agents.actor.max_actions_per_step` rotating representatives (default **2**) issue operational commands in parallel. Prompt includes storage kg and health state (no policy). Override with `--set agents.actor.max_actions_per_step=8`.
+N-way simultaneous deliberation, then up to `agents.actor.max_actions_per_step` rotating representatives (default **6**) issue operational commands in parallel. Prompt includes storage kg and health state (no policy). Override with `--set agents.actor.max_actions_per_step=8`.
 
 After the run, one designer representative emits `changes` with no count cap.
 
@@ -637,7 +645,7 @@ After the run, one designer representative emits `changes` with no count cap.
 
 | Unique fields | Content |
 | --- | --- |
-| `summary.backend` | `mock` / `ros2` |
+| `summary.backend` | `mock` / `plant_sim` / `ros2` |
 | `summary.operational_command_count` | operational command count |
 | `summary.max_actions_per_step` | llm / labeled: cap on actions per step |
 | `events.jsonl` | `operational_applied` |
