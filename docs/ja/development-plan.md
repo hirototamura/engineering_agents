@@ -103,7 +103,7 @@
 | One Piece Web / SSOT UI    | 未接続（JSON provenance のみ）  | [one-piece-integration.md](one-piece-integration.md)      |
 | `agents.mode: base`        | 未実装（創発ロール）               | [backlog.md](memo/backlog.md) BL-001                      |
 | 進化ペルソナ研究                   | バックログ                    | BL-002                                                    |
-| WRS in `SsosEclssLoopTeam` | バックログ                    | BL-004                                                    |
+| WRS in `SsosEclssLoopTeam` | **実装済み** — labeled/llm が `water_recovery` を発行。LoopMock は例外 | `ssos_eclss_loop_team.py` |
 | upstream CO₂ スクラバ          | SSOS 拡張待ち                | BL-004                                                    |
 | MkDocs CI deploy           | `docs/ssos-mkdocs`       | BL-004                                                    |
 | SSOS ↔ EA step 同期          | 検討中（Mock 拡充 vs upstream） | [BL-007](memo/backlog.md#bl-007) |
@@ -131,7 +131,7 @@
 [次]
   Day 9    provenance インデックス、design エクスポート
   Phase 8  launch remap + ゲートウェイ（BL-003）
-  BL-004/5 ECLSS+EPS 統合、EPS 3b/3c、WRS team
+  BL-004/5 ECLSS+EPS 統合、EPS 3b/3c（WRS team は実装済み）
 
 [検討 — SSOS 接合の次段階]
   BL-007   EA step ↔ SSOS 物理時間（Mock 拡充 A / upstream B / 緩和 C）

@@ -104,20 +104,34 @@ python3 -m tools.cli run scrubber_degradation --agents-mode labeled_rule_base --
 !!! tip "Design → verification loop"
     Run N issues `design_proposals.json`. Run N+1 with `--apply-proposals` merges config and re-simulates — see [ssos_eclss_loop scenario](scenario-ssos-eclss-loop.md#how-to-run).
 
-### Mock SSOS scenario (no Docker)
+!!! warning "ssos_eclss_loop CLI defaults"
+    Bare `ea run ssos_eclss_loop` is a **50-iteration plant_sim chain** (`labeled_rule_base` actors, `llm` designer, `iteration.enabled: true`). That needs a reachable designer LLM. For a **single** sim: `--set iteration.enabled=false`. Use a **distinct `--run-id`** when applying a prior run's proposals (the default run dir is deleted and recreated).
+
+### Mock SSOS (single sim, no Docker, no LLM)
 
 ```bash
-ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8
+ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8 \
+  --set iteration.enabled=false --run-id mock-smoke
 ea results
+```
+
+`LoopMock` arithmetic dynamics; labeled WRS commands are **rejected** (`NotImplementedError`). Prefer `plant_sim` when you need water recovery or occupant survival.
+
+### plant_sim (single sim, host mass balance)
+
+```bash
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base \
+  --set iteration.enabled=false --steps 20 --run-id plant-smoke
 ```
 
 ### Live SSOS (Docker + ros2)
 
-First-time setup on macOS — run on the **host** only:
+First-time setup on macOS — run on the **host** only. Still add `--set iteration.enabled=false` unless you intend a 50-round chain:
 
 ```bash
 ./scripts/ssos/mac/ssos-run-detached.sh
-ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
+ea run ssos_eclss_loop --backend ros2 --actor-mode labeled_rule_base --steps 50 \
+  --set iteration.enabled=false
 ea results
 ```
 
@@ -130,7 +144,7 @@ Details: [SSOS Docker setup](ssos/quickstart.md) · Full CLI reference: [CLI gui
 | Scenario | What it simulates | Backend | Typical command |
 | --- | --- | --- | --- |
 | [scrubber_degradation](scenario-scrubber-degradation.md) | CO₂ scrubber anomaly on a Python mock plant | `StationSimulator` | `ea run scrubber_degradation --agents-mode labeled_rule_base` |
-| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | Agent team operating SSOS ECLSS (ARS/OGS/WRS) | `mock` or `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base` |
+| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | Agent team operating SSOS ECLSS (ARS/OGS/WRS) | `plant_sim` (CLI default), `mock`, or `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --set iteration.enabled=false` |
 
 Both scenarios share the same agent pattern: **`none`**, **`labeled_rule_base`** (reproducible regression), or **`llm`** (Ollama or lab vLLM).
 
@@ -152,6 +166,7 @@ src/experiments/results/<run_id>/
 | `design_proposals.json` | **Post-run** permanent design proposals |
 | `summary.json` | Run metadata (`scenario`, `agents_mode`, peaks, etc.) |
 | `health_metrics.jsonl` | Safe / warning / critical (ssos_eclss_loop) |
+| `evaluation.json` | Deterministic scorecard + physics gate (`plant_sim` + survival) |
 
 Override with `--run-id`, `--output-dir`, or `EA_RESULTS_ROOT`.
 

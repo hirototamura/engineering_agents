@@ -142,9 +142,9 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | --- | --- | --- |
 | **ARS** | Air Revitalisation System | CO₂ ストレージ除去（`air_revitalisation` Action） |
 | **OGS** | Oxygen Generation System | O₂ 生成（`oxygen_generation`）。Sabatier に CO₂ feedstock が必要 |
-| **WRS** | Water Recovery System | 水回収（`water_recovery_systems`）— ros2 ブリッジ実装済み |
+| **WRS** | Water Recovery System | 水回収（`water_recovery_systems`）。チームは `kind: water_recovery`（plant_sim/ros2。LoopMock は例外） |
 | **テレメトリ** | — | `/co2_storage`、`/o2_storage`、`/wrs/product_water_reserve`（kg / L） |
-| **運用コマンド** | — | ARS / OGS Action、`request_co2` / `request_o2` Service |
+| **運用コマンド** | — | ARS / OGS / WRS Action、`request_co2` / `request_o2` Service |
 | **設計提案** | — | `ssos_graph`（`action_profile`、`graph_rewire` 等） |
 
 **ヘルス閾値（ストレージ）**: CO₂ warning ≥ 2.0 kg / critical ≥ 8.0 kg；O₂ warning ≤ 6.0 kg / critical ≤ 1.0 kg。詳細は [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md)。
@@ -165,7 +165,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | --- | --- | --- | --- |
 | scrubber | `engineer` | 4 | `engineer_{(step-1) % N}` |
 | ssos actor | `eclss_actor` | 50 | `eclss_actor_{step % N}`（0-based steps） |
-| ssos designer | `eclss_designer` | 4 | ラン終了後の代表 1 体（`changes`、件数上限なし） |
+| ssos designer | `eclss_designer` | 1 | ラン終了後の代表 1 体（`changes`、件数上限なし） |
 
 各 step で actor 全員が議論（llm）またはルール診断（labeled）。ssos の **事後設計**は別チームの designer が `design_proposals.json` を出す。設計: [事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。
 
@@ -437,9 +437,8 @@ ea run scrubber_degradation --agents-mode llm
 #### mock（ホスト、ROS2 不要）
 
 ```bash
-ea run ssos_eclss_loop --backend mock --actor-mode none
-ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base
-ea run ssos_eclss_loop --backend mock --actor-mode llm
+ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base \
+  --set iteration.enabled=false --steps 8 --run-id mock-smoke
 ```
 
 出力先例: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`
@@ -447,7 +446,7 @@ ea run ssos_eclss_loop --backend mock --actor-mode llm
 PowerShell では次のように実行できます。
 
 ```powershell
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labeled_rule_base --steps 8
+python -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8 --set iteration.enabled=false --run-id mock-smoke
 ```
 
 #### ros2（SSOS Docker 内）

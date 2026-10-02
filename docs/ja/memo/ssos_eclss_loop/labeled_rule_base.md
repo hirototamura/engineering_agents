@@ -121,7 +121,7 @@ thresholds:
   product_water_low_l: 50.0
 agents:
   actor:
-    max_actions_per_step: 2  # labeled: アクション上限 / llm: アクター上限（シナリオ既定）
+    max_actions_per_step: 6  # labeled: アクション上限 / llm: アクター上限（シナリオ既定）
 ```
 
 ```yaml
