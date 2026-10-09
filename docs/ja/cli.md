@@ -56,7 +56,16 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 
 英語版の詳細（フラグ一覧・exit code）: [en/cli.md](../en/cli.md)
 
-`ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。`--llm-model` と `VLLM_MODEL` は両側を同じモデルで潰す。yaml の 9B/27B 分割を保つなら渡さない。
+`ssos_eclss_loop` ではシミュレーション内 actor と事後 designer が分かれる。[事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。`--agents-mode` は `--actor-mode` の非推奨エイリアス。`--llm-model` と `VLLM_MODEL` は両側を同じモデルで潰す。yaml の 9B/27B 分割を保つなら渡さない。`--force` は run マーカー（`summary.json` 等）が無いディレクトリを消すときだけ必要。既存 run の再作成には不要。
+
+## 落とし穴 { #pitfalls }
+
+| 症状 | 原因 | 対処 |
+| --- | --- | --- |
+| フラグなし `ea run ssos_eclss_loop` が LLM に繋がり約 50 周回る | CLI が plant_sim / labeled actor / llm design をピンし、YAML `iteration.enabled: true` | 安価な単発: `--backend mock --actor-mode labeled_rule_base --design-mode labeled_rule_base --set iteration.enabled=false` |
+| Run 1 の `design_proposals.json` が Run 2 で消える | 既定 `run_id` を毎回作り直す | `--apply-proposals` の各 hop で別 `--run-id` |
+| `--iterate` と `--apply-proposals` が同時に使えない | 連鎖は前の子の `applied_proposals.json` を既に飲む | 初期定格は `--set plant_sim.ars.capacity_kg_day=…` 等 |
+| actor 9B / designer 27B が同一モデルになる | `--llm-model` / `VLLM_MODEL` が llm 側をまとめて上書き | フラグを渡さず `--set agents.actor.llm.base_url=` 等で分ける |
 
 連鎖の正本は `ssos_eclss_loop` の `scenario.yaml` の `iteration:`（`enabled` / `count` / `paired_replay` / `approve_provisional` / `run_id`）。`simulation.steps` は 1 回の観測長であり連鎖回数ではない。`--set iteration.count=10` は他の scenario キーと同じマージ。`--iterate` / `--paired-replay` / `--approve-provisional` が YAML より優先。既定の `enabled: true` なら `ea run ssos_eclss_loop` は連鎖。1 回にするには `--set iteration.enabled=false`。
 

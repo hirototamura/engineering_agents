@@ -4,6 +4,28 @@ SSOS ECLSS + EPS 接合でよく遭遇する問題と対処法です。
 
 ---
 
+## 意図せず LLM に繋がる / 50 周連鎖になる
+
+### 症状
+
+フラグなしの `ea run ssos_eclss_loop` が vLLM/Ollama に接続する。または `01/` 以下の連鎖ディレクトリになり、単一の `summary.json` にならない。
+
+### 原因
+
+CLI が `--backend plant_sim --actor-mode labeled_rule_base --design-mode llm` をピンする。出荷 YAML は `iteration.enabled: true`。
+
+### 対処
+
+```bash
+# ホストのみの smoke（LLM なし、Docker なし）
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base \
+  --design-mode labeled_rule_base --steps 20 --run-id smoke-run1 --set iteration.enabled=false
+```
+
+`--apply-proposals` で前回の `design_proposals.json` を飲むときは `--run-id` を分ける。[CLI の落とし穴](../cli.md#pitfalls)。
+
+---
+
 ## Action 型不一致 — goal が永久待ち
 
 ### 症状

@@ -50,7 +50,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | --- | --- | --- |
 | **ARS** | Air Revitalisation System | CO₂ ストレージからの除去（`air_revitalisation` Action） |
 | **OGS** | Oxygen Generation System | O₂ 生成（`oxygen_generation` Action）。Sabatier には CO₂ feedstock が必要 |
-| **WRS** | Water Recovery System | 水回収（`water_recovery_systems` Action）— チーム運用はバックログ（BL-004） |
+| **WRS** | Water Recovery System | 水回収（`water_recovery_systems` Action）。labeled / LLM actor は urine+grey ≥ `wrs_feed_trigger_l`（または製品水 LOW かつフィードあり）で `water_recovery` を出す |
 
 ### ROS2 インターフェース（主要）
 
@@ -231,7 +231,7 @@ design:
 | --- | --- | --- |
 | `air_revitalisation` | `send_air_revitalisation_goal()` | ARS サイクル — CO₂ 除去 |
 | `oxygen_generation` | `send_oxygen_generation_goal()` | OGS サイクル — O₂ 生成 |
-| `water_recovery_systems` | `send_water_recovery_goal()` | WRS サイクル（`plant_sim` と `ros2`；LoopMock は未実装） |
+| `water_recovery_systems` | `send_water_recovery_goal()` | WRS サイクル（`mock` / `plant_sim` / `ros2`） |
 | `request_co2` | `request_co2(amount)` | Sabatier feedstock 供給 |
 | `request_o2` | `request_o2(amount)` | O₂ 引き出し |
 

@@ -29,6 +29,8 @@ Full page index for the MkDocs site. Use the header language switcher for 日本
 | | [Homogeneous agent team](memo/agents/homogeneous_agent_team_plan.md) | Agent team design |
 | | [SSOS ECLSS connection plan](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | Phase 0–7 details |
 | | [Occupant survival](memo/ssos_eclss_loop/occupant_survival.md) | plant_sim crew/actor attrition |
+| | [Plant Sim backend](memo/ssos_eclss_loop/plant_sim_backend.md) | Mass-balance backend vs mock / ros2; sensitivity app |
+| | [Design audit storage](memo/ssos_eclss_loop/design_audit_storage.md) | Audit panel artifacts |
 | | [Labeled rule-base](memo/ssos_eclss_loop/labeled_rule_base.md) | In-sim labeled ops: sized ARS/OGS/WRS, then cap |
 | | [Post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md) | Actor / designer split (as shipped) |
 | | [Design agent](memo/ssos_eclss_loop/tool_use_design_agent.md) | Capacity sizing: decision loop, integrity guard, physics gate, candidate re-simulation |

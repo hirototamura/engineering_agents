@@ -5,6 +5,28 @@ Common issues and fixes when integrating SSOS ECLSS + EPS.
 
 ---
 
+## Unexpected LLM calls or a 50-round chain
+
+### Symptoms
+
+`ea run ssos_eclss_loop` with no flags contacts vLLM/Ollama, or writes `01/`… under a chain directory instead of one `summary.json`.
+
+### Cause
+
+Bare CLI pins `--backend plant_sim --actor-mode labeled_rule_base --design-mode llm`. Shipped `scenario.yaml` has `iteration.enabled: true`.
+
+### Fix
+
+```bash
+# Host-only smoke (no LLM, no Docker)
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base \
+  --design-mode labeled_rule_base --steps 20 --run-id smoke-run1 --set iteration.enabled=false
+```
+
+Use distinct `--run-id` values when `--apply-proposals` consumes a prior `design_proposals.json`. Details: [CLI pitfalls](../cli.md#pitfalls).
+
+---
+
 ## Action Type Mismatch — Goal Waits Forever
 
 ### Symptoms

@@ -51,7 +51,7 @@ Questions this scenario answers:
 | --- | --- | --- |
 | **ARS** | Air Revitalisation System | CO₂ removal from storage (`air_revitalisation` Action) |
 | **OGS** | Oxygen Generation System | O₂ generation (`oxygen_generation` Action). Sabatier needs CO₂ feedstock |
-| **WRS** | Water Recovery System | Water recovery (`water_recovery_systems` Action) — team operation is backlog (BL-004) |
+| **WRS** | Water Recovery System | Water recovery (`water_recovery_systems` Action). Labeled and LLM actors issue `water_recovery` when urine+grey ≥ `wrs_feed_trigger_l` (or product water is LOW with feed present) |
 
 ### ROS2 interfaces (main)
 
@@ -228,7 +228,7 @@ Agent operational triggers (`co2_storage_high_kg`, etc.) come from `scenario.yam
 | --- | --- | --- |
 | `air_revitalisation` | `send_air_revitalisation_goal()` | ARS cycle — CO₂ removal |
 | `oxygen_generation` | `send_oxygen_generation_goal()` | OGS cycle — O₂ generation |
-| `water_recovery_systems` | `send_water_recovery_goal()` | WRS cycle (`plant_sim` and `ros2`; LoopMock not implemented) |
+| `water_recovery_systems` | `send_water_recovery_goal()` | WRS cycle (`mock`, `plant_sim`, and `ros2`) |
 | `request_co2` | `request_co2(amount)` | Sabatier feedstock supply |
 | `request_o2` | `request_o2(amount)` | O₂ withdrawal |
 

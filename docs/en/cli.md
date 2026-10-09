@@ -78,6 +78,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | `--paired-replay` / `--no-paired-replay` | With a chain: baseline vs final replay. Omit to use `iteration.paired_replay` |
 | `--seed` | Record a seed in `summary.json` for future sweeps |
 | `--no-recreate` | Keep an existing output directory |
+| `--force` | Allow deleting a directory that is **not** a previous run (missing `summary.json` / `telemetry.jsonl` / `chain_summary.json` and other run markers). Recreating a real run dir does **not** need `--force` |
 | `--dry-run` | Resolve the plan without executing |
 | `--write-spec` | Write the resolved `RunSpec` JSON |
 | `--json` | Machine-readable result on stdout |
@@ -88,6 +89,16 @@ On `ssos_eclss_loop`, in-sim actors and post-run designers are separate. See [po
 The source of truth for the design→verify chain is `ssos_eclss_loop` `scenario.yaml` `iteration:` (`enabled`, `count`, `paired_replay`, `approve_provisional`, `run_id`). `simulation.steps` is one sim's length, not the chain count. `--set iteration.count=10` uses the same merge as other scenario keys. Explicit `--iterate` / `--paired-replay` / `--approve-provisional` override YAML. `enabled: true` (the shipped default) makes `ea run ssos_eclss_loop` a chain; `--set iteration.enabled=false` is a single sim.
 
 `ea run --iterate N` chains the unified post-run designer (`tool-use` / labeled) across N simulations. Omitting the scenario argument selects `ssos_eclss_loop`. Child sims use the same backend, actor/design modes, and `inject_failures` as a single `ea run` (CLI pins plant_sim, labeled actors, llm design; `inject_failures` stays the scenario.yaml value unless `--inject-failures` / `--set inject_failures=true`). `--approve-provisional` on prints INFO (this sim auto-approves LLM designs so the loop can run without a human; `--no-approve-provisional` restores the gate). Run k applies run k-1's adopted `applied_proposals.json` through unified `apply_design_proposals` (including `capacity_profile`). `set_parameter` (`thresholds.*`) is not auto-applied in the chain, so verification requirements stay frozen. Empty proposals do not stop the chain: the next simulation reuses the last applied file, or the initial YAML if none exist yet, until the chain completes. The last run verifies prior proposals; proposals it emits stay unverified. The verdict compares the selected flown machine's `crew_remaining` to the first iteration (`IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`). Replay numbers stay as evidence. The adopted design is the best flown machine, written to `chain_final_answer.json` (full survival, manufacturable and physics-gate-passed are required; over budget comes back as `provisional_final` for a human; nothing qualifying is said plainly. If thresholds, crew size, steps or backend moved partway through, it stops at `not_comparable` instead of ranking). `--no-paired-replay` is inconclusive. `ros2` is rejected. Cannot be combined with `--apply-proposals`. The terminal shows a crew-remaining table plus progress for the current simulation (step %) and completed iterations (N/M) on YAML-enabled chains and on `--iterate`. A single ssos sim (`iteration.enabled=false`) uses the same step bar. The dashboard lists iterate children (`01/`, replays) as selectable runs. Effective chain settings are written to `chain_summary.json` under `iteration`.
+
+## Pitfalls { #pitfalls }
+
+| Symptom | Cause | What to do |
+| --- | --- | --- |
+| Bare `ea run ssos_eclss_loop` talks to an LLM / runs ~50 sims | CLI pins `--backend plant_sim --actor-mode labeled_rule_base --design-mode llm` and YAML `iteration.enabled: true` | Single cheap sim: `--backend mock --actor-mode labeled_rule_base --design-mode labeled_rule_base --set iteration.enabled=false` |
+| Run 1 `design_proposals.json` vanished after Run 2 | Default `run_id` is recreated (`EventLog.prepare_run_dir` deletes the existing tree) | Distinct `--run-id` on each apply-proposals hop |
+| `--apply-proposals` refused with `--iterate` | Chain already consumes `applied_proposals.json` from the previous child | Bake starting capacity with `--set plant_sim.ars.capacity_kg_day=…` (and OGS/WRS) |
+| Actor 9B / designer 27B collapsed to one model | `--llm-model` and `VLLM_MODEL` stamp both llm sides | Omit those flags; use `--set agents.actor.llm.base_url=` / `.model` per side |
+| `Refusing to delete … not a simulation run directory` | Target lacks run markers | `--force` only for a non-run tree you intend to wipe; `--no-recreate` to keep files |
 
 ## Exit codes
 

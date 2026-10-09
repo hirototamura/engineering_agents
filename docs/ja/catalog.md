@@ -30,6 +30,8 @@ MkDocs サイトの全ページ一覧です。ヘッダーの言語切替で Eng
 | | [同種エージェントチーム](memo/agents/homogeneous_agent_team_plan.md) | チーム設計 |
 | | [SSOS ECLSS 接合プラン](memo/ssos_eclss_loop/ssos_eclss_loop_connection_plan.md) | Phase 0–7 |
 | | [乗員サバイバル](memo/ssos_eclss_loop/occupant_survival.md) | plant_sim の乗員・actor 減員 |
+| | [Plant Sim バックエンド](memo/ssos_eclss_loop/plant_sim_backend.md) | 質量収支 backend と mock / ros2 の差。感度アプリ |
+| | [設計監査の保存](memo/ssos_eclss_loop/design_audit_storage.md) | 監査パネル成果物 |
 | | [ラベル付きルールベース](memo/ssos_eclss_loop/labeled_rule_base.md) | シミュレーション内 labeled 運用（必要量を積んでから上限） |
 | | [事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md) | actor / designer 分離（実装済み） |
 | | [設計エージェント](memo/ssos_eclss_loop/tool_use_design_agent.md) | 処理能力設計: 設計判断ループ / 改ざん検出 / 物理ゲート / 候補再シミュレーション |

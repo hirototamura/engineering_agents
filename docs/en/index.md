@@ -5,7 +5,7 @@ Run your first simulation in a few minutes. Engineering Agents simulates how an 
 !!! tip "What you need"
     - **Python 3.11+** and **Git** on every platform
     - **Docker** only for `ssos_eclss_loop` with `--backend ros2` (live SSOS plant)
-    - **Ollama** or lab **vLLM** only for `--agents-mode llm`
+    - **Ollama** or lab **vLLM** when any side is `llm` (scrubber `--agents-mode llm`; `ssos_eclss_loop` defaults to `--design-mode llm`)
 
 ---
 
@@ -130,7 +130,7 @@ Details: [SSOS Docker setup](ssos/quickstart.md) · Full CLI reference: [CLI gui
 | Scenario | What it simulates | Backend | Typical command |
 | --- | --- | --- | --- |
 | [scrubber_degradation](scenario-scrubber-degradation.md) | CO₂ scrubber anomaly on a Python mock plant | `StationSimulator` | `ea run scrubber_degradation --agents-mode labeled_rule_base` |
-| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | Agent team operating SSOS ECLSS (ARS/OGS/WRS) | `mock` or `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base` |
+| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | Agent team operating SSOS ECLSS (ARS/OGS/WRS) | `plant_sim` (CLI default), `mock`, or `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --set iteration.enabled=false` |
 
 Both scenarios share the same agent pattern: **`none`**, **`labeled_rule_base`** (reproducible regression), or **`llm`** (Ollama or lab vLLM).
 
