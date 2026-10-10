@@ -1,0 +1,23 @@
+name: balancing_cube
+description: SSOT-driven MuJoCo balancing cube design→verification with fixed-dt CPU/GPU evidence
+ssot:
+  path: null
+  project_id: balancing-cube
+  snapshot_id: cube.simulation.snapshot
+  snapshot_revision: fixed-dt-mvp-1
+backend:
+  kind: mujoco_cpu
+agents:
+  mode: llm
+  llm:
+    provider: ollama
+    model: llama3.2
+    api_timeout: 30
+iteration:
+  enabled: true
+  count: 5
+  max_candidates: 20
+  max_wall_s: 1800
+  stagnation_rounds: 3
+output:
+  run_id: null

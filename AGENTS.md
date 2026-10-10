@@ -17,6 +17,10 @@ This file is the entry point for **human contributors** and **coding agents** (C
 
 ---
 
+## MuJoCo integration
+
+`balancing_cube` uses the One-Piece versioned system model as SSOT. See [implementation and scope](docs/en/mujoco-one-piece.md). Its automatic changes are limited to six mechanical variables, motor selection, three LQR weight groups and yaw gain. New evaluation uses fixed-timestep CPU/GPU checks without half-step adjudication.
+
 ## Quick reference (layers)
 
 ```text

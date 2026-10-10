@@ -1,5 +1,7 @@
 # Engineering Agents — evaluating AI-driven ECLSS design for spacecraft
 
+**MuJoCo balancing cube:** [bounded design iteration with One-Piece](docs/en/mujoco-one-piece.md). The new scenario uses a versioned system model and evidence store alongside ECLSS.
+
 [日本語 README](README.ja.md) · [Docs](docs/en/index.md) · [Experiment record](docs/en/results.md) · [Measured data](docs/data) · [Agent design](docs/en/agent-design.md)
 
 **Full results write-up:** [technical report](docs/en/eclss_ai_agent_technical_report_04.md) ([日本語](docs/ja/eclss_ai_agent_technical_report_04.md)) — the four fifty-round chains and the emergence chapter.

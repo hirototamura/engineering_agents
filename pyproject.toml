@@ -25,9 +25,16 @@ ea = "tools.cli.main:app"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "mkdocs-material>=9.0", "mkdocs-static-i18n>=1.2.0"]
+mujoco = ["mujoco==3.3.7", "scipy>=1.16", "numpy>=2.3"]
+gpu = ["mujoco==3.3.7", "mujoco-mjx==3.3.7", "jax[cuda12]==0.6.2", "scipy>=1.16"]
+onepiece = ["one-piece-engineering==0.1.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"scenario.balancing_cube" = ["scenario.yaml"]
+"environment.mujoco" = ["legacy_source_manifest.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

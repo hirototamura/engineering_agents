@@ -33,7 +33,18 @@ def execute_run(
     run_dir: Path | None = None
 
     try:
-        if spec.scenario == "ssos_eclss_loop":
+        if spec.scenario == "balancing_cube":
+            from scenario.balancing_cube.scenario_run import BalancingCubeScenario
+            if spec.seed is not None:
+                raise ValueError("Mechanical evaluation seeds belong to the frozen SSOT plan; select a new SSOT revision to change them")
+            # Mechanical scenarios consume SSOT inputs and deliberately never
+            # delete previous evidence, regardless of legacy recreate defaults.
+            run_dir = BalancingCubeScenario().run(
+                output_dir=spec.output_dir, overrides=overrides, run_id=spec.run_id,
+                results_root=spec.results_root, recreate_output=False,
+                apply_proposals_path=spec.apply_proposals_path,
+                design_history=spec.design_history, on_step=on_step, on_phase=on_phase)
+        elif spec.scenario == "ssos_eclss_loop":
             from scenario.ssos_eclss_loop.scenario_run import SsosEclssLoopScenario
 
             run_dir = SsosEclssLoopScenario().run(
@@ -81,10 +92,17 @@ def execute_run(
             exit_code=1,
             error=str(exc),
         )
-    summary["duration_wall_s"] = round(duration_s, 3)
-    if spec.seed is not None:
-        summary["seed"] = spec.seed
-    _write_summary(run_dir, summary)
+    if spec.scenario != "balancing_cube":
+        # Mechanical summaries are immutable synchronized artifacts. Their
+        # scenario already records its duration before publishing the digest.
+        summary["duration_wall_s"] = round(duration_s, 3)
+        if spec.seed is not None:
+            summary["seed"] = spec.seed
+        _write_summary(run_dir, summary)
+    elif (run_dir / "sync-status.json").exists():
+        # Report final delivery separately; do not change the synchronized
+        # summary artifact merely to acknowledge its own publication.
+        summary["onepiece_sync_final"] = json.loads((run_dir / "sync-status.json").read_text())
 
     return RunResult(
         run_dir=run_dir,
