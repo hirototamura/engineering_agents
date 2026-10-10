@@ -16,7 +16,7 @@ import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from .contact import CONTACT_DEFAULTS, build_contact_xml
+from .contact import CONTACT_DEFAULTS, build_contact_xml, contact_stop_limits
 from .model import equilibrium_rotation, quat
 
 SUPPORTED_VERSION = "3.3.7"
@@ -228,6 +228,21 @@ def _runner(substeps, control_steps, history_size, cube, wheel_dofs, wheel_qpos)
     return jax.jit(jax.vmap(trajectory, in_axes=(0, 0, 0, 0, 0, None, None)))
 
 
+def _world_parameters(cfg, case, *, duration, dt, lag):
+    """Host-side values passed unchanged to each MJX trajectory."""
+    p, a, e = cfg["physics"], cfg.get("actuation", {}), cfg["evaluation"]
+    no_load = float(a.get("no_load_speed_rad_s", p["wheel_speed_limit_rad_s"]))
+    if no_load <= 0:
+        raise ValueError("no_load_speed_rad_s must be positive")
+    integer_lag = int(np.floor(lag + 1e-12))
+    fraction = max(0.0, lag - integer_lag)
+    contact_hold, slip_limit, slip_hold, max_drift = contact_stop_limits(e)
+    return [p["wheel_axial_inertia_kg_m2"], min(a.get("peak_torque_nm", p["motor_torque_limit_nm"]), p["motor_torque_limit_nm"]),
+            no_load, p["wheel_speed_limit_rad_s"], a.get("continuous_torque_nm", .04), a.get("torque_speed_enabled", True),
+            dt, integer_lag, fraction, e["loss_of_balance_deg"], contact_hold, slip_hold,
+            slip_limit, max_drift, round(duration / dt), case.get("control", True)]
+
+
 def run_batch(configs, cases, controller, require_gpu=True, duration_s=None, selected_indices=(), precision="float32"):
     """Simulate paired configuration/case arrays on one visible device.
 
@@ -306,16 +321,7 @@ def run_batch(configs, cases, controller, require_gpu=True, duration_s=None, sel
         cpu_models.append(model)
         models.append(converted_model)
         data.append(converted_data)
-        p, a, e = cfg["physics"], cfg.get("actuation", {}), cfg["evaluation"]
-        no_load = float(a.get("no_load_speed_rad_s", p["wheel_speed_limit_rad_s"]))
-        if no_load<=0:
-            raise ValueError("no_load_speed_rad_s must be positive")
-        integer_lag = int(np.floor(lag+1e-12))
-        fraction = max(0.0, lag-integer_lag)
-        parameters.append([p["wheel_axial_inertia_kg_m2"], min(a.get("peak_torque_nm", p["motor_torque_limit_nm"]), p["motor_torque_limit_nm"]),
-                           no_load, p["wheel_speed_limit_rad_s"], a.get("continuous_torque_nm", .04), a.get("torque_speed_enabled", True),
-                           dt, integer_lag, fraction, e["loss_of_balance_deg"], e.get("contact_loss_hold_s", .10), e.get("slip_hold_s", .15),
-                           e.get("slip_speed_limit_m_s", .05), e.get("max_pivot_displacement_mm", 30), round(duration/dt), case.get("control", True)])
+        parameters.append(_world_parameters(cfg, case, duration=duration, dt=dt, lag=lag))
         sensing = cfg.get("sensing", {})
         noise_key = (int(case.get("seed", sensing.get("seed", 0))),
                      sensing.get("tilt_noise_std_deg", 0), sensing.get("gyro_noise_std_deg_s", 0))

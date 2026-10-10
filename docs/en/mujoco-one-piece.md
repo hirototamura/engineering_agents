@@ -8,6 +8,8 @@ Automatic hardware changes are restricted to six mechanical variables and regist
 
 Each small campaign shares a saved controller K. Simultaneous mechanics/control changes receive the four old/new combinations under identical conditions. New CPU/GPU checks use a fixed timestep without half-step adjudication. Historical half-step evidence retains its original provenance.
 
+CPU and MJX use the same authoritative stop fields: `contact_loss_stop_s`, `slip_stop_speed_m_s`, `slip_stop_duration_s`, and `pivot_drift_stop_mm`. The legacy source manifest identifies the original code; EN records the current implementation hashes, including corrections to the imported evaluator. Historical results are preserved rather than rewritten by those corrections.
+
 ## ENPIRE mapping
 
 1. **EN** pins the One-Piece model, requirements, reset, constraints, verification and code identity. Every rollout starts from its declared initial state.

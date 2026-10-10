@@ -11,6 +11,7 @@ import csv
 import hashlib
 import itertools
 import json
+import math
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -129,7 +130,10 @@ def _trial_index(path: Path, plan: dict, candidates: dict) -> tuple[dict, dict]:
                 failed = json.loads(raw)
             item["failed_trials"] += bool(failed)
             totals[key]["trials"] += 1
-            totals[key]["passed_trials"] += row.get("passed", "").lower() == "true"
+            passed = row.get("passed", "").lower()
+            if passed not in {"true", "false"} or (passed == "true") == bool(failed):
+                raise ImportValidationError("CSV pass flag disagrees with failure criteria: " + str(key))
+            totals[key]["passed_trials"] += passed == "true"
             totals[key]["criteria"].update(failed)
             item["criteria"].update(failed)
             item["statuses"][row.get("status", "unknown")] += 1
@@ -361,7 +365,13 @@ def build_records(source: str | Path, *, project_id: str = PROJECT_ID) -> tuple[
             if not coverage:
                 raise ImportValidationError("Missing completed stage coverage: " + str(key))
             totals = trial_coverage["totals"][key]
-            if totals["trials"] != summary["trials"] or totals["passed_trials"] != summary["passed_trials"] or dict(totals["criteria"]) != summary["failures"]:
+            fraction = summary.get("pass_fraction")
+            if (totals["trials"] != summary["trials"] or totals["passed_trials"] != summary["passed_trials"]
+                    or dict(totals["criteria"]) != summary["failures"]
+                    or summary.get("all_pass") is not (totals["passed_trials"] == totals["trials"])
+                    or isinstance(fraction, bool) or not isinstance(fraction, (int, float))
+                    or not math.isfinite(fraction)
+                    or not math.isclose(fraction, totals["passed_trials"] / totals["trials"], rel_tol=0, abs_tol=1e-12)):
                 raise ImportValidationError("CSV/summary outcomes disagree: " + str(key))
             add(f"cube.eval.{cid}.{stage}.{origin}", "evaluation",
                 {"candidate_id": cid, "design_ref": ref(cid, REVISION), "stage": stage,

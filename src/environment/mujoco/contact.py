@@ -176,6 +176,14 @@ def limit_motor_torque(cfg, requested, wheel_rates):
     return applied, budget, blocked
 
 
+def contact_stop_limits(evaluation):
+    """Resolve the canonical SSOT fields shared by native CPU and MJX."""
+    return (evaluation.get("contact_loss_stop_s", .10),
+            evaluation.get("slip_stop_speed_m_s", .05),
+            evaluation.get("slip_stop_duration_s", .15),
+            evaluation.get("pivot_drift_stop_mm", 30.0))
+
+
 def simulate_contact(cfg, case, regulator=None):
     """Run one S2 case; return JSON-serializable summary and sampled data rows.
 
@@ -195,10 +203,7 @@ def simulate_contact(cfg, case, regulator=None):
     rows, status, work = [], "completed", 0.0
     missing_contact_s = 0.0
     excessive_slip_s = 0.0
-    contact_loss_hold = evaluation.get("contact_loss_hold_s", .10)
-    slip_limit = evaluation.get("slip_speed_limit_m_s", .05)
-    slip_hold = evaluation.get("slip_hold_s", .15)
-    max_drift = evaluation.get("max_pivot_displacement_mm", 30.0)
+    contact_loss_hold, slip_limit, slip_hold, max_drift = contact_stop_limits(evaluation)
     torque_hits, speed_hits, continuous_hits = 0, 0, 0
     integrated_steps = 0
     true_steps = round(duration/dt)

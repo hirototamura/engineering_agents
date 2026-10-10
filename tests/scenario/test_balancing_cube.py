@@ -74,6 +74,68 @@ def test_controller_changes_only_q_groups_yaw_keep_r_and_nominal_linearization()
         compile_controller({"control": {"tilt_q_scale": .1}}, source)
 
 
+@pytest.mark.parametrize("value", [list(proposal()["parameters"]), None, True, "side_m"])
+def test_mechanical_parameters_require_a_json_object(value):
+    with pytest.raises(ValueError, match="parameters.*object"):
+        compile_mechanical({**proposal(), "parameters": value}, snapshot())
+
+
+@pytest.mark.parametrize("value", [list(proposal(control=True)["control"]), None, False, "tilt_q_scale"])
+def test_control_parameters_require_a_json_object(value):
+    with pytest.raises(ValueError, match="control.*object"):
+        compile_controller({**proposal(), "control": value}, snapshot())
+
+
+def test_malformed_nested_proposal_is_recorded_and_next_round_runs(tmp_path):
+    class MalformedThenValid(FakeLLM):
+        def generate(self, prompt):
+            value = json.loads(super().generate(prompt))
+            if len(self.prompts) == 1:
+                value["parameters"] = list(value["parameters"])
+            return json.dumps(value)
+    bridge = ssot_bridge(tmp_path)
+    result = run_design_loop(snapshot=bridge.load_snapshot(), output_dir=tmp_path / "malformed",
+                             llm_client=MalformedThenValid(), rounds=2, bridge=bridge)
+    rejected = bridge.store.records(kinds=["design_proposal"])
+    assert len(rejected) == 1 and rejected[0]["data"]["status"] == "rejected"
+    assert isinstance(rejected[0]["data"]["proposal"]["parameters"], list)
+    assert result["rounds"][0]["status"] == "rejected"
+    assert result["rounds"][1]["stage_sequence"] == ["EN", "PI", "R", "E"]
+    assert (tmp_path / "malformed/summary.json").is_file()
+    assert bridge.store.check()["ok"]
+
+
+@pytest.mark.parametrize("limits,expected_status", [
+    ({"pivot_drift_stop_mm": .005}, "excessive_slip"),
+    ({"contact_loss_stop_s": .015}, "lost_contact"),
+    ({"slip_stop_speed_m_s": 0.0, "slip_stop_duration_s": .015}, "excessive_slip"),
+])
+def test_cpu_uses_authoritative_stop_thresholds(limits, expected_status):
+    from environment.mujoco.backend import native_rollout
+    source = snapshot()
+    cfg = source["model"]
+    cfg["evaluation"].update(limits)
+    case = {"id": "stop-threshold", "seed": 0, "initial_tilt_deg": [1, 0], "duration_s": .06}
+    if expected_status == "lost_contact":
+        # With no gravity the initial geometric contact carries no load.
+        case["initial_tilt_deg"] = [0, 0]
+        cfg["physics"]["gravity_m_s2"] = 0.0
+    result = native_rollout(cfg, case, source["controller"])
+    assert result["summary"]["status"] == expected_status
+    assert result["summary"]["simulated_duration_s"] < case["duration_s"]
+
+
+def test_gpu_trajectory_parameters_use_the_same_authoritative_limits_as_cpu():
+    from environment.mujoco.contact import contact_stop_limits
+    from environment.mujoco.gpu_backend import _world_parameters
+    cfg = snapshot()["model"]
+    cfg["evaluation"].update(contact_loss_stop_s=.03, slip_stop_speed_m_s=.002,
+                             slip_stop_duration_s=.045, pivot_drift_stop_mm=.005)
+    assert contact_stop_limits(cfg["evaluation"]) == (.03, .002, .045, .005)
+    params = _world_parameters(cfg, {}, duration=.06, dt=.015, lag=0)
+    assert params[10:14] == [.03, .045, .002, .005]
+
+
 def test_real_two_rounds_evolve_policy_and_feed_it_to_next_pi(tmp_path):
     source = snapshot()
     fake = FakeLLM()

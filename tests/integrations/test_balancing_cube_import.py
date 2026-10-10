@@ -117,6 +117,27 @@ def test_csv_outcome_cannot_disagree_with_summary(campaign):
         build_records(campaign)
 
 
+@pytest.mark.parametrize("field,value", [("all_pass", False), ("all_pass", 1),
+                                        ("pass_fraction", 0.0), ("pass_fraction", True)])
+def test_derived_pass_fields_must_match_csv(campaign, field, value):
+    mutate_json(campaign, "report/analysis.json",
+                lambda a: a["candidates"][0]["exploration"].update({field: value}))
+    with pytest.raises(ImportValidationError, match="CSV/summary outcomes"):
+        build_records(campaign)
+
+
+def test_failing_trials_cannot_claim_all_pass_or_seed_a_comparison(campaign):
+    path = campaign / "report/trials.csv"
+    path.write_text(path.read_text(encoding="utf-8-sig").replace("completed,True,", "lost_balance,False,status"), encoding="utf-8-sig")
+    def corrupt(analysis):
+        for stage in ("exploration", "validation"):
+            analysis["candidates"][0][stage].update(passed_trials=0, failures={"status": 1})
+            # Keep the contradictory all_pass=True/pass_fraction=1.0.
+    mutate_json(campaign, "report/analysis.json", corrupt)
+    with pytest.raises(ImportValidationError, match="CSV/summary outcomes"):
+        build_records(campaign)
+
+
 def test_frozen_input_tamper_rejected(campaign):
     mutate_json(campaign, "report/sources/controller.json", lambda c: c.update(yaw_rate_gain_nm_s=.5))
     with pytest.raises(ImportValidationError, match="digest mismatch"):

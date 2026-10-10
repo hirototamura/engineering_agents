@@ -30,16 +30,21 @@ def bounded(value, bounds, name):
 
 def compile_mechanical(proposal, snapshot):
     allowed = {"id", "family", "parameters", "control", "parent_id", "hypothesis", "proposer"}
-    if set(proposal) - allowed or not proposal.get("id") or not proposal.get("hypothesis"):
+    if not isinstance(proposal, dict):
+        raise ValueError("Proposal must be a JSON object")
+    if set(proposal) - allowed or any(not isinstance(proposal.get(key), str) or not proposal[key].strip()
+                                    for key in ("id", "hypothesis")):
         raise ValueError("Proposal requires id/hypothesis and only allowlisted design fields")
     cfg = copy.deepcopy(snapshot["model"])
     family = proposal.get("family")
     p = proposal.get("parameters", {})
+    if not isinstance(p, dict):
+        raise ValueError("parameters must be a JSON object")
     if family == "reference":
         if p:
             raise ValueError("Reference mechanics cannot be overridden")
         return copy.deepcopy(snapshot.get("reference_model", cfg))
-    if family not in snapshot["families"] or set(p) != set(MECHANICAL_BOUNDS):
+    if not isinstance(family, str) or family not in snapshot["families"] or set(p) != set(MECHANICAL_BOUNDS):
         raise ValueError("Registered family and exactly six mechanical variables required")
     # SSOT may tighten bounds. It cannot expand the explicitly authorized set.
     limits = snapshot.get("design_bounds", {})
@@ -75,7 +80,11 @@ def compile_mechanical(proposal, snapshot):
 
 
 def compile_controller(proposal, snapshot):
-    control = proposal.get("control") or {}
+    if not isinstance(proposal, dict):
+        raise ValueError("Proposal must be a JSON object")
+    control = proposal.get("control", {})
+    if not isinstance(control, dict):
+        raise ValueError("control must be a JSON object")
     if set(control) - set(CONTROL_BOUNDS):
         raise ValueError("Only three Q group multipliers and yaw gain may change; R is fixed")
     if not control:
