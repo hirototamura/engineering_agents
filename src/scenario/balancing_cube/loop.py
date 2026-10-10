@@ -12,7 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from integrations.one_piece.mechanical_bridge import atomic_json
-from .adapter import BalancingCubeAdapter, RolloutDeadlineExceeded
+from .adapter import BalancingCubeAdapter, RolloutDeadlineExceeded, RolloutExecutionFailed
 from .design import CONTROL_BOUNDS, MECHANICAL_BOUNDS, digest
 
 
@@ -131,13 +131,13 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
             return None
         try:
             result = adapter.rollout(compiled, require_gpu=require_gpu, deadline=deadline)
-        except RolloutDeadlineExceeded as error:
+        except (RolloutDeadlineExceeded, RolloutExecutionFailed) as error:
             directory = root / "incomplete-evaluations" / f"attempt-{len(incomplete_evaluations) + 1:03d}"
             atomic_json(directory / "compiled.json", compiled)
             atomic_json(directory / "result.json", error.evidence)
             publish("simulation_run", f"{run_id}.incomplete.{len(incomplete_evaluations) + 1}",
                     {k: v for k, v in error.evidence.items() if k != "partial_cpu_results"}, directory / "result.json")
-            incomplete_evaluations.append({"candidate_id": compiled["id"], "reason": str(error),
+            incomplete_evaluations.append({"candidate_id": compiled["id"], "state": error.evidence["state"], "reason": str(error),
                                            "artifact": str(directory / "result.json")})
             return None
         result.update(round=round_index, matrix_cell=cell, proposal=compiled["proposal"])
@@ -222,11 +222,11 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
             evaluated = [evaluate(cell, round_index=index, cell=name) for cell, name in cells]
             if any(entry is None for entry in evaluated) and mechanical_changed and control_changed:
                 best = previous_best
-                stop = "incomplete_required_2x2_wall_budget"
+                stop = "incomplete_required_2x2_execution_failure" if incomplete_evaluations and incomplete_evaluations[-1]["state"] == "failed" else "incomplete_required_2x2_wall_budget"
                 break
             evaluated = [entry for entry in evaluated if entry is not None]
             if not evaluated:
-                stop = "candidate_or_wall_budget"
+                stop = "candidate_execution_failed" if incomplete_evaluations and incomplete_evaluations[-1]["state"] == "failed" else "candidate_or_wall_budget"
                 break
             feedback = adapter.feedback(evaluated[-1]["result"])
             improved = best["result"]["score"] > previous_score
@@ -279,15 +279,15 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                           "selection_scope": "one exploration-selected candidate checked on the frozen independent validation matrix"}
             atomic_json(root / "validation/result.json", checked)
             atomic_json(root / "validation/compiled.json", best["compiled"])
-        except RolloutDeadlineExceeded as error:
+        except (RolloutDeadlineExceeded, RolloutExecutionFailed) as error:
             validation = {k: v for k, v in error.evidence.items() if k != "partial_cpu_results"}
             atomic_json(root / "validation/result.json", error.evidence)
-            stop = "wall_budget_during_validation"
+            stop = "execution_failed_during_validation" if validation["state"] == "failed" else "wall_budget_during_validation"
         publish("simulation_run", f"{run_id}.validation", validation, root / "validation/result.json")
     confirmed = validation["state"] == "completed" and validation.get("numeric_gpu_verified") is True and validation.get("all_screening_passed") is True
     validation_status = "numerically_confirmed" if confirmed else "provisional"
     incomplete = incomplete_evaluations or stop.startswith("onepiece_sync_pending") or stop in {
-        "incomplete_required_2x2_wall_budget", "context_revision_changed_requires_new_run", "wall_budget_during_validation"}
+        "incomplete_required_2x2_wall_budget", "context_revision_changed_requires_new_run", "wall_budget_during_validation", "execution_failed_during_validation"}
     summary = {"scenario": "balancing_cube", "run_id": run_id, "status": "inconclusive" if incomplete else "completed",
                "iterations_requested": rounds, "iterations_completed": len(rounds_log),
                "candidates_evaluated": len(entries), "stopped_reason": stop,

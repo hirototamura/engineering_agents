@@ -236,3 +236,16 @@ def test_deadline_retains_incomplete_evidence_without_aggregate_score():
     assert stopped.value.evidence["completed_cpu_trials"] == 0
     assert stopped.value.evidence["state"] == "incomplete"
     assert "score" not in stopped.value.evidence
+    assert stopped.value.evidence["compiled"]["controller"]["K"]
+
+
+def test_physics_failure_retains_configuration_and_cannot_select(tmp_path, monkeypatch):
+    from environment.mujoco import backend
+    def failed(*args, **kwargs):
+        raise RuntimeError("injected native solver failure")
+    monkeypatch.setattr(backend, "native_rollout", failed)
+    result = run_design_loop(snapshot=snapshot(), output_dir=tmp_path / "failed", llm_client=None)
+    artifact = json.loads((tmp_path / "failed/incomplete-evaluations/attempt-001/result.json").read_text())
+    assert artifact["state"] == "failed" and artifact["compiled"]["controller"]["K"]
+    assert result["status"] == "inconclusive" and result["best"] is None
+    assert result["numeric_gpu_verified"] is False

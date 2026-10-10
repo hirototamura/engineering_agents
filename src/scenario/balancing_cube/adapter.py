@@ -21,10 +21,21 @@ class RolloutDeadlineExceeded(TimeoutError):
     def __init__(self, *, compiled, stage, cpu, total, phase):
         super().__init__("wall_budget_during_" + phase)
         self.evidence = {"state": "incomplete", "reason": str(self), "candidate_id": compiled["id"],
-                         "input_digest": compiled["input_digest"], "stage": stage,
+                         "input_digest": compiled["input_digest"], "compiled": copy.deepcopy(compiled), "stage": stage,
                          "completed_cpu_trials": len(cpu), "expected_trials": total,
                          "partial_cpu_results": cpu, "numeric_gpu_verified": False,
                          "physical_verified": False, "half_step_adjudication_performed": False}
+
+
+class RolloutExecutionFailed(RuntimeError):
+    def __init__(self, *, compiled, stage, cpu, total, error):
+        super().__init__(f"{type(error).__name__}: {error}")
+        self.evidence = {"state": "failed", "reason": str(self), "candidate_id": compiled["id"],
+                         "compiled": copy.deepcopy(compiled), "input_digest": compiled["input_digest"],
+                         "stage": stage, "partial_cpu_results": cpu, "completed_cpu_trials": len(cpu),
+                         "expected_trials": total, "numeric_cpu_verified": False,
+                         "numeric_gpu_verified": False, "physical_verified": False,
+                         "half_step_adjudication_performed": False}
 
 
 class BalancingCubeAdapter:
@@ -77,10 +88,16 @@ class BalancingCubeAdapter:
                 raise RolloutDeadlineExceeded(compiled=compiled, stage=stage, cpu=cpu, total=len(trials), phase=phase)
         for trial in trials:
             check_deadline("cpu_case_boundary")
-            cpu.append(native_rollout(trial["config"], trial["case"], compiled["controller"]))
+            try:
+                cpu.append(native_rollout(trial["config"], trial["case"], compiled["controller"]))
+            except Exception as error:
+                raise RolloutExecutionFailed(compiled=compiled, stage=stage, cpu=cpu, total=len(trials), error=error) from error
         check_deadline("gpu_batch_boundary")
-        gpu = gpu_rollouts([t["config"] for t in trials], [t["case"] for t in trials], compiled["controller"]) if require_gpu else {
-            "state": "not_run", "reason": "GPU execution was not requested", "accelerated": False, "results": []}
+        try:
+            gpu = gpu_rollouts([t["config"] for t in trials], [t["case"] for t in trials], compiled["controller"]) if require_gpu else {
+                "state": "not_run", "reason": "GPU execution was not requested", "accelerated": False, "results": []}
+        except Exception as error:
+            raise RolloutExecutionFailed(compiled=compiled, stage=stage, cpu=cpu, total=len(trials), error=error) from error
         check_deadline("gpu_batch_completion")
         records = []
         for i, (trial, native) in enumerate(zip(trials, cpu)):
