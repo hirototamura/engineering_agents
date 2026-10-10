@@ -94,7 +94,9 @@ class MechanicalBridge:
         return snapshot
 
     def context(self):
-        return self.store.context(self.project_id, max_designs=20, max_evidence=50)
+        return self.store.context(self.project_id, max_designs=5, max_evidence=8,
+            kinds=["design", "design_candidate", "simulation_run", "design_policy", "iteration", "analysis_result"],
+            snapshot_ref={"id": self.snapshot_id, "revision": self.snapshot_revision})
 
     def outbox(self, run_dir):
         return MechanicalOutbox(self, run_dir)
