@@ -29,7 +29,7 @@ Offline acceptance imports the 2,048 historical designs and reproduces the prior
 
 ## Run locally
 
-Clone the repositories next to each other and restore the One-Piece [evidence pack](https://github.com/hirototamura/one-piece/tree/main/projects/balancing-cube). The contract is JSON Schema 1.0 / package 0.1.0. Install the local One-Piece checkout; a PyPI publication is not assumed.
+Clone the repositories next to each other and restore the One-Piece [evidence pack](https://github.com/hirototamura/one-piece/tree/main/projects/balancing-cube). The contract is JSON Schema 1.0 / package 0.1.1. Install the local One-Piece checkout; a PyPI publication is not assumed.
 
 ```sh
 python -m pip install -e ../one-piece -e '.[mujoco]'
@@ -39,10 +39,18 @@ python scripts/verify_cube_loop.py \
   --store ../one-piece/projects/balancing-cube/store --output results/cube-offline-check
 ```
 
-The default snapshot `cube.simulation.snapshot@fixed-dt-mvp-1` pins the existing paired numerical best `D-000544-52890` as comparison reference. The nominal LQR linearization plant and historical saved K remain fixed. This reference selection does not adopt a human baseline.
+The default snapshot `cube.simulation.snapshot@fixed-dt-mvp-2` pins the existing paired numerical best `D-000544-52890` as comparison reference. The nominal LQR linearization plant and historical saved K remain fixed. This reference selection does not adopt a human baseline.
 
 `none` evaluates the reference on CPU. The offline script runs two Fake LLM rounds with actual CPU physics and checks persisted feedback. Real proposals use `--design-mode llm --iterate 2 --llm-provider ollama`. GPU execution needs the optional `.[gpu]` dependencies and CUDA, using `--backend mjx_gpu`. Neither real LLM improvement nor the new GPU path has been executed in this acceptance.
 
 Retry pending evidence with `MechanicalBridge(store_path).outbox(run_dir).flush()`. Pending synchronization stops PI. Time budgets cap HTTP timeouts and are checked between CPU cases and before/after GPU batches; an active native solver/JIT call finishes before interruption at the next boundary.
 
 References: [ENPIRE paper](https://arxiv.org/html/2606.19980v2), [autoresearch contract](https://github.com/NVlabs/ENPIRE/blob/main/enpire/policy/autoresearch_instruction.md), [One-Piece system model](https://github.com/hirototamura/one-piece/blob/main/docs/en/SYSTEM_MODEL.md).
+
+## Review corrections
+
+`fixed-dt-mvp-2` corrects ownership and evidence trace metadata from `fixed-dt-mvp-1`; model, saved K, evaluation criteria and the D-000544-52890 reference are unchanged. The reference design and campaign summary (including prior-46 counts) are mandatory context records outside the five-design/eight-evidence limits. Existing acceptance history is retained; new acceptance runs use a temporary copy of the store.
+
+`suggested_search_step` is advisory policy data, not a maximum parent-to-child delta. The compiler enforces absolute mechanical/control ranges. Reference execution failure stops before PI. Requested GPU execution that is unavailable produces an inconclusive run and a nonzero CLI exit; CPU-only operation remains available explicitly. Aggregation errors preserve partial evidence and roll back the best design for an incomplete 2×2 comparison.
+
+CI installs `.[dev,mujoco,onepiece]`, including the SHA-256-pinned 0.1.1 wheel from the One-Piece Release, and requires all Cube tests to execute with zero skips on Python 3.11/3.12. General ECLSS tests remain independent of these optional dependencies.

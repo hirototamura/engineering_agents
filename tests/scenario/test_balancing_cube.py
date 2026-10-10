@@ -148,7 +148,7 @@ def test_real_two_rounds_evolve_policy_and_feed_it_to_next_pi(tmp_path):
     assert len(fake.prompts) == 2 and len(calls) == 2
     assert fake.prompts[0]["policy"]["revision"] == 1
     assert fake.prompts[1]["policy"]["revision"] == 2
-    assert fake.prompts[1]["policy"]["search_step"] != fake.prompts[0]["policy"]["search_step"]
+    assert fake.prompts[1]["policy"]["suggested_search_step"] != fake.prompts[0]["policy"]["suggested_search_step"]
     assert "Measured candidate" in fake.prompts[1]["policy"]["hypothesis"]
     assert fake.prompts[1]["feedback"]
     assert result["iterations_completed"] == 2 and result["candidates_evaluated"] == 3
@@ -233,7 +233,7 @@ def ssot_bridge(tmp_path):
     source["context_refs"] = {"requirements": [onepiece.ref(requirement)], "kdps": [onepiece.ref(p) for p in parameters]}
     source["comparison_design_ref"] = onepiece.ref(comparison)
     record = onepiece.make_record(project_id="balancing-cube", id="cube.simulation.snapshot",
-                                  kind="simulation_snapshot", revision="fixed-dt-mvp-1", data=source)
+                                  kind="simulation_snapshot", revision="fixed-dt-mvp-2", data=source)
     store = onepiece.Store(tmp_path / "store")
     store.import_records([requirement, *parameters, comparison, record])
     return MechanicalBridge(tmp_path / "store")
@@ -311,3 +311,61 @@ def test_physics_failure_retains_configuration_and_cannot_select(tmp_path, monke
     assert artifact["state"] == "failed" and artifact["compiled"]["controller"]["K"]
     assert result["status"] == "inconclusive" and result["best"] is None
     assert result["numeric_gpu_verified"] is False
+
+
+def test_reference_failure_never_starts_pi(tmp_path, monkeypatch):
+    from environment.mujoco import backend
+    def failed(*args, **kwargs):
+        raise RuntimeError("reference solver failed")
+    monkeypatch.setattr(backend, "native_rollout", failed)
+    fake = FakeLLM()
+    result = run_design_loop(snapshot=snapshot(), output_dir=tmp_path / "run", llm_client=fake, rounds=2)
+    assert result["status"] == "inconclusive"
+    assert result["stopped_reason"] == "reference_execution_failed"
+    assert not fake.prompts and not result["rounds"]
+
+
+def test_requested_gpu_not_run_is_inconclusive_and_never_starts_pi(tmp_path, monkeypatch):
+    from environment.mujoco import backend
+    monkeypatch.setattr(backend, "gpu_rollouts", lambda *args: {"state": "not_run", "reason": "no GPU", "results": []})
+    fake = FakeLLM()
+    result = run_design_loop(snapshot=snapshot(), output_dir=tmp_path / "gpu", llm_client=fake, require_gpu=True)
+    assert result["status"] == "inconclusive" and result["required_gpu"] is True
+    assert result["stopped_reason"] == "required_gpu_not_run_for_reference"
+    assert not result["numeric_gpu_verified"] and not fake.prompts
+
+
+def test_aggregate_failure_rolls_back_partial_factorial_best(tmp_path, monkeypatch):
+    from scenario.balancing_cube import adapter as module
+    actual = module.aggregate
+    calls = []
+    def aggregate(*args):
+        calls.append(True)
+        if len(calls) == 3:
+            raise ValueError("corrupt aggregate in third factorial cell")
+        result = actual(*args)
+        if len(calls) == 2:
+            result["score"] = 100.0  # Partial cell must never become the final selection.
+        return result
+    monkeypatch.setattr(module, "aggregate", aggregate)
+    result = run_design_loop(snapshot=snapshot(), output_dir=tmp_path / "factorial",
+                             llm_client=FakeLLM(joint=True), rounds=1)
+    assert result["status"] == "inconclusive"
+    assert result["stopped_reason"] == "incomplete_required_2x2_execution_failure"
+    assert result["best"]["candidate_id"] == "reference"
+    assert result["best"]["score"] != 100.0
+    assert not (tmp_path / "factorial/round-01/rejected.json").exists()
+    failed = json.loads((tmp_path / "factorial/incomplete-evaluations/attempt-001/result.json").read_text())
+    assert failed["partial_cpu_results"] and "corrupt aggregate" in failed["reason"]
+
+
+def test_executor_returns_nonzero_for_inconclusive_cube(tmp_path, monkeypatch):
+    from scenario.balancing_cube.scenario_run import BalancingCubeScenario
+    from scenario.jobs.executor import execute_run
+    from scenario.jobs.spec import RunSpec
+    root = tmp_path / "gpu-exit"
+    root.mkdir()
+    (root / "summary.json").write_text(json.dumps({"status": "inconclusive", "stopped_reason": "required_gpu_not_run_for_reference"}))
+    monkeypatch.setattr(BalancingCubeScenario, "run", lambda *args, **kwargs: root)
+    result = execute_run(RunSpec(scenario="balancing_cube", output_dir=root))
+    assert result.exit_code != 0 and result.error == "required_gpu_not_run_for_reference"

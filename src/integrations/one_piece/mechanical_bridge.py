@@ -22,7 +22,7 @@ def atomic_json(path, value):
 
 class MechanicalBridge:
     def __init__(self, store_path, *, project_id="balancing-cube",
-                 snapshot_id="cube.simulation.snapshot", snapshot_revision="fixed-dt-mvp-1"):
+                 snapshot_id="cube.simulation.snapshot", snapshot_revision="fixed-dt-mvp-2"):
         from onepiece import Store
         self.store = Store(store_path)
         self.project_id = project_id

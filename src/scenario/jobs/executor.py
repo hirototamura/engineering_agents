@@ -108,8 +108,8 @@ def execute_run(
         run_dir=run_dir,
         summary=summary,
         duration_s=duration_s,
-        exit_code=0,
-        error=None,
+        exit_code=2 if spec.scenario == "balancing_cube" and summary.get("status") == "inconclusive" else 0,
+        error=summary.get("stopped_reason") if spec.scenario == "balancing_cube" and summary.get("status") == "inconclusive" else None,
     )
 
 

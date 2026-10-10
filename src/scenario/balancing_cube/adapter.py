@@ -117,7 +117,10 @@ class BalancingCubeAdapter:
                 record["paired_metrics"] = {"passed": False, "state": "not_run", "reason": gpu.get("reason")}
             records.append(record)
         self.reset()
-        result = aggregate(records, self.snapshot, [t["key"] for t in trials])
+        try:
+            result = aggregate(records, self.snapshot, [t["key"] for t in trials])
+        except Exception as error:
+            raise RolloutExecutionFailed(compiled=compiled, stage=stage, cpu=cpu, total=len(trials), error=error) from error
         return {**result, "candidate_id": compiled["id"], "input_digest": input_digest,
                 "campaign_id": compiled["campaign_id"], "controller_digest": digest(compiled["controller"]),
                 "snapshot_digest": self.frozen_digest, "stage": stage,

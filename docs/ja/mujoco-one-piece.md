@@ -33,7 +33,7 @@ CPUとMJXは、正本の停止条件 `contact_loss_stop_s`、`slip_stop_speed_m_
 
 ## 実行
 
-両リポジトリを隣にcloneし、One-Pieceの[証拠パック](https://github.com/hirototamura/one-piece/tree/main/projects/balancing-cube)を復元する。共有契約はJSON Schema 1.0、Pythonパッケージ0.1.0に固定している。One-PieceはまだPyPI公開を前提にしないため、ローカルのcheckoutをインストールする。
+両リポジトリを隣にcloneし、One-Pieceの[証拠パック](https://github.com/hirototamura/one-piece/tree/main/projects/balancing-cube)を復元する。共有契約はJSON Schema 1.0、Pythonパッケージ0.1.1に固定している。One-PieceはまだPyPI公開を前提にしないため、ローカルのcheckoutをインストールする。
 
 ```sh
 python -m pip install -e ../one-piece -e '.[mujoco]'
@@ -43,10 +43,18 @@ python scripts/verify_cube_loop.py \
   --store ../one-piece/projects/balancing-cube/store --output results/cube-offline-check
 ```
 
-`none`は比較基準をCPUで探索・確認する。Fake LLMの受入スクリプトは実際のCPUで2反復し、One-Pieceへの保存と再取得を検査する。既定のsnapshot `cube.simulation.snapshot@fixed-dt-mvp-1` は `D-000544-52890` の版を比較基準として指定する。LQR設計時の線形化モデルと保存済みKは元の構成を維持する。比較基準の指定は採用baselineの確定ではない。
+`none`は比較基準をCPUで探索・確認する。Fake LLMの受入スクリプトは実際のCPUで2反復し、One-Pieceへの保存と再取得を検査する。既定のsnapshot `cube.simulation.snapshot@fixed-dt-mvp-2` は `D-000544-52890` の版を比較基準として指定する。LQR設計時の線形化モデルと保存済みKは元の構成を維持する。比較基準の指定は採用baselineの確定ではない。
 
 実LLMの反復は `--design-mode llm --iterate 2 --llm-provider ollama` を使う。GPUは任意の `.[gpu]` とCUDA環境を別途用意し、`--backend mjx_gpu` を指定する。今回、新しい実LLM・GPU実行は確認していない。outbox再送は `MechanicalBridge(store_path).outbox(run_dir).flush()` で行える。送信が未完了なら次のPIへ進まない。
 
 時間予算はHTTPタイムアウトとケース境界で検査する。実行中のnative solver/JIT呼出しは強制終了せず、次の境界で不完全な証拠を保持して止める。
 
 参考：[ENPIRE論文](https://arxiv.org/html/2606.19980v2)、[公式autoresearch境界](https://github.com/NVlabs/ENPIRE/blob/main/enpire/policy/autoresearch_instruction.md)、[One-Pieceシステムモデル](https://github.com/hirototamura/one-piece/blob/main/docs/ja/SYSTEM_MODEL.md)。
+
+## レビュー対応
+
+`fixed-dt-mvp-2` はv1の担当先と数値試験のトレースを訂正した版。物理モデル、保存済みK、評価条件、D-000544-52890の比較基準は同じ。比較基準の本体とcampaign_summary（前回46件の31/9/6を含む）は件数制限の外で必ず渡す。既存の受入履歴は保存し、今後の受入試験は一時ストアで実施する。
+
+`suggested_search_step` は探索の助言であり、親との差の上限ではない。compilerは機械・制御の絶対範囲を強制する。比較基準の実行失敗時にはPIを始めず、要求したGPUが未実行ならinconclusiveと非ゼロ終了を返す。2×2途中の集計失敗でも部分証拠を残し、bestを元に戻す。
+
+CIはMuJoCoとReleaseのSHA-256固定One-Piece 0.1.1 wheelを導入し、Python 3.11/3.12でCube試験のスキップ0件を必須とする。実GPU実行は別の未実施項目である。

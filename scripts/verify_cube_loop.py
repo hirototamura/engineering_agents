@@ -32,7 +32,7 @@ class FakeDesigner:
             # Consume both persisted measurement and the evolved policy. This
             # deterministic fixture tests the feedback wiring, not LLM quality.
             direction = 1 if measured["data"]["score"] < 1 else -1
-            mass += direction * min(.01, context["policy"]["search_step"] * .05)
+            mass += direction * min(.01, context["policy"]["suggested_search_step"] * .05)
             parent = feedback["candidate_id"]
             hypothesis = (f"Use stored {measured['id']}@{measured['revision']} score="
                           f"{measured['data']['score']} with policy revision "
@@ -73,7 +73,7 @@ def main() -> None:
         "two_completed_rounds": summary["iterations_completed"] == 2,
         "measured_round_one_saved_and_reread": bool(saved_feedback),
         "round_two_reads_evolved_policy": second.get("policy", {}).get("revision") == 2,
-        "policy_search_step_changed": bool(second) and second["policy"]["search_step"] != fake.prompts[0]["policy"]["search_step"],
+        "policy_search_step_changed": bool(second) and second["policy"]["suggested_search_step"] != fake.prompts[0]["policy"]["suggested_search_step"],
         "round_two_receives_measured_feedback": bool(second.get("feedback")),
         "real_native_cpu_frames": bool(results) and all(
             r["records"] and all(row["backend"]["backend"] == "native_mujoco_cpu"

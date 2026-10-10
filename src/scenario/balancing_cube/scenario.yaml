@@ -4,7 +4,7 @@ ssot:
   path: null
   project_id: balancing-cube
   snapshot_id: cube.simulation.snapshot
-  snapshot_revision: fixed-dt-mvp-1
+  snapshot_revision: fixed-dt-mvp-2
 backend:
   kind: mujoco_cpu
 agents:

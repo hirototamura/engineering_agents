@@ -55,14 +55,15 @@ def evolve_policy(policy, feedback, *, improved, snapshot):
         if "torque" in metric or "speed" in metric:
             tokens += ["torque", "speed", "wheel"]
     ranked = sorted(available, key=lambda row: (-sum(token in str(row.get("model_path", "")).lower() for token in tokens), str(row.get("id", ""))))
-    step = policy["search_step"] * (1.15 if improved else .5)
+    step = policy["suggested_search_step"] * (1.15 if improved else .5)
     return {"revision": policy["revision"] + 1, "parent_revision": policy["revision"],
             "hypothesis": f"Measured candidate {feedback['candidate_id']} score={feedback['score']:.8g}; "
                           f"prioritize failures {failures or ['none in numerical screening']} and compare an allowlisted design change.",
             "priority_kdps": [row["id"] for row in ranked[:5]],
-            "search_step": min(.25, max(.01, step)), "failure_metrics": failures,
+            "suggested_search_step": min(.25, max(.01, step)), "failure_metrics": failures,
+            "step_enforcement": "advisory_only; compiler enforces absolute mechanical/control bounds",
             "derived_from_candidate": feedback["candidate_id"],
-            "permitted_edits": "hypothesis,priority_kdps,search_step only; no executable code or verifier changes"}
+            "permitted_edits": "hypothesis,priority_kdps,suggested_search_step only; no executable code or verifier changes"}
 
 
 def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidates=20,
@@ -108,7 +109,8 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                                   "scope": "design intent only; not physical verification"})
         return outbox.enqueue(id=id, kind=kind, data=data, links=links, artifacts=[outbox.artifact(path)])
     policy = {"revision": 1, "hypothesis": "Compare an allowlisted mechanical/control change against the frozen reference",
-              "priority_kdps": [], "search_step": .1, "failure_metrics": []}
+              "priority_kdps": [], "suggested_search_step": .1, "failure_metrics": [],
+              "step_enforcement": "advisory_only; compiler enforces absolute mechanical/control bounds"}
     atomic_json(root / "policy-initial.json", policy)
     policy_record = publish("design_policy", f"{run_id}.policy.1", policy, root / "policy-initial.json")
     started, stagnant = time.monotonic(), 0
@@ -159,8 +161,14 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
             best = entry
         return entry
 
-    evaluate(baseline, round_index=0, cell="M0C0")
+    reference_entry = evaluate(baseline, round_index=0, cell="M0C0")
+    if reference_entry is None:
+        stop = "reference_execution_failed" if incomplete_evaluations and incomplete_evaluations[-1]["state"] == "failed" else "reference_evaluation_incomplete"
+    elif require_gpu and reference_entry["result"]["gpu_state"] != "completed":
+        stop = "required_gpu_not_run_for_reference"
     for index in range(1, rounds + 1):
+        if stop in {"reference_execution_failed", "reference_evaluation_incomplete", "required_gpu_not_run_for_reference"}:
+            break
         if llm_client is None and proposal is None:
             stop = "design_disabled"
             break
@@ -194,6 +202,8 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                        "output_contract": "JSON {id,family,parameters:{six authorized variables},hypothesis,control?:{Q multipliers,yaw gain}}; no thresholds/reset/code edits"}
         atomic_json(round_dir / "prompt-data.json", prompt_data)
         previous_score = best["result"]["score"] if best else float("-inf")
+        previous_best = best
+        phase = "proposal"
         proposed = None
         try:
             proposed = copy.deepcopy(proposal) if proposal is not None and index == 1 else _proposal(llm_client, json.dumps(prompt_data, ensure_ascii=False), deadline=deadline)
@@ -218,7 +228,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                 if len(entries) + needed > max_candidates:
                     stop = "candidate_budget_before_required_2x2"
                     break
-            previous_best = best
+            phase = "rollout"
             evaluated = [evaluate(cell, round_index=index, cell=name) for cell, name in cells]
             if any(entry is None for entry in evaluated) and mechanical_changed and control_changed:
                 best = previous_best
@@ -229,6 +239,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                 stop = "candidate_execution_failed" if incomplete_evaluations and incomplete_evaluations[-1]["state"] == "failed" else "candidate_or_wall_budget"
                 break
             feedback = adapter.feedback(evaluated[-1]["result"])
+            phase = "evolution"
             improved = best["result"]["score"] > previous_score
             policy = evolve_policy(policy, feedback, improved=improved, snapshot=snapshot)
             atomic_json(round_dir / "policy-output.json", policy)
@@ -248,6 +259,16 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                 stop = "stagnation_budget"
                 break
         except (ValueError, TypeError, KeyError) as error:
+            if phase != "proposal":
+                best = previous_best
+                failed = RolloutExecutionFailed(compiled=compiled, stage="exploration", cpu=[], total=0, error=error)
+                directory = root / "incomplete-evaluations" / f"attempt-{len(incomplete_evaluations) + 1:03d}"
+                atomic_json(directory / "compiled.json", compiled)
+                atomic_json(directory / "result.json", failed.evidence)
+                publish("simulation_run", f"{run_id}.incomplete.{len(incomplete_evaluations) + 1}", failed.evidence, directory / "result.json")
+                incomplete_evaluations.append({"candidate_id": compiled["id"], "state": "failed", "reason": str(failed), "artifact": str(directory / "result.json")})
+                stop = "execution_failed_during_" + phase
+                break
             rejected = {"status": "rejected", "error": str(error), "round": index,
                         "proposal": proposed, "physical_verified": False}
             atomic_json(round_dir / "rejected.json", rejected)
@@ -271,7 +292,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
     adapter.reset()
     validation = {"state": "not_run", "reason": "wall_budget_or_no_candidate",
                   "numeric_gpu_verified": False, "physical_verified": False}
-    if best and time.monotonic() < deadline and stop != "context_revision_changed_requires_new_run" and not stop.startswith("onepiece_sync_pending"):
+    if best and time.monotonic() < deadline and stop not in {"context_revision_changed_requires_new_run", "required_gpu_not_run_for_reference"} and not stop.startswith("onepiece_sync_pending"):
         try:
             checked = adapter.rollout(best["compiled"], stage="validation", require_gpu=require_gpu, deadline=deadline)
             validation = {**{k: v for k, v in checked.items() if k != "records"}, "state": "completed",
@@ -286,8 +307,11 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
         publish("simulation_run", f"{run_id}.validation", validation, root / "validation/result.json")
     confirmed = validation["state"] == "completed" and validation.get("numeric_gpu_verified") is True and validation.get("all_screening_passed") is True
     validation_status = "numerically_confirmed" if confirmed else "provisional"
+    required_gpu_incomplete = require_gpu and (validation.get("gpu_state") != "completed" or any(e["result"]["gpu_state"] != "completed" for e in entries))
+    if required_gpu_incomplete and stop not in {"reference_execution_failed", "reference_evaluation_incomplete", "required_gpu_not_run_for_reference"} and not incomplete_evaluations:
+        stop = "required_gpu_not_run"
     incomplete = incomplete_evaluations or stop.startswith("onepiece_sync_pending") or stop in {
-        "incomplete_required_2x2_wall_budget", "context_revision_changed_requires_new_run", "wall_budget_during_validation", "execution_failed_during_validation"}
+        "reference_evaluation_incomplete", "incomplete_required_2x2_wall_budget", "context_revision_changed_requires_new_run", "wall_budget_during_validation", "execution_failed_during_validation"} or required_gpu_incomplete
     summary = {"scenario": "balancing_cube", "run_id": run_id, "status": "inconclusive" if incomplete else "completed",
                "iterations_requested": rounds, "iterations_completed": len(rounds_log),
                "candidates_evaluated": len(entries), "stopped_reason": stop,
@@ -295,6 +319,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                "best": {k: v for k, v in best["result"].items() if k != "records"} if best else None,
                "validation": validation, "selection_status": validation_status,
                "numeric_gpu_verified": validation.get("numeric_gpu_verified") is True,
+               "required_gpu": require_gpu,
                "physical_verified": False, "physical_fidelity": None,
                "controller_fairness": "fixed_saved_K_per_small_campaign; controller changes create new campaigns; joint changes use 2x2",
                "evolution_scope": "feedback-driven design-search-policy data; no weight training/code/threshold edits",

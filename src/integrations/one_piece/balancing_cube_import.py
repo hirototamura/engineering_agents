@@ -162,7 +162,9 @@ def _compact(summary: dict) -> dict:
     return result
 
 
-def build_records(source: str | Path, *, project_id: str = PROJECT_ID) -> tuple[list[dict], dict]:
+def _build_legacy_records(source: str | Path, *, project_id: str = PROJECT_ID) -> tuple[list[dict], dict]:
+    # Preserve already published revisions byte-for-byte. Ownership and evidence
+    # trace corrections are appended by build_records, never backdated here.
     """Build deterministic records, validating the legacy summary against raw CSV."""
     from onepiece import make_record, ref
 
@@ -422,6 +424,17 @@ def build_records(source: str | Path, *, project_id: str = PROJECT_ID) -> tuple[
               "artifact_bytes": sum(a["size_bytes"] for a in artifact_list),
               "source_unchanged": True, "hardware_physical_validity": None}
     return records, result
+
+
+def build_records(source: str | Path, *, project_id: str = PROJECT_ID) -> tuple[list[dict], dict]:
+    from .balancing_cube_trace import trace_corrections
+    legacy, summary = _build_legacy_records(source, project_id=project_id)
+    corrections = trace_corrections(legacy)
+    records = legacy + corrections
+    summary.update(legacy_records=len(legacy), trace_corrections=len(corrections), records=len(records),
+                   kinds=dict(Counter(r["kind"] for r in records)),
+                   canonical_bytes=len(json.dumps(records, ensure_ascii=False, separators=(",", ":")).encode()))
+    return records, summary
 
 
 def main(argv=None) -> int:

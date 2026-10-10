@@ -154,3 +154,23 @@ def test_prior_ids_and_outcomes_checked(campaign):
     mutate_json(campaign, "report/analysis.json", lambda a: a["prior46"].update(status_counts={"confirmed_numerical_fail": 1}))
     with pytest.raises(ImportValidationError, match="Prior-candidate outcomes"):
         build_records(campaign)
+
+
+def test_corrected_trace_allocates_mission_and_verifies_numerical_cases(campaign, tmp_path):
+    from onepiece import Store
+    mutate_json(campaign, "report/sources/snapshot.json", lambda s: s["mission"]["requirements"][0].update(hardware_acceptance=True))
+    frozen = json.loads((campaign / "report/sources/snapshot.json").read_text())
+    mutate_json(campaign, "report/sources/campaign.json", lambda c: c.update(snapshot_digest=_legacy_digest(frozen)))
+    records, summary = build_records(campaign)
+    store = Store(tmp_path / "trace")
+    store.import_records(records, artifacts_root=campaign)
+    context = store.context("balancing-cube", snapshot_ref={"id": "cube.simulation.snapshot", "revision": "fixed-dt-mvp-2"})
+    mission = next(r for r in context["records"] if r["id"] == "M-VERTEX")
+    assert mission["product_node"] == "cube.system"
+    assert next(e for e in mission["links"] if e["type"] == "allocate")["target"]["id"] == "cube.system"
+    assert mission["data"]["hardware_verification_required"] is True
+    assert "hardware_acceptance" not in mission["data"]
+    assert "not verification" in mission["data"]["status_semantics"]
+    current = [r for r in records if r["kind"] == "evaluation" and r["revision"] == "trace-20261010-2"]
+    assert current and all(e["target"]["id"].startswith("cube.case.") for r in current for e in r["links"] if e["type"] == "verify")
+    assert summary["trace_corrections"] > 0
