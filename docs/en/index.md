@@ -115,7 +115,7 @@ ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8 \
 ea results
 ```
 
-`LoopMock` arithmetic dynamics; labeled WRS commands are **rejected** (`NotImplementedError`). Prefer `plant_sim` when you need water recovery or occupant survival.
+`LoopMock` uses arithmetic dynamics. If the labeled team issues `water_recovery` (when product water is low or waste feed is sufficient), `LoopMock` raises an uncaught `NotImplementedError` and the run fails before normal artifacts are produced. Prefer `plant_sim` when you need water recovery or occupant survival.
 
 ### plant_sim (single sim, host mass balance)
 
