@@ -570,7 +570,8 @@ flowchart TD
   I -->|oxygen_generation| K["send_oxygen_generation_goal()"]
   I -->|water_recovery| Jw["send_water_recovery_goal()"]
   I -->|request_co2 / request_o2| L["Service call"]
-  D -->|mock only| M["LoopMockEclssBackend.advance_step()"]
+  D -->|mock| M["LoopMockEclssBackend.advance_step()"]
+  D -->|plant_sim| M2["PlantSimEclssBackend.advance_step()"]
   D -->|done| N["propose_post_run_design()"]
 ```
 
