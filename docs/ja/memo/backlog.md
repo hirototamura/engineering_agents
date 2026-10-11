@@ -134,7 +134,7 @@ Phase 7a は **`Ros2EclssBridge` クライアント側 remap** のみ。SSOS ノ
 |------|------|------|
 | P1 | **ros2 E2E pytest（optional）** | SSOS コンテナ CI または live skip 統合テスト |
 | P1 | **LLM 接続 preflight** | llm モード開始時に `OllamaClient.check_connection()` で早期 fail |
-| P2 | **WRS in scenario team** | `SsosEclssLoopTeam` が WRS goal / 水サービスを labeled・LLM で操作 |
+| P2 | **WRS in scenario team** | **完了。** `SsosEclssLoopTeam` が labeled / LLM で `water_recovery` を発行。`LoopMockEclssBackend.send_water_recovery_goal` はいまも `NotImplementedError`（`plant_sim` / `ros2` を使う）。 |
 | P2 | **ECLSS + EPS 単一 ros2 シナリオ** | 電力危機と ECLSS を同一 run（`eclss.backend=ros2` + `eps.backend=ssos_eps`） |
 | P2 | **rclpy ネイティブ ECLSS クライアント** | CLI ブリッジからの移行（レイテンシ・CI 安定性） |
 | P3 | **MkDocs CI deploy** | `docs/ssos-mkdocs` ブランチ |

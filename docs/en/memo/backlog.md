@@ -135,7 +135,7 @@ Phase 7a covers **client-side remap in `Ros2EclssBridge` only**. Without `--ros-
 |----------|------|-------------|
 | P1 | **ros2 E2E pytest (optional)** | SSOS container CI or live skip integration test |
 | P1 | **LLM connection preflight** | Early fail with `OllamaClient.check_connection()` at llm mode start |
-| P2 | **WRS in scenario team** | `SsosEclssLoopTeam` operates WRS goals / water services in labeled and LLM modes |
+| P2 | **WRS in scenario team** | **Done.** `SsosEclssLoopTeam` issues `water_recovery` in labeled and LLM modes. `LoopMockEclssBackend.send_water_recovery_goal` still raises `NotImplementedError` (use `plant_sim` / `ros2`). |
 | P2 | **Single ros2 scenario: ECLSS + EPS** | Power crisis and ECLSS in one run (`eclss.backend=ros2` + `eps.backend=ssos_eps`) |
 | P2 | **rclpy native ECLSS client** | Migrate from CLI bridge (latency, CI stability) |
 | P3 | **MkDocs CI deploy** | `docs/ssos-mkdocs` branch |

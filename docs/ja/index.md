@@ -104,20 +104,34 @@ python3 -m tools.cli run scrubber_degradation --agents-mode labeled_rule_base --
 !!! tip "設計 → 検証ループ"
     Run N で `design_proposals.json` が発行されます。Run N+1 を `--apply-proposals` 付きで実行すると設定がマージされ再シミュレーション — [ssos_eclss_loop シナリオ](scenario-ssos-eclss-loop.md#実行方法) を参照。
 
-### Mock SSOS シナリオ（Docker 不要）
+!!! warning "ssos_eclss_loop の CLI 既定"
+    引数なしの `ea run ssos_eclss_loop` は **50 周の plant_sim 連鎖**です（labeled actor、llm designer、`iteration.enabled: true`）。designer 用 LLM が必要です。**1 回**にするには `--set iteration.enabled=false`。前 run の提案を載せるときは **別の `--run-id`** を使う（既定ディレクトリは毎回作り直される）。
+
+### Mock SSOS（単発・Docker 不要・LLM 不要）
 
 ```bash
-ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8
+ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8 \
+  --set iteration.enabled=false --run-id mock-smoke
 ea results
+```
+
+`LoopMock` は算術動態。labeled の WRS コマンドは **拒否**（`NotImplementedError`）。水回収や乗員生存が必要なら `plant_sim`。
+
+### plant_sim（単発・ホスト物質収支）
+
+```bash
+ea run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base \
+  --set iteration.enabled=false --steps 20 --run-id plant-smoke
 ```
 
 ### 実 SSOS（Docker + ros2）
 
-macOS 初回セットアップ — **ホスト** のみで実行:
+macOS 初回セットアップ — **ホスト** のみ。50 周連鎖が不要なら `--set iteration.enabled=false`:
 
 ```bash
 ./scripts/ssos/mac/ssos-run-detached.sh
-ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
+ea run ssos_eclss_loop --backend ros2 --actor-mode labeled_rule_base --steps 50 \
+  --set iteration.enabled=false
 ea results
 ```
 
@@ -130,7 +144,7 @@ ea results
 | シナリオ | 内容 | バックエンド | 典型コマンド |
 | --- | --- | --- | --- |
 | [scrubber_degradation](scenario-scrubber-degradation.md) | Python モック上の CO₂ スクラバー異常 | `StationSimulator` | `ea run scrubber_degradation --agents-mode labeled_rule_base` |
-| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | SSOS ECLSS（ARS/OGS/WRS）のエージェント運用 | `mock` / `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base` |
+| [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | SSOS ECLSS（ARS/OGS/WRS）のエージェント運用 | `plant_sim`（CLI 既定）、`mock`、`ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --set iteration.enabled=false` |
 
 両シナリオでエージェントモードは共通: **`none`** / **`labeled_rule_base`**（再現性の高い回帰）/ **`llm`**（Ollama または研究室 vLLM）。
 
@@ -152,6 +166,7 @@ src/experiments/results/<run_id>/
 | `design_proposals.json` | **ラン終了後**の恒久設計提案 |
 | `summary.json` | run メタデータ（`scenario`, `agents_mode` 等） |
 | `health_metrics.jsonl` | safe / warning / critical（ssos_eclss_loop） |
+| `evaluation.json` | 決定論スコアカード + 物理ゲート（`plant_sim` + survival） |
 
 `--run-id` / `--output-dir` / `EA_RESULTS_ROOT` で上書き可能。
 

@@ -50,7 +50,8 @@ environment/
     ros2/cli.py              # 共有 ros2 CLI ヘルパ（ECLSS + EPS ブリッジ）
     eclss/                   # ssos_eclss_loop
       backend.py             # EclssBackend プロトコル
-      mock/backend.py        # MockEclssBackend（契約スタブ）
+      mock/backend.py        # MockEclssBackend（契約スタブ。WRS はここ）
+      plant_sim/             # PlantSimEclssBackend — CLI 既定
       ros2/                  # Ros2EclssBridge, graph_rewire, topics
     eps/ros2/                # Ros2EpsBridge のみ — scrubber EPS オプション。eclss loop 未接続
 ```
@@ -81,6 +82,7 @@ flowchart TB
     CLI["ros2/cli.py"]
     EB["EclssBackend"]
     LME["LoopMockEclssBackend<br/>(mock)"]
+    PSE["PlantSimEclssBackend<br/>(plant_sim)"]
     REB["Ros2EclssBridge<br/>(ros2)"]
   end
 
@@ -97,6 +99,7 @@ flowchart TB
   EPS --> MEP
   EPS -.->|"eps.backend: ros2"| REP
   EB --> LME
+  EB --> PSE
   EB --> REB
   REB --> CLI
   REP --> CLI
@@ -433,7 +436,7 @@ run ID: `scrubber_degradation_{baseline|labeled_rule_base|llm}`
 
 ## ssos_eclss_loop
 
-SSOS Docker 内の実 ROS2 ECLSS（または `LoopMockEclssBackend`）。`**SimulatorProtocol` は使わない**。
+SSOS Docker 内の実 ROS2 ECLSS、ホスト `plant_sim`、または `LoopMockEclssBackend`。`**SimulatorProtocol` は使わない**。
 
 ### 用語
 
@@ -453,11 +456,11 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
         ▼
   scenario/ssos_eclss_loop/scenario_run.py → SsosEclssLoopScenario
         │
-        ├─ build_eclss_backend() → LoopMockEclssBackend | Ros2EclssBridge(topic_remap)
+        ├─ build_eclss_backend() → LoopMockEclssBackend | PlantSimEclssBackend | Ros2EclssBridge(topic_remap)
         ├─ build_team()            → SsosEclssLoopTeam（actor）
         │
         ▼
-  for step in 1..N:
+  for step in 0..N-1:
     1. backend.poll_telemetry()      → EclssTelemetrySnapshot
     2. log telemetry, health, design_state
     3. team.run_step(backend, obs)  → EclssOperationalCommand
@@ -475,8 +478,9 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
 | --- | --- |
 | `environment/ssos/eclss/backend.py` | `EclssBackend` プロトコル |
 | `environment/ssos/eclss/types.py` | ストレージテレメトリ、ゴール、action/service 結果 |
-| `environment/ssos/eclss/mock/backend.py` | `MockEclssBackend` — no-op 契約スタブ |
-| `scenario/ssos_eclss_loop/loop_mock_backend.py` | `LoopMockEclssBackend` — mock run 用ストレージ動態 |
+| `environment/ssos/eclss/mock/backend.py` | `MockEclssBackend` — 契約スタブ（WRS はここに実装） |
+| `scenario/ssos_eclss_loop/loop_mock_backend.py` | `LoopMockEclssBackend` — mock のストレージ動態。**WRS は `NotImplementedError`** |
+| `environment/ssos/eclss/plant_sim/` | `PlantSimEclssBackend` — CLI 既定の物質収支プラント |
 | `environment/ssos/eclss/ros2/bridge.py` | `Ros2EclssBridge` — ros2 CLI / rclpy 経由の実 SSOS ECLSS |
 | `environment/ssos/eclss/ros2/graph_rewire.py` | Phase 7 クライアント remap 用 `build_topic_remap()` |
 | `environment/ssos/eclss/ros2/topics.py` | action/service/topic 名 |
@@ -490,7 +494,8 @@ scenario.yaml + agents.yaml (+ ssos_graph.rewires 任意)
 
 | `backend.kind` | 実装 |
 | --- | --- |
-| `mock`（デフォルト） | `LoopMockEclssBackend` — ホスト dev、簡易 CO₂/O₂ 動態 |
+| `plant_sim`（CLI 既定） | `PlantSimEclssBackend` — ホスト物質収支、生存、WRS |
+| `mock` | `LoopMockEclssBackend` — ホスト算術 CO₂/O₂。WRS は例外 |
 | `ros2` | `Ros2EclssBridge` — SSOS Docker。任意で `ssos_graph.rewires` → `topic_remap` |
 
 CLI `--backend mock|ros2`、config `backend.kind`、環境変数 `SSOS_ECLSS_BACKEND` で上書き可能。
@@ -559,9 +564,11 @@ flowchart TD
   A["SsosEclssLoopScenario.run"] --> B["build_eclss_backend()"]
   B --> B1{"backend.kind"}
   B1 -->|mock| B2["LoopMockEclssBackend"]
+  B1 -->|plant_sim| B2p["PlantSimEclssBackend"]
   B1 -->|ros2| B3["Ros2EclssBridge(topic_remap)"]
   A --> C["build_team() → SsosEclssLoopTeam"]
-  B2 --> D{"step 1..N"}
+  B2 --> D{"step 0..N-1"}
+  B2p --> D
   B3 --> D
   D --> E["backend.poll_telemetry()"]
   E --> F["compute_eclss_storage_health() + EventLog"]
@@ -570,6 +577,7 @@ flowchart TD
   H --> I{"command kind"}
   I -->|air_revitalisation| J["send_air_revitalisation_goal()"]
   I -->|oxygen_generation| K["send_oxygen_generation_goal()"]
+  I -->|water_recovery| Jw["send_water_recovery_goal()"]
   I -->|request_co2 / request_o2| L["Service call"]
   D -->|mock only| M["LoopMockEclssBackend.advance_step()"]
   D -->|done| N["propose_post_run_design()"]
@@ -646,7 +654,7 @@ SsosEclssLoopTeam                         # scenario/agents/ssos_eclss_loop_team
 
 #### llm
 
-N 体同時 deliberation のあと、`agents.actor.max_actions_per_step` 体までの回転代表（既定 **2**）が運用コマンドを並列発行。プロンプトにはストレージ kg とヘルス状態（policy なし）。`--set agents.actor.max_actions_per_step=8` で上書き可。
+N 体同時 deliberation のあと、`agents.actor.max_actions_per_step` 体までの回転代表（既定 **6**）が運用コマンドを並列発行。プロンプトにはストレージ kg とヘルス状態（policy なし）。`--set agents.actor.max_actions_per_step=8` で上書き可。
 
 事後は designer 代表 1 体が `changes` を出す。件数に上限はない。
 
@@ -655,7 +663,7 @@ N 体同時 deliberation のあと、`agents.actor.max_actions_per_step` 体ま�
 
 | 固有フィールド                             | 内容                    |
 | ----------------------------------- | --------------------- |
-| `summary.backend`                   | `mock` / `ros2`       |
+| `summary.backend`                   | `mock` / `plant_sim` / `ros2` |
 | `summary.operational_command_count` | 運用コマンド数               |
 | `summary.max_actions_per_step`      | llm / labeled: step あたりのコマンド上限 |
 | `events.jsonl`                      | `operational_applied` |

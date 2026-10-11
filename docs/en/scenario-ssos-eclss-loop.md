@@ -51,7 +51,7 @@ Questions this scenario answers:
 | --- | --- | --- |
 | **ARS** | Air Revitalisation System | CO₂ removal from storage (`air_revitalisation` Action) |
 | **OGS** | Oxygen Generation System | O₂ generation (`oxygen_generation` Action). Sabatier needs CO₂ feedstock |
-| **WRS** | Water Recovery System | Water recovery (`water_recovery_systems` Action) — team operation is backlog (BL-004) |
+| **WRS** | Water Recovery System | Water recovery (`water_recovery_systems` Action). Team issues `kind: water_recovery` (labeled + llm). **`plant_sim` / `ros2` apply it**; `LoopMockEclssBackend` still raises `NotImplementedError` |
 
 ### ROS2 interfaces (main)
 
@@ -113,38 +113,24 @@ Each step: all N actors deliberate in parallel → up to `agents.actor.max_actio
 
 ```yaml
 simulation:
-  steps: 8
-  initial_co2_storage_kg: 1.5
+  steps: 50  # one sim's length — not iteration.count
+  initial_co2_storage_kg: 1.3
   initial_o2_storage_kg: 8.0
   initial_product_water_l: 80.0
 
 backend:
-  kind: mock  # mock | plant_sim | ros2 — also overridable via SSOS_ECLSS_BACKEND env var
+  kind: plant_sim  # mock | plant_sim | ros2 — also SSOS_ECLSS_BACKEND / CLI --backend
 
-mock_dynamics:
-  co2_growth_kg_per_step: 0.06
-  ars_co2_reduction_kg: 0.35
-  ogs_o2_gain_kg: 0.1
-
-thresholds:
-  co2_storage_high_kg: 2.0
-  co2_storage_critical_kg: 8.0
-  o2_storage_low_kg: 6.0
-  o2_storage_critical_kg: 1.0
-  product_water_low_l: 50.0
-
-# Off by default. Enable with --inject-failures or inject_failures: true
-inject_failures: false
-subsystem_failures:
-  - subsystem: ars   # ars | ogs | wrs
-    start_step: 10   # inclusive (0-based)
-    end_step: 20     # optional, exclusive
+iteration:
+  enabled: true   # bare `ea run ssos_eclss_loop` is a 50-round chain
+  count: 50
+  approve_provisional: false
 
 agents:
   actor:
-    mode: none  # none | labeled_rule_base | llm (CLI --actor-mode)
-    max_actions_per_step: 2  # llm / labeled cap on commands per step
-  design: {}  # omit design.mode to inherit actor.mode
+    mode: labeled_rule_base
+    max_actions_per_step: 6  # llm / labeled cap on commands per step
+  design: {}  # omit design.mode to inherit actor.mode; CLI pins llm when neither is set
 
 output:
   run_id: ssos_eclss_loop_baseline
@@ -152,7 +138,7 @@ output:
   run_id_llm: ssos_eclss_loop_llm
 ```
 
-CLI: `--set agents.actor.max_actions_per_step=8`. llm clamps to `actor.team.count` (action representatives). labeled does not clamp; it sizes ARS/OGS/WRS to leave warning/critical, then takes `min(needed, max)`.
+Shipped YAML also has `thresholds`, `plant_sim` (crew size 50, BVAD rates), `design_constraints`, and `evaluation`. CLI: `--set agents.actor.max_actions_per_step=8`. llm clamps to `actor.team.count` (action representatives). labeled does not clamp; it sizes ARS/OGS/WRS to leave warning/critical, then takes `min(needed, max)`. Single-sim smoke: `--set iteration.enabled=false`.
 
 `ssos_graph.rewires` (optional) — when merged via `--apply-proposals` from a prior `graph_rewire` proposal, client remaps are passed to `Ros2EclssBridge` on the next run.
 
@@ -183,9 +169,12 @@ actor:
     request_co2_before_ogs: false
     request_co2_amount: 0.025
     ars_goal:
-      initial_co2_mass: 1.8
+      initial_co2_mass: 4.50
     ogs_goal:
       input_water_mass: 0.15
+    wrs_goal:
+      urine_volume: 0.5
+    wrs_feed_trigger_l: 5.0
   llm:
     provider: vllm
     base_url: http://10.10.0.108:8000/v1
@@ -195,7 +184,7 @@ actor:
 
 design:
   team:
-    count: 4
+    count: 1
     id_prefix: eclss_designer
   llm:
     provider: vllm
@@ -228,7 +217,7 @@ Agent operational triggers (`co2_storage_high_kg`, etc.) come from `scenario.yam
 | --- | --- | --- |
 | `air_revitalisation` | `send_air_revitalisation_goal()` | ARS cycle — CO₂ removal |
 | `oxygen_generation` | `send_oxygen_generation_goal()` | OGS cycle — O₂ generation |
-| `water_recovery_systems` | `send_water_recovery_goal()` | WRS cycle (`plant_sim` and `ros2`; LoopMock not implemented) |
+| `water_recovery` | `send_water_recovery_goal()` | WRS cycle (`plant_sim` / `ros2`; LoopMock raises `NotImplementedError`) |
 | `request_co2` | `request_co2(amount)` | Sabatier feedstock supply |
 | `request_o2` | `request_o2(amount)` | O₂ withdrawal |
 
@@ -248,9 +237,9 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 
 | Concept | ssos_eclss_loop |
 | --- | --- |
-| IDs | actors `eclss_actor_1` … `N` (default 50); designers `eclss_designer_1` … `4` |
+| IDs | actors `eclss_actor_1` … `N` (default 50); designers `eclss_designer_1` (default **1**; audit panel is separate) |
 | deliberation | llm: one round for all. labeled: operational decision messages |
-| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_actor_{step % N}` (default **2**). labeled: needed ARS/OGS/WRS capped at that count |
+| action reps | llm: rotating window of `max_actions_per_step` agents from `eclss_actor_{step % N}` (default **6**). labeled: needed ARS/OGS/WRS capped at that count |
 | post-run rep | One designer representative emits `changes` (no count cap; file written when non-empty) |
 
 `SsosEclssLoopTeam` extends the `Team` ABC. Signatures: `run_step(backend, obs)` / `apply_outcome(backend, outcome)`.
@@ -268,20 +257,24 @@ ROS launch-file remap (Phase 8): [backlog BL-003](memo/backlog.md#bl-003).
 
 ## How to run { #how-to-run }
 
+Bare `ea run ssos_eclss_loop` pins `--backend plant_sim --actor-mode labeled_rule_base --design-mode llm` and, because `iteration.enabled` is true, runs **50 chained sims**. Add `--set iteration.enabled=false` for the one-shot examples below.
+
 ### mock (host, no ROS2)
 
+Arithmetic tanks. Labeled WRS commands fail on LoopMock.
+
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labeled_rule_base
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base \
+  --set iteration.enabled=false --steps 8 --run-id mock-smoke
 ```
 
 ### plant_sim (host, mass-balance plant)
 
-Deterministic crew + ARS/OGS/Sabatier/WRS model with explainable ledgers. No Docker.
+Deterministic crew + ARS/OGS/Sabatier/WRS with explainable ledgers. No Docker. Occupant survival is on by default.
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend plant_sim --actor-mode labeled_rule_base --steps 72
-python3 -m tools.cli run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base --steps 72
+python3 -m tools.cli run ssos_eclss_loop --backend plant_sim --actor-mode labeled_rule_base \
+  --set iteration.enabled=false --steps 20 --run-id plant-smoke
 ```
 
 Details: [Plant Sim backend](memo/ssos_eclss_loop/plant_sim_backend.md). Occupant attrition: [Occupant survival](memo/ssos_eclss_loop/occupant_survival.md).
@@ -332,6 +325,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm 
 | `scenario_config.yaml` | Effective scenario config (after overrides / `--apply-proposals`) |
 | `agents_config.yaml` | Effective agents config (when mode ≠ none) |
 | `summary.json` | Peak CO₂, operational count, backend kind, etc. |
+| `evaluation.json` | Scorecard + `physics_gate` (`plant_sim` + survival; otherwise `not_applicable`) |
 | `provenance.jsonl` | Operational records (`record_type: operational`) |
 
 **Scrubber-only fields not in ssos**: `eps_telemetry.jsonl`, ppm-based recovery events.
@@ -362,7 +356,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm 
       "change_kind": "action_profile",
       "payload": {
         "action": "air_revitalisation",
-        "fields": {"initial_co2_mass": 2000.0}
+        "fields": {"initial_co2_mass": 4.50}
       }
     }
   ],

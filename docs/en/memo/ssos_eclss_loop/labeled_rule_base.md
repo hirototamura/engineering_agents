@@ -121,7 +121,7 @@ thresholds:
   product_water_low_l: 50.0
 agents:
   actor:
-    max_actions_per_step: 2  # labeled: action cap; llm: actor cap (scenario default)
+    max_actions_per_step: 6  # labeled: action cap; llm: actor cap (scenario default)
 ```
 
 ```yaml
