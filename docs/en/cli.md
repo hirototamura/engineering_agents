@@ -63,7 +63,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | `--actor-mode` | `ssos_eclss_loop` in-sim actors: `none`, `labeled_rule_base`, or `llm` |
 | `--design-mode` | `ssos_eclss_loop` post-run designers: `none`, `labeled_rule_base`, or `llm` (omit to inherit actor mode) |
 | `--llm-provider` | `ollama` (local) or `vllm` (lab GPU server). Applied to whichever side is `llm` |
-| `--llm-model` | Override LLM model; on ssos writes both `agents.actor.llm.model` and `agents.design.llm.model` (collapses the 9B/27B split). Distinct URLs/models: `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (same for `.model`). `VLLM_MODEL` similarly stamps every vLLM client. Ollama-style tags with `:` fall back to `qwen3-8b` |
+| `--llm-model` | Override model for sides currently in `llm` mode; on ssos it stamps both `agents.actor.llm.model` and `agents.design.llm.model` when both are in `llm` mode (collapsing the 9B/27B split). Distinct URLs/models: `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (same for `.model`). `VLLM_MODEL` similarly overrides vLLM clients on sides in `llm` mode. Ollama-style tags with `:` fall back to `qwen3-8b` |
 | `--steps` | Override `simulation.steps` |
 | `--run-id` | Override output run id when using the default results root |
 | `--output-dir` | Write directly to a directory path |
@@ -85,6 +85,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 
 
 For separate actor and designer models when both sides use `llm`, omit `--llm-model` and unset `VLLM_MODEL` before setting `agents.actor.llm.model` and `agents.design.llm.model` individually. `_apply_llm_cli_to_llm_sides()` applies `--llm-model` after `--set`, while `VLLM_MODEL` takes precedence over YAML. These global overrides apply only to sides currently in `llm` mode.
+
 On `ssos_eclss_loop`, in-sim actors and post-run designers are separate. See [post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md). `--agents-mode` is a deprecated alias for `--actor-mode`.
 
 The source of truth for the design→verify chain is `ssos_eclss_loop` `scenario.yaml` `iteration:` (`enabled`, `count`, `paired_replay`, `approve_provisional`, `run_id`). `simulation.steps` is one sim's length, not the chain count. `--set iteration.count=10` uses the same merge as other scenario keys. Explicit `--iterate` / `--paired-replay` / `--approve-provisional` override YAML. `enabled: true` (the shipped default) makes `ea run ssos_eclss_loop` a chain; `--set iteration.enabled=false` is a single sim.
