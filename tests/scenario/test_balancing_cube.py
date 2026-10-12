@@ -504,3 +504,23 @@ def test_final_sync_outage_is_inconclusive_and_preserves_retry_artifacts(tmp_pat
     restored = json.loads((root / 'onepiece-outbox.json').read_text())
     assert [e['record'] for e in queued] == [e['record'] for e in restored]
     assert bridge.store.check()['ok']
+
+
+@pytest.mark.parametrize('enabled,expected_rounds', [(False, 1), (True, 3)])
+def test_cli_iteration_enabled_flag_controls_actual_proposal_rounds(tmp_path, monkeypatch, enabled, expected_rounds):
+    from typer.testing import CliRunner
+    from tools.cli.main import app
+    bridge = ssot_bridge(tmp_path)
+    fake = FakeLLM()
+    monkeypatch.setattr('core.llm.factory.build_llm_client', lambda config: fake)
+    root = tmp_path / 'cli-iteration-flag'
+    result = CliRunner().invoke(app, ['run', 'balancing_cube', '--backend', 'mujoco_cpu',
+        '--design-mode', 'llm', '--iterate', '3', '--output-dir', str(root),
+        '--set', f'ssot.path={bridge.store.path}',
+        '--set', f'iteration.enabled={str(enabled).lower()}', '--json'])
+    assert result.exit_code == 0, result.output
+    summary = json.loads((root / 'summary.json').read_text())
+    assert summary['iterations_requested'] == summary['iterations_completed'] == expected_rounds
+    assert len(fake.prompts) == expected_rounds
+    assert summary['status'] == 'completed'
+    assert bridge.store.check()['ok']
