@@ -100,6 +100,12 @@ def classify(relative: Path, title: str) -> dict:
         category, family, description, scope = "Archived copy", "Archived evidence", "Stored copy of an earlier report.", "archive"
     elif path.startswith("balancing-cube-simulation/tools/") or "/report/code/tools/" in path:
         category, family, description, scope = "Source template", "Report sources", "HTML source used to create a report.", "source"
+    elif "balancing-cube-research-story" in path:
+        category, family = "Research", "Balancing cube research story"
+        description = "Research question, hypotheses, methods, measured results, recorded replay, limitations, and next experiments."
+        if name == "index.ja.html":
+            category, scope = "Translation source", "source"
+            description = "Native Japanese counterpart of the bilingual research article."
     elif "memory-pipeline-report" in name:
         category, family = "Design iterations", "Qwen design iterations"
         description = "Qwen proposals, MuJoCo CPU/GPU trials, memory, validation, and One-Piece evidence."

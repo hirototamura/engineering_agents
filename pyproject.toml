@@ -38,6 +38,7 @@ where = ["src"]
 "integrations.one_piece" = ["agent_context_exclusions.json"]
 "environment.mujoco" = ["legacy_source_manifest.json"]
 "tools.report_library" = ["catalog_template.html", "launchers/*.command", "launchers/*.py"]
+"tools.research_story" = ["template.html", "copy.json", "evidence.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
