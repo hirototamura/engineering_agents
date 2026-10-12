@@ -37,13 +37,23 @@ class BalancingCubeScenario:
             proposal = document.get("selected_candidate", document)
         llm = build_llm_client(config["agents"]["llm"]) if mode == "llm" else None
         iteration = config["iteration"]
+        memory = None
+        memory_config = config.get("memory", {})
+        if memory_config.get("enabled"):
+            from .memory import EngineeringMemory
+            def memory():
+                instance = EngineeringMemory(root / "memory" / "episodes.jsonl")
+                for historical_run in memory_config.get("seed_runs", []):
+                    instance.bootstrap_run(historical_run)
+                return instance
         if on_phase:
             on_phase("fixed-dt EN/PI/R/E mechanical design loop")
         run_design_loop(snapshot=snapshot, output_dir=root, llm_client=llm,
             rounds=iteration["count"] if mode == "llm" else 1,
             max_candidates=iteration["max_candidates"], max_wall_s=iteration["max_wall_s"],
             stagnation_rounds=iteration["stagnation_rounds"], require_gpu=backend == "mjx_gpu",
-            bridge=bridge, context_loader=bridge.load_snapshot, proposal=proposal)
+            bridge=bridge, context_loader=bridge.load_snapshot, proposal=proposal,
+            memory=memory, proposal_retries=iteration.get("proposal_retries", 0))
         return root
 
 

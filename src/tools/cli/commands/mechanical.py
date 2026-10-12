@@ -39,16 +39,27 @@ def run_mechanical(*, iterate=None, backend=None, output_dir=None, run_id=None,
                 llm["model"] = llm_model
         # All physics and verification overrides must enter through an approved
         # SSOT revision, never via the convenience CLI's --set escape hatch.
-        allowed = {"ssot", "backend", "agents", "iteration", "output"}
+        allowed = {"ssot", "backend", "agents", "iteration", "output", "memory"}
         if set(overrides) - allowed:
             raise ValueError("Mechanical CLI overrides may configure ssot/backend/agents/budget only")
+        # Keep experiment-specific controls narrow. Memory changes only the
+        # advisory prompt context; proposal retries do not alter physics or gates.
+        memory_overrides = overrides.get("memory", {})
+        if set(memory_overrides) - {"enabled", "seed_runs"}:
+            raise ValueError("Mechanical memory overrides may configure enabled/seed_runs only")
+        iteration_overrides = overrides.get("iteration", {})
+        if set(iteration_overrides) - {"enabled", "count", "max_candidates", "max_wall_s",
+                                       "stagnation_rounds", "proposal_retries"}:
+            raise ValueError("Mechanical iteration override contains an unsupported field")
+        if "proposal_retries" in iteration_overrides and not 0 <= iteration_overrides["proposal_retries"] <= 3:
+            raise ValueError("Mechanical proposal_retries must be 0..3")
         resolved = load_scenario_config("balancing_cube", overrides)
         if resolved["backend"]["kind"] not in {"cpu", "gpu", "mujoco_cpu", "mjx_gpu"}:
             raise ValueError("Unsupported mechanical backend")
         budget = resolved["iteration"]
-        if not (1 <= budget["count"] <= 5 and 1 <= budget["max_candidates"] <= 20
-                and 0 < budget["max_wall_s"] <= 1800 and 1 <= budget["stagnation_rounds"] <= 3):
-            raise ValueError("Mechanical budget limits: 5 rounds, 20 candidates, 1800 seconds, 3 stagnant rounds")
+        if not (1 <= budget["count"] <= 20 and 1 <= budget["max_candidates"] <= 80
+                and 0 < budget["max_wall_s"] <= 7200 and 1 <= budget["stagnation_rounds"] <= 20):
+            raise ValueError("Mechanical budget limits: 20 rounds, 80 candidates, 7200 seconds, 20 stagnant rounds")
         if not resolved["ssot"].get("path"):
             raise ValueError("Set --set ssot.path=/path/to/onepiece-store")
         spec = RunSpec(scenario="balancing_cube", overrides=overrides, output_dir=output_dir,

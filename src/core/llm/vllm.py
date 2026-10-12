@@ -13,16 +13,28 @@ Reachable on the lab LAN or via VPN; not a public address.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
 import threading
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Optional
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 from requests.adapters import HTTPAdapter
 
 from core.llm.base import LLMClient, LLMGeneration
-from core.llm.parsing import combine_thinking, extract_thinking_text
+from core.llm.parsing import (
+    combine_thinking,
+    extract_json_block,
+    extract_thinking_text,
+    strip_thinking_tags,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +45,7 @@ VLLM_BASE_URL_ENV = "VLLM_BASE_URL"
 VLLM_API_KEY_ENV = "VLLM_API_KEY"
 VLLM_API_TIMEOUT_ENV = "VLLM_API_TIMEOUT"
 VLLM_MAX_MODEL_LEN_ENV = "VLLM_MAX_MODEL_LEN"
+LLM_TRACE_DIR_ENV = "EA_LLM_TRACE_DIR"
 API_TIMEOUT = 300
 CONNECTION_CHECK_TIMEOUT = 5
 # Must match vllm-server/scripts/serve_small.sh --max-model-len.
@@ -210,6 +223,64 @@ def _fit_prompt_to_context(prompt: str, max_tokens: int) -> str:
     return prompt[:head] + marker + prompt[-tail:]
 
 
+def _trace_url(url: str) -> str:
+    """Keep the endpoint but exclude URL credentials, query tokens and fragments."""
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError:
+        return "<invalid endpoint>"
+    host = parts.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"
+    netloc = f"{host}:{port}" if port is not None else host
+    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
+
+
+def _trace_final_content(content: str) -> Any:
+    """Record the final answer, never provider reasoning or thinking-tag bodies."""
+    cleaned = strip_thinking_tags(content).strip()
+    try:
+        return json.loads(cleaned)
+    except (TypeError, ValueError):
+        block = extract_json_block(cleaned)
+        if block is not None:
+            try:
+                return json.loads(block)
+            except ValueError:
+                pass
+    return cleaned
+
+
+def _atomic_trace_file(path: Path, data: str) -> None:
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _write_request_trace(directory: str, trace: Dict[str, Any], prompt: str) -> None:
+    """Optional campaign audit output; an output failure cannot break inference."""
+    try:
+        root = Path(directory).expanduser()
+        root.mkdir(parents=True, exist_ok=True)
+        prompt_path = root / f"{trace['request_id']}.prompt.txt"
+        trace["request"]["prompt_file"] = prompt_path.name
+        _atomic_trace_file(prompt_path, prompt)
+        # Publish JSON last so readers only discover a complete prompt/trace pair.
+        _atomic_trace_file(
+            root / f"{trace['request_id']}.json",
+            json.dumps(trace, ensure_ascii=False, indent=2) + "\n",
+        )
+    except Exception as exc:
+        logger.warning("vLLM request trace could not be saved (%s)", type(exc).__name__)
+
+
 class VllmClient(LLMClient):
     def __init__(
         self,
@@ -255,6 +326,11 @@ class VllmClient(LLMClient):
         return self.generate_result(prompt).text
 
     def generate_result(self, prompt: str) -> LLMGeneration:
+        """Generate an answer, optionally auditing it in ``EA_LLM_TRACE_DIR``.
+
+        The explicit directory scopes traces to a campaign. Traces contain the
+        fitted prompt and final answer; private reasoning is counted, not saved.
+        """
         max_tokens = _clamp_completion_tokens(self.max_tokens)
         if max_tokens != self.max_tokens:
             logger.warning(
@@ -263,7 +339,37 @@ class VllmClient(LLMClient):
                 max_tokens,
                 resolve_vllm_max_model_len(),
             )
-        prompt = _fit_prompt_to_context(prompt, max_tokens)
+        strict_context = os.environ.get("VLLM_TOKENIZE_PREFLIGHT", "").lower() in {"1", "true", "yes"}
+        if not strict_context:
+            prompt = _fit_prompt_to_context(prompt, max_tokens)
+        trace_directory = os.environ.get(LLM_TRACE_DIR_ENV, "").strip()
+        started = time.perf_counter()
+        trace: Optional[Dict[str, Any]] = None
+        response = None
+        if trace_directory:
+            trace = {
+                "schema_version": 1,
+                "request_id": uuid.uuid4().hex,
+                "started_at": datetime.now(timezone.utc).isoformat(),
+                "provider": "vllm",
+                "request": {
+                    "url": _trace_url(self.api_url),
+                    "model": self.model,
+                    "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+                    "prompt_char_count": len(prompt),
+                    "prompt_byte_count": len(prompt.encode("utf-8")),
+                    "temperature": self.temperature,
+                    "requested_max_tokens": self.max_tokens,
+                    "max_tokens": max_tokens,
+                    "repetition_penalty": self.repeat_penalty,
+                    "think": self.think,
+                    "thinking_token_budget": None,
+                    "api_timeout_seconds": self.api_timeout,
+                },
+                "status": "failed",
+                "http_status": None,
+                "response": {},
+            }
         try:
             payload: Dict[str, Any] = {
                 "model": self.model,
@@ -280,6 +386,29 @@ class VllmClient(LLMClient):
                         max_tokens,
                         explicit=self.thinking_token_budget,
                     )
+            if trace is not None:
+                trace["request"]["thinking_token_budget"] = payload.get("thinking_token_budget")
+            if strict_context:
+                # Engineering records are structured JSON. Do not silently cut
+                # their middle to fit a heuristic character budget. Ask the
+                # actual served tokenizer, including its chat template, instead.
+                token_request = {"model": self.model, "messages": payload["messages"]}
+                if "chat_template_kwargs" in payload:
+                    token_request["chat_template_kwargs"] = payload["chat_template_kwargs"]
+                token_response = self._session.post(self.base_url[:-3] + "/tokenize",
+                    json=token_request, headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=self.api_timeout)
+                token_response.raise_for_status()
+                token_data = token_response.json()
+                count = token_data.get("count")
+                if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                    raise ValueError("The tokenizer did not return a valid prompt token count")
+                limit = min(resolve_vllm_max_model_len(), int(token_data.get("max_model_len", resolve_vllm_max_model_len())))
+                if trace is not None:
+                    trace["request"].update(prompt_token_count=count, context_window=limit,
+                        prompt_fit_method="server_tokenizer_no_truncation")
+                if count + max_tokens > limit:
+                    raise ValueError(f"Full structured prompt ({count} tokens) plus generation budget ({max_tokens}) exceeds context window ({limit}); no inference or truncation performed")
             response = self._session.post(
                 self.api_url,
                 json=payload,
@@ -287,12 +416,24 @@ class VllmClient(LLMClient):
                 timeout=self.api_timeout,
             )
             response.raise_for_status()
-            message = (response.json().get("choices") or [{}])[0].get("message") or {}
+            body = response.json()
+            choice = (body.get("choices") or [{}])[0]
+            message = choice.get("message") or {}
             content = _extract_vllm_message_text(message)
             thinking = combine_thinking(
                 _extract_vllm_thinking(message),
                 extract_thinking_text(content),
             )
+            if trace is not None:
+                trace["status"] = "succeeded"
+                trace["response"] = {
+                    "model": body.get("model"),
+                    "id": body.get("id"),
+                    "usage": body.get("usage"),
+                    "finish_reason": choice.get("finish_reason"),
+                    "assistant_final": _trace_final_content(content),
+                    "reasoning_char_count": len(thinking),
+                }
             if not content and thinking:
                 logger.warning(
                     "VllmClient received reasoning_content but empty content "
@@ -302,6 +443,12 @@ class VllmClient(LLMClient):
         except Exception as e:
             detail = ""
             resp = getattr(e, "response", None)
+            if trace is not None:
+                # Exception strings and HTTP bodies may echo credentials or raw
+                # model reasoning. Record only the failure class and status.
+                trace["error_type"] = type(e).__name__
+                if resp is not None:
+                    response = resp
             if resp is not None:
                 try:
                     detail = (resp.text or "")[:500]
@@ -312,6 +459,11 @@ class VllmClient(LLMClient):
             else:
                 logger.error("VllmClient.generate error: %s", e)
             return LLMGeneration(text="", error=str(e))
+        finally:
+            if trace is not None:
+                trace["http_status"] = getattr(response, "status_code", None)
+                trace["wall_seconds"] = time.perf_counter() - started
+                _write_request_trace(trace_directory, trace, prompt)
 
     def check_connection(self) -> bool:
         try:

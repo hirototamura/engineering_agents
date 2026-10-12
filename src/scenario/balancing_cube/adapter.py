@@ -52,7 +52,7 @@ class BalancingCubeAdapter:
         import hashlib
         from environment import mujoco as physics
         root = Path(physics.__file__).parent
-        files = [root / name for name in ("model.py", "control.py", "contact.py", "gpu_backend.py", "backend.py")]
+        files = [root / name for name in ("model.py", "control.py", "contact.py", "gpu_backend.py", "multi_gpu.py", "backend.py")]
         files += [Path(__file__), Path(__file__).with_name("design.py"), Path(__file__).with_name("evaluation.py")]
         return {str(path.name): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
 

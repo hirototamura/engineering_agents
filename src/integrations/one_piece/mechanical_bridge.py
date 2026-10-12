@@ -12,6 +12,9 @@ import os
 from pathlib import Path
 
 
+_CONTEXT_EXCLUSIONS = Path(__file__).with_name("agent_context_exclusions.json")
+
+
 def atomic_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -94,9 +97,105 @@ class MechanicalBridge:
         return snapshot
 
     def context(self):
-        return self.store.context(self.project_id, max_designs=5, max_evidence=8,
-            kinds=["design", "design_candidate", "simulation_run", "design_policy", "iteration", "analysis_result"],
+        # The immutable One-Piece store also contains records from offline
+        # acceptance runs. Exclude those exact run families before applying
+        # recency limits, or they can crowd current engineering evidence out
+        # of the PI context. Canonical history remains untouched.
+        exclusions = json.loads(_CONTEXT_EXCLUSIONS.read_text(encoding="utf-8"))
+        if exclusions.get("schema_version") != "1.0" or exclusions.get("project_id") != self.project_id:
+            raise ValueError("Invalid One-Piece agent-context exclusion manifest")
+        excluded_runs = tuple(exclusions.get("excluded_run_ids", []))
+        if (not excluded_runs
+                or any(not isinstance(run_id, str) or not run_id.startswith("cube-") for run_id in excluded_runs)
+                or len(set(excluded_runs)) != len(excluded_runs)):
+            raise ValueError("Invalid One-Piece agent-context excluded run IDs")
+        records = self.store.records(self.project_id)
+        context = self.store.context(self.project_id, max_designs=len(records), max_evidence=len(records),
+            kinds=["design", "design_candidate", "design_proposal", "simulation_run", "design_policy", "iteration", "analysis_result"],
             snapshot_ref={"id": self.snapshot_id, "revision": self.snapshot_revision})
+
+        def is_excluded(record):
+            identifier = record.get("id", "")
+            return any(identifier == run_id or identifier.startswith(run_id + ".") for run_id in excluded_runs)
+
+        all_visible = [record for record in context["records"] if not is_excluded(record)]
+        design_kinds = {"design", "design_candidate", "candidate"}
+        proposal_kinds = {"design_proposal"}
+        evidence_kinds = {"evidence", "evaluation", "artifact", "simulation_run", "trial", "verification", "analysis_result"}
+        source_snapshot = next((r for r in all_visible if r["kind"] == "simulation_snapshot"
+                                and r["id"] == self.snapshot_id and r["revision"] == self.snapshot_revision), None)
+        if source_snapshot is None:
+            raise ValueError("Agent context does not contain the selected One-Piece snapshot")
+        language_ref = source_snapshot["data"].get("language_profile_ref")
+        if language_ref:
+            language_profile = next((r for r in records if r["id"] == language_ref.get("id")
+                                     and r["revision"] == language_ref.get("revision")), None)
+            if language_profile is not None and not any(
+                    (r["id"], r["revision"]) == (language_profile["id"], language_profile["revision"])
+                    for r in all_visible):
+                all_visible.append(language_profile)
+        pinned = source_snapshot["data"].get("comparison_design_ref")
+        pinned_key = (pinned.get("id"), pinned.get("revision")) if pinned else None
+        designs = [r for r in all_visible if r["kind"] in design_kinds
+                   and (r["id"], r["revision"]) != pinned_key]
+        evidence = [r for r in all_visible if r["kind"] in evidence_kinds]
+        proposals = [r for r in all_visible if r["kind"] in proposal_kinds]
+        keep_designs = {(r["id"], r["revision"]) for r in designs[-5:]}
+        keep_evidence = {(r["id"], r["revision"]) for r in evidence[-8:]}
+        keep_proposals = {(r["id"], r["revision"]) for r in proposals[-5:]}
+        # The exact comparison design and the campaign summary are required
+        # context, independent of the bounded design/evidence windows.
+        selected = [r for r in all_visible if (
+            r["kind"] not in (design_kinds | evidence_kinds | proposal_kinds)
+            or (r["id"], r["revision"]) == pinned_key
+            or (r["kind"] in design_kinds and (r["id"], r["revision"]) in keep_designs)
+            or (r["kind"] in proposal_kinds and (r["id"], r["revision"]) in keep_proposals)
+            or (r["kind"] in evidence_kinds and (r["id"], r["revision"]) in keep_evidence)
+        )]
+        selected_keys = {(r["id"], r["revision"]) for r in selected}
+
+        def data_refs(value, path="data"):
+            if isinstance(value, dict):
+                if set(value) == {"id", "revision"} and all(isinstance(value[k], str) for k in value):
+                    yield path, value
+                else:
+                    for key, child in value.items():
+                        yield from data_refs(child, f"{path}.{key}")
+            elif isinstance(value, list):
+                for index, child in enumerate(value):
+                    yield from data_refs(child, f"{path}.{index}")
+
+        omitted_refs = []
+        for record in selected:
+            for edge in record.get("links", []):
+                target = edge["target"]
+                if (target["id"], target["revision"]) not in selected_keys:
+                    reason = ("agent_context_acceptance_exclusion" if is_excluded(target)
+                              else "context_filter_or_limit")
+                    omitted_refs.append({"source": {"id": record["id"], "revision": record["revision"]},
+                                         "type": edge["type"], "target": target,
+                                         "reason": reason})
+            for path, target in data_refs(record.get("data", {})):
+                if (target["id"], target["revision"]) not in selected_keys:
+                    reason = ("agent_context_acceptance_exclusion" if is_excluded(target)
+                              else "context_filter_or_limit")
+                    omitted_refs.append({"source": {"id": record["id"], "revision": record["revision"]},
+                                         "type": "data_reference", "path": path,
+                                         "target": target, "reason": reason})
+        context["records"] = selected
+        context["counts"].update(
+            returned=len(selected),
+            designs=len(keep_designs) + (1 if pinned_key and pinned_key in selected_keys else 0),
+            bounded_designs=len(keep_designs),
+            pinned_designs=1 if pinned_key and pinned_key in selected_keys else 0,
+            evidence=len(keep_evidence),
+            proposals=len(keep_proposals),
+        )
+        context["limits"] = {"max_designs": 5, "max_evidence": 8, "max_proposals": 5}
+        context["omitted_record_count"] = max(0, context["counts"]["project_records"] - len(selected))
+        context["omitted_references"] = omitted_refs
+        context["excluded_acceptance_runs"] = list(excluded_runs)
+        return context
 
     def outbox(self, run_dir):
         return MechanicalOutbox(self, run_dir)

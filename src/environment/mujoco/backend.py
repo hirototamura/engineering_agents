@@ -69,9 +69,14 @@ def native_rollout(config, case, controller, *, capture=True):
 def gpu_rollouts(configs, cases, controller):
     """A missing accelerator produces an explicit not-run result, never success."""
     try:
-        from .gpu_backend import run_batch
-        result = run_batch(configs, cases, controller, require_gpu=True,
-                           selected_indices=range(len(cases)))
+        from .multi_gpu import requested_gpu_ids, run_multi_gpu_batch
+        gpu_ids = requested_gpu_ids()
+        if gpu_ids:
+            result = run_multi_gpu_batch(configs, cases, controller, gpu_ids)
+        else:
+            from .gpu_backend import run_batch
+            result = run_batch(configs, cases, controller, require_gpu=True,
+                               selected_indices=range(len(cases)))
     except (ImportError, RuntimeError) as error:
         return {"state": "not_run", "reason": str(error), "accelerated": False,
                 "numeric_gpu_verified": False, "results": []}

@@ -64,6 +64,10 @@ def test_controller_changes_only_q_groups_yaw_keep_r_and_nominal_linearization()
     source = snapshot()
     frozen = compile_controller(proposal(), source)
     assert frozen == source["controller"]
+    same_as_frozen = {"control": {"tilt_q_scale": 1.0, "rate_q_scale": 1.0,
+        "momentum_q_scale": 1.0,
+        "yaw_rate_gain_nm_s": source["model"]["controller"]["yaw_rate_gain_nm_s"]}}
+    assert compile_controller(same_as_frozen, source) == frozen
     designed = compile_controller(proposal(control=True), source)
     assert designed["fixed_r"] == source["model"]["controller"]["vertex_r"]
     assert designed["yaw_rate_gain_nm_s"] == .04
@@ -103,6 +107,41 @@ def test_malformed_nested_proposal_is_recorded_and_next_round_runs(tmp_path):
     assert result["rounds"][1]["stage_sequence"] == ["EN", "PI", "R", "E"]
     assert (tmp_path / "malformed/summary.json").is_file()
     assert bridge.store.check()["ok"]
+
+
+def test_llm_provider_failure_stops_campaign_as_inconclusive(tmp_path):
+    from core.llm.base import LLMGeneration
+
+    class FailedLLM:
+        def generate_result(self, prompt):
+            return LLMGeneration(text="", error="local provider read timeout")
+
+    bridge = ssot_bridge(tmp_path)
+    result = run_design_loop(snapshot=bridge.load_snapshot(), output_dir=tmp_path / "provider-failed",
+                             llm_client=FailedLLM(), rounds=2, bridge=bridge)
+    failed = [r for r in bridge.store.records(kinds=["design_proposal"])
+              if r["id"].endswith(".failed.1")]
+    assert len(failed) == 1 and failed[0]["data"]["status"] == "failed"
+    assert result["status"] == "inconclusive"
+    assert result["stopped_reason"] == "proposal_generation_failed"
+    assert result["rounds"] == [{"round": 1, "status": "failed", "error": "local provider read timeout"}]
+
+
+def test_pi_projection_keeps_model_parameter_leafs_in_source_only(tmp_path):
+    onepiece = pytest.importorskip("onepiece")
+    from scenario.balancing_cube.loop import _compact_agent_context
+
+    bridge = ssot_bridge(tmp_path)
+    leaf = onepiece.make_record(project_id="balancing-cube", id="model-leaf-test", kind="model_parameter",
+        data={"name": "physics timestep", "model_path": "physics.timestep_s", "value": .001,
+              "authoritative_field": "data.model.physics.timestep_s", "unit": "s",
+              "value_source": {"id": "cube.simulation.snapshot", "revision": "fixed-dt-mvp-2"}})
+    bridge.store.import_records([leaf])
+    source = bridge.context()
+    projection = _compact_agent_context(source, bridge.load_snapshot())
+    assert any(r["id"] == "model-leaf-test" for r in source["records"])
+    assert not any(r["id"] == "model-leaf-test" for r in projection["records"])
+    assert projection["counts"]["model_parameter_leaves_in_source"] == 1
 
 
 @pytest.mark.parametrize("limits,expected_status", [
@@ -148,6 +187,14 @@ def test_real_two_rounds_evolve_policy_and_feed_it_to_next_pi(tmp_path):
     assert len(fake.prompts) == 2 and len(calls) == 2
     assert fake.prompts[0]["policy"]["revision"] == 1
     assert fake.prompts[1]["policy"]["revision"] == 2
+    assert fake.prompts[0]["proposal_schema"]["parameter_keys"] == [
+        "side_m", "print_mass_ref_kg", "wheel_mass_kg", "wheel_radius_ratio", "inner_radius_ratio", "wheel_thickness_m"]
+    assert fake.prompts[0]["proposal_schema"]["control_keys"] == [
+        "tilt_q_scale", "rate_q_scale", "momentum_q_scale", "yaw_rate_gain_nm_s"]
+    assert set(fake.prompts[0]["valid_example"]["parameters"]) == set(fake.prompts[0]["proposal_schema"]["parameter_keys"])
+    assert fake.prompts[0]["valid_example"]["hypothesis"]
+    assert len(json.dumps(fake.prompts[0]["context_data"], ensure_ascii=False)) < 100_000
+    assert "Do not use aliases" in fake.prompts[0]["output_contract"]
     assert fake.prompts[1]["policy"]["suggested_search_step"] != fake.prompts[0]["policy"]["suggested_search_step"]
     assert "Measured candidate" in fake.prompts[1]["policy"]["hypothesis"]
     assert fake.prompts[1]["feedback"]
@@ -230,12 +277,21 @@ def ssot_bridge(tmp_path):
         "physics": {**source["model"]["physics"], "cube_side_m": .17},
         "actuation": source["model"]["actuation"],
     })
+    language_profile = onepiece.make_record(project_id="balancing-cube", id="cube.language.profile",
+        kind="specification", revision="standards-draft-test", data={
+            "name": "English requirement writing profile", "normative_modal": "shall",
+            "requirement_standard": {"name": "ISO/IEC/IEEE 29148:2018"},
+            "standards_precedence": [{"rank": 1, "name": "ISO/IEC/IEEE 29148:2018"},
+                                     {"rank": 2, "name": "NASA systems engineering standards"},
+                                     {"rank": 3, "name": "ASD-STE100 Issue 9"}],
+        })
+    source["language_profile_ref"] = onepiece.ref(language_profile)
     source["context_refs"] = {"requirements": [onepiece.ref(requirement)], "kdps": [onepiece.ref(p) for p in parameters]}
     source["comparison_design_ref"] = onepiece.ref(comparison)
     record = onepiece.make_record(project_id="balancing-cube", id="cube.simulation.snapshot",
                                   kind="simulation_snapshot", revision="fixed-dt-mvp-2", data=source)
     store = onepiece.Store(tmp_path / "store")
-    store.import_records([requirement, *parameters, comparison, record])
+    store.import_records([requirement, *parameters, comparison, language_profile, record])
     return MechanicalBridge(tmp_path / "store")
 
 
@@ -254,8 +310,48 @@ def test_real_store_two_rounds_read_saved_evidence_and_resolve_comparison(tmp_pa
     first_id = result["rounds"][0]["feedback"]["candidate_id"]
     saved = fake.prompts[1]["context_data"]["records"]
     assert any(r["kind"] == "simulation_run" and r["data"].get("candidate_id") == first_id for r in saved)
+    profile = next(r for r in fake.prompts[0]["context_data"]["records"] if r["kind"] == "specification")
+    assert profile["data"]["normative_modal"] == "shall"
+    first_candidate = next(r for r in bridge.store.records(kinds=["design_candidate"])
+                           if r["id"].endswith(".candidate.2"))
+    artifact_paths = {a["path"] for a in first_candidate["artifacts"]}
+    assert any(path.endswith("round-01/ssot-context.json") for path in artifact_paths)
+    assert any(path.endswith("round-01/prompt-data.json") for path in artifact_paths)
     assert bridge.store.check()["ok"]
     assert bridge.outbox(tmp_path / "run").flush()["pending"] == 0
+
+
+def test_agent_context_excludes_acceptance_runs_before_design_and_evidence_limits(tmp_path):
+    onepiece = pytest.importorskip("onepiece")
+    bridge = ssot_bridge(tmp_path)
+    exclusions = json.loads((Path(__file__).parents[2] / "src/integrations/one_piece/agent_context_exclusions.json").read_text())
+    acceptance_id = exclusions["excluded_run_ids"][0]
+    records = [
+        onepiece.make_record(project_id="balancing-cube", id=f"{acceptance_id}.candidate.1",
+            kind="design_candidate", data={"snapshot_ref": {"id": "cube.simulation.snapshot", "revision": "fixed-dt-mvp-2"}}),
+        onepiece.make_record(project_id="balancing-cube", id=f"{acceptance_id}.evaluation.1",
+            kind="simulation_run", data={"snapshot_ref": {"id": "cube.simulation.snapshot", "revision": "fixed-dt-mvp-2"}}),
+        onepiece.make_record(project_id="balancing-cube", id=f"{acceptance_id}.policy.1",
+            kind="design_policy", data={"snapshot_ref": {"id": "cube.simulation.snapshot", "revision": "fixed-dt-mvp-2"}}),
+        onepiece.make_record(project_id="balancing-cube", id="real-experiment.candidate.1",
+            kind="design_candidate", data={"snapshot_ref": {"id": "cube.simulation.snapshot", "revision": "fixed-dt-mvp-2"}}),
+        onepiece.make_record(project_id="balancing-cube", id="real-experiment.evaluation.1",
+            kind="simulation_run", data={"snapshot_ref": {"id": "cube.simulation.snapshot", "revision": "fixed-dt-mvp-2"}}),
+        onepiece.make_record(project_id="balancing-cube", id="cube.campaign.summary", kind="campaign_summary",
+            data={"prior46": {"count": 46, "passed": 31, "failed": 9, "pending": 6}}),
+    ]
+    bridge.store.import_records(records)
+
+    context = bridge.context()
+    visible_ids = {record["id"] for record in context["records"]}
+    assert not any(identifier == acceptance_id or identifier.startswith(acceptance_id + ".")
+                   for identifier in visible_ids)
+    assert {"real-experiment.candidate.1", "real-experiment.evaluation.1", "BEST", "cube.campaign.summary"} <= visible_ids
+    assert context["limits"] == {"max_designs": 5, "max_evidence": 8, "max_proposals": 5}
+    assert context["excluded_acceptance_runs"] == exclusions["excluded_run_ids"]
+    assert context["counts"]["pinned_designs"] == 1
+    profile = next(r for r in context["records"] if r["kind"] == "specification")
+    assert profile["data"]["normative_modal"] == "shall"
 
 
 def test_sync_failure_stops_before_pi_and_retries_exact_records(tmp_path, monkeypatch):

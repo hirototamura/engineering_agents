@@ -29,11 +29,11 @@ jobs:
           assert mujoco.__version__ == '3.3.7'
           assert onepiece.__version__ == '0.1.1'
           PY
-          python -m pytest -q tests/scenario/test_balancing_cube.py tests/integrations/test_balancing_cube_import.py --junitxml=cube-tests.xml
+          python -m pytest -q tests/scenario/test_balancing_cube.py tests/integrations/test_balancing_cube_import.py tests/scenario/test_balancing_cube_memory.py tests/scenario/test_balancing_cube_memory_loop.py tests/scenario/test_balancing_cube_context_budget.py tests/environment/test_mujoco_multi_gpu.py tests/core/test_vllm_context_preflight.py tests/core/test_vllm_trace.py tests/tools/test_report_library.py --junitxml=cube-tests.xml
           python - <<'PY'
           import xml.etree.ElementTree as ET
           suites = ET.parse('cube-tests.xml').getroot().findall('testsuite')
-          assert sum(int(s.get('tests', 0)) for s in suites) >= 43
+          assert sum(int(s.get('tests', 0)) for s in suites) >= 83
           assert sum(int(s.get('skipped', 0)) for s in suites) == 0, 'Cube acceptance must not skip missing dependencies'
           PY
       - uses: actions/upload-artifact@v4

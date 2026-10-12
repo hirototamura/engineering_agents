@@ -22,6 +22,7 @@ dependencies = [
 
 [project.scripts]
 ea = "tools.cli.main:app"
+ea-reports = "tools.report_library.__main__:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "mkdocs-material>=9.0", "mkdocs-static-i18n>=1.2.0"]
@@ -34,7 +35,9 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "scenario.balancing_cube" = ["scenario.yaml"]
+"integrations.one_piece" = ["agent_context_exclusions.json"]
 "environment.mujoco" = ["legacy_source_manifest.json"]
+"tools.report_library" = ["catalog_template.html", "launchers/*.command", "launchers/*.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

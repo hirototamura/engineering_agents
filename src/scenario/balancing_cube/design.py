@@ -96,6 +96,14 @@ def compile_controller(proposal, snapshot):
     settings = {key: 1.0 for key in ("tilt_q_scale", "rate_q_scale", "momentum_q_scale")}
     settings["yaw_rate_gain_nm_s"] = cfg["controller"]["yaw_rate_gain_nm_s"]
     settings.update({key: bounded(value, CONTROL_BOUNDS[key], key) for key, value in control.items()})
+    baseline_settings = {"tilt_q_scale": 1.0, "rate_q_scale": 1.0,
+                         "momentum_q_scale": 1.0,
+                         "yaw_rate_gain_nm_s": cfg["controller"]["yaw_rate_gain_nm_s"]}
+    if settings == baseline_settings:
+        # Keep the frozen K bit-for-bit when a proposal repeats baseline Q/yaw
+        # values. Re-solving the same LQR can shift its last floating-point bits
+        # and make an unchanged controller look like a design change.
+        return copy.deepcopy(snapshot["controller"])
     q = cfg["controller"]["vertex_q"]
     cfg["controller"]["vertex_q"] = [value * settings[key] for key, values in (
         ("tilt_q_scale", q[:2]), ("rate_q_scale", q[2:4]), ("momentum_q_scale", q[4:])) for value in values]
