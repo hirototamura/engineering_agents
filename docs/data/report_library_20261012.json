@@ -29,6 +29,12 @@
       "url": "https://github.com/hirototamura/engineering_agents/releases/download/reports-qwen-memory-20261012/engineering_agents-0.1.0-py3-none-any.whl",
       "sha256": "72043d214090d97686c4afe4eb0db3c7d3c8c1b0d1eaf4b7aa39b00c484bcf3c",
       "size_bytes": 555050
+    },
+    {
+      "filename": "engineering-pr-verification-20261012.zip",
+      "sha256": "2c0e6210a2d46ffc27c64955dfdf13a14bcf1bc9cffe7c8ccc0ae095f2f95257",
+      "size_bytes": 76074,
+      "url": "https://github.com/hirototamura/engineering_agents/releases/download/reports-qwen-memory-20261012/engineering-pr-verification-20261012.zip"
     }
   ],
   "languages": [
