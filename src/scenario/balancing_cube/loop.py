@@ -621,6 +621,9 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
     required_gpu_incomplete = require_gpu and (validation.get("gpu_state") != "completed" or any(e["result"]["gpu_state"] != "completed" for e in entries))
     if required_gpu_incomplete and stop not in {"reference_execution_failed", "reference_evaluation_incomplete", "required_gpu_not_run_for_reference"} and not incomplete_evaluations:
         stop = "required_gpu_not_run"
+    before_summary_sync = sync()
+    if before_summary_sync.get("pending") and not stop.startswith("onepiece_sync_pending"):
+        stop = "onepiece_sync_pending_before_summary"
     incomplete = incomplete_evaluations or stop.startswith("onepiece_sync_pending") or stop in {
         "reference_evaluation_incomplete", "incomplete_required_2x2_wall_budget", "context_revision_changed_requires_new_run", "wall_budget_during_proposal", "proposal_generation_failed", "wall_budget_during_validation", "execution_failed_during_validation"} or required_gpu_incomplete
     summary = {"scenario": "balancing_cube", "run_id": run_id, "status": "inconclusive" if incomplete else "completed",
@@ -639,7 +642,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                "incomplete_evaluations": incomplete_evaluations,
                "time_budget_scope": "HTTP timeout capped by remaining time; checked between CPU cases and before/after GPU batches; native solver/JIT calls are not interrupted",
                "wall_time_s": time.monotonic() - started,
-               "onepiece_sync": {"before_summary_record": sync(), "final_status_file": "sync-status.json"}}
+               "onepiece_sync": {"before_summary_record": before_summary_sync, "final_status_file": "sync-status.json"}}
     if memory is not None:
         summary["agent_memory"] = memory.flush()
     atomic_json(root / "summary.json", summary)
@@ -648,7 +651,17 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                 "source_result": best["artifact"] if best else None,
                 "selection_status": validation_status, "physical_verified": False})
     if outbox:
-        publish("analysis_result", f"{run_id}.summary", summary, root / "summary.json",
+        # Keep publication bytes immutable for retry. The local execution summary
+        # additionally records whether delivery of this final record succeeded.
+        publication_path = root / "publication/summary.json"
+        atomic_json(publication_path, summary)
+        publish("analysis_result", f"{run_id}.summary", copy.deepcopy(summary), publication_path,
                 extra_artifacts=(memory.journal_path,) if memory is not None else ())
-        sync()
+        final_sync = sync()
+        summary["onepiece_sync"]["after_summary_record"] = final_sync
+        if final_sync.get("pending"):
+            summary["status"] = "inconclusive"
+            if not summary["stopped_reason"].startswith("onepiece_sync_pending"):
+                summary["stopped_reason"] = "onepiece_sync_pending_after_summary"
+        atomic_json(root / "summary.json", summary)
     return summary

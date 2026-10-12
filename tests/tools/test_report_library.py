@@ -90,3 +90,23 @@ class LatestReportsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_build_ignores_compiled_launcher_directories(tmp_path):
+    import py_compile
+    import shutil
+    from tools.report_library import catalog
+    package = tmp_path / 'installed/tools/report_library'
+    shutil.copytree(Path(catalog.__file__).parent, package, ignore=shutil.ignore_patterns('__pycache__'))
+    (package.parent / '__init__.py').write_text('')
+    py_compile.compile(str(package / 'launchers/catalog.py'), doraise=True)
+    assert (package / 'launchers/__pycache__').is_dir()
+    workspace = tmp_path / 'workspace'
+    workspace.mkdir()
+    environment = {**os.environ, 'PYTHONPATH': str(tmp_path / 'installed')}
+    for _ in range(2):
+        result = subprocess.run([sys.executable, '-m', 'tools.report_library', '--workspace', str(workspace), 'build'],
+                                cwd=tmp_path, env=environment, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+    assert (workspace / 'reports/catalog.py').is_file()
+    assert not (workspace / 'reports/__pycache__').exists()

@@ -465,3 +465,42 @@ def test_executor_returns_nonzero_for_inconclusive_cube(tmp_path, monkeypatch):
     monkeypatch.setattr(BalancingCubeScenario, "run", lambda *args, **kwargs: root)
     result = execute_run(RunSpec(scenario="balancing_cube", output_dir=root))
     assert result.exit_code != 0 and result.error == "required_gpu_not_run_for_reference"
+
+
+@pytest.mark.parametrize('failure_stage', ['validation', 'summary'])
+def test_final_sync_outage_is_inconclusive_and_preserves_retry_artifacts(tmp_path, monkeypatch, failure_stage):
+    bridge = ssot_bridge(tmp_path)
+    source = bridge.load_snapshot()
+    deliver = bridge.store.import_records
+
+    def fail_final_publication(records, **kwargs):
+        if any(row['id'].endswith('.' + failure_stage) for row in records):
+            raise OSError('simulated final publication outage')
+        return deliver(records, **kwargs)
+
+    monkeypatch.setattr(bridge.store, 'import_records', fail_final_publication)
+    root = tmp_path / ('final-outage-' + failure_stage)
+    result = run_design_loop(snapshot=source, output_dir=root, llm_client=FakeLLM(),
+                             rounds=1, bridge=bridge)
+    expected_phase = 'before' if failure_stage == 'validation' else 'after'
+    assert result['status'] == 'inconclusive'
+    assert result['stopped_reason'] == f'onepiece_sync_pending_{expected_phase}_summary'
+    assert result['onepiece_sync']['after_summary_record']['pending'] > 0
+    if failure_stage == 'validation':
+        assert result['onepiece_sync']['before_summary_record']['pending'] > 0
+    else:
+        assert result['onepiece_sync']['before_summary_record']['pending'] == 0
+    assert json.loads((root / 'summary.json').read_text()) == result
+    assert json.loads((root / 'sync-status.json').read_text())['pending'] > 0
+    outbox_before = (root / 'onepiece-outbox.json').read_bytes()
+    publication_before = (root / 'publication/summary.json').read_bytes()
+    monkeypatch.setattr(bridge.store, 'import_records', deliver)
+    recovered = bridge.outbox(root)
+    assert recovered.flush()['pending'] == 0
+    assert recovered.flush()['pending'] == 0
+    assert (root / 'publication/summary.json').read_bytes() == publication_before
+    assert json.loads((root / 'summary.json').read_text()) == result
+    queued = json.loads(outbox_before)
+    restored = json.loads((root / 'onepiece-outbox.json').read_text())
+    assert [e['record'] for e in queued] == [e['record'] for e in restored]
+    assert bridge.store.check()['ok']

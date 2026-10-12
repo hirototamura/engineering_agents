@@ -280,17 +280,27 @@ class EngineeringMemory:
         summary_path = root / "summary.json"
         summary = json.loads(summary_path.read_text())
         run_id = summary["run_id"]
+        def measured_feedback(result):
+            facts = {k: v for k, v in result.items() if k not in {"records", "proposal"}}
+            if "records" in result:
+                facts.setdefault("failure_metrics", sorted({c["metric"] for trial in result["records"]
+                    for c in trial.get("screening", []) if not c["passed"]}))
+            return facts
         results = {}
+        loaded_results = []
         for path in sorted((root / "candidates").glob("*/result.json")):
             result = json.loads(path.read_text())
             results[result.get("candidate_id")] = (result, path)
+            loaded_results.append((result, path))
         best = summary.get("best") or {}
-        if best.get("candidate_id") == "reference":
+        imported_results = set()
+        if "reference" in results or best.get("candidate_id") == "reference":
             result, result_path = results.get("reference", (best, summary_path))
-            facts = {k: v for k, v in result.items() if k not in {"records", "proposal"}}
+            facts = measured_feedback(result)
             self.record_episode(run_id=run_id, round_index=0, proposal=result.get("proposal"),
                 configuration_digest=result.get("input_digest"), feedback=facts, status="reference",
                 source_refs=[file_reference(summary_path, kind="campaign_summary"), file_reference(result_path, kind="numeric_result")])
+            imported_results.add(result_path)
         seen = set()
         for row in summary.get("rounds", []):
             number = row["round"]
@@ -310,6 +320,7 @@ class EngineeringMemory:
                 seen.add(repeat_identity)
             feedback = row.get("feedback") or {key: value for key, value in row.items()
                                                if key in {"status", "error"}}
+            feedback = {**measured_feedback(result), **feedback}
             refs = [file_reference(summary_path, kind="campaign_summary")]
             for path, kind in ((proposal_path, "proposal"), (directory / "prompt-data.json", "llm_input"),
                                (rejected_path, "rejection"), (result_path, "numeric_result")):
@@ -317,4 +328,24 @@ class EngineeringMemory:
                     refs.append(file_reference(path, kind=kind))
             self.record_episode(run_id=run_id, round_index=number, proposal=proposal,
                 configuration_digest=config_digest, feedback=feedback, status=status, source_refs=refs)
+            if result_path is not None:
+                imported_results.add(result_path)
+        # A joint round's summary names only M1C1. Keep every other measured
+        # factorial cell (and candidates from interrupted rounds), with its own
+        # proposal, digest, failures and hash-pinned result provenance.
+        for result, result_path in loaded_results:
+            if result_path in imported_results:
+                continue
+            refs = [file_reference(summary_path, kind="campaign_summary"),
+                    file_reference(result_path, kind="numeric_result")]
+            compiled_path = result_path.with_name("compiled.json")
+            compiled = json.loads(compiled_path.read_text()) if compiled_path.exists() else {}
+            if compiled_path.exists():
+                refs.append(file_reference(compiled_path, kind="compiled_configuration"))
+            self.record_episode(run_id=run_id, round_index=result.get("round", 0),
+                proposal=result.get("proposal", compiled.get("proposal")),
+                configuration_digest=result.get("input_digest"),
+                feedback=measured_feedback(result),
+                status="evaluated", source_refs=refs,
+                episode_key=f"{run_id}:seed-candidate:{result_path.relative_to(root).as_posix()}")
         return self.flush()

@@ -222,6 +222,8 @@ def mark_latest_reports(entries: list[dict]) -> None:
 def build_catalog() -> dict:
     HERE.mkdir(parents=True, exist_ok=True)
     for source in Path(__file__).with_name("launchers").glob("*"):
+        if not source.is_file():
+            continue
         destination = HERE / source.name
         if not destination.exists():
             atomic_write(destination, source.read_text(encoding="utf-8"))

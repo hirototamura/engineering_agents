@@ -167,3 +167,32 @@ def test_rejected_proposal_is_not_counted_as_completed_measured_round(tmp_path):
     assert result["rounds"][0]["status"] == "rejected"
     assert result["rounds"][1]["stage_sequence"] == ["EN", "PI", "R", "E"]
     assert result["iterations_completed"] == 1
+
+
+def test_seeded_factorial_run_retains_reference_every_cell_and_exact_feedback(tmp_path):
+    root = tmp_path / 'factorial-seed'
+    summary = run_design_loop(snapshot=snapshot(), output_dir=root,
+        llm_client=SequenceLLM([proposal(control=True)]), rounds=1)
+    measured = [json.loads(p.read_text()) for p in (root / 'candidates').glob('*/result.json')]
+    assert len(measured) == 4
+    # The baseline shall remain in memory even when another candidate is best.
+    summary['best'] = next(r for r in measured if r['matrix_cell'] == 'M1C1')
+    (root / 'summary.json').write_text(json.dumps(summary))
+    before = {p: p.read_bytes() for p in root.rglob('*.json')}
+    seeded = EngineeringMemory(tmp_path / 'seeded-memory')
+    assert seeded.bootstrap_run(root)['episode_count'] == 4
+    journal = seeded.journal_path.read_bytes()
+    assert seeded.bootstrap_run(root)['episode_count'] == 4
+    assert seeded.journal_path.read_bytes() == journal
+    episodes = seeded.episodes
+    assert {e['measured_feedback']['matrix_cell'] for e in episodes} == {'M0C0', 'M1C0', 'M0C1', 'M1C1'}
+    for result in measured:
+        episode = next(e for e in episodes if e['configuration_digest'] == result['input_digest'])
+        assert episode['proposal'] == result['proposal']
+        assert episode['measured_feedback']['score'] == result['score']
+        failed_metrics = sorted({c['metric'] for trial in result['records']
+                                 for c in trial['screening'] if not c['passed']})
+        assert episode['measured_feedback']['failure_metrics'] == failed_metrics
+        assert episode['measured_feedback']['all_screening_passed'] == result['all_screening_passed']
+        assert any(ref['kind'] == 'numeric_result' and len(ref['sha256']) == 64 for ref in episode['source_refs'])
+    assert all(p.read_bytes() == content for p, content in before.items())
