@@ -1,5 +1,7 @@
 # Engineering Agents — 宇宙機ECLSSの設計をAIエージェントで検証する
 
+**MuJoCo Balancing Cube:** [One-Pieceに接続した限定設計反復](docs/ja/mujoco-one-piece.md)。版付きシステムモデルと証拠を使うシナリオを、既存ECLSSに追加しました。
+
 [English README](README.md) · [ドキュメント](docs/ja/index.md) · [実験記録](docs/ja/results.md) · [解析データ](docs/data) · [エージェント設計](docs/ja/agent-design.md)
 
 **詳細な成果報告:** [技術説明](docs/ja/eclss_ai_agent_technical_report_04.md)（50人サバイバルの4段階実験、創発の可視化）

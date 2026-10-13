@@ -1,0 +1,306 @@
+{
+  "en": {
+    "title": "An engineering agent that learns from evidence",
+    "subtitle": "A balancing cube, a language model, and a research loop that keeps its failures visible",
+    "abstract": "Can an AI propose better engineering designs without becoming the judge of its own success? We connect a versioned system model in One-Piece to Engineering Agents and MuJoCo. The agent proposes bounded changes, a trusted builder creates the controller, and deterministic tests produce evidence for the next proposal. Across the historical search and two Qwen campaigns, exploration scores increased, but confirmation failures prevented a claim of validated improvement. The result is a working, inspectable research process—and a clear account of what remains unproved.",
+    "sections": [
+      {
+        "id": "question",
+        "title": "The question: can design iteration become cumulative research?",
+        "paragraphs": [
+          "An experiment is useful when another person can reconstruct its question, inputs, method, result, and consequence. We make that chain the interface between a human, an engineering agent, and a simulator. The balancing cube is a small, demanding testbed: geometry, actuator limits, feedback control, and sensor delay interact.",
+          "Humans own the requirements, evaluation conditions, and adopted baseline. The language model proposes designs and explanations. Programs enforce the change boundary and judge measurements. Evidence, including failure, becomes an input to the next iteration.",
+          "Engineering Agents already contains ECLSS scenarios for life-support systems. The cube adds a mechanical-and-control testbed for the same broader idea: an agent should turn a design proposal into an experiment, preserve the result, and use that result to plan what to test next."
+        ]
+      },
+      {
+        "id": "method",
+        "title": "The method: restrict the experiment before increasing its scale",
+        "paragraphs": [
+          "The cube balances on a vertex using three reaction wheels. Accelerating a wheel applies an opposite torque to the body. The controller has to correct tilt while keeping wheel speed and motor demand within limits. The S2 model represents a free body with six degrees of freedom and eight spherical corners contacting a floor. These contact and actuator parameters are assumptions, not measurements.",
+          "Automatic changes are limited to six mechanical variables, a registered motor, three LQR weight groups, and yaw gain. Each weight can range from 0.25 to 4 times its nominal value; yaw gain ranges from 0 to 0.12. R stays fixed. The model cannot relax a test to rescue a design.",
+          "The control period is 15 ms and the physics step is 1 ms. Each trial lasts 6 s. The evaluation matrix has 12 cases: three physical-domain priors (mass, contact and delay) × two release conditions × two seeds. These are numerical development tests, not a demonstration of the draft 30 s physical holding requirement.",
+          "A discrete LQR controls two tilt angles, two angular rates, and two wheel-momentum states; a separate damper controls yaw rate. A fixed nominal model supplies the linearization used to generate K. Observations are simulated truth plus Gaussian noise (tilt 0.05°; gyro 0.2°/s standard deviation) and 15 or 30 ms delay. Wheel channels are ideal. There is no implemented IMU attitude-estimation filter in these experiments."
+        ]
+      },
+      {
+        "id": "loop",
+        "title": "One proposal travels through the whole loop",
+        "paragraphs": [
+          "First, Engineering Agents reads exact requirement revisions, parameters, previous designs, and evidence from One-Piece. Qwen proposes a bounded configuration. A trusted compiler checks it and generates a saved LQR gain matrix K. Native MuJoCo on CPU and MJX on GPU evaluate the same K and seeds. Fixed thresholds produce case outcomes and aggregate metrics.",
+          "Results and provenance are written back, then read before another proposal. When mechanics and control both change, a 2 × 2 comparison can separate their effects; some unchanged cells reuse cached evidence. New campaigns use fixed-step CPU/GPU checks. Earlier supplemental half-step checks remain separate historical evidence.",
+          "Numerical agreement does not require bitwise-identical trajectories. It compares first-second trajectory errors, peak wheel-speed differences, full-episode gate decisions, and termination status and time. Near-threshold cases can remain inconclusive. Agreement is a check between numerical implementations; physical validity needs separate measured evidence."
+        ]
+      },
+      {
+        "id": "memory",
+        "title": "Memory changes the next prompt, not the model weights",
+        "paragraphs": [
+          "The actual server used vLLM with qwen3.8-27b-uncensored, from orcarouter/Qwen3.8-27B-Uncensored-FP8. Generation used temperature 0.3, a 3,072-token output limit, and thinking enabled with a 2,048-token budget. Six GPUs served simulation workers and two served the LLM. There was no model training.",
+          "Working context, episodic experiment records, and semantic lessons are retrieved from an append-only JSONL journal with source hashes. There is no embedding database. This makes memory inspectable, but does not establish that every lesson is true. A later review fix expanded seeded history to retain every measured configuration; that fix was not part of the archived campaigns."
+        ]
+      },
+      {
+        "id": "history",
+        "title": "From a broad search to sequential proposals",
+        "paragraphs": [
+          "The historical random/elitist-mutation search evaluated 2,048 candidates across 24,576 exploration trials: 2,048 × 12. This was a candidate budget, not simultaneous configurations. Eight GPUs used 1,024 worlds per worker; mean measured utilization was 27.26%. Only 62 candidates cleared all gates: 3.03%, derived from 62 ÷ 2,048. Later, 46-candidate confirmation found 31 passes, nine failures, and six inconclusive outcomes. Different stages have different meanings.",
+          "D-000544-52890 is the best original paired numerical reference, not a human-adopted baseline. Historical and new evaluators differ; their scores should not be ranked directly. The Qwen campaigns completed 10 rounds with 13 configurations and 20 rounds with 24 configurations. Different sequential histories make this an uncontrolled comparison of duration.",
+          "An earlier local pilot used Ollama qwen3.5:9b for two CPU-only rounds: one unique proposal and one duplicate. Fake-LLM acceptance tests are separate. An initial Qwen 10-round attempt stopped after one completed round with proposal_generation_failed; that record is retained."
+        ]
+      },
+      {
+        "id": "results",
+        "title": "The result: higher exploration scores, unresolved confirmation failures",
+        "paragraphs": [
+          "The 10-round campaign reached an exploration score of 0.9906165004570363. Its separate validation matrix scored 0.9065363695185216 and passed 11 of 12 cases. CPU/GPU numerical agreement was verified. In heavy-delay, confirm-b, seed 811, speed saturation occupied 1.7833% of the trial, above the 1% limit.",
+          "The 20-round campaign reached 0.9914337403352801 in exploration, but validation scored 0.8833405346349856 with 11 of 12 passes. In heavy-delay, confirm-b, seed 812, CPU balance was lost at 4.725 s with a peak tilt of 21.46997°. GPU execution completed, but the agreement decision was inconclusive. Neither campaign establishes a validated improvement."
+        ]
+      },
+      {
+        "id": "insights",
+        "title": "What the failures teach us",
+        "paragraphs": [
+          "A scalar score can rise while a delayed-sensing case remains unacceptable. Failures suggest questions about speed headroom and delay robustness, not a proved cause. In round 4 of the 20-round run, control-only M0C1 scored 0.9913819995897613 versus combined M1C1 at 0.9912217184275577. Cached M0C0 and M1C0 complete the comparison. This is mechanism-testing evidence, not a general causal claim.",
+          "The validation matrix is separate from exploration, but public and integrity-checked. Earlier validation feedback was exposed when work continued. It is not a secret, untouched holdout. Repeatedly learning from it can fit the test set, so future evidence needs predeclared tests and genuinely fresh conditions.",
+          "Late local tuning illustrates another limit: round 19 exceeded round 18 by about 4.06 × 10⁻⁸ in the deterministic score (their recorded difference). That precision is useful for reproducibility, but does not establish a meaningful physical advantage."
+        ]
+      },
+      {
+        "id": "accountability",
+        "title": "Accountability is part of the experimental apparatus",
+        "paragraphs": [
+          "Each claim should lead back to a requirement revision, configuration, compiled controller, case, and source artifact hash. Preserve rejected proposals, partial results, failed cases, and inconclusive decisions. The HTML explains these records; structured data supplies the agent with the same evidence.",
+          "One-Piece is currently a versioned-store and SysML-interchange MVP, not a fully compliant systems platform. Requirement practice prioritizes ISO/IEC/IEEE 29148:2018, then applicable NASA guidance, then compatible ASD-STE100 wording. English normative requirements use shall. Human review remains necessary for requirements and baseline decisions."
+        ]
+      },
+      {
+        "id": "discussion",
+        "title": "What simulation cannot yet tell us",
+        "paragraphs": [
+          "CPU/GPU agreement checks numerical consistency between implementations. It does not establish physical fidelity. Sensor conditions add noise and delay to simulated truth; they do not implement and validate an actual IMU attitude-estimation filter. Thermal and electrical behavior are not modeled. Physical fidelity and 30 s hardware holding remain unproved.",
+          "The evidence supports a functioning proposal–simulation–record–feedback loop. It does not isolate the contribution of the LLM, memory, GPU scale, or search duration. Those mechanisms need controlled comparisons, multiple independent runs, and uncertainty estimates."
+        ]
+      },
+      {
+        "id": "conclusion",
+        "title": "A constructive result is an auditable next question",
+        "paragraphs": [
+          "The contribution is a workflow where designs meet explicit constraints, tests can disagree with persuasive explanations, and failures remain available for learning. The loop runs and produces traceable evidence; the design conclusion remains provisional. Progress now means testing a narrower hypothesis with stronger controls, not simply accumulating rounds or a higher score."
+        ]
+      }
+    ],
+    "hypotheses": [
+      {
+        "title": "H1 · Evidence can close the loop",
+        "claim": "An agent can use recorded results to propose and test another bounded configuration.",
+        "result": "Supported as an operational capability by the completed sequential campaigns; improvement is a separate question."
+      },
+      {
+        "title": "H2 · More rounds yield a better confirmed design",
+        "claim": "A higher exploration score will carry over to confirmation cases.",
+        "result": "Not established. Both campaigns passed 11 of 12 validation cases, and the longer campaign had the lower validation score."
+      },
+      {
+        "title": "H3 · Memory improves proposal quality",
+        "claim": "Retrieved failures and lessons help the agent choose more robust changes.",
+        "result": "Plausible but untested causally. There is no matched memory ablation, and the seed-coverage fix postdates these runs."
+      }
+    ],
+    "next_experiments": [
+      {
+        "title": "Predeclare a fresh confirmation set",
+        "method": "Freeze the next candidate and thresholds, then run new seeds and delay conditions before exposing their outcomes to the agent.",
+        "criterion": "All declared gates pass; report every case and CPU/GPU agreement outcome."
+      },
+      {
+        "title": "Measure the contribution of memory",
+        "method": "Compare memory-enabled and memory-disabled proposals with the same starting design, model settings, budget, and several independent runs.",
+        "criterion": "Compare confirmed performance and failure counts with uncertainty, not only the best exploration score."
+      },
+      {
+        "title": "Test the proposed failure mechanism",
+        "method": "Use the mechanics/control 2 × 2 comparison and matched delayed-sensing cases to examine speed headroom and balance loss.",
+        "criterion": "A predicted case-level effect repeats under matched conditions before it becomes a design lesson."
+      }
+    ],
+    "glossary": [
+      {
+        "term": "Requirement",
+        "definition": "A versioned statement of a required capability or constraint, with human-owned acceptance conditions."
+      },
+      {
+        "term": "KDP",
+        "definition": "Key Design Parameter: a consequential design value with units, bounds, and provenance."
+      },
+      {
+        "term": "Exploration score",
+        "definition": "A ranking metric for development cases; it is not proof that every requirement is met."
+      },
+      {
+        "term": "Numerical agreement",
+        "definition": "CPU and GPU results agree within declared tolerances for the same saved configuration and cases."
+      },
+      {
+        "term": "Validation matrix",
+        "definition": "A separate confirmation set used here for numerical checks; it does not establish physical validation."
+      },
+      {
+        "term": "Baseline",
+        "definition": "A configuration formally adopted by a human; a best numerical reference alone is not a baseline."
+      }
+    ]
+  },
+  "ja": {
+    "title": "証拠から学ぶエンジニアリングエージェント",
+    "subtitle": "バランシングキューブ、言語モデル、失敗を見えるまま残す研究ループ",
+    "abstract": "AIは、自ら成功を判定する立場になることなく、より良い工学設計を提案できるでしょうか。本研究では、One-Pieceの版管理されたシステムモデルをEngineering AgentsとMuJoCoへ接続します。エージェントは制限された範囲で変更を提案し、信頼されたビルダーが制御器を生成し、決定論的な試験が次の提案に使う証拠を作ります。過去の探索と二つのQwenキャンペーンでは探索スコアが上がりましたが、確認試験の失敗により、検証済みの改善とは主張できませんでした。得られた成果は、実行可能で検査できる研究プロセスと、まだ実証されていない事項の明確な記録です。",
+    "sections": [
+      {
+        "id": "question",
+        "title": "問い：設計反復を蓄積される研究にできるか",
+        "paragraphs": [
+          "実験は、別の人が問い、入力、方法、結果、その後の判断を再構成できるときに役立ちます。本研究では、このつながりを人間、エンジニアリングエージェント、シミュレータの間のインターフェースにします。バランシングキューブは、小さくても難しい試験対象です。形状、駆動制約、フィードバック制御、センサー遅延が相互に作用します。",
+          "要求、評価条件、採用ベースラインの決定権は人間が持ちます。言語モデルは設計と説明を提案します。プログラムが変更範囲を制限し、測定値を判定します。失敗を含む証拠が、次の反復の入力になります。",
+          "Engineering Agentsには、生命維持システムを扱うECLSSシナリオがあります。Cubeは、同じ考え方を機械と制御の試験対象に広げます。設計提案を実験に変え、結果を保持し、その結果から次に試すことを計画するためです。"
+        ]
+      },
+      {
+        "id": "method",
+        "title": "方法：規模を大きくする前に実験範囲を制限する",
+        "paragraphs": [
+          "Cubeは3つのリアクションホイールで頂点倒立を保ちます。ホイールを加速すると、機体には逆向きのトルクが作用します。制御器はホイール速度とモータの制約を守りながら傾斜を修正します。S2モデルは6自由度の機体と床に接触する8つの球状頂点で構成します。接触・駆動パラメータは実測値ではなく仮定です。",
+          "自動変更の対象は、機械6変数、登録済みモータ、LQRの3群の重み、yawゲインに限定します。各重みの範囲は基準値の0.25〜4倍、yawゲインは0〜0.12です。Rは固定します。モデルが設計を合格させるために試験を緩めることはできません。",
+          "制御周期は15 ms、物理刻みは1 msです。各試験は6 sで実施します。評価行列は、物理条件の仮定3領域（質量・接触・遅延） × リリース条件2種類 × シード2種類の12ケースです。これは数値的な開発試験であり、草案の実機30 s保持要求を実証するものではありません。",
+          "離散LQRは傾斜2成分、角速度2成分、ホイール運動量2成分を制御し、別のダンパがyaw角速度を制御します。Kの生成には固定した基準モデルの線形化を使います。観測は真値にガウス雑音（標準偏差：傾斜0.05°、ジャイロ0.2°/s）と15または30 msの遅延を加えたものです。ホイールの観測は理想値です。この実験にはIMUの姿勢推定フィルタは実装していません。"
+        ]
+      },
+      {
+        "id": "loop",
+        "title": "一つの提案がループ全体を通る",
+        "paragraphs": [
+          "最初にEngineering Agentsが、要求の厳密な版、パラメータ、前回の設計、証拠をOne-Pieceから取得します。Qwenが範囲内の構成を提案します。信頼されたコンパイラが提案を検査し、保存するLQRゲイン行列Kを生成します。CPU上のネイティブMuJoCoとGPU上のMJXが、同じKとシードを評価します。固定した閾値によって各ケースの結果と集約指標を決めます。",
+          "結果と出典を記録し、次の提案の前に読み直します。機械と制御を同時に変更する場合は、2 × 2比較によって効果を分けて調べられます。変更のない一部のセルでは、キャッシュした証拠を再利用します。新しいキャンペーンでは固定刻みのCPU/GPU確認を行います。以前の追加半刻み確認は、別の過去の証拠として保持します。",
+          "数値整合では軌跡のビット単位の一致を求めません。最初の1秒の軌跡誤差、最大ホイール速度の差、全試験時間のゲート判定、終了状態と時刻を比較します。閾値近傍のケースは保留になり得ます。これは数値実装間の確認であり、物理的な妥当性には別の実測証拠が必要です。"
+        ]
+      },
+      {
+        "id": "memory",
+        "title": "メモリが変えるのは次のプロンプトであり、モデルの重みではない",
+        "paragraphs": [
+          "実際のサーバーでは、vLLMでqwen3.8-27b-uncensoredを実行しました。モデルの取得元はorcarouter/Qwen3.8-27B-Uncensored-FP8です。生成温度は0.3、出力上限は3,072トークン、thinkingを有効にしてその予算を2,048トークンに設定しました。6基のGPUをシミュレーションワーカーに、2基をLLMに割り当てました。モデルの学習は行っていません。",
+          "作業用文脈、実験のエピソード記録、意味的な教訓を、出典ハッシュを持つ追記専用JSONLジャーナルから検索します。埋め込みデータベースはありません。この構成ではメモリを検査できますが、すべての教訓が正しいと実証したことにはなりません。後のレビュー修正で、初期メモリに測定済みの全構成を残すよう拡張しました。この修正は、アーカイブ済みキャンペーンの実行時には含まれていません。"
+        ]
+      },
+      {
+        "id": "history",
+        "title": "広い探索から逐次的な提案へ",
+        "paragraphs": [
+          "過去のランダム探索とエリートを保持する変異探索では、2,048候補 × 12ケース、合計24,576回の探索試験を評価しました。2,048は候補予算であり、同時実行する構成数ではありません。8基のGPUを使い、各ワーカーは1,024ワールドを用いました。測定した平均使用率は27.26%でした。すべてのゲートを通過したのは62候補で、62 ÷ 2,048から算出すると3.03%です。その後の46候補の確認は、31件通過、9件失敗、6件判定保留でした。各段階の件数の意味は異なります。",
+          "D-000544-52890は、元のCPU/GPU対による数値確認で最良だった比較基準であり、人間が採用したベースラインではありません。過去と新しい実行では評価器が異なるため、スコアを直接順位付けできません。Qwenキャンペーンは、10反復で13構成、20反復で24構成を完了しました。逐次的な履歴が異なるため、期間についての統制比較にはなりません。",
+          "それ以前のローカル試行では、Ollamaのqwen3.5:9bを使い、CPUのみで2反復を実行しました。一つは新規提案で、もう一つは重複でした。Fake LLMによる受入試験は別です。最初のQwen 10反復の試行は、1反復を完了した後にproposal_generation_failedで停止しました。その記録も保持しています。"
+        ]
+      },
+      {
+        "id": "results",
+        "title": "結果：探索スコアは上昇したが、確認試験の失敗は未解決",
+        "paragraphs": [
+          "10反復キャンペーンの探索スコアは0.9906165004570363に達しました。別の検証行列ではスコア0.9065363695185216、12ケース中11ケース通過でした。CPU/GPUの数値整合は確認済みです。heavy-delay、confirm-b、シード811では、速度飽和の割合が試験時間の1.7833%となり、上限の1%を超えました。",
+          "20反復キャンペーンの探索スコアは0.9914337403352801に達しましたが、検証スコアは0.8833405346349856で、12ケース中11ケース通過でした。heavy-delay、confirm-b、シード812では、CPU計算で4.725 sにバランスを失い、最大傾斜は21.46997°でした。GPU実行は完了しましたが、数値整合の判定は保留でした。どちらのキャンペーンも、検証済みの設計改善を実証していません。"
+        ]
+      },
+      {
+        "id": "insights",
+        "title": "失敗から何を学べるか",
+        "paragraphs": [
+          "一つのスコアが上がっても、遅延ケースが不合格のまま残ることがあります。失敗は速度余裕と遅延への頑健性を問う手がかりであり、原因の証明ではありません。20反復実行の第4反復では、制御のみ変更したM0C1が0.9913819995897613、機械と制御を変更したM1C1が0.9912217184275577でした。キャッシュしたM0C0とM1C0が比較の残りを構成します。これはメカニズムを調べる証拠であり、一般的な因果関係の主張ではありません。",
+          "検証行列は探索用とは別ですが、公開され、完全性を確認したものです。継続時には以前の検証結果をフィードバックしました。秘密のまま一度も参照していないホールドアウトではありません。その結果から繰り返し学ぶと試験集合に適合する可能性があるため、今後は事前に宣言した試験と、実際に新しい条件から証拠を得る必要があります。",
+          "終盤の微調整にも限界が見えます。第19反復は第18反復を、決定論的スコアで約4.06 × 10⁻⁸上回りました（記録値の差）。この精度は再現確認には有用ですが、物理的に意味のある優位性を実証するものではありません。"
+        ]
+      },
+      {
+        "id": "accountability",
+        "title": "説明責任も実験装置の一部",
+        "paragraphs": [
+          "各主張から、要求の版、構成、生成した制御器、ケース、元成果物のハッシュまでたどれる必要があります。棄却した提案、部分結果、失敗ケース、判定保留を保存します。HTMLはこれらの記録を説明し、構造化データは同じ証拠をエージェントへ渡します。",
+          "現在のOne-Pieceは、版管理ストアとSysML交換形式のMVPであり、完全な規格準拠を実現したシステム基盤ではありません。要求作成ではISO/IEC/IEEE 29148:2018を最優先とし、次に適用可能なNASAガイド、その次に両者と整合するASD-STE100表現を使います。英語の規範的な要求にはshallを使います。要求とベースラインの判断には、引き続き人間のレビューが必要です。"
+        ]
+      },
+      {
+        "id": "discussion",
+        "title": "シミュレーションがまだ答えられないこと",
+        "paragraphs": [
+          "CPU/GPU整合確認は、実装間の数値的一貫性を調べます。物理忠実度を実証するものではありません。センサー条件はシミュレーションの真値にノイズと遅延を加えたもので、実際のIMU姿勢推定フィルタを実装して妥当性を確認したものではありません。熱と電気の挙動もモデル化していません。物理忠実度と実機30 s保持は未実証です。",
+          "証拠が支持するのは、提案・シミュレーション・記録・フィードバックのループが機能することです。LLM、メモリ、GPU規模、探索期間それぞれの寄与は切り分けられていません。これらの仕組みを評価するには、統制比較、複数の独立実行、不確かさの推定が必要です。"
+        ]
+      },
+      {
+        "id": "conclusion",
+        "title": "建設的な成果とは、検証できる次の問いである",
+        "paragraphs": [
+          "貢献は、設計を明示的な制約に照らし、説得力のある説明にも試験が異議を示せて、失敗を学習に使えるまま残すワークフローです。ループは実行され、追跡可能な証拠を作りますが、設計の結論は暫定的です。次の前進は、反復数や高いスコアを増やすことだけではなく、より狭い仮説を、より強い統制の下で試すことにあります。"
+        ]
+      }
+    ],
+    "hypotheses": [
+      {
+        "title": "H1 · 証拠によってループを閉じられる",
+        "claim": "エージェントは記録された結果を使い、範囲内の別の構成を提案して試験できる。",
+        "result": "完了した逐次キャンペーンにより、実行上の能力として支持されました。設計改善は別の問いです。"
+      },
+      {
+        "title": "H2 · 反復を増やすと確認済みの設計が良くなる",
+        "claim": "探索スコアの上昇は確認ケースにも引き継がれる。",
+        "result": "未実証です。両キャンペーンとも検証は12ケース中11ケース通過で、長いキャンペーンの方が検証スコアは低くなりました。"
+      },
+      {
+        "title": "H3 · メモリが提案の品質を改善する",
+        "claim": "検索した失敗と教訓が、より頑健な変更の選択に役立つ。",
+        "result": "妥当な可能性はありますが、因果関係は未検証です。条件をそろえたメモリ除去実験はなく、初期履歴の網羅性修正はこれらの実行後です。"
+      }
+    ],
+    "next_experiments": [
+      {
+        "title": "新しい確認集合を事前に宣言する",
+        "method": "次の候補と閾値を固定し、新しいシードと遅延条件を実行してから結果をエージェントへ開示します。",
+        "criterion": "宣言した全ゲートを通過すること。全ケースとCPU/GPU整合判定を報告します。"
+      },
+      {
+        "title": "メモリの寄与を測定する",
+        "method": "同じ初期設計、モデル設定、予算の下で、メモリありとなしの提案を複数の独立実行で比較します。",
+        "criterion": "最良の探索スコアだけでなく、確認済みの性能と失敗数を不確かさとともに比較します。"
+      },
+      {
+        "title": "提案した失敗メカニズムを試す",
+        "method": "機械と制御の2 × 2比較および条件をそろえた遅延ケースを用い、速度余裕とバランス喪失を調べます。",
+        "criterion": "予測したケース単位の効果が同条件で再現してから、設計上の教訓として扱います。"
+      }
+    ],
+    "glossary": [
+      {
+        "term": "要求",
+        "definition": "必要な能力または制約を版管理した記述。受入条件の決定権は人間が持ちます。"
+      },
+      {
+        "term": "KDP",
+        "definition": "Key Design Parameter。単位、範囲、出典を持つ、設計上重要な値です。"
+      },
+      {
+        "term": "探索スコア",
+        "definition": "開発ケースで順位を付ける指標。すべての要求を満たした証明ではありません。"
+      },
+      {
+        "term": "数値整合",
+        "definition": "同じ保存済み構成とケースで、CPUとGPUの結果が宣言した許容差内で一致することです。"
+      },
+      {
+        "term": "検証行列",
+        "definition": "ここで数値確認に使った別の確認集合。実世界の妥当性確認を実証するものではありません。"
+      },
+      {
+        "term": "ベースライン",
+        "definition": "人間が正式に採用した構成。最良の数値比較基準だけではベースラインにはなりません。"
+      }
+    ]
+  }
+}

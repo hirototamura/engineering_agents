@@ -22,12 +22,23 @@ dependencies = [
 
 [project.scripts]
 ea = "tools.cli.main:app"
+ea-reports = "tools.report_library.__main__:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "mkdocs-material>=9.0", "mkdocs-static-i18n>=1.2.0"]
+mujoco = ["mujoco==3.3.7", "scipy>=1.16", "numpy>=2.3"]
+gpu = ["mujoco==3.3.7", "mujoco-mjx==3.3.7", "jax[cuda12]==0.6.2", "scipy>=1.16"]
+onepiece = ["one-piece-engineering @ https://github.com/hirototamura/one-piece/releases/download/evidence-balancing-cube-20261011-review2/one_piece_engineering-0.1.1-py3-none-any.whl#sha256=03531dd16fad2081c0ba73783d2bc5da8b56bbea9a6a3f5fb6fbfc9f1cb9ee24"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"scenario.balancing_cube" = ["scenario.yaml"]
+"integrations.one_piece" = ["agent_context_exclusions.json"]
+"environment.mujoco" = ["legacy_source_manifest.json"]
+"tools.report_library" = ["catalog_template.html", "launchers/*.command", "launchers/*.py"]
+"tools.research_story" = ["template.html", "copy.json", "evidence.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

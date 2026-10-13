@@ -172,6 +172,15 @@ def run(
     json_output: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
     quiet: bool = typer.Option(False, "--quiet", help="Print only the output path."),
 ) -> None:
+    if scenario == "balancing_cube":
+        from tools.cli.commands.mechanical import run_mechanical
+        run_mechanical(iterate=iterate, backend=backend, output_dir=output_dir,
+            run_id=run_id, results_root=results_root, agents_mode=agents_mode,
+            design_mode=design_mode, llm_provider=llm_provider, llm_model=llm_model,
+            seed=seed, set_values=set_values, override_file=override_file,
+            apply_proposals=apply_proposals, dry_run=dry_run, write_spec=write_spec,
+            json_output=json_output, quiet=quiet)
+        return
     from scenario.jobs.iterate import ITERATE_SCENARIO, resolve_iteration
 
     if iterate is not None:

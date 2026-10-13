@@ -78,6 +78,8 @@ plugins:
               - API reference: ssos/api-reference.md
             - More:
               - CLI guide: cli.md
+              - Bilingual report library: report_library.md
+              - Cube evidence memory: balancing_cube_memory.md
               - Design-loop analysis: design-loop-analysis.md
               - Technical report v4: eclss_ai_agent_technical_report_04.md
               - Development plan: development-plan.md
