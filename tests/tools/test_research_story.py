@@ -5,6 +5,8 @@ from pathlib import Path
 import re
 
 from tools.research_story.build import HERE, build
+from tools.research_story.portable import export
+from tools.research_story.serve_portable import allowed_page
 
 
 def test_frozen_extract_preserves_candidates_failures_and_factorial_best():
@@ -60,3 +62,26 @@ def test_research_story_has_own_catalog_family():
     assert row['category'] == 'Research' and row['scope'] == 'report'
     counterpart = classify(Path('engineering_agents/src/experiments/results/balancing-cube-research-story-20261012/index.ja.html'), '研究')
     assert counterpart['scope'] == 'source'
+
+
+def test_phone_export_contains_only_self_contained_language_pages(tmp_path):
+    paths = export(tmp_path, tmp_path / 'phone')
+    assert {path.name for path in paths} == {'index.html', 'index.ja.html'}
+    assert {path.name for path in (tmp_path / 'phone').iterdir()} == {'index.html', 'index.ja.html'}
+    payloads = []
+    for path in paths:
+        page = path.read_text()
+        assert 'id="download-evidence"' in page
+        assert 'URL.createObjectURL' in page
+        assert 'src="http' not in page and '<script src=' not in page
+        assert not re.search(r'href="(?:\.\./|evidence\.json)', page)
+        assert 'https://github.com/hirototamura/engineering_agents/releases/tag/reports-qwen-memory-20261012' in page
+        payloads.append(json.loads(re.search(r'<script id="research-evidence" type="application/json">(.*?)</script>', page, re.S)[1]))
+    assert payloads[0] == payloads[1] == json.loads((HERE / 'evidence.json').read_text())
+
+
+def test_phone_server_routes_only_two_articles():
+    assert allowed_page('/index.html') == 'index.html'
+    assert allowed_page('/index.ja.html?language=ja') == 'index.ja.html'
+    for route in ('/evidence.json', '/.git/config', '/../one-piece/records.json', '/other.html'):
+        assert allowed_page(route) is None

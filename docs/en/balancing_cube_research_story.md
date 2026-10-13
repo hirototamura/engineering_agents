@@ -32,6 +32,19 @@ The article's charts and replay are self-contained and require no CDN, model,
 GPU, or running API. Links to large original evidence assume the workspace or
 restored Release artifacts. `--output` can select another destination.
 
+## Read on an iPhone
+
+Double-click `scripts/open_research_on_iphone.command` on the Mac. It exports
+`reports/iphone-research/index.html` and `index.ja.html`, then prints phone URLs
+for the Mac's private Wi-Fi address. Keep the Terminal window open while reading;
+Control-C stops the server. The iPhone and Mac must use the same Wi-Fi network.
+This server serves only the two article pages, not the workspace or report
+library. For offline reading, transfer either HTML file to the iPhone; all
+figures, interactive charts, recorded CPU replay, and evidence values are
+embedded. Transfer both files together to use their language switch offline.
+The portable source links point to the repositories and campaign Release;
+the page can download its embedded evidence JSON without a separate file.
+
 ## Evidence and reproducibility
 
 Maintained sources live in `src/tools/research_story/`. `copy.json` contains the
