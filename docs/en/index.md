@@ -166,7 +166,7 @@ src/experiments/results/<run_id>/
 | `design_proposals.json` | **Post-run** permanent design proposals |
 | `summary.json` | Run metadata (`scenario`, `agents_mode`, peaks, etc.) |
 | `health_metrics.jsonl` | Safe / warning / critical (ssos_eclss_loop) |
-| `evaluation.json` | Deterministic scorecard + physics gate (`plant_sim` + survival) |
+| `evaluation.json` | Schema 2.1 scorecard + physics gate (`plant_sim` + survival; 100 with actors, 90 without) |
 
 Override with `--run-id`, `--output-dir`, or `EA_RESULTS_ROOT`.
 

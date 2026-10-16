@@ -22,10 +22,12 @@ isProject: false
 
 # ECLSS評価器の実装
 
+> **出荷中のスコアカードは schema 2.1**（`evaluation.SCHEMA_VERSION`）。残存は20点、cost/mass は各20点、actor 有効時の D/E は各5点（満点100 / actorなし90）。下記の 50+10×5 / 80 は当初の A3 草案であり、現行契約ではない。正本は [api-contracts.md](api-contracts.md) と [evaluation-scorecard-a3.html](evaluation-scorecard-a3.html)。
+
 ## 評価契約
 - 完全採点の対象は `ssos_eclss_loop` の `backend=plant_sim` かつ `survival.enabled=true`。それ以外も `evaluation.json` は生成し、理由付き `not_applicable` にする。
 - 配点外の物理ゲートを最初に実行し、必須値の欠損・非有限値、負在庫、台帳残差、故障中の処理、操作結果の物理符号を検査する。FAIL時は各軸と総合点を算出せず `invalid` にする。
-- actor有効時は100点満点（50+10×5）、`actor.mode=none` はD/Eを除外して80点満点。適用不能軸を0点扱いや再配分にしない。
+- **当初草案（廃止）:** actor有効時は100点満点（50+10×5）、`actor.mode=none` はD/Eを除外して80点満点。適用不能軸を0点扱いや再配分にしない。
 
 ## 決定論的な採点式
 - actor残存：`50 × crew_remaining / crew_initial`。原因別喪失は説明値として物理下限と帯滞在を分離する。

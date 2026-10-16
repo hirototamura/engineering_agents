@@ -545,20 +545,30 @@ ssos は actor（シミュレーション内）と design（事後）を分け�
 `mock` / `ros2`、または survival 無効時にもファイルは生成するが、`status:
 not_applicable` と理由を記録し、満点扱いしない。
 
-評価順序:
+評価順序（schema **2.1**、`src/scenario/ssos_eclss_loop/evaluation.py`）:
 
 1. 配点外の `physics_gate`（有限値、非負在庫、O₂/CO₂/水台帳、操作の物理範囲）
-2. actor 残存 50 点
-3. TCL、生存環境軌道、資源余裕・回復を各 10 点
-4. actor 有効時のみ判断と装置応答を各 10 点
+2. 下表の採点。適用不能点は他軸へ再配分しない。
 
-actor 有効時は 100 点満点、`actor.mode: none` は判断・応答を除外して 80 点満点。
-物理ゲート失敗時は `status: invalid` とし、各軸と総合点を算出しない。適用不能軸の
-点を他軸へ再配分しない。
+| 軸（`scores.axes`） | 配点 | いつ | 式 / 制約 |
+| --- | --- | --- | --- |
+| `actor_survival` | 20 | 常時 | `20 × crew_remaining / crew_initial` |
+| `tcl` | 10 | 常時 | 最初の `/eclss/events/crew_lost` から `10 × min(TCL / T_ref, 1)`。未来は外挿しない。`evaluation.tcl.reference_seconds` まで喪失なしは満点。それより早く終わって喪失なしは `right_censored`（`incomplete`） |
+| `environment_trajectory` | 10 | 常時 | 深刻度の時間積分（CO₂/O₂/水は等重み）。post-ops 行を優先し、同一 step の pre/post を二重計上しない |
+| `resource_recovery` | 10 | 常時 | 終了余裕 + 故障後 worst からの回復。CO₂:O₂:水の重みは **2:1:1** |
+| `cost` | 20 | 常時 | `evaluation.footprint.cost_full_score_musd`（満点）と `cost_zero_score_musd`（0点）の間で線形。出荷 YAML は 500 → 900 MUSD。`*_full_score_*` を省略するとベースライン機（乗員全滅する側）が満点線になる |
+| `mass` | 20 | 常時 | kg で同じ形。出荷 YAML は 3400 → 6000 kg（ARS+OGS+WRS 設置質量） |
+| `actor_decision` | 5 | actor 有効時 | 危険への遅延 + 観測状態 / 故障 / ペイロード範囲に対するコマンド妥当性。装置の成否はここでは使わない |
+| `physical_response` | 5 | actor 有効時 | `actor_decision` で妥当とされた操作のみ: 成功、処理量対要求量、期待する物理符号 |
+
+actor 有効時は **100** 点満点。`actor.mode: none` は最後の2軸を落として **90**。
+物理ゲート失敗時は `status: invalid` とし、各軸と総合点を算出しない。部分点は採点できた軸の和を残し、`applicable_max` / `complete` で示す。
+
+schema `1.0`（残存 50 点、cost/mass なし、actor なし満点 80）の総合点を `2.1` と直接比較しない。
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.1",
   "status": "scored",
   "physics_gate": {
     "passed": true,
@@ -566,10 +576,14 @@ actor 有効時は 100 点満点、`actor.mode: none` は判断・応答を除�
   },
   "scores": {
     "total": 74.2,
-    "max_score": 80,
+    "max_score": 90,
+    "applicable_max": 90,
+    "complete": true,
     "axes": {
-      "actor_survival": {"score": 45.0, "max_score": 50},
-      "tcl": {"score": 8.0, "max_score": 10}
+      "actor_survival": {"score": 18.0, "max_score": 20},
+      "tcl": {"score": 8.0, "max_score": 10},
+      "cost": {"score": 16.0, "max_score": 20},
+      "mass": {"score": 16.0, "max_score": 20}
     }
   }
 }

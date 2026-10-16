@@ -328,7 +328,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm 
 | `scenario_config.yaml` | 使用したシナリオ設定一式（overrides / `--apply-proposals` 適用後） |
 | `agents_config.yaml` | 使用したエージェント設定一式（mode ≠ none のとき） |
 | `summary.json` | peak CO₂、operational 回数、backend 種別など |
-| `evaluation.json` | スコアカード + `physics_gate`（`plant_sim` + survival。それ以外は `not_applicable`） |
+| `evaluation.json` | schema **2.1** スコアカード + `physics_gate`（`plant_sim` + survival。それ以外は `not_applicable`）。actor あり **100** 点、`actor.mode=none` は **90**。[API 契約](api-contracts.md) |
 | `provenance.jsonl` | 運用レコード（`record_type: operational`） |
 
 **scrubber 専用で ssos には出ないもの**: `eps_telemetry.jsonl`、ppm ベースの回復イベント。

@@ -166,7 +166,7 @@ src/experiments/results/<run_id>/
 | `design_proposals.json` | **ラン終了後**の恒久設計提案 |
 | `summary.json` | run メタデータ（`scenario`, `agents_mode` 等） |
 | `health_metrics.jsonl` | safe / warning / critical（ssos_eclss_loop） |
-| `evaluation.json` | 決定論スコアカード + 物理ゲート（`plant_sim` + survival） |
+| `evaluation.json` | schema 2.1 スコアカード + 物理ゲート（`plant_sim` + survival。actor あり 100、なし 90） |
 
 `--run-id` / `--output-dir` / `EA_RESULTS_ROOT` で上書き可能。
 
