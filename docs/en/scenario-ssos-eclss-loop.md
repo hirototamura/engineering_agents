@@ -325,7 +325,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm 
 | `scenario_config.yaml` | Effective scenario config (after overrides / `--apply-proposals`) |
 | `agents_config.yaml` | Effective agents config (when mode ≠ none) |
 | `summary.json` | Peak CO₂, operational count, backend kind, etc. |
-| `evaluation.json` | Scorecard + `physics_gate` (`plant_sim` + survival; otherwise `not_applicable`) |
+| `evaluation.json` | Schema **2.1** scorecard + `physics_gate` (`plant_sim` + survival; otherwise `not_applicable`). Max **100** with actors, **90** when `actor.mode=none`. See [API contracts](api-contracts.md#evaluationjson-deterministic-evaluation-scorecard) |
 | `provenance.jsonl` | Operational records (`record_type: operational`) |
 
 **Scrubber-only fields not in ssos**: `eps_telemetry.jsonl`, ppm-based recovery events.

@@ -22,10 +22,12 @@ isProject: false
 
 # ECLSS evaluator implementation
 
+> **Shipped scorecard is schema 2.1** (`evaluation.SCHEMA_VERSION`). Survival is 20, cost/mass are 20 each, D/E are 5 each when actors are on (100) or omitted for 90. Do not use the 50 + 10×5 / 80 numbers below as current contract — they are the original A3 draft. Canonical: [api-contracts.md](api-contracts.md#evaluationjson-deterministic-evaluation-scorecard) and [evaluation-scorecard-a3.html](evaluation-scorecard-a3.html).
+
 ## Evaluation contract
 - Full scoring applies only to `ssos_eclss_loop` with `backend=plant_sim` and `survival.enabled=true`. For all other runs, still emit `evaluation.json` with `not_applicable` and a reason.
 - Run the unscored physics gate first: check missing required values, non-finite values, negative inventories, ledger residuals, processing while failed, and physical sign consistency of operation results. On FAIL, do not compute axis or total scores; mark `invalid`.
-- When actors are enabled, maximum score is 100 (50 + 10×5). With `actor.mode=none`, exclude D/E for a maximum of 80. Do not treat inapplicable axes as zero or redistribute their points.
+- **Original draft (superseded):** When actors are enabled, maximum score is 100 (50 + 10×5). With `actor.mode=none`, exclude D/E for a maximum of 80. Do not treat inapplicable axes as zero or redistribute their points.
 
 ## Deterministic scoring formulas
 - Actor survival: `50 × crew_remaining / crew_initial`. Per-cause loss is reported separately as physical floor vs band dwell.

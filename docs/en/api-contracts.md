@@ -549,20 +549,26 @@ Full scoring applies only to runs with `backend: plant_sim` and
 and survival-disabled runs, but records `status: not_applicable` and a reason;
 such runs are never treated as full-score results.
 
-Evaluation order:
+Evaluation order (schema **2.1**, `src/scenario/ssos_eclss_loop/evaluation.py`):
 
 1. Unscored `physics_gate` (finite values, non-negative inventories, O2/CO2/water
    ledgers, and physical operation bounds)
-2. Actor survival: 20 points
-3. TCL, environment trajectory, and resource margin/recovery: 10 points each
-4. Cost and mass: 20 points each
-5. Actor decision and device response: 5 points each, only when actors are enabled
+2. Scored axes below. Inapplicable points are not redistributed.
 
-Actor-enabled runs have a maximum of 100 points. `actor.mode: none` excludes
-decision and response, for a maximum of 90. Inapplicable points are not
-redistributed. A failed physics gate produces `status: invalid` and no axis or
-total score. Partial scores keep the sum of scored axes and report
-`applicable_max` / `complete` rather than discarding the total.
+| Axis (`scores.axes`) | Points | When | Formula / constraint |
+| --- | --- | --- | --- |
+| `actor_survival` | 20 | always | `20 × crew_remaining / crew_initial` |
+| `tcl` | 10 | always | `10 × min(TCL / T_ref, 1)` from first `/eclss/events/crew_lost`; no future extrapolation. No loss through `evaluation.tcl.reference_seconds` is full credit; ending earlier with no loss is `right_censored` (`incomplete`) |
+| `environment_trajectory` | 10 | always | Time integral of severity (CO₂/O₂/water equal weight). Prefer post-ops rows; do not double-count pre/post in the same step |
+| `resource_recovery` | 10 | always | Terminal margin + recovery from post-fault worst. CO₂:O₂:water weights **2:1:1** |
+| `cost` | 20 | always | Linear between `evaluation.footprint.cost_full_score_musd` (full) and `cost_zero_score_musd` (zero). Shipped YAML: 500 → 900 MUSD. Omit `*_full_score_*` to use the baseline machine (usually the wrong reference: it loses the crew) |
+| `mass` | 20 | always | Same shape for kg. Shipped YAML: 3400 → 6000 kg (ARS+OGS+WRS installed) |
+| `actor_decision` | 5 | actors on | Latency to danger + command validity vs observed state / failure / payload bounds. Device outcomes are **not** used here |
+| `physical_response` | 5 | actors on | Only operations judged valid in `actor_decision`: success, processed vs requested, expected physical sign |
+
+Actor-enabled runs have a maximum of **100**. `actor.mode: none` drops the last two axes for **90**. A failed physics gate produces `status: invalid` and no axis or total score. Partial scores keep the sum of scored axes and report `applicable_max` / `complete` rather than discarding the total.
+
+Do not compare schema `1.0` totals (survival was 50; no cost/mass axes; actor-off max 80) with `2.1`.
 
 ```json
 {
