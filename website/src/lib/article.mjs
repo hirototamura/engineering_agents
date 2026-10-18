@@ -3,12 +3,12 @@ const reading = {
   ja: {
     other: 'en', otherPath: '/en/',
     label: 'Read this article in English',
-    description: '自立Cubeを題材に、MJX探索、マルチエージェント設計、RW配置の修正を図と記録再生でたどる研究ノート。',
+    description: '自己バランスキューブに、設計案・シミュレーション・記録・再提案の改善ループを適用。GPU並列探索と専門エージェントの試行を図と記録再生でたどります。',
   },
   en: {
     other: 'ja', otherPath: '/',
     label: 'この記事を日本語で読む',
-    description: 'A research notebook on MJX exploration, multi-agent engineering and reaction-wheel placement, with recorded balancing-cube replay.',
+    description: 'Applying a design-improvement loop to a self-balancing cube: proposals, simulation, evidence and the next design, with GPU-parallel exploration and recorded replay.',
   },
 };
 
