@@ -5,3 +5,5 @@ dist
 tests
 *.zip
 preview*.png
+.env
+.env.*
