@@ -9,6 +9,11 @@
 - 図、データ、保存されたシミュレーション再生はHTMLに内蔵されています。
 - Python、GPU、One-Pieceのストア、LLMサービスは公開サイトに不要です。
 
+公開URL（Vercelへのログイン不要）：
+
+- 日本語: https://engineering-agents-research-one-225b.vercel.app/
+- English: https://engineering-agents-research-one-225b.vercel.app/en/
+
 ## Codexからの更新
 
 通常は `engineering_agents` をCodexで開き、記事の変更を依頼してください。
@@ -54,6 +59,17 @@ npm run check
 `vercel.json` にビルド設定を保持しています。GitHub/Vercelの接続後は、変更を
 プレビューで確認し、公開する版を反映します。Vercelへのログインとプロジェクト
 接続は別途必要です。このフォルダを作成しただけではWeb公開されません。
+
+公開先は `one-piece-eng/engineering-agents-research` です。チームURLの変更前に
+発行した公開ドメインには `one-225b` が残っています。初回公開はGitHubに保存した
+コミットから `website/` だけを抽出して実施しました。GitHubの自動公開には、
+GitHub側のVercelアプリと `engineering_agents` は接続済みです。
+このフォルダを含むPRを `main` にマージした後は、`main` の更新で本番を更新します。
+それ以外のブランチはプレビューで確認します。初回公開のためにPRを自動マージは
+していません。
+
+本番ドメインは一般公開し、プレビューと個別デプロイURLはVercel認証で保護します。
+公開前に両言語のデプロイ出力と検査済みビルドの一致を確認してください。
 
 GitHub Actionsの `Research website` は、このフォルダの変更時に両言語をビルドし、
 保存されたデータ、再生スクリプト、言語切替と出典ハッシュを検査します。
