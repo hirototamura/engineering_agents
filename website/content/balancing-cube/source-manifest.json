@@ -6,13 +6,13 @@
   "files": {
     "index.ja.html": {
       "language": "ja",
-      "sha256": "0ee2389beecd389ed78a4861c8ffa5799832eb2857f1ae5da74ad5d3ee40efe1",
-      "bytes": 3284265
+      "sha256": "271676916d8094ef39c62976f6524d539f78c84bfc65442879219a7910a7e737",
+      "bytes": 3286161
     },
     "index.html": {
       "language": "en",
-      "sha256": "0ea2b834c96b17bfef32cb7bd8bb0a97bf1f41a7b6a74c8a6e4e94da06f98318",
-      "bytes": 3280085
+      "sha256": "85f019142502bbf9975d5bc973add253db804ecad775847b4011eb5bc3902239",
+      "bytes": 3281676
     }
   }
 }
