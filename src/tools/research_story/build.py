@@ -10,12 +10,33 @@ import argparse
 import hashlib
 import html
 import json
+import math
 import os
 from pathlib import Path
+import re
 from urllib.parse import quote
 
 HERE = Path(__file__).parent
 RUNS = ("qwen27b-memory10-20261012-r2", "qwen27b-memory20-20261012")
+MODEL_REVISION = "reviewed-20261019-1"
+REPLAY_FIELDS = (
+    "time_s", "position_m", "quaternion_wxyz", "wheel_angle_rad", "tilt_total_deg",
+    "wheel_x_rpm", "wheel_y_rpm", "wheel_z_rpm", "motor_x_nm", "motor_y_nm", "motor_z_nm",
+    "speed_governor_active", "torque_limited", "pivot_displacement_mm",
+)
+
+
+def proposal_changes(before: dict, after: dict) -> list[dict]:
+    """Compare settings, never the prose or generated candidate identifiers."""
+    changes = []
+    if before["family"] != after["family"]:
+        changes.append({"parameter": "family", "before": before["family"], "after": after["family"]})
+    for group in ("parameters", "control"):
+        for key, value in after.get(group, {}).items():
+            old = before.get(group, {}).get(key)
+            if old != value:
+                changes.append({"parameter": key, "before": old, "after": value})
+    return changes
 
 
 def extract(workspace: Path) -> dict:
@@ -29,12 +50,17 @@ def extract(workspace: Path) -> dict:
         return json.loads(raw)
 
     history = read("balancing-cube-simulation/gpu-results-final/report/analysis.json")
-    data = {"schema_version": 1, "evidence_cut": "2026-10-12", "runs": [],
+    data = {"schema_version": 2, "evidence_cut": "2026-10-12", "article_revision": "2026-10-17", "runs": [],
             "historical": {"candidate_count": history["overview"]["candidate_count"],
                            "exploration_all_pass": history["overview"]["counts"]["exploration_all_pass"],
                            "trial_count": history["failure_analysis"]["exploration"]["trials"],
                            "prior46": history["prior46"]["status_counts"],
                            "scope": "Historical evaluator and adjudication; separate from fixed-dt runs"}}
+    # The displayed model follows One-Piece's reviewed release. Archived runs
+    # below still identify the exact requirements they actually consumed.
+    from .system_model import load_system_model
+    data['system_model'], model_sources = load_system_model(workspace, MODEL_REVISION)
+    sources.update(model_sources)
     for name in RUNS:
         base = Path("engineering_agents/src/experiments/results") / name
         summary = read(base / "summary.json")
@@ -44,6 +70,19 @@ def extract(workspace: Path) -> dict:
         snapshot = read(base / "frozen-snapshot.json")
         validation = read(base / "validation/result.json")
         compiled = read(base / "validation/compiled.json")
+        first_context = read(base / "round-01/ssot-context.json")
+        reference = next(r for r in first_context["records"] if
+                         {"id": r["id"], "revision": r["revision"]} == snapshot["comparison_design_ref"])
+
+        def resolved_settings(proposal):
+            # The archive uses family=reference with an empty parameter object
+            # for cached factorial cells. Resolve that alias from its exact
+            # One-Piece design, not by treating absent values as design edits.
+            return {"family": reference["data"]["family"] if proposal["family"] == "reference" else proposal["family"],
+                    "parameters": reference["data"]["parameters"] if proposal["family"] == "reference" else proposal["parameters"],
+                    "control": {"tilt_q_scale": 1.0, "rate_q_scale": 1.0, "momentum_q_scale": 1.0,
+                                "yaw_rate_gain_nm_s": snapshot["controller"]["yaw_rate_gain_nm_s"],
+                                **proposal.get("control", {})}}
         candidates = []
         for path in sorted((workspace / base / "candidates").glob("*/result.json")):
             result = read(path.relative_to(workspace))
@@ -54,7 +93,11 @@ def extract(workspace: Path) -> dict:
             candidates[-1].update(proposal=proposal["proposal"],
                                   source=path.relative_to(workspace).as_posix(),
                                   failure_metrics=sorted({c["metric"] for r in result["records"]
-                                                         for c in r["screening"] if not c["passed"]}))
+                                                         for c in r["screening"] if not c["passed"]}),
+                                  failed_case_count=sum(not all(g["passed"] for g in r["screening"])
+                                                        for r in result["records"]),
+                                  mean_final_tilt_rms_deg=sum(r["summary"]["final_1s_tilt_rms_deg"]
+                                                             for r in result["records"]) / len(result["records"]))
         rounds = []
         for round_no in range(summary["iterations_completed"] + 1):
             seen = [c for c in candidates if c["round"] <= round_no]
@@ -69,25 +112,51 @@ def extract(workspace: Path) -> dict:
                           "summary": record["summary"]})
         # Matched stress case, not a synthesized animation. Retain every recorded
         # pose through termination, with no extrapolation after an early stop.
-        stress = next(r for r in validation["records"] if
-                      r["domain_id"] == "heavy-delay-prior-confirm" and
-                      r["condition_id"] == "confirm-b" and r["seed"] == 812)
-        replay = {"frames": [{k: f[k] for k in (
-            "time_s", "position_m", "quaternion_wxyz", "wheel_angle_rad", "tilt_total_deg")}
-                              for f in stress["frames"]],
-                  "physics": compiled["config"]["physics"],
-                  "corner_radius_m": stress["summary"]["contact_corner_radius_m"],
-                  "source": (base / "validation/result.json").as_posix(),
-                  "case": "heavy-delay-prior-confirm / confirm-b / seed 812",
-                  "origin": "recorded native MuJoCo CPU validation poses",
-                  "status": stress["summary"]["status"]}
+        replays = []
+        for domain, condition, seed in (("heavy-delay-prior-confirm", "confirm-b", 812),
+                                        ("heavy-delay-prior-confirm", "confirm-b", 811),
+                                        ("nominal-prior-confirm", "confirm-a", 811)):
+            record = next(r for r in validation["records"] if
+                          (r["domain_id"], r["condition_id"], r["seed"]) == (domain, condition, seed))
+            replays.append({"frames": [{k: f[k] for k in REPLAY_FIELDS} for f in record["frames"]],
+                           "physics": compiled["config"]["physics"],
+                           "actuation": compiled["config"]["actuation"],
+                           "corner_radius_m": record["summary"]["contact_corner_radius_m"],
+                           "source": (base / "validation/result.json").as_posix(),
+                           "case": f"{domain} / {condition} / seed {seed}",
+                           "origin": "recorded native MuJoCo CPU validation poses",
+                           "summary": record["summary"],
+                           "status": record["summary"]["status"]})
+        experiments = []
+        for round_no in range(1, summary["iterations_completed"] + 1):
+            folder = base / f"round-{round_no:02d}"
+            prompt = read(folder / "prompt-data.json")
+            proposal = read(folder / "proposal.json")
+            memory = prompt["agent_memory"]
+            experiments.append({"round": round_no, "proposal": proposal,
+                                "changes_from_prompt_best": proposal_changes(resolved_settings(prompt["current_best"]["proposal"]),
+                                                                             resolved_settings(proposal)),
+                                "change_basis": "prompt current_best; reference aliases resolved from exact One-Piece comparison design",
+                                "prior_best_score": prompt["current_best"]["feedback"]["score"],
+                                "memory_episode_count": memory["episode_count"],
+                                "memory_selected_count": memory["selected_count"],
+                                "retrieved_evidence": [{k: e[k] for k in ("episode_id", "run_id", "round", "selection_reasons", "measured_feedback")}
+                                                       for e in memory["episodic_memory"]],
+                                "source": (folder / "prompt-data.json").as_posix()})
         data["runs"].append({"name": name, "run_id": summary["run_id"],
             "rounds_completed": summary["iterations_completed"],
             "candidate_count": summary["candidates_evaluated"],
             "wall_time_s": summary["wall_time_s"], "status": summary["status"],
             "selection_status": summary["selection_status"],
             "best": summary["best"], "validation": summary["validation"],
-            "rounds": rounds, "candidates": candidates, "cases": cases, "replay": replay,
+            "rounds": rounds, "candidates": candidates, "cases": cases, "replay": replays[0],
+            "replays": replays, "experiments": experiments,
+            "test_matrix": {k: snapshot["plan"][k] for k in ("exploration", "validation")},
+            "frozen_requirement_refs": snapshot["context_refs"]["requirements"],
+            "frozen_kdps": snapshot["kdps"]["entries"],
+            "best_proposal": compiled["proposal"], "best_config": compiled["config"],
+            "comparison_design": {"id": reference["id"], "revision": reference["revision"],
+                                  "parameters": reference["data"]["parameters"], "family": reference["data"]["family"]},
             "llm": manifest["llm"], "model_root": preparation["verified_model_root"],
             "gpu_assignment": manifest["gpu_assignment"],
             "snapshot_ref": snapshot["source_snapshot_ref"],
@@ -107,7 +176,58 @@ def extract(workspace: Path) -> dict:
         assert max(c["score"] for c in run["candidates"]) == run["best"]["score"]
         assert sum(c["passed"] for c in run["cases"]) == 11
         assert not run["best"]["half_step_adjudication_performed"]
-    return data
+    from .recent import extend
+    return extend(workspace, data)
+
+
+def cube_poster(data: dict, language: str) -> str:
+    """First-paint figure from the same saved lower-wheel pose as the replay."""
+    replay = data["mounting"]["replays"][1]
+    frame, physics = replay["frames"][0], replay["physics"]
+    side = physics["cube_side_m"]
+    w, x, y, z = frame["quaternion_wxyz"]
+
+    def project(v):
+        a, b, c = v
+        position = frame["position_m"]
+        p = [(1-2*y*y-2*z*z)*a+(2*x*y-2*z*w)*b+(2*x*z+2*y*w)*c+position[0],
+             (2*x*y+2*z*w)*a+(1-2*x*x-2*z*z)*b+(2*y*z-2*x*w)*c+position[1],
+             (2*x*z-2*y*w)*a+(2*y*z+2*x*w)*b+(1-2*x*x-2*y*y)*c+position[2]]
+        return 310+(p[0]-p[1])*.7071*1120, 370-(p[2]*.94-(p[0]+p[1])*.242)*1120
+
+    def points(vertices):
+        return " ".join(f"{a:.3f},{b:.3f}" for a, b in map(project, vertices))
+
+    title = "下側3面のRWで頂点に立つCube：保存された初期姿勢" if language == "ja" else "Cube on one corner with three lower reaction wheels: recorded initial pose"
+    svg = [f'<svg viewBox="0 0 620 450" role="img" aria-label="{title}">',
+           '<rect width="620" height="450" fill="#f3f4ee"/>',
+           '<path d="M50 370H570" stroke="#b5c0bd"/>']
+    vertices = [[a*side, b*side, c*side] for a in range(2) for b in range(2) for c in range(2)]
+    for face in ((0, 1, 3, 2), (0, 1, 5, 4), (0, 2, 6, 4), (7, 3, 1, 5), (7, 6, 4, 5), (7, 3, 2, 6)):
+        svg.append(f'<polygon points="{points([vertices[i] for i in face])}" fill="#24566d" fill-opacity=".035"/>')
+    for a in range(8):
+        for b in range(a+1, 8):
+            if sum(i != j for i, j in zip(vertices[a], vertices[b])) == 1:
+                svg.append(f'<polyline points="{points([vertices[a], vertices[b]])}" stroke="#24566d" stroke-width="3"/>')
+    for axis in range(3):
+        center = [side/2]*3
+        center[axis] = physics["wheel_face_inset_m"]
+        ring = []
+        for i in range(65):
+            angle = i*math.pi/32
+            p = center.copy()
+            p[(axis+1) % 3] += physics["wheel_radius_m"]*math.cos(angle)
+            p[(axis+2) % 3] += physics["wheel_radius_m"]*math.sin(angle)
+            ring.append(p)
+        svg.append(f'<polyline points="{points(ring)}" fill="none" stroke="#b64628" stroke-width="7" stroke-opacity=".7"/>')
+        for i in range(3):
+            angle = frame["wheel_angle_rad"][axis]+i*math.pi*2/3
+            end = center.copy()
+            end[(axis+1) % 3] += physics["wheel_radius_m"]*math.cos(angle)
+            end[(axis+2) % 3] += physics["wheel_radius_m"]*math.sin(angle)
+            svg.append(f'<polyline points="{points([center, end])}" stroke="#b64628" stroke-width="2"/>')
+    svg.append('<circle cx="310" cy="370" r="5" fill="#276354"/></svg>')
+    return "".join(svg)
 
 
 def render(data: dict, copy: dict, language: str, output: Path, workspace: Path) -> str:
@@ -115,8 +235,12 @@ def render(data: dict, copy: dict, language: str, output: Path, workspace: Path)
     esc = html.escape
     section_map = {s["id"]: s for s in text["sections"]}
     template = (HERE / "template.html").read_text()
+    template = template.replace("@@RECENT_SECTIONS@@", (HERE / "recent_sections.html").read_text())
+    template = template.replace("@@RECENT_SCRIPT@@", (HERE / "recent.js").read_text())
+    template = template.replace("@@SYSTEM_MODEL_SCRIPT@@", (HERE / "system_model.js").read_text())
     replacements = {"LANG": language, "TITLE": esc(text["title"]),
-                    "SUBTITLE": esc(text["subtitle"]), "ABSTRACT": esc(text["abstract"])}
+                    "SUBTITLE": esc(text["subtitle"]), "ABSTRACT": esc(text["abstract"]),
+                    "CUBE_POSTER": cube_poster(data, language)}
     for key, section in section_map.items():
         replacements[key.upper() + "_TITLE"] = esc(section["title"])
         replacements[key.upper() + "_PROSE"] = "\n".join(f"<p>{esc(p)}</p>" for p in section["paragraphs"])
@@ -145,6 +269,15 @@ def render(data: dict, copy: dict, language: str, output: Path, workspace: Path)
         replacements[token] = quote(os.path.relpath(workspace / path, output.parent).replace(os.sep, "/"), safe="/.-_")
     for token, value in replacements.items():
         template = template.replace("@@" + token + "@@", value)
+    figure = 0
+
+    def number_figure(match):
+        nonlocal figure
+        figure += 1
+        label = f"Figure {figure}. " if language == "en" else f"図{figure}. "
+        return f'<span class="fig-number">{label}</span>'
+
+    template = re.sub(r'<span class="fig-number"[^>]*>.*?</span>', number_figure, template)
     if "@@" in template:
         raise ValueError("Unfilled article token")
     return template
