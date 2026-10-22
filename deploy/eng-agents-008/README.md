@@ -152,6 +152,15 @@ Node.js 22.23.2. GPU probes recorded NVIDIA RTX A5000 for both EGL/OpenGL and
 OptiX and `cuda:0` for MJX under the reserved GPU UUID. Local CUDA device 0 here
 means the sole visible card, physical GPU 6.
 
+The final Hermes trial succeeded with three real terminal calls (`pwd`, listing
+the workspace, reading AGENTS.md), then correctly described all three repository
+roles. It used 16,760 total reported tokens and completed in 24.5 seconds. With
+the supported 65,536-token context, GPU 6 used 20,421 MiB; GPUs 0–5 kept their
+existing allocations and GPU 7 remained idle. See `validation-20261022.json` for
+the compact receipt. Detailed validation logs are in `validation-20261022.zip`
+on the private handover Release. This verifies integration, not autonomous coding
+quality or a full engineering design iteration.
+
 ## Sources
 
 - [Hermes source release](https://github.com/NousResearch/hermes-agent/tree/v0.22.4)
