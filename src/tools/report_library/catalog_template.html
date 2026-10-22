@@ -35,7 +35,7 @@
     <section class="feature" id="featured"></section>
     <div class="section-title" id="collections"><div><div class="smallcaps">Browse by subject</div><h2>Collections</h2></div><p>The catalog groups related work while retaining each original HTML file.</p></div>
     <div class="collections" id="collectionCards"></div>
-    <div class="section-title" id="library"><div><div class="smallcaps">Chronological index</div><h2>Report library</h2></div><p>Matching titles show the latest version by file modification time. “All HTML” includes older copies, documentation, and templates.</p></div>
+    <div class="section-title" id="library"><div><div class="smallcaps">Chronological index</div><h2>Report library</h2></div><p>Matching titles show the latest copy. Separate experiment runs stay visible. “All HTML” includes older copies, documentation, and templates.</p></div>
     <div class="controls">
       <div class="control"><label for="search">Search title, path, or subject</label><input id="search" type="search" placeholder="e.g. Qwen, GPU, GNC, One-Piece"></div>
       <div class="control"><label for="scope">Show</label><select id="scope"><option value="report">Reports and analyses</option><option value="all">All HTML files</option></select></div>
@@ -74,7 +74,7 @@
     "The catalog groups related work while retaining each original HTML file.":"関連する成果をまとめ、元のHTMLファイルへの参照を保持します。",
     "Chronological index":"時系列の索引",
     "Report library":"レポート一覧",
-    "Matching titles show the latest version by file modification time. “All HTML” includes older copies, documentation, and templates.":"同じ題名はファイル更新日時が最新の版を表示します。「すべてのHTML」には旧版、文書、テンプレートも表示します。",
+    "Matching titles show the latest copy. Separate experiment runs stay visible. “All HTML” includes older copies, documentation, and templates.":"同じ題名は最新の複製を表示し、異なる実験の結果はそれぞれ表示します。「すべてのHTML」には旧版、文書、テンプレートも表示します。",
     "Search title, path, or subject":"題名・パス・分野を検索",
     "Show":"表示",
     "All HTML files":"すべてのHTML",
@@ -106,6 +106,11 @@
   };
   const META_JA={
     "Design iterations":"設計反復","Qwen design iterations":"Qwen設計反復",
+    "MASS-inspired cube workflow study":"MASSを参考にしたCubeワークフロー研究",
+    "Cube lower-face first trial":"Cube下側取付の初回試験",
+    "Eight-corner mission, lower-face mounts, fixed-controller comparisons and implementation fixtures.":"8頂点のミッション、下側の取付、固定制御器の比較、実装確認ケース。",
+    "Ten attempts per arm: bounded multi-agent workflow, single-designer control, native MuJoCo–MJX agreement and fresh-seed confirmation.":"両群で10試行：範囲を限定した協調、単一設計者との比較、ネイティブMuJoCo–MJX整合、新規seedの確認。",
+    "Ten attempts per arm: bounded multi-agent workflow, single-designer control, measured CPU/GPU evidence and fresh-seed confirmation.":"両群で10試行：範囲を限定したマルチエージェントと単一設計者、CPU/GPU実測根拠、新規seedによる確認。",
     "Qwen proposals, MuJoCo CPU/GPU trials, memory, validation, and One-Piece evidence.":"Qwenの提案、MuJoCoのCPU/GPU試験、メモリ、検証、One-Pieceの証拠。",
     "Agent workflow":"エージェントの作業手順","Agent harness":"エージェント実行基盤",
     "The simulation agent harness and its evidence flow.":"シミュレーションエージェントの実行基盤と証拠の流れ。",
@@ -133,7 +138,7 @@
   const meta=value=>LOCALE==="ja"?(META_JA[value]||value):value;
   const fileUrl=path=>"../../"+path.split("/").map(encodeURIComponent).join("/");
   const reportUrl=e=>e.localized?.[LOCALE]?"items/"+e.localized[LOCALE].split("/").at(-1):fileUrl(e.path);
-  const reportTitle=e=>e.localized_titles?.[LOCALE]||e.title;
+  const reportTitle=e=>{const title=e.localized_titles?.[LOCALE]||e.title;return Number.isInteger(e.run?.rounds)?title+" — "+e.run.rounds+tr(" iterations"," 反復"):title;};
   const languageToggle=document.getElementById("languageToggle");
   languageToggle.href="../"+(LOCALE==="en"?"ja":"en")+"/index.html"+location.search;
   languageToggle.textContent=LOCALE==="en"?"日本語":"English";

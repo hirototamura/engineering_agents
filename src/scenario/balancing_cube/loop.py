@@ -237,13 +237,15 @@ def evolve_policy(policy, feedback, *, improved, snapshot):
 def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidates=20,
                     max_wall_s=1800, stagnation_rounds=3, require_gpu=False,
                     bridge=None, context_loader=None, proposal=None, memory=None,
-                    proposal_retries=0):
+                    proposal_retries=0, workflow=None, initial_proposal=None):
     # Defaults retain the MVP budgets. Longer campaigns require explicit
     # configuration; the twenty-round ceiling supports the authorized follow-up.
     if not 1 <= rounds <= 20 or not 1 <= max_candidates <= 80 or not 0 < max_wall_s <= 7200 or not 1 <= stagnation_rounds <= 20:
         raise ValueError("Budget bounds: 1..20 rounds, 1..80 candidates, <=7200 seconds, <=20 stagnant rounds")
     if not 0 <= proposal_retries <= 3:
         raise ValueError("proposal_retries must be 0..3")
+    if workflow is not None and proposal_retries:
+        raise ValueError("Budgeted workflows require proposal_retries=0; every call is accounted")
     root = Path(output_dir).resolve()
     if root.exists() and any(root.iterdir()):
         raise ValueError("Design runs are immutable; choose a new empty output directory")
@@ -289,6 +291,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
               "step_enforcement": "advisory_only; compiler enforces absolute mechanical/control bounds"}
     atomic_json(root / "policy-initial.json", policy)
     policy_record = publish("design_policy", f"{run_id}.policy.1", policy, root / "policy-initial.json")
+    workflow_record = None
     started, stagnant = time.monotonic(), 0
     deadline = started + max_wall_s
     entries, seen, rounds_log = [], {}, []
@@ -357,8 +360,16 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
         stop = "reference_execution_failed" if incomplete_evaluations and incomplete_evaluations[-1]["state"] == "failed" else "reference_evaluation_incomplete"
     elif require_gpu and reference_entry["result"]["gpu_state"] != "completed":
         stop = "required_gpu_not_run_for_reference"
+    if initial_proposal is not None and stop == "round_budget":
+        atomic_json(root / "initial-proposal.json", initial_proposal)
+        initial = adapter.compile(initial_proposal)
+        initial_entry = evaluate(initial, round_index=0, cell="starting_design")
+        if initial_entry is None:
+            stop = "initial_design_execution_failed"
+        elif require_gpu and initial_entry["result"]["gpu_state"] != "completed":
+            stop = "required_gpu_not_run_for_reference"
     for index in range(1, rounds + 1):
-        if stop in {"reference_execution_failed", "reference_evaluation_incomplete", "required_gpu_not_run_for_reference"}:
+        if stop in {"reference_execution_failed", "reference_evaluation_incomplete", "required_gpu_not_run_for_reference", "initial_design_execution_failed"}:
             break
         if llm_client is None and proposal is None:
             stop = "design_disabled"
@@ -450,7 +461,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                        )}
         if memory is not None:
             prompt_data["agent_memory"] = memory.retrieve(query=" ".join(policy.get("failure_metrics", [])),
-                                                         max_chars=6000)
+                                                         max_chars=9000 if workflow is not None else 6000)
             prompt_data["current_best"] = {"proposal": best["compiled"]["proposal"],
                 "config": best["compiled"]["config"], "controller": best["compiled"]["controller"],
                 "feedback": adapter.feedback(best["result"])} if best else None
@@ -479,8 +490,13 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                     atomic_json(round_dir / "prompt-data.json", attempt_data)
                     prompt_digest = digest(attempt_data)
                 try:
-                    proposed = copy.deepcopy(proposal) if proposal is not None and index == 1 else _proposal(
-                        llm_client, json.dumps(attempt_data, ensure_ascii=False, separators=(",", ":")), deadline=deadline)
+                    if proposal is not None and index == 1:
+                        proposed = copy.deepcopy(proposal)
+                    elif workflow is not None:
+                        proposed = workflow.propose(llm_client, attempt_data, round_dir, deadline=deadline)
+                        active_pi_artifacts += tuple(sorted((round_dir / "workflow").glob("*.json")))
+                    else:
+                        proposed = _proposal(llm_client, json.dumps(attempt_data, ensure_ascii=False, separators=(",", ":")), deadline=deadline)
                     proposed["id"] = f"round-{index}-" + str(proposed.get("id", "proposal"))
                     compiled = adapter.compile(proposed)
                     if memory is not None and proposal_retries and compiled["input_digest"] in seen:
@@ -531,6 +547,23 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
             if memory is not None:
                 atomic_json(round_dir / "memory-after.json", memory.retrieve(query=" ".join(feedback["failure_metrics"])))
             phase = "evolution"
+            if workflow is not None:
+                if outbox and sync()["pending"]:
+                    stop = "onepiece_sync_pending_before_workflow_evolution"
+                    break
+                reread = bridge.context() if bridge else {"records": [], "semantics": "low-level fixture"}
+                atomic_json(round_dir / "workflow/measurement-context.json", reread)
+                workflow_result = workflow.observe(llm_client, {
+                    "cells": [{**adapter.feedback(e["result"]), "matrix_cell": e["result"]["matrix_cell"]} for e in evaluated],
+                    "retained_best": adapter.feedback(best["result"]),
+                    "persisted_context_digest": digest(reread),
+                    "persisted_evidence_refs": [{"id": r["id"], "revision": r["revision"]}
+                        for r in reread["records"] if r["kind"] in {"simulation_run", "design_candidate"}],
+                    "context_reread": True}, round_dir, deadline=deadline)
+                ancestry = [{"type": "derive", "target": {"id": workflow_record["id"], "revision": workflow_record["revision"]}}] if workflow_record else []
+                workflow_record = publish("design_policy", f"{run_id}.workflow.{index}",
+                    {k: v for k, v in workflow_result.items() if k != "calls"}, round_dir / "workflow/round-summary.json",
+                    targets=ancestry, extra_artifacts=tuple(p for p in sorted((round_dir / "workflow").glob("*.json")) if p.name != "round-summary.json"))
             improved = best["result"]["score"] > previous_score
             policy = evolve_policy(policy, feedback, improved=improved, snapshot=snapshot)
             policy["pi_context_digest"] = context_digest
@@ -595,7 +628,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
             publish("design_proposal", f"{run_id}.failed.{index}", failed, round_dir / "failed.json",
                     extra_artifacts=active_pi_artifacts)
             rounds_log.append({"round": index, "status": "failed", "error": str(error)})
-            stop = "proposal_generation_failed"
+            stop = "workflow_generation_failed" if phase == "evolution" else "proposal_generation_failed"
             if outbox and sync()["pending"]:
                 stop = "onepiece_sync_pending_after_proposal_failure"
             break
@@ -625,7 +658,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
     if before_summary_sync.get("pending") and not stop.startswith("onepiece_sync_pending"):
         stop = "onepiece_sync_pending_before_summary"
     incomplete = incomplete_evaluations or stop.startswith("onepiece_sync_pending") or stop in {
-        "reference_evaluation_incomplete", "incomplete_required_2x2_wall_budget", "context_revision_changed_requires_new_run", "wall_budget_during_proposal", "proposal_generation_failed", "wall_budget_during_validation", "execution_failed_during_validation"} or required_gpu_incomplete
+        "reference_evaluation_incomplete", "initial_design_execution_failed", "incomplete_required_2x2_wall_budget", "context_revision_changed_requires_new_run", "wall_budget_during_proposal", "proposal_generation_failed", "workflow_generation_failed", "wall_budget_during_validation", "execution_failed_during_validation"} or required_gpu_incomplete
     summary = {"scenario": "balancing_cube", "run_id": run_id, "status": "inconclusive" if incomplete else "completed",
                "iterations_requested": rounds,
                "iterations_completed": sum(r.get("stage_sequence") == ["EN", "PI", "R", "E"] for r in rounds_log),
@@ -645,6 +678,8 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                "onepiece_sync": {"before_summary_record": before_summary_sync, "final_status_file": "sync-status.json"}}
     if memory is not None:
         summary["agent_memory"] = memory.flush()
+    if workflow is not None:
+        summary["proposal_workflow"] = workflow.summary()
     atomic_json(root / "summary.json", summary)
     atomic_json(root / "design_proposals.json", {"design_domain": "balancing_cube",
                 "selected_candidate": best["compiled"]["proposal"] if best else None,

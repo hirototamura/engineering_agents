@@ -92,13 +92,17 @@ def compile_controller(proposal, snapshot):
     # Controller changes are designed at the frozen nominal plant, so mechanical
     # comparisons within each new controller campaign receive identical gains.
     from environment.mujoco.control import Regulator
-    cfg = copy.deepcopy(snapshot["model"])
-    settings = {key: 1.0 for key in ("tilt_q_scale", "rate_q_scale", "momentum_q_scale")}
-    settings["yaw_rate_gain_nm_s"] = cfg["controller"]["yaw_rate_gain_nm_s"]
-    settings.update({key: bounded(value, CONTROL_BOUNDS[key], key) for key, value in control.items()})
+    cfg = copy.deepcopy(snapshot.get("controller_design_model", snapshot["model"]))
     baseline_settings = {"tilt_q_scale": 1.0, "rate_q_scale": 1.0,
                          "momentum_q_scale": 1.0,
-                         "yaw_rate_gain_nm_s": cfg["controller"]["yaw_rate_gain_nm_s"]}
+                         "yaw_rate_gain_nm_s": snapshot["controller"]["yaw_rate_gain_nm_s"]}
+    saved_settings = snapshot["controller"].get("design_parameters", {})
+    if set(saved_settings) - set(CONTROL_BOUNDS):
+        raise ValueError("Saved controller has unsupported design parameters")
+    baseline_settings.update({key: bounded(value, CONTROL_BOUNDS[key], key) for key, value in saved_settings.items()})
+    if baseline_settings["yaw_rate_gain_nm_s"] != snapshot["controller"]["yaw_rate_gain_nm_s"]:
+        raise ValueError("Saved yaw design parameter disagrees with the controller")
+    settings = {**baseline_settings, **{key: bounded(value, CONTROL_BOUNDS[key], key) for key, value in control.items()}}
     if settings == baseline_settings:
         # Keep the frozen K bit-for-bit when a proposal repeats baseline Q/yaw
         # values. Re-solving the same LQR can shift its last floating-point bits

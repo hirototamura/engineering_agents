@@ -1,10 +1,10 @@
 name: balancing_cube
-description: SSOT-driven MuJoCo balancing cube design→verification with fixed-dt CPU/GPU evidence
+description: SSOT-driven MuJoCo balancing cube design→verification with fixed-dt native MuJoCo and MJX evidence
 ssot:
   path: null
   project_id: balancing-cube
   snapshot_id: cube.simulation.snapshot
-  snapshot_revision: fixed-dt-mvp-2
+  snapshot_revision: bottom-corner-000-20261017-3
 backend:
   kind: mujoco_cpu
 agents:
@@ -20,5 +20,9 @@ iteration:
   max_candidates: 20
   max_wall_s: 1800
   stagnation_rounds: 3
+workflow:
+  enabled: false
+  mode: multi_agent
+  prompt_token_cap: 140000
 output:
   run_id: null

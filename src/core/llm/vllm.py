@@ -325,6 +325,19 @@ class VllmClient(LLMClient):
     def generate(self, prompt: str) -> str:
         return self.generate_result(prompt).text
 
+    def count_prompt_tokens(self, prompt: str) -> int:
+        """Use the served chat tokenizer for a bounded orchestration budget."""
+        payload = {"model": self.model, "messages": [{"role": "user", "content": prompt}]}
+        if self.think is not None:
+            payload["chat_template_kwargs"] = {"enable_thinking": bool(self.think)}
+        response = self._session.post(self.base_url[:-3] + "/tokenize", json=payload,
+            headers={"Authorization": f"Bearer {self.api_key}"}, timeout=self.api_timeout)
+        response.raise_for_status()
+        count = response.json().get("count")
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            raise ValueError("The tokenizer did not return a valid prompt token count")
+        return count
+
     def generate_result(self, prompt: str) -> LLMGeneration:
         """Generate an answer, optionally auditing it in ``EA_LLM_TRACE_DIR``.
 
@@ -439,7 +452,7 @@ class VllmClient(LLMClient):
                     "VllmClient received reasoning_content but empty content "
                     "(thinking likely consumed the completion budget)"
                 )
-            return LLMGeneration(text=content, thinking=thinking)
+            return LLMGeneration(text=content, thinking=thinking, usage=body.get("usage"))
         except Exception as e:
             detail = ""
             resp = getattr(e, "response", None)

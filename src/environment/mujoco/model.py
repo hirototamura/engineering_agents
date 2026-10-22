@@ -31,6 +31,25 @@ def equilibrium_rotation(mode):
     return np.array([[1, -1, 0], [1, 1, -2], [1, 1, 1]]) / np.array([[2**0.5], [6**0.5], [3**0.5]])
 
 
+def wheel_centers_body_m(cfg):
+    """Fixed mounting faces in body coordinates; not adaptive to the active corner.
+
+    The first trial supports corner 000. Its three incident faces have x=0,
+    y=0 and z=0. Missing metadata preserves the historical opposite-face model.
+    Rotor positive-axis conventions do not change when the mount moves.
+    """
+    p = cfg["physics"]
+    side, inset = p["cube_side_m"], p["wheel_face_inset_m"]
+    mount = p.get("wheel_mount_side", "far_corner_000")
+    if mount not in {"near_corner_000", "far_corner_000"}:
+        raise ValueError("wheel_mount_side must be near_corner_000 or far_corner_000")
+    if not np.isfinite(inset) or not 0 < inset < side / 2:
+        raise ValueError("wheel_face_inset_m must be between zero and side/2")
+    centers = np.full((3, 3), side / 2)
+    np.fill_diagonal(centers, inset if mount == "near_corner_000" else side - inset)
+    return centers
+
+
 def build_xml(cfg, mode="vertex", free=False):
     """Geometries are visual only. Pivot joints, inertias and motor torques drive physics."""
     p = cfg["physics"]
@@ -75,9 +94,7 @@ def build_xml(cfg, mode="vertex", free=False):
     ET.SubElement(body, "geom", type="box", pos=fmt([b, b, b-s*.1]), size=fmt([s*.11, s*.07, s*.05]), rgba=".24 .27 .36 1")
     ET.SubElement(body, "site", name="imu", pos=fmt([b, b, b]), size=".003", rgba="1 .85 .2 1")
     colors = ["1 .46 .19 1", ".22 .66 1 1", ".69 .45 1 1"]
-    for i, axis in enumerate(np.eye(3)):
-        pos = np.full(3, b)
-        pos[i] = s-p["wheel_face_inset_m"]
+    for i, (axis, pos) in enumerate(zip(np.eye(3), wheel_centers_body_m(cfg))):
         rw = Rotation.align_vectors([axis], [[0, 0, 1]])[0].as_matrix()
         wheel = ET.SubElement(body, "body", name=f"wheel_{i}", pos=fmt(pos), quat=fmt(quat(rw)))
         ET.SubElement(wheel, "joint", name=f"rotor_{i}", type="hinge", axis="0 0 1")

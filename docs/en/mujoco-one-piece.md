@@ -6,9 +6,11 @@ One-Piece owns versioned requirements, KDPs, detailed parameters, evidence and d
 
 Automatic hardware changes are restricted to six mechanical variables and registered motor selection. Automatic software changes are restricted to three LQR Q-weight groups (attitude, angular rate, momentum; 0.25–4 times nominal) and yaw gain (0–0.12). R, sensing, timing, timestep, actuator constraints and evaluation code are fixed.
 
-Each small campaign shares a saved controller K. Simultaneous mechanics/control changes receive the four old/new combinations under identical conditions. New CPU/GPU checks use a fixed timestep without half-step adjudication. Historical half-step evidence retains its original provenance.
+Each small campaign shares a saved controller K. Simultaneous mechanics/control changes receive the four old/new combinations under identical conditions. Native MuJoCo–MJX agreement checks use a fixed timestep without half-step adjudication. Historical half-step evidence retains its original provenance.
 
-CPU and MJX use the same authoritative stop fields: `contact_loss_stop_s`, `slip_stop_speed_m_s`, `slip_stop_duration_s`, and `pivot_drift_stop_mm`. The legacy source manifest identifies the original code; EN records the current implementation hashes, including corrections to the imported evaluator. Historical results are preserved rather than rewritten by those corrections.
+Use implementation names for agreement, and hardware names for execution resources. The agreed [future execution policy](simulation_backend_policy.md) qualifies MJX, uses it for broad exploration, and reserves paired checks for finalists, sensitive cases and regression tests. The current runner still pairs every requested MJX candidate; selective execution is not implemented yet. Existing evidence is unchanged.
+
+Native MuJoCo and MJX use the same authoritative stop fields: `contact_loss_stop_s`, `slip_stop_speed_m_s`, `slip_stop_duration_s`, and `pivot_drift_stop_mm`. The legacy source manifest identifies the original code; EN records the current implementation hashes, including corrections to the imported evaluator. Historical results are preserved rather than rewritten by those corrections.
 
 ## ENPIRE mapping
 
@@ -19,7 +21,7 @@ CPU and MJX use the same authoritative stop fields: `contact_loss_stop_s`, `slip
 
 This applies ENPIRE's frozen-environment feedback structure to configuration search. It does not implement real-robot autoresearch, arbitrary algorithm/code evolution or learned-weight updates. Search-policy evolution cannot edit the evaluator. Humans establish requirements, evaluation conditions and adopted baselines; automatic keep/reject decisions concern development experiments.
 
-Missing GPU execution remains not-run; CPU results never claim GPU agreement. Published confirmation feedback becomes development data when exposed to the next improver.
+Missing MJX execution remains not-run; native MuJoCo results alone never claim implementation agreement. Published confirmation feedback becomes development data when exposed to the next improver.
 
 ## Persistence and acceptance
 
@@ -39,7 +41,7 @@ python scripts/verify_cube_loop.py \
   --store ../one-piece/projects/balancing-cube/store --output results/cube-offline-check
 ```
 
-The default snapshot `cube.simulation.snapshot@fixed-dt-mvp-2` pins the existing paired numerical best `D-000544-52890` as comparison reference. The nominal LQR linearization plant and historical saved K remain fixed. This reference selection does not adopt a human baseline.
+The default snapshot `cube.simulation.snapshot@bottom-corner-000-20261017-3` uses the three faces incident to supporting corner 000. It retains the tested MASS controller and its exact historical design-plant reference. The comparison design is a lower-face descendant of `D-000544-52890`; historical upper-face results do not apply automatically. The mission remains balancing on all eight corners. See [first-trial evidence and controller choice](bottom_corner_trial.md). `fixed-dt-mvp-2` remains available for explicit historical reproduction. No human baseline is adopted.
 
 `none` evaluates the reference on CPU. The offline script runs two Fake LLM rounds with actual CPU physics and checks persisted feedback. Real proposals use `--design-mode llm --iterate 2 --llm-provider ollama`. GPU execution needs the optional `.[gpu]` dependencies and CUDA, using `--backend mjx_gpu`. Neither real LLM improvement nor the new GPU path has been executed in this acceptance.
 

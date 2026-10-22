@@ -46,6 +46,22 @@ class LatestReportsTest(unittest.TestCase):
         self.assertTrue(rows[0]["latest_report"])
         self.assertNotIn("latest_report", rows[1])
 
+    def test_distinct_campaigns_stay_visible_with_newest_copy_per_run(self):
+        old = entry("old/ten.html", "Measured Design Iterations", 1,
+                    localized={"ja": "実測の設計反復"})
+        copy = entry("new/ten.html", "実測の設計反復", 2,
+                     localized={"en": "Measured Design Iterations"})
+        twenty = entry("twenty.html", "Measured Design Iterations", 3,
+                       localized={"ja": "実測の設計反復"})
+        old["run"] = copy["run"] = {"run_id": "campaign-ten", "rounds": 10}
+        twenty["run"] = {"run_id": "campaign-twenty", "rounds": 20}
+        rows = [old, copy, twenty]
+        mark_latest_reports(rows)
+        self.assertEqual([row["latest_report"] for row in rows], [False, True, True])
+        self.assertEqual(copy["version_count"], 2)
+        self.assertEqual(twenty["version_count"], 1)
+        self.assertEqual(old["superseded_by"], copy["path"])
+
     def test_equal_time_is_deterministic_and_numbered_titles_stay_distinct(self):
         rows = [entry("b.html", "Phase 1", 1), entry("a.html", "Phase 1", 1),
                 entry("c.html", "Phase 2", 1)]
@@ -110,3 +126,20 @@ def test_build_ignores_compiled_launcher_directories(tmp_path):
         assert result.returncode == 0, result.stderr
     assert (workspace / 'reports/catalog.py').is_file()
     assert not (workspace / 'reports/__pycache__').exists()
+
+
+def test_paired_study_identity_does_not_collapse_two_arms_to_one_count(tmp_path, monkeypatch):
+    from tools.report_library import catalog, translate_reports
+    monkeypatch.setattr(catalog, 'WORKSPACE', tmp_path)
+    monkeypatch.setattr(translate_reports, 'WORKSPACE', tmp_path)
+    folder=tmp_path/'study';folder.mkdir()
+    en=folder/'workflow-study-report.html';ja=folder/'workflow-study-report.ja.html'
+    en.write_text('<html lang="en"></html>');ja.write_text('<html lang="ja"></html>')
+    (folder/'postprocess-results.json').write_text(json.dumps({'study_id':'paired-1','state':'inconclusive',
+        'arms':{'multi_agent':{'iterations_completed':8},'single_agent':{'iterations_completed':10}}}))
+    details=catalog.run_details(en.relative_to(tmp_path))
+    assert details['run_id']=='paired-1'
+    assert details['completed_cycles_by_arm']=={'multi_agent':8,'single_agent':10}
+    assert 'rounds' not in details
+    assert translate_reports.native_counterpart(en,'ja')==ja
+    assert translate_reports.native_counterpart(ja,'en')==en

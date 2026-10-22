@@ -33,6 +33,106 @@ def proposal(identifier="small-ring", *, control=False):
     return value
 
 
+def test_bottom_mount_changes_inertial_bodies_and_lowers_combined_com():
+    import mujoco
+    import numpy as np
+    from environment.mujoco.model import Plant
+    cfg = snapshot()["model"]
+    upper = Plant(cfg)
+    lower_cfg = copy.deepcopy(cfg)
+    lower_cfg["physics"]["wheel_mount_side"] = "near_corner_000"
+    lower = Plant(lower_cfg)
+    side, inset = cfg["physics"]["cube_side_m"], cfg["physics"]["wheel_face_inset_m"]
+    for i in range(3):
+        body = mujoco.mj_name2id(lower.model, mujoco.mjtObj.mjOBJ_BODY, f"wheel_{i}")
+        expected = np.full(3, side / 2)
+        expected[i] = inset
+        np.testing.assert_allclose(lower.model.body_pos[body], expected)
+        assert lower.model.body_mass[body] == upper.model.body_mass[body]
+    np.testing.assert_allclose(lower.data.subtree_com[lower.body, :2], 0, atol=1e-10)
+    total = cfg["physics"]["frame_mass_kg"] + 3 * cfg["physics"]["wheel_mass_kg"]
+    expected_drop = 3 * cfg["physics"]["wheel_mass_kg"] / total * (side - 2 * inset) / np.sqrt(3)
+    drop = upper.data.subtree_com[upper.body, 2] - lower.data.subtree_com[lower.body, 2]
+    assert drop == pytest.approx(expected_drop, abs=1e-11)
+    assert lower.data.subtree_com[lower.body, 2] > lower.data.xpos[lower.body, 2]
+
+
+def test_omitted_mount_preserves_historical_xml_and_invalid_mount_fails():
+    from environment.mujoco.model import build_xml
+    cfg = snapshot()["model"]
+    historical = build_xml(cfg)
+    explicit = copy.deepcopy(cfg)
+    explicit["physics"]["wheel_mount_side"] = "far_corner_000"
+    assert build_xml(explicit) == historical
+    explicit["physics"]["wheel_mount_side"] = "follow_current_corner"
+    with pytest.raises(ValueError, match="wheel_mount_side"):
+        build_xml(explicit)
+
+
+def test_bottom_mount_is_shared_by_native_and_mjx_model_builders():
+    import xml.etree.ElementTree as ET
+    from environment.mujoco.contact import build_contact_xml
+    from environment.mujoco.gpu_backend import physics_xml
+    cfg = snapshot()["model"]
+    cfg["physics"]["wheel_mount_side"] = "near_corner_000"
+    native, accelerated = map(ET.fromstring, (build_contact_xml(cfg), physics_xml(cfg)))
+    for i in range(3):
+        a = native.find(f".//body[@name='wheel_{i}']")
+        b = accelerated.find(f".//body[@name='wheel_{i}']")
+        assert a.attrib == b.attrib
+        assert a.find("inertial").attrib == b.find("inertial").attrib
+
+
+def test_bottom_mount_is_frozen_outside_automatic_design_variables():
+    source = snapshot()
+    source["model"]["physics"]["wheel_mount_side"] = "near_corner_000"
+    built = compile_mechanical(proposal(), source)
+    assert built["physics"]["wheel_mount_side"] == "near_corner_000"
+    p = proposal()
+    p["parameters"]["wheel_mount_side"] = "far_corner_000"
+    with pytest.raises(ValueError, match="six mechanical"):
+        compile_mechanical(p, source)
+
+
+def test_relinearization_changes_gains_but_does_not_prove_contact_performance():
+    import numpy as np
+    from environment.mujoco.control import Regulator
+    source = snapshot()
+    cfg = copy.deepcopy(source["model"])
+    old = Regulator(cfg, "vertex")
+    cfg["physics"]["wheel_mount_side"] = "near_corner_000"
+    new = Regulator(cfg, "vertex")
+    assert not np.allclose(new.k, old.k)
+    assert np.max(np.abs(new.eigenvalues)) < 1
+    assert cfg["physics"]["control_period_s"] == source["model"]["physics"]["control_period_s"]
+
+
+def test_retained_controller_keeps_its_design_plant_and_partial_q_defaults():
+    original = snapshot()
+    parameters = {"tilt_q_scale": .5, "rate_q_scale": 1.1,
+                  "momentum_q_scale": .85, "yaw_rate_gain_nm_s": .04}
+    source = copy.deepcopy(original)
+    source["controller"] = compile_controller({"control": parameters}, original)
+    source["controller_design_model"] = copy.deepcopy(original["model"])
+    source["model"]["physics"]["wheel_mount_side"] = "near_corner_000"
+    changed = compile_controller({"control": {"tilt_q_scale": .75}}, source)
+    expected = compile_controller({"control": {**parameters, "tilt_q_scale": .75}}, original)
+    assert changed == expected
+    assert source["model"]["physics"]["wheel_mount_side"] == "near_corner_000"
+    assert "wheel_mount_side" not in source["controller_design_model"]["physics"]
+
+
+def test_repeating_retained_q_parameters_preserves_saved_k_exactly():
+    source = snapshot()
+    parameters = {"tilt_q_scale": 1.0, "rate_q_scale": 1.0310625,
+                  "momentum_q_scale": .825, "yaw_rate_gain_nm_s": .03}
+    controller = compile_controller({"control": parameters}, source)
+    source["controller"] = controller
+    source["model"]["physics"]["wheel_mount_side"] = "near_corner_000"
+    assert compile_controller({"control": parameters}, source) == controller
+    assert compile_controller({"control": {}}, source) == controller
+
+
 class FakeLLM:
     def __init__(self, joint=False):
         self.prompts = []
@@ -295,6 +395,29 @@ def ssot_bridge(tmp_path):
     return MechanicalBridge(tmp_path / "store")
 
 
+def test_bridge_resolves_controller_design_plant_from_exact_source_revision(tmp_path):
+    import onepiece
+    from integrations.one_piece.mechanical_bridge import MechanicalBridge
+    bridge = ssot_bridge(tmp_path)
+    records = bridge.store.records("balancing-cube")
+    source = next(r for r in records if r["id"] == "cube.simulation.snapshot")
+    child_data = copy.deepcopy(source["data"])
+    child_data["controller_design_snapshot_ref"] = onepiece.ref(source)
+    child_data["model"]["physics"]["wheel_mount_side"] = "near_corner_000"
+    comparison = next(r for r in records if r["id"] == "BEST")
+    child_comparison = onepiece.make_record(project_id="balancing-cube", id="BEST.lower", kind="design",
+        data=copy.deepcopy(comparison["data"]))
+    child_comparison["data"]["physics"]["wheel_mount_side"] = "near_corner_000"
+    child_data["comparison_design_ref"] = onepiece.ref(child_comparison)
+    child = onepiece.make_record(project_id="balancing-cube", id="cube.simulation.snapshot",
+        revision="lower-test", kind="simulation_snapshot", data=child_data)
+    bridge.store.import_records([child_comparison, child])
+    current = MechanicalBridge(bridge.store.path, snapshot_revision="lower-test").load_snapshot()
+    assert current["model"]["physics"]["wheel_mount_side"] == "near_corner_000"
+    assert "wheel_mount_side" not in current["controller_design_model"]["physics"]
+    assert current["controller_design_model"] == source["data"]["model"]
+
+
 def test_real_store_two_rounds_read_saved_evidence_and_resolve_comparison(tmp_path):
     bridge = ssot_bridge(tmp_path)
     source = bridge.load_snapshot()
@@ -517,6 +640,7 @@ def test_cli_iteration_enabled_flag_controls_actual_proposal_rounds(tmp_path, mo
     result = CliRunner().invoke(app, ['run', 'balancing_cube', '--backend', 'mujoco_cpu',
         '--design-mode', 'llm', '--iterate', '3', '--output-dir', str(root),
         '--set', f'ssot.path={bridge.store.path}',
+        '--set', f'ssot.snapshot_revision={bridge.snapshot_revision}',
         '--set', f'iteration.enabled={str(enabled).lower()}', '--json'])
     assert result.exit_code == 0, result.output
     summary = json.loads((root / 'summary.json').read_text())

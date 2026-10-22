@@ -5,6 +5,12 @@
 
 - `/` — 日本語
 - `/en/` — English
+- `/cube-cad/` — キューブ参考CADアセンブリ（日本語）
+- `/cube-cad/en/` — Cube reference CAD assembly (English)
+
+CAD sharing URLs (no login required):
+https://engineering-agents-research.vercel.app/cube-cad/
+https://engineering-agents-research.vercel.app/cube-cad/en/
 - 記事上部の言語ボタンで相互に切り替えます。
 - 図、データ、保存されたシミュレーション再生はHTMLに内蔵されています。
 - Python、GPU、One-Pieceのストア、LLMサービスは公開サイトに不要です。
@@ -79,6 +85,14 @@ GitHub Actionsの `Research website` は、このフォルダの変更時に両�
 `reports/iphone-research/` に引き続き保持しています。
 
 ## Source layout
+
+The CAD reference lives in `public/cube-cad/` and is copied unchanged by Astro.
+Run `node scripts/sync-cube-cad.mjs` to import the bilingual reference from the
+local simulator output (or pass its directory as the first argument). This
+removes the local source-directory path, rewrites download/language links for
+the public site, and records source and asset hashes in `publication-manifest.json`.
+CAD downloads and attribution accompany the pages. The supplied source license
+and all fit limitations remain visible. The public site needs no simulator.
 
 `src/pages/` defines the two static routes. `src/lib/article.mjs` adapts only
 navigation and page metadata; recorded evidence and interactive scripts remain

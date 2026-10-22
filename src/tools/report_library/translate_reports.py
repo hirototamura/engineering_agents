@@ -277,7 +277,15 @@ def report_filename(path: str) -> str:
 def native_counterpart(original: Path, language: str) -> Path | None:
     relative = original.relative_to(WORKSPACE).as_posix()
     pair = None
-    if relative.endswith("/design_loop_analysis.html") and language == "ja":
+    if original.name == "bottom-corner-trial-report.html" and language == "ja":
+        pair = original.with_name("bottom-corner-trial-report.ja.html")
+    elif original.name == "bottom-corner-trial-report.ja.html" and language == "en":
+        pair = original.with_name("bottom-corner-trial-report.html")
+    elif original.name == "workflow-study-report.html" and language == "ja":
+        pair = original.with_name("workflow-study-report.ja.html")
+    elif original.name == "workflow-study-report.ja.html" and language == "en":
+        pair = original.with_name("workflow-study-report.html")
+    elif relative.endswith("/design_loop_analysis.html") and language == "ja":
         pair = original.with_name("design_loop_analysis.ja.html")
     elif relative.endswith("/design_loop_analysis.ja.html") and language == "en":
         pair = original.with_name("design_loop_analysis.html")

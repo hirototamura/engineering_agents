@@ -180,11 +180,15 @@ def test_seeded_factorial_run_retains_reference_every_cell_and_exact_feedback(tm
     (root / 'summary.json').write_text(json.dumps(summary))
     before = {p: p.read_bytes() for p in root.rglob('*.json')}
     seeded = EngineeringMemory(tmp_path / 'seeded-memory')
-    assert seeded.bootstrap_run(root)['episode_count'] == 4
+    assert seeded.bootstrap_run(root)['episode_count'] == 5
     journal = seeded.journal_path.read_bytes()
-    assert seeded.bootstrap_run(root)['episode_count'] == 4
+    assert seeded.bootstrap_run(root)['episode_count'] == 5
     assert seeded.journal_path.read_bytes() == journal
-    episodes = seeded.episodes
+    validation_episode = next(e for e in seeded.episodes if e['status'] == 'historical_validation')
+    validation = json.loads((root / 'validation/result.json').read_text())
+    assert validation_episode['measured_feedback']['score'] == validation['score']
+    assert 'not an unseen holdout' in validation_episode['measured_feedback']['disclosure']
+    episodes = [e for e in seeded.episodes if e['status'] != 'historical_validation']
     assert {e['measured_feedback']['matrix_cell'] for e in episodes} == {'M0C0', 'M1C0', 'M0C1', 'M1C1'}
     for result in measured:
         episode = next(e for e in episodes if e['configuration_digest'] == result['input_digest'])

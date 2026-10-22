@@ -65,7 +65,8 @@ def report_paths() -> list[Path]:
                 if name.lower().endswith((".html", ".htm")):
                     relative.append(Path(base, name).relative_to(WORKSPACE))
     return sorted({WORKSPACE / path for path in relative
-                   if path.parts and path.parts[0] != "reports"})
+                   if path.parts and path.parts[0] != "reports"
+                   and path.as_posix() != "engineering_agents/src/tools/cube_bom_report.html"})
 
 
 def read_title(path: Path) -> str:
@@ -96,7 +97,7 @@ def classify(relative: Path, title: str) -> dict:
 
     if path.startswith("engineering_agents/site/"):
         category, family, description, scope = "Documentation", "Published documentation", "Generated documentation page.", "documentation"
-    elif path.startswith("integration-validation/") or "/report/assets/" in path or "/pr82-publish-smoke-" in path:
+    elif path.startswith("integration-validation/") or "/report/assets/" in path or "/pr82-publish-smoke-" in path or "/mass-workflow-compat-" in path:
         category, family, description, scope = "Archived copy", "Archived evidence", "Stored copy of an earlier report.", "archive"
     elif path.startswith("balancing-cube-simulation/tools/") or "/report/code/tools/" in path:
         category, family, description, scope = "Source template", "Report sources", "HTML source used to create a report.", "source"
@@ -106,6 +107,19 @@ def classify(relative: Path, title: str) -> dict:
         if name == "index.ja.html":
             category, scope = "Translation source", "source"
             description = "Native Japanese counterpart of the bilingual research article."
+    elif "/remrc-bom-reference-" in path and name == "index.html":
+        category, family = "Configuration assessment", "Cube BOM reference"
+        description = "Configuration catalogue, reference parts versus reviewed requirements, 34 fixed MuJoCo cases and saved-pose replay."
+    elif "bottom-corner-trial-report" in name:
+        category, family = "Engineering analysis", "Cube lower-face first trial"
+        description = "Eight-corner mission, lower-face mounts, fixed-controller comparisons and implementation fixtures."
+        if name.endswith(".ja.html"):
+            category, scope = "Translation source", "source"
+    elif "workflow-study-report" in name:
+        category, family = "Design iterations", "MASS-inspired cube workflow study"
+        description = "Ten attempts per arm: bounded multi-agent workflow, single-designer control, native MuJoCo–MJX agreement and fresh-seed confirmation."
+        if name.endswith(".ja.html"):
+            category, scope = "Translation source", "source"
     elif "memory-pipeline-report" in name:
         category, family = "Design iterations", "Qwen design iterations"
         description = "Qwen proposals, MuJoCo CPU/GPU trials, memory, validation, and One-Piece evidence."
@@ -139,6 +153,20 @@ def classify(relative: Path, title: str) -> dict:
 
 
 def run_details(relative: Path) -> dict:
+    if relative.name in {"workflow-study-report.html", "workflow-study-report.ja.html"}:
+        folder = WORKSPACE / relative.parent
+        summary = folder / "postprocess-results.json"
+        if not summary.exists():
+            summary = folder / "study-results.json"
+        try:
+            data = json.loads(summary.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        # Keep different paired pilots visible. Do not present a sum or minimum
+        # of two arms as a single campaign's completed-iteration count.
+        return {"run_id": data.get("study_id"), "study_state": data.get("state"),
+                "completed_cycles_by_arm": {mode: arm.get("iterations_completed")
+                                            for mode, arm in data.get("arms", {}).items()}}
     if relative.name != "memory-pipeline-report.html":
         return {}
     summary = WORKSPACE / relative.parent / "summary.json"
@@ -177,6 +205,13 @@ def current_revision(paths: list[Path]) -> str:
                 digest.update(f"{sidecar.st_mtime_ns}\0{sidecar.st_size}\n".encode())
             except OSError:
                 pass
+        elif path.name in {"workflow-study-report.html", "workflow-study-report.ja.html"}:
+            for name in ("study-results.json", "postprocess-results.json"):
+                try:
+                    sidecar = (path.parent / name).stat()
+                    digest.update(f"{name}\0{sidecar.st_mtime_ns}\0{sidecar.st_size}\n".encode())
+                except OSError:
+                    pass
     return digest.hexdigest()
 
 
@@ -192,7 +227,7 @@ def atomic_write(path: Path, content: str) -> None:
 
 
 def mark_latest_reports(entries: list[dict]) -> None:
-    """Group source/localized title aliases; keep one newest report per group."""
+    """Keep the newest title copy within each recorded experiment run."""
     reports = [row for row in entries if row["scope"] == "report"]
     parents = list(range(len(reports)))
 
@@ -204,10 +239,13 @@ def mark_latest_reports(entries: list[dict]) -> None:
 
     titles = {}
     for index, row in enumerate(reports):
+        run_id = (row.get("run") or {}).get("run_id")
         for title in [row["title"], *row.get("localized_titles", {}).values()]:
-            key = " ".join(unicodedata.normalize("NFKC", title).casefold().split())
-            if not key:
+            normalized = " ".join(unicodedata.normalize("NFKC", title).casefold().split())
+            if not normalized:
                 continue
+            # A later campaign is new evidence, not a revision of an earlier run.
+            key = (run_id, normalized)
             if key in titles:
                 parents[find(index)] = find(titles[key])
             else:

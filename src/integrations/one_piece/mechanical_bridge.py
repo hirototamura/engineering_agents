@@ -83,6 +83,15 @@ class MechanicalBridge:
             reference["actuation"].update(copy.deepcopy(design["data"]["actuation"]))
             snapshot["reference_model"] = reference
         snapshot["source_snapshot_ref"] = {"id": selected["id"], "revision": selected["revision"]}
+        design_source = snapshot.get("controller_design_snapshot_ref")
+        if design_source is not None:
+            source = by_ref.get((design_source.get("id"), design_source.get("revision")))
+            if source is None or source["kind"] != "simulation_snapshot":
+                raise ValueError("Missing exact controller design-plant snapshot")
+            # This is a projection of an exact canonical source, not a second
+            # authoritative plant. A tested controller can be retained after a
+            # hardware change; subsequent Q edits keep its declared design plant.
+            snapshot["controller_design_model"] = copy.deepcopy(source["data"]["model"])
         inherited_model = context_refs.get("model")
         snapshot["test_case_refs"] = {r["data"]["stage"]: {"id": r["id"], "revision": r["revision"]}
                                       for r in all_records if r["kind"] == "test_case"

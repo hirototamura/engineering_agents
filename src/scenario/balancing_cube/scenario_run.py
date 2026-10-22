@@ -37,6 +37,16 @@ class BalancingCubeScenario:
             proposal = document.get("selected_candidate", document)
         llm = build_llm_client(config["agents"]["llm"]) if mode == "llm" else None
         iteration = config["iteration"]
+        workflow = None
+        workflow_config = config.get("workflow", {})
+        if workflow_config.get("enabled"):
+            from .workflow import DesignWorkflow
+            workflow = DesignWorkflow(workflow_config.get("mode", "multi_agent"),
+                prompt_token_cap=workflow_config.get("prompt_token_cap", 140000))
+        initial_proposal = None
+        if workflow_config.get("initial_proposal_path"):
+            document = json.loads(Path(workflow_config["initial_proposal_path"]).read_text())
+            initial_proposal = document.get("selected_candidate", document)
         memory = None
         memory_config = config.get("memory", {})
         if memory_config.get("enabled"):
@@ -53,7 +63,8 @@ class BalancingCubeScenario:
             max_candidates=iteration["max_candidates"], max_wall_s=iteration["max_wall_s"],
             stagnation_rounds=iteration["stagnation_rounds"], require_gpu=backend == "mjx_gpu",
             bridge=bridge, context_loader=bridge.load_snapshot, proposal=proposal,
-            memory=memory, proposal_retries=iteration.get("proposal_retries", 0))
+            memory=memory, proposal_retries=iteration.get("proposal_retries", 0),
+            workflow=workflow, initial_proposal=initial_proposal)
         return root
 
 

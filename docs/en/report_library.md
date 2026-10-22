@@ -22,18 +22,20 @@ The output is `/path/to/workspace/reports/`. The English and Japanese indexes ar
 The server binds to `127.0.0.1`; it is an optional local viewer, not an engineering
 record service. Source HTML files remain in their project directories.
 
-## Latest report per title
+## Latest report per title and experiment run
 
 The main collection displays one report for each matching title. Matching
 normalizes Unicode, letter case and whitespace. Known English/Japanese title
-aliases join the same group. Distinct numbered titles remain separate. The most
+aliases join the same group. Reports with different recorded run IDs remain
+separate, even when they share a title. The cards show iteration counts to make
+campaigns easy to distinguish. Distinct numbered titles remain separate. The most
 recent source-file modification time selects the displayed version. Equal times
 use the source path as a deterministic tie-breaker. Copying a file can change its
 modification time; this is a presentation rule, not semantic design versioning.
 
 Older versions remain in `catalog.json` and the **All HTML files** view. The source
-records and their evidence are unchanged. Current counts are 15 latest main
-entries from 29 source reports, plus documentation and archived HTML.
+records and their evidence are unchanged. The catalog displays current counts
+for main reports, documentation and archived HTML.
 
 ## Reading copies and page previews
 

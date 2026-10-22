@@ -348,4 +348,22 @@ class EngineeringMemory:
                 feedback=measured_feedback(result),
                 status="evaluated", source_refs=refs,
                 episode_key=f"{run_id}:seed-candidate:{result_path.relative_to(root).as_posix()}")
+        validation_path = root / "validation/result.json"
+        validation_compiled = root / "validation/compiled.json"
+        if validation_path.exists() and validation_compiled.exists():
+            checked = json.loads(validation_path.read_text())
+            compiled = json.loads(validation_compiled.read_text())
+            if checked.get("records"):
+                facts = measured_feedback(checked)
+                facts["disclosure"] = "historical public confirmation; development feedback, not an unseen holdout"
+                facts["failed_cases"] = [{"domain": r["domain_id"], "condition": r["condition_id"],
+                    "seed": r["seed"], "status": r["summary"]["status"],
+                    "failed_gates": [{k:g[k] for k in ("metric", "value", "limit")} for g in r["screening"] if not g["passed"]]}
+                    for r in checked["records"] if any(not g["passed"] for g in r["screening"])]
+                self.record_episode(run_id=run_id, round_index=summary.get("iterations_completed", 0),
+                    proposal=compiled["proposal"], configuration_digest=checked["input_digest"], feedback=facts,
+                    status="historical_validation", hypothesis="",
+                    source_refs=[file_reference(validation_path, kind="public_validation_result"),
+                                 file_reference(validation_compiled, kind="compiled_configuration")],
+                    episode_key=f"{run_id}:seed-validation:{checked['input_digest']}")
         return self.flush()

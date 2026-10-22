@@ -1,71 +1,98 @@
 # Balancing-cube research story
 
-The bilingual article distills the existing reports into a research question,
-retrospective hypotheses, methodology, experiment history, findings, limitations,
-and proposed next experiments. It is a derived educational explanation. It does
-not modify requirements, canonical records, saved prompts, or past results.
+The English article and its Japanese translation follow the research question,
+requirements, methodology, sequential Qwen trials, MASS-inspired workflow pilot,
+human-directed reaction-wheel relocation, unsuccessful attempts, and discussion.
+The October 18 revision synthesizes experiments through October 17. It changes
+no canonical requirements, saved configurations, prompts, or experiment outcomes.
 
-The central finding is that higher exploration scores did not establish a better
-confirmed design. Both completed Qwen selections remain provisional. The 20-round
-confirmation ran on GPU but has inconclusive CPU/GPU agreement. Physical fidelity
-and hardware success remain unverified.
+## Build and read
 
-## Build and inspect
-
-From a workspace containing the repositories side by side:
+From the workspace containing both repositories:
 
 ```sh
 PYTHONPATH=engineering_agents/src python -m tools.research_story.build \
-  --workspace "$PWD" --register
+  --workspace "$PWD" --refresh --register
+PYTHONPATH=engineering_agents/src python -m tools.research_story.portable \
+  --workspace "$PWD"
 ```
 
-The output is under
-`engineering_agents/src/experiments/results/balancing-cube-research-story-20261012/`:
+`--refresh` verifies and re-extracts the local sources. Omit it to rebuild from
+the frozen packaged extract without large experiment archives. The main output
+remains `src/experiments/results/balancing-cube-research-story-20261012/` for URL
+continuity; its evidence cut and article revision identify the newer content.
+`--register` updates both language entries in the existing report collection.
 
-- `index.html`: English article.
-- `index.ja.html`: Japanese article, translated from the English narrative.
-- `evidence.json`: inspectable evidence extract with original values and hashes.
+The portable files are `reports/iphone-research/index.html` (English) and
+`index.ja.html` (Japanese). Each embeds figures, charts, recorded replay, styles,
+scripts, and source data. Transfer both to retain their language switch.
+`scripts/open_research_on_iphone.command` serves only those pages to a phone
+on the same private Wi-Fi; stop it with Control-C. No server, CDN, model or
+GPU is needed to open the files on a compatible desktop browser.
 
-`--register` adds both reading languages to the report collection. It uses native
-language/source navigation and the existing screenshot-thumbnail workflow.
-The article's charts and replay are self-contained and require no CDN, model,
-GPU, or running API. Links to large original evidence assume the workspace or
-restored Release artifacts. `--output` can select another destination.
+## Score provenance
 
-## Read on an iPhone
+The article now emphasizes **MJX exploration scores**. `recent.measured_score`
+applies the frozen gates and objective directly to each saved `gpu_summary`.
+It rejects missing summaries and duplicate/incomplete case matrices. It never
+substitutes native MuJoCo summaries when MJX results are absent.
 
-Double-click `scripts/open_research_on_iphone.command` on the Mac. It exports
-`reports/iphone-research/index.html` and `index.ja.html`, then prints phone URLs
-for the Mac's private Wi-Fi address. Keep the Terminal window open while reading;
-Control-C stops the server. The iPhone and Mac must use the same Wi-Fi network.
-This server serves only the two article pages, not the workspace or report
-library. For offline reading, transfer either HTML file to the iPhone; all
-figures, interactive charts, recorded CPU replay, and evidence values are
-embedded. Transfer both files together to use their language switch offline.
-The portable source links point to the repositories and campaign Release;
-the page can download its embedded evidence JSON without a separate file.
+This is a retrospective analysis. Archived search selection used the original
+native-summary aggregate. The original score, chosen candidate, and all source
+files remain unchanged. For example, the twenty-round run selected round 19,
+while its best observed MJX score belongs to round 15. The multi-agent arm's
+native-selected candidate is from attempt 6; its MJX maximum is from attempt 9.
+A cumulative MJX maximum in the article is not a claim that the running agent
+selected that configuration using MJX feedback.
 
-## Evidence and reproducibility
+The lower-wheel twelve-case experiment was native MuJoCo only. Its score is
+shown separately and is **not** placed on the MJX progress curve. It improved
+a known governor-gate failure but reduced its exploration score. The article
+omits the implementation-agreement narrative; archived evidence is preserved.
 
-Maintained sources live in `src/tools/research_story/`. `copy.json` contains the
-English narrative and its Japanese translation. `template.html` supplies layout,
-figures and interactions. `evidence.json` is a frozen extract from the existing
-historical analysis and actual Qwen campaign artifacts. `--refresh` re-extracts
-those files and records SHA-256 values; it fails if they are absent or inconsistent.
-The default build uses the packaged extract, so large archives are not needed to
-rebuild the article. No new simulation or LLM generation occurs.
+## Experimental boundaries
 
-Per-round best scores are computed from **all measured configurations**, including
-factorial side cells, rather than only each round's main proposal feedback.
-The 3D replay uses saved native CPU position, quaternion and wheel-angle frames
-for the matched stress case. It holds the last recorded pose after termination;
-it does not invent a continuation or depict hardware footage.
+The paired multi-agent/single-identity pilot attempted ten cycles per arm and
+completed eight per arm. Its original dispatch remains inconclusive for ten
+complete cycles. Two structured-output failures per arm, unequal actual usage,
+and rejected workflow revisions remain visible. Model weights and evaluation
+rules stayed fixed. This is an adaptation of MASS workflow search, not a
+reproduction of outer-loop training or a statistically replicated ablation.
+Both selected designs and the unchanged starting design passed the fresh
+12-case MJX audit. There is no fresh-audit pass-rate advantage.
 
-The article separates historical half-step checks from new fixed-timestep trials,
-public confirmation conditions from a genuinely unseen holdout, and later
-reliability corrections from capabilities present in the archived runs. It makes
-no causal claim for memory or the LLM without a controlled ablation.
+The mounting revision was human-directed. Rotating wheel/rotor bodies move;
+fixed motor/stator mass remains in the unchanged lumped frame. Mounts remain
+fixed in body coordinates and only corner 000 has been tested. The actual saved
+MASS-trial controller is retained; two relinearized alternatives performed
+worse. Full lower-model MJX exploration, other corners, calibrated hardware
+fidelity, thirty-second hardware holding, and human baseline adoption are not
+established.
 
-The research questions are reconstructed after the experiments, not preregistered.
-External references identify editorial or methodological inspiration; the project
-does not claim to implement MASS training or ENPIRE real-robot code evolution.
+## Sources and presentation
+
+Maintained files are in `src/tools/research_story/`: `copy.json` contains the
+English narrative and Japanese translation; `template.html`,
+`recent_sections.html` and `recent.js` implement the article; `build.py` and
+`recent.py` extract hash-pinned data. The public article retains research references but omits source-report links,
+repository/PR links, hash manifests, and evidence downloads. Chart and replay
+data remain embedded so the two language files work without a workspace.
+The full extraction and canonical records are unchanged.
+
+The requirements explorer preserves the standards draft separately from the
+older revisions actually pinned by the experiments. Requirement wording,
+approval, simulation outcome and physical verification remain distinct.
+The system graph is a projection of recorded relationships, not a claim of
+full SysML semantic compliance. Requirements guidance prioritizes
+ISO/IEC/IEEE 29148:2018, applicable NASA guidance, then compatible ASD-STE100;
+English normative requirements use `shall`.
+
+Recorded native MuJoCo positions, quaternions, wheel angles and metrics drive
+all replays. The renderer respects each configuration's mounting side. It holds
+the last recorded frame after termination and invents no continuation. Native
+replay is labeled as such and is not the source of the MJX score charts.
+
+The research questions organize existing results retrospectively rather than
+claiming preregistration. Future independent repeats, clear output contracts,
+and fresh frozen tests are proposed explicitly. HTML generation makes no LLM
+calls and launches no new simulation.

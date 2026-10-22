@@ -154,3 +154,25 @@ def test_jsonl_path_and_sparse_historical_seed(tmp_path):
     assert [e["status"] for e in memory.episodes] == ["evaluated", "duplicate"]
     assert all(e["configuration_digest_source"] == "proposal_settings" for e in memory.episodes)
     assert all(e["measured_feedback"] == feedback for e in memory.episodes)
+
+
+def test_public_validation_failures_seed_memory_as_development_evidence(tmp_path):
+    run=tmp_path/'previous'
+    (run/'validation').mkdir(parents=True)
+    (run/'summary.json').write_text(json.dumps({'run_id':'prior','rounds':[],'iterations_completed':10}))
+    result={'candidate_id':'selected','input_digest':'saved-input','score':.8,'all_screening_passed':False,
+            'records':[{'domain_id':'heavy-delay','condition_id':'confirm-b','seed':812,
+                'summary':{'status':'lost_balance'},'screening':[{'metric':'peak_tilt_deg','value':21.4,'limit':5.,'passed':False}]}]}
+    (run/'validation/result.json').write_text(json.dumps(result))
+    (run/'validation/compiled.json').write_text(json.dumps({'proposal':proposal('selected',wheel_mass_kg=.05)}))
+    memory=EngineeringMemory(tmp_path/'memory')
+    assert memory.bootstrap_run(run)['episode_count']==1
+    assert memory.bootstrap_run(run)['episode_count']==1
+    episode=memory.episodes[0]
+    assert episode['status']=='historical_validation'
+    facts=episode['measured_feedback']
+    assert facts['failure_metrics']==['peak_tilt_deg']
+    assert facts['failed_cases'][0]['seed']==812
+    assert facts['failed_cases'][0]['failed_gates'][0]['value']==21.4
+    assert 'not an unseen holdout'in facts['disclosure']
+    assert memory.retrieve()['episodic_memory'][0]['measured_feedback']['failed_cases']==facts['failed_cases']

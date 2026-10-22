@@ -12,8 +12,47 @@ Defaults remain five rounds, twenty candidates, thirty minutes and three stagnan
 
 Enable `memory.enabled`, supply `memory.seed_runs` and set `iteration.proposal_retries` to allow bounded repair of invalid or duplicate proposals. Repairs retain their actual prompts and rejection reasons. Rejected or failed proposals do not count as completed measured iterations. Completed stage sequences remain EN, PI, R and E.
 
-For the configured server, [the launcher](https://github.com/hirototamura/engineering_agents/blob/codex/mujoco-evidence-loop/scripts/run_cube_gpu_memory.sh) invokes the normal Engineering Agents CLI with Qwen-27B on the vLLM endpoint at port 8001. GPUs 6 and 7 serve the model; explicit `EA_MJX_GPU_IDS=0,1,2,3,4,5` distributes simulation cases across the remaining devices. Worker caches persist between candidates. CPU and GPU execute the same cases, seeds and saved controller. A missing or failed shard cannot produce GPU verification success.
+For the original memory campaigns, [the launcher](https://github.com/hirototamura/engineering_agents/blob/codex/mujoco-evidence-loop/scripts/run_cube_gpu_memory.sh) invokes the normal Engineering Agents CLI with Qwen-27B on the vLLM endpoint at port 8001. GPUs 6 and 7 serve the model; explicit `EA_MJX_GPU_IDS=0,1,2,3,4,5` distributes simulation cases across the remaining devices. The 17 October reallocation changes future launcher defaults to inference GPUs `0,1,2,3,4,5` and MJX GPUs `6,7`. Native MuJoCo uses CPUs. See [current mounting and deployment](bottom_corner_trial.md). Historical manifests and telemetry retain the original allocation. Worker caches persist between candidates. In the completed campaigns, native MuJoCo and MJX execute the same cases, seeds and saved controller. A missing or failed shard cannot produce implementation-agreement success. See the [staged future execution policy](simulation_backend_policy.md); it does not change these historical runs.
 
 Set `EA_LLM_TRACE_DIR` to capture actual fitted prompts, their hashes, generation settings, final JSON, timings, usage and finish reasons. API credentials and private reasoning text are excluded. GPU telemetry records observed utilization; allocating six simulation devices does not imply that a small twelve-case matrix saturates them.
 
-Six-second numerical trials and CPU/GPU agreement do not demonstrate a thirty-second physical hold, calibrated sensor behavior or physical fidelity. Humans retain adoption authority.
+Six-second numerical trials and native MuJoCo–MJX agreement do not demonstrate a thirty-second physical hold, calibrated sensor behavior or physical fidelity. Humans retain adoption authority.
+
+## Bounded multi-agent workflow pilot
+
+The optional `workflow.enabled` mode adds a MASS-inspired proposal workflow in
+`scenario/balancing_cube/workflow.py`. It optimizes bounded workflow data with
+fixed model weights. It does not implement MASS outer-loop fine-tuning or let an
+LLM decide numerical acceptance. See the [paper](https://arxiv.org/abs/2610.12176).
+
+Each round makes at most five model calls: mechanical and control hypotheses,
+critique, coordination into one compiler-ready proposal, and workflow revision
+after measured evidence has been persisted and reread. Separate specialist
+contexts can use independent parallel routing or a bounded sequential handoff.
+The optimizer can change routing, specialist order, evidence handoff order and
+one of four focus labels. It cannot edit code, requirements, gates or model
+weights. Final-answer artifacts and token usage are saved; private reasoning
+text is excluded.
+
+The matched single-designer arm assembles earlier outputs into a sequential
+shared context and uses the same per-step completion caps and aggregate prompt
+cap. These are equal budget ceilings, not a claim of equal actual resource use.
+The report includes actual input/output tokens, measured configuration counts,
+wall time and native MuJoCo–MJX agreement decisions. Both arms start from the same selected design,
+seed history and isolated copies of the initial One-Piece store.
+
+`tools.run_cube_workflow_pair` runs the predeclared study through normal EA
+scenario dispatch. It warms the shared MJX workers before timed arms. A fresh
+confirmation audit changes only the predeclared verifier seeds and reuses each
+selected configuration and saved K exactly. Neither arm receives that audit
+feedback before both selections are frozen. This is one paired pilot, without
+an uncertainty estimate or a causal significance claim.
+
+Historical public confirmation results are seeded as separate memory episodes.
+They retain failed case IDs, measured gate values, controller/configuration
+identity and artifact hashes. Such disclosed results are development feedback;
+they are never described as a fresh holdout. Workflow prompts use an explicit
+field projection to preserve normative text, values, units, bounds, approval
+states and campaign summaries while omitting repeated graph details and old
+round arrays. Full source context remains archived. Compact JSON and the served
+tokenizer enforce context limits without cutting JSON text in the middle.
