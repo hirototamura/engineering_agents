@@ -19,6 +19,17 @@ uv pip install --python "$workspace/.venv/bin/python" --no-deps -e "$workspace/e
 uv venv --allow-existing --python 3.11.16 "$runtime/graphics"
 uv pip install --python "$runtime/graphics/bin/python" bpy==4.5.3
 
+if [[ ! -x "$runtime/node/bin/node" ]]; then
+  mkdir -p "$runtime/downloads" "$runtime/node"
+  (cd "$runtime/downloads"
+   curl -fLsS https://nodejs.org/dist/v22.23.2/SHASUMS256.txt -o node-SHASUMS256.txt
+   curl -fLsS https://nodejs.org/dist/v22.23.2/node-v22.23.2-linux-x64.tar.xz -o node-v22.23.2-linux-x64.tar.xz
+   grep ' node-v22.23.2-linux-x64.tar.xz$' node-SHASUMS256.txt | sha256sum -c -
+   tar -xJf node-v22.23.2-linux-x64.tar.xz -C "$runtime/node" --strip-components=1)
+fi
+export PATH="$runtime/node/bin:$PATH"
+(cd "$workspace/engineering_agents/website"; npm ci)
+
 # Build under a path without spaces: CUDA compiler activation flags do not
 # reliably quote spaces in environment prefixes. Keep the existing host stack intact.
 if [[ ! -x "$runtime/micromamba/bin/micromamba" ]]; then

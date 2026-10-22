@@ -7,7 +7,7 @@ export CUDA_VISIBLE_DEVICES=${EA_GPU_UUID:-GPU-8a14a4ef-ac77-553a-206d-55efbf826
 export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl JAX_PLATFORMS=cuda
 export XLA_PYTHON_CLIENT_PREALLOCATE=false
 export MUJOCO_EGL_DEVICE_ID=${EA_EGL_DEVICE_ID:-6}
-export PATH="$workspace/.venv/bin:$HOME/.local/bin:$PATH"
+export PATH="$workspace/.runtime/node/bin:$workspace/.venv/bin:$HOME/.local/bin:$PATH"
 export TERMINAL_CWD="$workspace"
 mkdir -p "$HERMES_HOME"
 if [[ ! -f "$HERMES_HOME/config.yaml" ]]; then

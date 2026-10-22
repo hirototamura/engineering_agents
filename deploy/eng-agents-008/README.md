@@ -146,6 +146,12 @@ Local handover checks: Engineering Agents 1,180 passed / 5 skipped; One-Piece
 website build and four tests passed. Six additional archive-import tests check
 idempotency, changed-file preservation, traversal and symlink rejection.
 
+Remote Linux validation also passed: Engineering Agents 1,187 passed / 4 skipped,
+One-Piece 97 passed, and the restored website built with four passing tests using
+Node.js 22.23.2. GPU probes recorded NVIDIA RTX A5000 for both EGL/OpenGL and
+OptiX and `cuda:0` for MJX under the reserved GPU UUID. Local CUDA device 0 here
+means the sole visible card, physical GPU 6.
+
 ## Sources
 
 - [Hermes source release](https://github.com/NousResearch/hermes-agent/tree/v0.22.4)
