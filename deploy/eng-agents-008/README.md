@@ -74,7 +74,7 @@ can reduce quality; model/tool smoke tests are not a coding benchmark.
 Inference uses llama.cpp **b11819**, CUDA **12.8.1**, compiled for **sm_86**.
 The publisher's current Linux prebuilt binary required newer glibc than this
 Ubuntu 22.04 host, so this installation builds from source instead of modifying
-the OS. The server binds to **127.0.0.1:8016**, uses one slot and a 32,768-token
+the OS. The server binds to **127.0.0.1:8016**, uses one slot and a 65,536-token
 context, and explicitly requests CUDA for all model layers. Automatic memory
 fitting is disabled; the launcher does not fall back to a cloud provider.
 
@@ -87,8 +87,24 @@ bash engineering_agents/deploy/eng-agents-008/start-model.sh
 bash engineering_agents/deploy/eng-agents-008/hermes.sh
 # One bounded task:
 bash engineering_agents/deploy/eng-agents-008/hermes.sh chat --oneshot \
-  --max-turns 8 --run-budget 300 -q 'Read AGENTS.md and explain the three repositories. Do not modify files.'
+  --max-turns 8 -q 'Read AGENTS.md and explain the three repositories. Do not modify files.'
 ```
+
+The installed user service is `eng-agents-hermes-model.service`:
+
+```bash
+systemctl --user status eng-agents-hermes-model
+systemctl --user start eng-agents-hermes-model
+systemctl --user stop eng-agents-hermes-model
+journalctl --user -u eng-agents-hermes-model -n 50
+# Recreate this service on another environment after runtime installation:
+.venv/bin/python engineering_agents/deploy/eng-agents-008/install_model_service.py
+```
+
+This service is enabled for user login. System linger is disabled on the shared
+host, so automatic startup before login is not promised. A start verifies the
+19 GB model checksum before loading; allow time for that check. Do not run a
+second launcher while the service is already using the selected GPU.
 
 Hermes runs with the **local terminal backend**, as the user opted out of
 OpenShell to avoid rebooting the shared host. This is not an isolated sandbox.

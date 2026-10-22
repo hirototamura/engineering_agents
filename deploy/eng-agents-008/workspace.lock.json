@@ -21,7 +21,7 @@
     "gpu_uuid": "GPU-8a14a4ef-ac77-553a-206d-55efbf82617b",
     "gpu_physical_index": 6,
     "model_endpoint": "http://127.0.0.1:8016/v1",
-    "context_tokens": 32768,
+    "context_tokens": 65536,
     "parallel_slots": 1,
     "openshell": "disabled_by_user: no kernel upgrade or reboot"
   }

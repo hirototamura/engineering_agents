@@ -3,7 +3,7 @@ model:
   default: qwen3.8-27b-q4-k-m
   base_url: http://127.0.0.1:8016/v1
   api_key: local-only
-  context_length: 32768
+  context_length: 65536
   max_tokens: 4096
 agent:
   max_turns: 30

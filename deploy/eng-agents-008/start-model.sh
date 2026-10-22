@@ -12,5 +12,5 @@ printf '%s  %s\n' c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a7
 exec "$HOME/.local/share/eng-agents-008/llama-source/build/bin/llama-server" \
   --model "$model" --alias qwen3.8-27b-q4-k-m \
   --host 127.0.0.1 --port 8016 --n-gpu-layers 999 --split-mode none \
-  --device CUDA0 --fit off --ctx-size 32768 --parallel 1 --flash-attn on --jinja \
+  --device CUDA0 --fit off --ctx-size 65536 --parallel 1 --flash-attn on --jinja \
   --cache-type-k q8_0 --cache-type-v q8_0
