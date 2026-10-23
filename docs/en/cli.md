@@ -78,6 +78,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | `--paired-replay` / `--no-paired-replay` | With a chain: baseline vs final replay. Omit to use `iteration.paired_replay` |
 | `--seed` | Record a seed in `summary.json` for future sweeps |
 | `--no-recreate` | Keep an existing output directory |
+| `--force` | Allow deleting a directory that is **not** a previous run (missing run markers). Recreating a prior run dir does **not** need `--force` |
 | `--dry-run` | Resolve the plan without executing |
 | `--write-spec` | Write the resolved `RunSpec` JSON |
 | `--json` | Machine-readable result on stdout |
@@ -96,6 +97,7 @@ The source of truth for the design→verify chain is `ssos_eclss_loop` `scenario
 | --- | --- | --- |
 | Bare `ea run ssos_eclss_loop` | 50 chained plant_sim sims, labeled actors, **llm designer** | `--set iteration.enabled=false` for one sim; omit `--design-mode llm` only if you also pass `--actor-mode` (design then inherits) |
 | Reusing the default `--run-id` | `EventLog.prepare_run_dir` **deletes** the previous directory | Distinct `--run-id` for apply-proposals / compare |
+| `--force` on a previous run | Not required | `--force` only when the path is **not** a run (no `summary.json` / `telemetry.jsonl` / `chain_summary.json` / `evaluation.json` / proposal markers) |
 | `--apply-proposals` on a chain | Rejected | Chain via `iteration` / `--iterate`; single follow-up sim uses `--apply-proposals` |
 | `--llm-model` / `VLLM_MODEL` | Stamps **both** actor and designer models | `--set agents.actor.llm.model=` and `agents.design.llm.model=` separately |
 | Labeled WRS on `--backend mock` | `LoopMockEclssBackend.send_water_recovery_goal` raises `NotImplementedError` | `--backend plant_sim` (or ros2) |

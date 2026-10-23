@@ -548,17 +548,22 @@ not_applicable` と理由を記録し、満点扱いしない。
 評価順序:
 
 1. 配点外の `physics_gate`（有限値、非負在庫、O₂/CO₂/水台帳、操作の物理範囲）
-2. actor 残存 50 点
-3. TCL、生存環境軌道、資源余裕・回復を各 10 点
-4. actor 有効時のみ判断と装置応答を各 10 点
+2. actor 残存: 20 点
+3. TCL、生存環境軌道、資源余裕・回復: 各 10 点
+4. コストと質量: 各 20 点
+5. actor 判断と装置応答: 各 5 点（actor 有効時のみ）
 
-actor 有効時は 100 点満点、`actor.mode: none` は判断・応答を除外して 80 点満点。
-物理ゲート失敗時は `status: invalid` とし、各軸と総合点を算出しない。適用不能軸の
-点を他軸へ再配分しない。
+actor 有効時は 100 点満点。`actor.mode: none` は判断・応答を除外して 90 点満点。
+適用不能点は再配分しない。物理ゲート失敗時は `status: invalid` とし、各軸と総合点を
+算出しない。部分採点では採点済み軸の合計を残し、`applicable_max` / `complete` を報告する。
+
+コスト・質量の満点／ゼロ点は `scenario.yaml` の `evaluation.footprint`
+（出荷値は 500 / 900 MUSD、3400 / 6000 kg）。キーを省略すると、満点はベースライン機体、
+ゼロ点はコード定数 750 MUSD / 5000 kg。探索用の係数であり実機見積ではない。
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.1",
   "status": "scored",
   "physics_gate": {
     "passed": true,
@@ -566,10 +571,14 @@ actor 有効時は 100 点満点、`actor.mode: none` は判断・応答を除�
   },
   "scores": {
     "total": 74.2,
-    "max_score": 80,
+    "max_score": 90,
+    "applicable_max": 90,
+    "complete": true,
     "axes": {
-      "actor_survival": {"score": 45.0, "max_score": 50},
-      "tcl": {"score": 8.0, "max_score": 10}
+      "actor_survival": {"score": 18.0, "max_score": 20},
+      "tcl": {"score": 8.0, "max_score": 10},
+      "cost": {"score": 16.0, "max_score": 20},
+      "mass": {"score": 16.0, "max_score": 20}
     }
   }
 }
@@ -596,7 +605,8 @@ post-ops 行を優先し、イベント発生時値と actor 判断は操作前�
 
 加えて results 直下の `evaluation.html`（評価ブラウザ）を更新する。ここから
 プルダウンで各 run を切り替え、別 run との点数比較ができる。ダッシュボードの
-View「Evaluation」からも同じブラウザを表示できる。
+View「Evaluation」からも同じブラウザを表示できる。印刷用 A3（`evaluation-scorecard-a3.html`）も
+schema 2.1 の配点。旧 50/80 ドラフトは現行ではない。
 
 ### ROS2 トピック（SSOS 実 ECLSS）
 

@@ -66,6 +66,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | --- | --- | --- |
 | 引数なし `ea run ssos_eclss_loop` | plant_sim を 50 周連鎖。labeled actor、**llm designer** | 単発は `--set iteration.enabled=false`。`--actor-mode` だけ渡すと design は actor を継承する |
 | 既定 `--run-id` の再利用 | 前回ディレクトリを **削除して作り直す** | `--apply-proposals` / 比較には別 `--run-id` |
+| `--force` を前回 run に付ける | 不要 | `--force` は run に見えない木だけ（`summary.json` / `telemetry.jsonl` / `chain_summary.json` / `evaluation.json` / 提案ファイルが無い） |
 | 連鎖に `--apply-proposals` | 拒否される | 連鎖は `iteration` / `--iterate`。単発の次ランだけ `--apply-proposals` |
 | `--llm-model` / `VLLM_MODEL` | actor と designer **両方**を上書き | `--set agents.actor.llm.model=` と `agents.design.llm.model=` を別々に |
 | `--backend mock` で labeled WRS | `LoopMockEclssBackend.send_water_recovery_goal` が `NotImplementedError` | `--backend plant_sim`（または ros2） |

@@ -131,7 +131,7 @@
 
     .scorebar {
       display: grid;
-      grid-template-columns: 5fr 1fr 1fr 1fr 1fr 1fr;
+      grid-template-columns: 4fr 2fr 2fr 2fr 4fr 4fr 1fr 1fr;
       min-height: 58px;
       margin-bottom: 14px;
       border: 1px solid var(--line);
@@ -153,6 +153,8 @@
     .s-a { background: #39759b; }
     .s-b { background: var(--green); }
     .s-c { background: #8b6b25; }
+    .s-cost { background: #5a6b73; }
+    .s-mass { background: #3f4c52; }
     .s-d { background: #644f1f; }
     .s-e { background: #4e3d18; }
     .points { font-size: 21px; white-space: nowrap; }
@@ -303,7 +305,7 @@
   <header>
     <div>
       <h1>ECLSSシミュレーション 評価・検証スコアカード</h1>
-      <p class="subtitle">actorの残存 と 客観的な物理テレメトリに基づくラン評価</p>
+      <p class="subtitle">schema 2.1 — 残存・フットプリント・物理テレメトリ。正本は evaluation.json</p>
     </div>
     <div class="principle">
       最重要要求：物理法則を守ること
@@ -326,19 +328,21 @@
 
   <h1>配点構成と評価軸</h1>
   <div class="scorebar" aria-label="配点構成">
-    <div class="s-actor"><span>actor残存</span><span class="points">50</span></div>
+    <div class="s-actor"><span>actor残存</span><span class="points">20</span></div>
     <div class="s-a"><span>A TCL</span><span class="points">10</span></div>
     <div class="s-b"><span>B 生存環境</span><span class="points">10</span></div>
-    <div class="s-c"><span>C 資源余裕・回復</span><span class="points">10</span></div>
-    <div class="s-d"><span>D 判断</span><span class="points">10</span></div>
-    <div class="s-e"><span>E 応答</span><span class="points">10</span></div>
+    <div class="s-c"><span>C 資源</span><span class="points">10</span></div>
+    <div class="s-cost"><span>コスト</span><span class="points">20</span></div>
+    <div class="s-mass"><span>質量</span><span class="points">20</span></div>
+    <div class="s-d"><span>D 判断</span><span class="points">5</span></div>
+    <div class="s-e"><span>E 応答</span><span class="points">5</span></div>
   </div>
 
   <section class="axes">
     <article class="card actor">
-      <h2>actorの残存数 — 50点 <span class="tag">最優先成果</span></h2>
-      <p>シミュレーション終了時に残存するactorの割合を、そのまま得点化する。</p>
-      <div class="formula">50 × crew_remaining ÷ crew_initial</div>
+      <h2>actorの残存数 — 20点 <span class="tag">最優先成果</span></h2>
+      <p>シミュレーション終了時に残存するactorの割合を、そのまま得点化する。順位は残存が先。採点表を残存だけで埋めない。</p>
+      <div class="formula">20 × crew_remaining ÷ crew_initial</div>
       <ul>
         <li>基準：<strong>plant_sim + survival有効</strong>。乗員数とactor数を同一人物として同期する。</li>
         <li>出力：<code>crew_initial</code>、<code>crew_remaining</code>、<code>crew_lost</code>、<code>crew_lost_by_cause</code>。</li>
@@ -391,10 +395,25 @@
   </section>
 
   <section class="card cd">
-    <h2>actor操作が有効なランのみ加える評価 — 合計20点</h2>
+    <h2>設計フットプリント — 合計40点</h2>
+    <p>コストと質量は性能と同じ採点表に載る。満点は <code>evaluation.footprint.*_full_score_*</code> 以下、ゼロは <code>*_zero_score_*</code> 以上、その間は線形。出荷 YAML は 500 / 900 MUSD、3400 / 6000 kg。キーを省略すると満点はベースライン機体（全員喪失）、ゼロ点はコード定数 750 MUSD / 5000 kg。探索用の係数であり実機見積ではない。</p>
     <div class="split">
       <div class="mini">
-        <h3>D. actorの操作判断 — 10点 <span class="tag">actor要因</span></h3>
+        <h3>コスト — 20点</h3>
+        <p>ARS / OGS / WRS のハードウェア費と打上費。軸キー: <code>cost</code>。</p>
+      </div>
+      <div class="mini">
+        <h3>質量 — 20点</h3>
+        <p>設置 ARS + OGS + WRS の質量。軸キー: <code>mass</code>。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card cd">
+    <h2>actor操作が有効なランのみ加える評価 — 合計10点</h2>
+    <div class="split">
+      <div class="mini">
+        <h3>D. actorの操作判断 — 5点 <span class="tag">actor要因</span></h3>
         <p>装置へ渡す前の「いつ・何を・どれだけ要求したか」を、観測値との対応で評価する。</p>
         <ul>
           <li>危険状態から適切な初回操作までの対応遅延</li>
@@ -403,7 +422,7 @@
         </ul>
       </div>
       <div class="mini">
-        <h3>E. 設計・装置の物理応答 — 10点 <span class="tag">設計要因</span></h3>
+        <h3>E. 設計・装置の物理応答 — 5点 <span class="tag">設計要因</span></h3>
         <p>物理的に妥当な要求を受けた後、装置がどれだけ要求を実処理へ変換したかを評価する。</p>
         <ul>
           <li>妥当なコマンドの実行成功率、要求量／実処理量</li>
@@ -418,12 +437,12 @@
     <div>
       <div class="mode inactive" style="margin-top:8px">
         <h2>actor操作：未使用</h2>
-        <div class="mode-line"><span>50 + A10 + B10 + C10（D/Eは対象外）</span><span>80点満点</span></div>
+        <div class="mode-line"><span>20 + A10 + B10 + C10 + コスト20 + 質量20（D/Eは対象外）</span><span>90点満点</span></div>
         <p class="note">対象：actor.mode = none。配点を自動再配分せず、適用可能点と満点を明示する。100点満点ランと総合点を直接比較しない。</p>
       </div>
       <div class="mode active">
         <h2>actor操作：有効</h2>
-        <div class="mode-line"><span>50 + A10 + B10 + C10 + D10 + E10</span><span>100点満点</span></div>
+        <div class="mode-line"><span>20 + A10 + B10 + C10 + コスト20 + 質量20 + D5 + E5</span><span>100点満点</span></div>
         <p class="note">対象：actor.mode = labeled_rule_base または llm。実際に装置へ適用された運用コマンドを評価する。</p>
       </div>
     </div>
@@ -438,6 +457,8 @@
         <code>trajectory.band_steps</code>
         <code>trajectory.longest_critical_streak</code>
         <code>resource_recovery.resources</code>
+        <code>cost.metrics</code>
+        <code>mass.metrics</code>
         <code>actor_decision.episodes</code>
         <code>actor_decision.attempts</code>
         <code>physical_response.operations</code>
