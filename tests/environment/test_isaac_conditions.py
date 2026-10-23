@@ -1,6 +1,8 @@
 import itertools
 import numpy as np
 import pytest
+pytest.importorskip('scipy')
+pytest.importorskip('mujoco')
 from scipy.spatial.transform import Rotation
 from environment.isaac.conditions import body_com, corner_frame, initial_pose, trial_plan, sensor_noise
 from environment.mujoco.model import equilibrium_rotation
