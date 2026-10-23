@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-23",
+  "host": "gpu-sv-008",
+  "source_revisions": {
+    "engineering_agents": "150cc282dda1f4af27dc125f6e10f3172661fc8e",
+    "one-piece": "e23a5b5efc1289fa829b1cb9694c70669a6ee88f",
+    "balancing-cube-simulation": "8176699f0f51051aff3ef87fac14014a1cd4075a"
+  },
+  "tests": {
+    "engineering_agents": {
+      "passed": 1187,
+      "skipped": 4
+    },
+    "one_piece": {
+      "passed": 97
+    },
+    "standalone_simulator": {
+      "passed": 105,
+      "skipped": 2,
+      "subtests_passed": 90
+    },
+    "website": {
+      "build": "passed",
+      "node_test_files_passed": 2
+    }
+  },
+  "ssos_loop": {
+    "run1": "dev-20261023-1128-loop1",
+    "run2": "dev-20261023-1128-loop2",
+    "nonempty_proposal_consumed_unchanged": true
+  },
+  "mjx": {
+    "engine": "mjx_cuda_and_egl",
+    "jax_devices": [
+      "cuda:0"
+    ],
+    "opengl_vendor": "NVIDIA Corporation",
+    "opengl_renderer": "NVIDIA RTX A5000/PCIe/SSE2",
+    "steps": 10,
+    "final_z_m": 0.39784181118011475,
+    "passed": true,
+    "gpu_uuid": "GPU-8a14a4ef-ac77-553a-206d-55efbf82617b"
+  },
+  "optix": {
+    "engine": "blender_cycles_optix",
+    "devices": [
+      {
+        "name": "NVIDIA RTX A5000",
+        "id": "CUDA_NVIDIA RTX A5000_0000:d9:00_OptiX"
+      }
+    ],
+    "blender_version": "4.5.3 LTS",
+    "passed": true,
+    "gpu_uuid": "GPU-8a14a4ef-ac77-553a-206d-55efbf82617b"
+  },
+  "isaac": {
+    "passed": true,
+    "task": "Isaac-Cartpole-Camera",
+    "steps": 16,
+    "gpu_uuid": "GPU-8a14a4ef-ac77-553a-206d-55efbf82617b",
+    "device": "cuda:0",
+    "gpu_name": "NVIDIA RTX A5000",
+    "physics_config": "isaaclab_physx.physics.physx_manager_cfg.PhysxCfg",
+    "renderer": "isaac_rtx",
+    "image_shape": [
+      96,
+      96,
+      3
+    ],
+    "pixel_min": 0,
+    "pixel_max": 206,
+    "physics_gpu_dynamics": true,
+    "physics_broadphase": "GPU",
+    "max_joint_position_change": 0.19584909081459045,
+    "versions": {
+      "isaacsim": "6.2.0.0",
+      "isaaclab": "3.0.0",
+      "torch": "2.11.0+cu130",
+      "rsl-rl-lib": "5.5.1"
+    },
+    "physical_validation": false,
+    "cube_cad_validation": false
+  },
+  "rl_smoke": {
+    "task": "Isaac-Cartpole",
+    "backend": "isaacsim_physx",
+    "environments": 16,
+    "iterations": 2,
+    "total_steps": 512,
+    "checkpoint_files": [
+      "model_0.pt",
+      "model_1.pt"
+    ]
+  },
+  "limitations": [
+    "Installation/backend smoke only; cube CAD and physical acceptance not validated.",
+    "urllib3 2.8.0 intentionally overrides isaacsim-kernel 2.7.0 metadata to satisfy Isaac Lab.",
+    "Initial sandbox tests could not bind sockets; host reruns passed.",
+    "Initial camera CLI preset typo and intermediate Warp API probe failure retained in logs."
+  ],
+  "hermes_service": "restarted after GPU checks",
+  "vllm_gpus_0_to_5": "not stopped",
+  "gpu_7": "untouched",
+  "evidence": {
+    "repository": "hirototamura/balancing-cube-simulation",
+    "release": "isaac-development-20261023",
+    "asset": "isaac-development-validation-20261023.zip",
+    "sha256": "5dfb627696b71f0c27fab851db7fbf48159b083d04fc806566b344e9ece49fc3",
+    "bytes": 135577
+  }
+}
