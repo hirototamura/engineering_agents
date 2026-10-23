@@ -83,6 +83,7 @@ hydra-core==1.3.7
 idna==3.10
 idna-ssl==1.1.0
 imageio==2.37.2
+imageio-ffmpeg==0.6.0
 imgui-bundle==1.92.601
 importlib-metadata==9.1.0
 importlib-resources==7.1.0
