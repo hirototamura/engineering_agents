@@ -14,7 +14,9 @@ checksummed private Release assets. Never commit tokens, model weights, virtual
 environments or mutable agent memory. Do not overwrite another environment's work.
 
 GPU 6 (UUID `GPU-8a14a4ef-ac77-553a-206d-55efbf82617b`) is reserved for this profile.
-GPUs 0–5 serve an existing model; GPU 7 remains available for other work.
+GPUs 0–5 are allocated to parallel Isaac Sim work by the user on 2026-10-23.
+The vLLM unit ea-qwen-six-gpu-20261017.service is stopped; do not restart it
+without user direction. GPU 6 retains Hermes; GPU 7 remains available for other work.
 Use CUDA for local model inference and MJX, NVIDIA EGL/OpenGL for rendering,
 and Blender OptiX for RTX ray tracing. Fail visibly when the requested accelerated
 backend is unavailable; do not silently replace it with software rendering.
