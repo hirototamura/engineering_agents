@@ -1,5 +1,12 @@
 # Isaac cube exploration
 
+Source review: [draft PR #85](https://github.com/hirototamura/engineering_agents/pull/85).
+The [private evidence Release](https://github.com/hirototamura/balancing-cube-simulation/releases/tag/isaac-cube-20261024)
+contains the 1.12 GB archive, videos, raw telemetry, paired comparisons and model
+proposal traces. [isaac-cube-20261024.json](isaac-cube-20261024.json) records its
+SHA-256, source commit and validation summary. The archive includes a per-file
+checksum manifest; access requires the private simulator repository permission.
+
 The user allocated physical GPUs 0–5 to Isaac simulation on 2026-10-23.
 `ea-qwen-six-gpu-20261017.service` was stopped. GPU 6 retains the local proposal
 model; GPU 7 is available for other work. Do not restart the retired vLLM service
