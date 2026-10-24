@@ -22,8 +22,10 @@ companion revisions instead of assuming that every branch has advanced together:
 Agents commit that contains these files defines the remaining source revision;
 save that full SHA with every new experiment. No existing PR was merged.
 
-Generated website CAD assets remain outside Git. Restore the `website-cad` pack
-before `npm run check` or a complete website build; otherwise the CAD pages will
+Generated website CAD assets remain outside Git. Website builds now restore the
+hash-pinned, already public CAD package automatically (see `website/README.md`).
+The historical private `website-cad` handover pack remains available for offline
+restoration. Without either package, the CAD pages will
 be absent. The private pack also retains original downloaded archives so report
 download links continue to resolve. Mac-only absolute `file:` links in historical
 reports remain historical; use workspace-relative file paths on Linux.

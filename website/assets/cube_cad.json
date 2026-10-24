@@ -1,0 +1,253 @@
+{
+  "schema_version": 1,
+  "id": "cube-cad-remrc-reference-20261021-r1",
+  "scope": "Only assets already shared by the public CAD reference pages; attribution and source license are included.",
+  "artifact": {
+    "url": "https://github.com/hirototamura/engineering_agents/releases/download/website-cad-20261024/engineering-research-cube-cad-20261024.tar.gz",
+    "sha256": "cc62777531e01953060d6546be4762746e94084defe8285003a01771035e740c",
+    "size_bytes": 38044227,
+    "root": "cube-cad"
+  },
+  "files": [
+    {
+      "path": "assembly.png",
+      "sha256": "bc696b4e49694279fd398ed9bb7de6f0ee5a66d0395bf283ff06896615a4bc6b",
+      "size_bytes": 1741125
+    },
+    {
+      "path": "assembly_cutaway.png",
+      "sha256": "b6074bf2d740d4fcd827281b221403aee178a502f8c9a5b59b956b8db21ceed8",
+      "size_bytes": 1695133
+    },
+    {
+      "path": "assembly_exploded.png",
+      "sha256": "494c7062556264721dfab09cfe4bb5b338eb15b8e456e752723863f7cba18098",
+      "size_bytes": 1712039
+    },
+    {
+      "path": "assembly_inventory.csv",
+      "sha256": "79328f306cc944c534f1d4d7994c476238cc7c9b7290c1ab8b03caefa3a3a603",
+      "size_bytes": 4644
+    },
+    {
+      "path": "assembly_parameters.json",
+      "sha256": "2bf47a89f3710c5efd30581103a3a28b60c712659f974af16b1d60389e23f4d5",
+      "size_bytes": 2376
+    },
+    {
+      "path": "bom_coverage.json",
+      "sha256": "a92ae4a2b5eaffd765ebcd49022b01586bab6cb4192fd20b10dbb4b443abb24f",
+      "size_bytes": 7856
+    },
+    {
+      "path": "cube_reference_assembly.blend",
+      "sha256": "2fb3c721d41dcba9b7661c8b60fd2b484c7de04663f37564a5e27dda034bc431",
+      "size_bytes": 9393352
+    },
+    {
+      "path": "cube_reference_assembly.glb",
+      "sha256": "6e3a5c0f501be70e980301c70a63d18e1612cf195fe4635460fac2178cecf714",
+      "size_bytes": 608996
+    },
+    {
+      "path": "cube_reference_assembly.step",
+      "sha256": "7b972cce57a02602c7103c44d8ad6035473bbfe724e86b2fae9ddf7c6f1efa42",
+      "size_bytes": 39174032
+    },
+    {
+      "path": "en/index.html",
+      "sha256": "c7ef56d163be52bfdc7ffe931097724300fed292e520cc629b621ec9dfc01dc6",
+      "size_bytes": 14936227
+    },
+    {
+      "path": "index.html",
+      "sha256": "7cf2ea31da57799eb7d9505cbcfdacfcec3c95fe43e95eb1eba35d4f26a1f687",
+      "size_bytes": 14943717
+    },
+    {
+      "path": "interface_checks.json",
+      "sha256": "a274f91bc43bc7c847ff3ef76b48216f11cd588ec7a2bcb2c6010cf2955dd808",
+      "size_bytes": 1633
+    },
+    {
+      "path": "part_library/cubli_battery_and_controller_holder_1x.step",
+      "sha256": "4f86907b8de155e14dee29cdb4a37c40706fa078070a6dda02b167f22495cd92",
+      "size_bytes": 7631805
+    },
+    {
+      "path": "part_library/cubli_battery_holder_2_1x.step",
+      "sha256": "d653e0eae954e954d1fb2e86d9cbba042ff7f243a1584ff3bb56475f7baac33b",
+      "size_bytes": 402522
+    },
+    {
+      "path": "part_library/cubli_battery_holder_2x.step",
+      "sha256": "3cd1911fb0677605c44c2637243d74890252202d852f17ede0206e7f357acc86",
+      "size_bytes": 1242171
+    },
+    {
+      "path": "part_library/cubli_controller_holder_1x.step",
+      "sha256": "7fdf994179c2633aeeb6d002ba3497ca05cd60dd967e0be379151939292a5fba",
+      "size_bytes": 3124030
+    },
+    {
+      "path": "part_library/cubli_corner_8x.step",
+      "sha256": "4821a24f0b3be377586d45c606c3c6708e873109164b6f05b17717f174d7617d",
+      "size_bytes": 3804032
+    },
+    {
+      "path": "part_library/cubli_led_cover_3x.step",
+      "sha256": "4b3b1cf0423590db6e9b103df0c50260c0d884436a180607fd9e32f821ecd0bb",
+      "size_bytes": 1113089
+    },
+    {
+      "path": "part_library/cubli_motor_holder_3x.step",
+      "sha256": "60aedc93903af563de6726e758c37c4e252606aae6b56ffb180eaef2ba911c76",
+      "size_bytes": 3802274
+    },
+    {
+      "path": "part_library/cubli_reaction_wheel_3x.step",
+      "sha256": "6b86f29f64d2c0054146191ed974bc82219386c3e1969c3e1918d5b0e50dabfe",
+      "size_bytes": 14013170
+    },
+    {
+      "path": "part_library/cubli_reaction_wheel_6mm_hole_3x.step",
+      "sha256": "226ecebb105b3fa53391ec03270008c34bc5fd1b0ea77831218f612d15f307b9",
+      "size_bytes": 11944244
+    },
+    {
+      "path": "part_library/cubli_rw_side_3x.step",
+      "sha256": "22d23fac3b30686ece92c69234d4304a9757a04d001532b4e1e7d63e077ec2db",
+      "size_bytes": 4944588
+    },
+    {
+      "path": "part_library/cubli_side_3x.step",
+      "sha256": "d377c92574733ce449b7aac9d30c042e0b0e01e22ac38398fc6a9bd311cc0096",
+      "size_bytes": 3796557
+    },
+    {
+      "path": "publication-manifest.json",
+      "sha256": "a84427d63be469bc6eecddb21a0f788fec9d57091f9d527956e4e49bb4bb4c03",
+      "size_bytes": 5064
+    },
+    {
+      "path": "source/README.md",
+      "sha256": "28191b7f1d915e9d9794751f78a8c3bcc718c197f13909c810bda6ab0d2ae8bc",
+      "size_bytes": 6254
+    },
+    {
+      "path": "source/assembly_parameters.json",
+      "sha256": "2bf47a89f3710c5efd30581103a3a28b60c712659f974af16b1d60389e23f4d5",
+      "size_bytes": 2376
+    },
+    {
+      "path": "source/build_assembly.py",
+      "sha256": "f4a075e24e78d37f7e6dd6fb0ee7f4373a931d2e5e45b3f2eb28f8a5bedc6718",
+      "size_bytes": 14346
+    },
+    {
+      "path": "source/build_viewer.py",
+      "sha256": "5d66e85ac5b58a856d9f587f8be76b4afe22fb04df388354344e3d742e420b5e",
+      "size_bytes": 1727
+    },
+    {
+      "path": "source/check_assembly.py",
+      "sha256": "951f06ac42c99cf8d3daadd64e6effda8efb38d7b79c4736682d2ed23ef66da5",
+      "size_bytes": 2165
+    },
+    {
+      "path": "source/render_blender.py",
+      "sha256": "4618096e9cff17aa0e26b8a6aa56bbd0b9ddb63500a1f8446be471153c18b3f9",
+      "size_bytes": 4912
+    },
+    {
+      "path": "source/requirements-cad.lock.txt",
+      "sha256": "a3c45fe32f3e2e946b39bb3f310ccb7af2f20832f26f4439974ef15241c1c7e4",
+      "size_bytes": 809
+    },
+    {
+      "path": "source/translations_ja.json",
+      "sha256": "e548645cedafd151b6f1c2d3737d3ebf3d4332d5233f424d2a6e346599f05429",
+      "size_bytes": 18339
+    },
+    {
+      "path": "source/verify_blender.py",
+      "sha256": "030f6e5beda3562cecf5810c273474cc0ef67746bde671fb67925c25ae619c0c",
+      "size_bytes": 1205
+    },
+    {
+      "path": "source/viewer_template.html",
+      "sha256": "bc139c4c74f9d24c2a7b8b919d3ae3a10cc0eaffc746739aa7db132016a3664c",
+      "size_bytes": 18897
+    },
+    {
+      "path": "source_LICENSE.txt",
+      "sha256": "b7885564eb9b8480c1bf6b1b46277d7d4d933822b8f5766bedbb215a00f726b5",
+      "size_bytes": 116
+    },
+    {
+      "path": "source_README.txt",
+      "sha256": "ed957a6d567f5d4450d6cc20382f99b30a24914b56c20d1ab1ec12125a05a29a",
+      "size_bytes": 187
+    },
+    {
+      "path": "source_stl/cubli_battery_and_controller_holder_1x.stl",
+      "sha256": "5aace180c693bea88796e592195233f3bc32b3a0599da773027671c0a944c847",
+      "size_bytes": 258684
+    },
+    {
+      "path": "source_stl/cubli_battery_holder_2_1x.stl",
+      "sha256": "353d43db041ab1b03bcd1468e8b0c78b74f848b866e617ab3490b3aef7f88721",
+      "size_bytes": 21284
+    },
+    {
+      "path": "source_stl/cubli_battery_holder_2x.stl",
+      "sha256": "ded019c6bc378e889b6b85587f17e7825768c5a95a8975432dd71e6f6f24bcdf",
+      "size_bytes": 64284
+    },
+    {
+      "path": "source_stl/cubli_controller_holder_1x.stl",
+      "sha256": "dd3f2c361bdbcbb2a200e74def982e834fe61b3ec79552893124e927be636487",
+      "size_bytes": 155884
+    },
+    {
+      "path": "source_stl/cubli_corner_8x.stl",
+      "sha256": "a3d4d9cd911868deb8fdacd1a732357e1d129e4d9dd72ddebed70140b685cc78",
+      "size_bytes": 82784
+    },
+    {
+      "path": "source_stl/cubli_led_cover_3x.stl",
+      "sha256": "425f9a9f253975a8dab179bc52252932aeae5828af69973f74b24255673e8d51",
+      "size_bytes": 38284
+    },
+    {
+      "path": "source_stl/cubli_motor_holder_3x.stl",
+      "sha256": "3d36567794793780fbe2877a65ed95f28f5ca084ea02a8d8300405366f9528b8",
+      "size_bytes": 190684
+    },
+    {
+      "path": "source_stl/cubli_reaction_wheel_3x.stl",
+      "sha256": "46f8b58c1bb609f29676c6c118acac4e9235fba389461db29ced3961cb4a403b",
+      "size_bytes": 501684
+    },
+    {
+      "path": "source_stl/cubli_reaction_wheel_6mm_hole_3x.stl",
+      "sha256": "2a57dd0cd7fbcdab6c1065910d5f13982d1d57d3b5cb9a05c8b48ca90910e015",
+      "size_bytes": 413284
+    },
+    {
+      "path": "source_stl/cubli_rw_side_3x.stl",
+      "sha256": "24f89fe038b35312e27f5833e14be2bf508541cad87bed0737ae4fb6c95e431f",
+      "size_bytes": 212884
+    },
+    {
+      "path": "source_stl/cubli_side_3x.stl",
+      "sha256": "4fef4da60bf075668412b8f3ec60b19e6a47e9f34dadb0870364b57b69c01915",
+      "size_bytes": 139284
+    },
+    {
+      "path": "validation.json",
+      "sha256": "062534f586dbcf88e2ae5390e12ad065deaf1b2794da8acd8e3703957c3946ec",
+      "size_bytes": 2431
+    }
+  ]
+}
