@@ -420,7 +420,7 @@ python3 src/scripts/run_mock_eclss.py
 ea run scrubber_degradation --agents-mode labeled_rule_base
 ```
 
-出力先: `src/experiments/results/scrubber_degradation_labeled_rule_base/`
+出力先: `experiments/eclss/results/scrubber_degradation_labeled_rule_base/`
 
 ### LLM チーム（scrubber · `llm`・Ollama または vLLM 必須）
 
@@ -428,7 +428,7 @@ ea run scrubber_degradation --agents-mode labeled_rule_base
 ea run scrubber_degradation --agents-mode llm
 ```
 
-出力先: `src/experiments/results/scrubber_degradation_llm/`（`scenario.yaml` の `run_id_llm`）
+出力先: `experiments/eclss/results/scrubber_degradation_llm/`（`scenario.yaml` の `run_id_llm`）
 
 別モデルで別 run 名にしたい場合は、実行前に `agents.yaml` の `llm.model` を変更するか、`output.run_id_llm` をオーバーライドしてください。
 
@@ -442,7 +442,7 @@ ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base
 ea run ssos_eclss_loop --backend mock --actor-mode llm
 ```
 
-出力先例: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`
+出力先例: `experiments/eclss/results/ssos_eclss_loop_labeled_rule_base/`
 
 PowerShell では次のように実行できます。
 
@@ -468,7 +468,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labe
 
 ```bash
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \
-  --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
+  --apply-proposals experiments/eclss/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 
 graph_rewire E2E: `./scripts/run_graph_rewire_e2e.sh`（ECLSS headless 前提）
@@ -518,7 +518,7 @@ python -m streamlit run src/tools/dashboard/app.py
 - サイドバーで run 選択、`Compare with another run` で LLM 同士などを比較可能  
 - `summary.scenario == "ssos_eclss_loop"` の run は `ssos_views` で専用 UI に分岐
 
-実行結果の保存先: `src/experiments/results/<run_id>/`
+実行結果の保存先: `experiments/eclss/results/<run_id>/`
 
 ---
 
@@ -529,7 +529,7 @@ python -m streamlit run src/tools/dashboard/app.py
 | `src/core/agents/` | Persona、Team ABC、メモリ、LLM クライアント |
 | `src/environment/` | `SimulatorProtocol`（scrubber）、`EclssBackend` / `Ros2EclssBridge`（ssos）、EPS mock / `Ros2EpsBridge` |
 | `src/scenario/` | `scrubber_degradation`、`ssos_eclss_loop`、各 Team、`design_proposals` |
-| `src/experiments/results/` | 実行結果（gitignore 推奨） |
+| `experiments/eclss/results/` | 実行結果（gitignore 推奨） |
 | `src/tools/dashboard/` | Streamlit UI |
 | `src/integrations/one_piece/` | provenance レコード生成 |
 | `docs/ja/` | 設計・API・シナリオドキュメント（開発プラン含む） |

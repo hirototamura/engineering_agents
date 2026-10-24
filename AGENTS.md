@@ -54,10 +54,10 @@ python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rul
  --run-id cloud-smoke-run1 --set iteration.enabled=false
 python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 5 \
  --run-id cloud-smoke-run2 --set iteration.enabled=false --approve-provisional \
- --apply-proposals src/experiments/results/cloud-smoke-run1/design_proposals.json
+ --apply-proposals experiments/eclss/results/cloud-smoke-run1/design_proposals.json
 ```
 
-Confirm Run 1 wrote `src/experiments/results/cloud-smoke-run1/design_proposals.json` (`design_domain: ssos_graph`, non-empty `changes`). Confirm Run 2 completed with proposals merged. Compare `cloud-smoke-run2/summary.json` and `telemetry.jsonl` against Run 1 — behavior should reflect applied config while Run 1 artifacts remain intact.
+Confirm Run 1 wrote `experiments/eclss/results/cloud-smoke-run1/design_proposals.json` (`design_domain: ssos_graph`, non-empty `changes`). Confirm Run 2 completed with proposals merged. Compare `cloud-smoke-run2/summary.json` and `telemetry.jsonl` against Run 1 — behavior should reflect applied config while Run 1 artifacts remain intact.
 
 `scrubber_degradation` also emits `design_proposals.json` after a run, but **does not yet re-inject proposals into the next simulation** (dashboard Before/After is preview only). Closing that loop for scrubber is backlog; do not use scrubber alone as proof of a closed loop.
 
@@ -66,5 +66,5 @@ Confirm Run 1 wrote `src/experiments/results/cloud-smoke-run1/design_proposals.j
 - Console scripts (`ea`, etc.) land in `~/.local/bin`, which is not on `PATH`. Prefer `python3 -m tools.cli …` or add `~/.local/bin` to `PATH`. See [docs/en/cli.md](docs/en/cli.md).
 - Tests: `python3 -m pytest --ignore=tests/e2e` (matches CI). Full `tests/e2e` needs SSOS Docker + ROS2 (`SSOS_E2E=1`, self-hosted runner) — not required for the minimal loop smoke above.
 - `agents.mode: llm` / ssos `--design-mode llm` needs Ollama or the lab vLLM server (LAN or VPN). `ssos_eclss_loop` bare `ea run` defaults to `plant_sim` + labeled actors + LLM design; `--backend ros2` needs SSOS Docker. Minimal loop smoke is **out of scope** for both — use `labeled_rule_base` + `--backend mock`.
-- Dashboard (optional): `python3 -m streamlit run src/tools/dashboard/app.py --server.headless true` reads `src/experiments/results/<run_id>/`.
+- Dashboard (optional): `python3 -m streamlit run src/tools/dashboard/app.py --server.headless true` reads `experiments/eclss/results/<run_id>/`.
 - plant_sim sensitivity (optional, not the dashboard): `python3 -m tools.plant_sim_sensitivity_app` (port 8502).

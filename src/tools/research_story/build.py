@@ -62,7 +62,7 @@ def extract(workspace: Path) -> dict:
     data['system_model'], model_sources = load_system_model(workspace, MODEL_REVISION)
     sources.update(model_sources)
     for name in RUNS:
-        base = Path("engineering_agents/src/experiments/results") / name
+        base = Path("engineering_agents/experiments/balancing_cube/results") / name
         summary = read(base / "summary.json")
         manifest = read(base / "execution-manifest.json")
         prep_name = "memory10" if summary["iterations_completed"] == 10 else "memory20"
@@ -163,7 +163,7 @@ def extract(workspace: Path) -> dict:
             "screening": snapshot["contract"]["screening"],
             "summary_source": (base / "summary.json").as_posix(),
             "report": (base / "memory-pipeline-report.html").as_posix()})
-    interrupted = read("engineering_agents/src/experiments/results/qwen27b-memory10-20261012/summary.json")
+    interrupted = read("engineering_agents/experiments/balancing_cube/results/qwen27b-memory10-20261012/summary.json")
     data["interrupted"] = {k: interrupted[k] for k in ("status", "iterations_completed", "stopped_reason")}
     data["sources"] = list(sources.values())
     # Cross-check the extract at generation time. Fail instead of publishing
@@ -264,7 +264,7 @@ def render(data: dict, copy: dict, language: str, output: Path, workspace: Path)
         ("one-piece/projects/balancing-cube/report/index.html", "MODEL_REPORT"),
         ("balancing-cube-simulation/gpu-results-final/report/index.html", "HISTORY_REPORT"),
         ("balancing-cube-simulation/gpu-results-final/gnc-report/index.html", "GNC_REPORT"),
-        ("engineering_agents/src/experiments/results/pr82-onepiece-mujoco-loop-20261011-iteration4/pipeline-report.html", "LOCAL_REPORT"),
+        ("engineering_agents/experiments/balancing_cube/results/pr82-onepiece-mujoco-loop-20261011-iteration4/pipeline-report.html", "LOCAL_REPORT"),
     ]:
         replacements[token] = quote(os.path.relpath(workspace / path, output.parent).replace(os.sep, "/"), safe="/.-_")
     for token, value in replacements.items():
@@ -331,7 +331,7 @@ def main():
     args = parser.parse_args()
     workspace = args.workspace.resolve()
     os.environ["EA_REPORT_WORKSPACE"] = str(workspace)
-    output = args.output or workspace / "engineering_agents/src/experiments/results/balancing-cube-research-story-20261012"
+    output = args.output or workspace / "engineering_agents/experiments/balancing_cube/results/balancing-cube-research-story-20261012"
     for path in build(workspace, output.resolve(), refresh=args.refresh, register=args.register):
         print(path)
 

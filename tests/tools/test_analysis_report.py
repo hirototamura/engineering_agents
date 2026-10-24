@@ -361,7 +361,7 @@ def test_render_english_stays_the_default():
 
 
 def test_sibling_report_path_pairs_en_and_ja():
-    en = Path("src/experiments/analysis/design_loop_analysis.html")
+    en = Path("experiments/eclss/analysis/design_loop_analysis.html")
     ja = report.sibling_report_path(en, "ja")
     assert ja.name == "design_loop_analysis.ja.html"
     assert report.sibling_report_path(ja, "en") == en
@@ -417,7 +417,7 @@ def test_load_campaign_without_any_chain_artifact_is_empty(tmp_path):
 
 
 def test_committed_datasets_rebuild_loop_without_raw_chain_dirs(tmp_path):
-    src = Path("src/experiments/analysis")
+    src = Path("experiments/eclss/analysis")
     if not (src / "datasets" / "response_surface.json").is_file():
         pytest.skip("committed analysis datasets are not present")
     shutil.copytree(src / "datasets", tmp_path / "datasets")

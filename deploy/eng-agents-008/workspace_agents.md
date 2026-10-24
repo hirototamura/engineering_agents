@@ -36,3 +36,11 @@ measurements and requirement checks decide simulation outcomes, not LLM opinions
 
 Historical reports and experiments are preserved. New development writes new run
 directories. Do not silently rewrite previous measurements, IDs, or provenance.
+
+ECLSS experiments live under `engineering_agents/experiments/eclss/`; cube
+experiments live under `engineering_agents/experiments/balancing_cube/`. Classify
+compatibility runs by their recorded scenario, not a folder-name guess.
+One-Piece owns the requirements explorer and the dataset retrieval catalog.
+Use `onepiece datasets list/fetch/verify` for historical validation evidence;
+never copy the entire `integration-validation` scratch workspace as a new source
+repository. Browser review proposals do not change canonical requirements.

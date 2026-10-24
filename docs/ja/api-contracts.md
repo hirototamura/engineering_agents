@@ -21,7 +21,7 @@
 
 ### 出力ディレクトリ
 
-`src/experiments/results/<run_id>/` — `summary.json` の `scenario` でどちらの系統か判別する。
+`experiments/eclss/results/<run_id>/` は ECLSS、`experiments/balancing_cube/results/<run_id>/` はキューブの出力先。
 
 両系統で出るファイル名:
 

@@ -25,7 +25,7 @@ ssos_define_volumes() {
     -v "${SSOS_SCRIPTS_DIR}/ssos-headless.launch.py:/root/ssos-headless.launch.py:ro"
     -v "${SSOS_SCRIPTS_DIR}/ssos-eps.launch.py:/root/ssos-eps.launch.py:ro"
     -v "${REPO_ROOT}/src:/ea/src"
-    -v "${REPO_ROOT}/src/experiments/results:/ea/results"
+    -v "${REPO_ROOT}/experiments/eclss/results:/ea/results"
   )
 }
 

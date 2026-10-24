@@ -84,6 +84,9 @@ class LatestReportsTest(unittest.TestCase):
     def test_command_builds_an_external_workspace_without_writing_package_data(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
+            template = root / "one-piece/src/onepiece/explorer_assets/index.html"
+            template.parent.mkdir(parents=True)
+            template.write_text('<title>Unbuilt explorer template</title>')
             for version in ["old", "new"]:
                 path = root / version / "report.html"
                 path.parent.mkdir()

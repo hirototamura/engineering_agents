@@ -141,7 +141,7 @@ Both scenarios share the same agent pattern: **`none`**, **`labeled_rule_base`**
 Default output root:
 
 ```text
-src/experiments/results/<run_id>/
+experiments/eclss/results/<run_id>/
 ```
 
 | File | Description |

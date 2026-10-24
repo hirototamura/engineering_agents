@@ -141,7 +141,7 @@ ea results
 デフォルトの出力ルート:
 
 ```text
-src/experiments/results/<run_id>/
+experiments/eclss/results/<run_id>/
 ```
 
 | ファイル | 内容 |

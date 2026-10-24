@@ -31,7 +31,7 @@ ea run
 | --- | --- |
 | `ea run [SCENARIO]` | 1回シミュレーション実行。`ssos_eclss_loop` は `iteration.enabled` または `--iterate N` で設計→検証連鎖 |
 | `ea scenarios` | 利用可能なシナリオ一覧 |
-| `ea results [RUN_ID]` | 直近 run 一覧、または `summary.json` 表示 |
+| `ea results [RUN_ID] [--track eclss\|balancing_cube]` | 選択したプロジェクトの run 一覧、または `summary.json` 表示 |
 | `ea doctor` | Python 3.11+・依存関係・Docker/SSOS マウント・Ollama・vLLM の確認 |
 | `ea job run SPEC.json` | シリアライズ済み `RunSpec` を実行（クラスタワーカー互換） |
 | `ea --version` | CLI バージョン表示 |
@@ -66,12 +66,13 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 
 ```bash
 ea results
+ea results --track balancing_cube
 python3 -m streamlit run src/tools/dashboard/app.py
 python3 -m tools.plant_sim_sensitivity_app  # plant_sim 3×4 の感度。ラン用ダッシュボードではない (port 8502)
 python3 -m tools.analysis all              # 設計ループのアンサンブル解析と HTML（英・日）
 ```
 
-実行ごとのダッシュボードは「このシミュレーションで何が起きたか」に答えます。解析キャンペーンは**アンサンブル**の性質 — 順序変数、臨界性、可制御性、ミッションが `design_constraints.budgets` の内側で達成可能か — に答えます。[設計ループの学術解析](design-loop-analysis.md) を参照。HTML は `src/experiments/analysis/design_loop_analysis.html` に出力されます。
+実行ごとのダッシュボードは「このシミュレーションで何が起きたか」に答えます。解析キャンペーンは**アンサンブル**の性質 — 順序変数、臨界性、可制御性、ミッションが `design_constraints.budgets` の内側で達成可能か — に答えます。[設計ループの学術解析](design-loop-analysis.md) を参照。HTML は `experiments/eclss/analysis/design_loop_analysis.html` に出力されます。
 
 ## SSOS Docker（`ssos_eclss_loop` + ros2） { #ssos-docker-ssos_eclss_loop--ros2 }
 
@@ -114,7 +115,7 @@ ea results
 | --- | --- |
 | `scripts/ssos/*` → `/root/` | headless 起動スクリプト（`ssos-eclss-headless.sh` 等） |
 | `src` → `/ea/src` | コード |
-| `experiments/results` → `/ea/results` | 成果物（ホストに直接書き込み） |
+| `experiments/eclss/results` → `/ea/results` | 成果物（ホストに直接書き込み） |
 
 LLM を使う場合は `--actor-mode llm` および/または `--design-mode llm` と `--llm-provider vllm`。headless 用の第 2 ターミナルは不要です。
 

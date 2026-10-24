@@ -19,7 +19,7 @@ PYTHONPATH=engineering_agents/src python -m tools.research_story.portable \
 
 `--refresh` verifies and re-extracts the local sources. Omit it to rebuild from
 the frozen packaged extract without large experiment archives. The main output
-remains `src/experiments/results/balancing-cube-research-story-20261012/` for URL
+remains `experiments/balancing_cube/results/balancing-cube-research-story-20261012/` for URL
 continuity; its evidence cut and article revision identify the newer content.
 `--register` updates both language entries in the existing report collection.
 

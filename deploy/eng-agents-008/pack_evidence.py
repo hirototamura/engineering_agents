@@ -8,13 +8,16 @@ from pathlib import Path
 import zipfile
 
 PACKS = {
-    "engineering-agents-results": ["engineering_agents/src/experiments/results"],
+    "engineering-agents-results": [
+        "engineering_agents/experiments/eclss/results",
+        "engineering_agents/experiments/balancing_cube/results",
+    ],
     "onepiece-evidence-objects": ["one-piece/projects/balancing-cube/store/commits"],
     "cube-results": ["balancing-cube-simulation/results"],
     "research-reports": ["reports"],
     "cad-source-inputs": ["Self balancing cube (cubli) - 6695891", "Self_Balancing_Cube_BOM.xlsx"],
     "website-cad": ["engineering_agents/website/public/cube-cad"],
-    "downloadable-archives": ["engineering_agents/src/experiments/results", "balancing-cube-simulation/results", "reports"],
+    "downloadable-archives": ["engineering_agents/experiments/balancing_cube/results", "balancing-cube-simulation/results", "reports"],
 }
 
 

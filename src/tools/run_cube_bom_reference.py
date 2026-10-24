@@ -3,7 +3,7 @@
 Example (from engineering_agents, with the current One-Piece package on PYTHONPATH):
   python -m tools.run_cube_bom_reference --store ../one-piece/projects/balancing-cube/store \
     --bom ../one-piece/projects/balancing-cube/references/remrc_bom_20261021.json \
-    --output src/experiments/results/remrc-bom-reference-20261021
+    --output experiments/balancing_cube/results/remrc-bom-reference-20261021
 """
 from __future__ import annotations
 

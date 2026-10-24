@@ -1,5 +1,6 @@
 """The handover importer must not overwrite work or trust unsafe ZIP paths."""
 import importlib.util
+import json
 from pathlib import Path
 import stat
 import zipfile
@@ -53,3 +54,38 @@ def test_restore_rejects_archive_and_existing_symlinks(tmp_path):
         z.writestr("results/new", "bad")
     with pytest.raises(ValueError):
         restore.restore_archive(archive, root)
+
+
+def test_legacy_experiments_use_recorded_scenario_instead_of_run_name(tmp_path):
+    archive = tmp_path / "historical.zip"
+    prefix = "engineering_agents/src/experiments/results/"
+    with zipfile.ZipFile(archive, "w") as z:
+        z.writestr(prefix + "memory-gpu-smoke/summary.json", json.dumps({"scenario": "ssos_eclss_loop"}))
+        z.writestr(prefix + "cube-run/summary.json", json.dumps({"scenario": "balancing_cube"}))
+        z.writestr(prefix + "evaluation.html", "historical ECLSS catalogue")
+        z.writestr("engineering_agents/src/experiments/analysis/datasets/sample.json", "{}")
+    root = tmp_path / "workspace"
+    receipt = restore.restore_archive(archive, root)
+    assert receipt["migrated_paths"] == 4
+    assert (root / "engineering_agents/experiments/eclss/results/memory-gpu-smoke/summary.json").is_file()
+    assert (root / "engineering_agents/experiments/balancing_cube/results/cube-run/summary.json").is_file()
+    assert (root / "engineering_agents/experiments/eclss/analysis/datasets/sample.json").is_file()
+    assert not (root / "engineering_agents/src/experiments").exists()
+    assert restore.restore_archive(archive, root) == receipt
+
+
+def test_legacy_unknown_track_or_mapped_collision_fails_before_writes(tmp_path):
+    root = tmp_path / "workspace"
+    archive = tmp_path / "unknown.zip"
+    with zipfile.ZipFile(archive, "w") as z:
+        z.writestr("new.txt", "must not be installed")
+        z.writestr("engineering_agents/src/experiments/results/unknown/output.json", "{}")
+    with pytest.raises(ValueError, match="Cannot classify"):
+        restore.restore_archive(archive, root)
+    assert not root.exists()
+    with zipfile.ZipFile(archive, "w") as z:
+        z.writestr("engineering_agents/src/experiments/results/cube-run/summary.json", '{"scenario":"balancing_cube"}')
+        z.writestr("engineering_agents/experiments/balancing_cube/results/cube-run/summary.json", "different")
+    with pytest.raises(ValueError, match="Duplicate destination"):
+        restore.restore_archive(archive, root)
+    assert not root.exists()

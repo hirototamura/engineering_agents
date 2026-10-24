@@ -51,9 +51,9 @@ Engineering Agents は、宇宙機の環境制御・生命維持システム（E
 | backend | `plant_sim` |
 | actor | `none` / `labeled_rule_base` / `llm` |
 | 評価 | 物理整合性ゲート、乗員生存、TCL、生存環境、資源回復、コスト、質量、操作/物理応答 |
-| 生ログ | [experiments/runs/](experiments/runs) |
+| 生ログ | [experiments/eclss/runs/](experiments/eclss/runs) |
 | 解析済みデータ | [docs/data/](docs/data) |
-| 解析手順 | [experiments/README.md](experiments/README.md) |
+| 解析手順 | [experiments/eclss/README.md](experiments/eclss/README.md) |
 
 評価では、物理的に成り立たないランを低スコアにするのではなく、採点対象外にします。質量保存、在庫の非負性、装置能力上限、故障時の不自然な処理などをチェックします。
 
@@ -96,17 +96,17 @@ README本文には結果の要点だけを置き、詳細はデータと実験�
 | [docs/data/](docs/data) | 周回ごとの解析済みCSV / JSON |
 | [docs/data/README.md](docs/data/README.md) | データ列の説明 |
 | [docs/images/results/](docs/images/results) | 図表 |
-| [experiments/runs/](experiments/runs) | 4本の連鎖の生ログ |
-| [experiments/analysis/](experiments/analysis) | 解析スクリプト |
-| [experiments/README.md](experiments/README.md) | 再解析手順 |
+| [experiments/eclss/runs/](experiments/eclss/runs) | ECLSSの4本の連鎖の生ログ |
+| [experiments/eclss/analysis/](experiments/eclss/analysis) | ECLSSの解析スクリプトとデータ |
+| [experiments/eclss/README.md](experiments/eclss/README.md) | ECLSSの再解析手順 |
 
 再解析の最後は `diff` で確認できます。
 
 ```bash
-cd experiments
+cd experiments/eclss
 for f in runs/*.tar.gz; do tar -xzf "$f" -C runs/; done
 python3 analysis/analyze_ssos_iter.py --root runs/phase3-rescored --prefix phase3
-diff outputs/phase3_iteration_metrics.csv ../docs/data/phase3_iteration_metrics.csv
+diff outputs/phase3_iteration_metrics.csv ../../docs/data/phase3_iteration_metrics.csv
 ```
 
 ---
@@ -182,7 +182,8 @@ python3 -m streamlit run src/tools/dashboard/app.py
 
 ## 結果の出力先
 
-1回のランは `src/experiments/results/<run_id>/` に保存されます。
+ECLSSのランは `experiments/eclss/results/<run_id>/` に、キューブのランは
+`experiments/balancing_cube/results/<run_id>/` に保存されます。
 
 ```text
 telemetry.jsonl              stepごとのプラント状態

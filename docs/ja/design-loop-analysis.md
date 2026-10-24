@@ -25,7 +25,7 @@ python3 -m tools.analysis report --lang ja   # 日本語のみ
 python3 -m tools.analysis all
 ```
 
-出力は `src/experiments/analysis/` 以下に置かれます。
+出力は `experiments/eclss/analysis/` 以下に置かれます。
 
 | パス | 内容 |
 | --- | --- |
@@ -220,7 +220,7 @@ ARS 軸に沿った容量増加のうち 16 % は結果を**悪化**させ、最
 - スイープでは障害注入をオフにし、カバレッジだけが変わるようにしています。チェーンは出荷時デフォルト（有効）のままです。
 - グリッドは WRS を固定しています。実測ゲインがゼロで、ベースラインのカバレッジが 6.4 であることが根拠です。
 
-数値つきのレポート本体は `src/experiments/analysis/design_loop_analysis.html`（英語）と `design_loop_analysis.ja.html`（日本語）です。このページはそれを再生成するための運用ガイドです。
+数値つきのレポート本体は `experiments/eclss/analysis/design_loop_analysis.html`（英語）と `design_loop_analysis.ja.html`（日本語）です。このページはそれを再生成するための運用ガイドです。
 
 ## 関連
 

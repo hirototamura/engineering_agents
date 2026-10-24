@@ -27,7 +27,7 @@ class BalancingCubeScenario:
                                   snapshot_id=ssot["snapshot_id"], snapshot_revision=ssot["snapshot_revision"])
         snapshot = bridge.load_snapshot()
         run_id = sanitize_run_id(run_id or "cube-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8])
-        root = Path(output_dir) if output_dir else (Path(results_root) if results_root else default_results_root()) / run_id
+        root = Path(output_dir) if output_dir else (Path(results_root) if results_root else default_results_root("balancing_cube")) / run_id
         mode = config["agents"]["mode"]
         if mode not in {"llm", "none"}:
             raise ValueError("balancing_cube supports llm or none; rule fallback is never labelled LLM")
