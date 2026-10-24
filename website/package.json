@@ -1,0 +1,21 @@
+{
+  "name": "engineering-research-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "prebuild": "node scripts/restore-cube-cad.mjs",
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --host 127.0.0.1",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview --host 127.0.0.1",
+    "sync:article": "node scripts/sync-article.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm run build && npm test"
+  },
+  "dependencies": {
+    "astro": "7.4.0"
+  }
+}

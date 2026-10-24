@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+.vercel/
+.env*
+.DS_Store
+preview*.png
+public/cube-cad/
+.asset-cache/

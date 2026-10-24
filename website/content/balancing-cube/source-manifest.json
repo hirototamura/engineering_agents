@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "reports/iphone-research in the engineering research workspace",
+  "article_revision": "2026-10-20",
+  "evidence_cut": "2026-10-17",
+  "files": {
+    "index.ja.html": {
+      "language": "ja",
+      "sha256": "84099b5444cc04a4b8bfe7fb8d58d844d4db2d6e9f496e95205e96ba37421aa9",
+      "bytes": 3362945
+    },
+    "index.html": {
+      "language": "en",
+      "sha256": "a3e13c115060a1478241027b60a411b3d6aa3342b0d95f7e99e0fa8aac991f0e",
+      "bytes": 3358319
+    }
+  }
+}

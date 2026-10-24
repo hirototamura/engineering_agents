@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-DEFAULT_ROOT = Path("src/experiments/analysis")
+DEFAULT_ROOT = Path("experiments/eclss/analysis")
 DEFAULT_REPORT = DEFAULT_ROOT / "design_loop_analysis.html"
 
 

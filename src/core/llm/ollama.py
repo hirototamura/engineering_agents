@@ -73,6 +73,7 @@ class OllamaClient(LLMClient):
         json_format: bool = True,
         think: Optional[bool] = None,
         api_timeout: Optional[int] = None,
+        num_ctx: Optional[int] = None,
     ):
         resolved = _default_concurrency(model) if max_concurrency == -1 else max_concurrency
         super().__init__(max_concurrency=resolved)
@@ -86,6 +87,9 @@ class OllamaClient(LLMClient):
         self.json_format = json_format
         self.think = think
         self.api_timeout = api_timeout or API_TIMEOUT
+        if num_ctx is not None and (isinstance(num_ctx, bool) or not isinstance(num_ctx, int) or not 2048 <= num_ctx <= 262144):
+            raise ValueError("Ollama num_ctx must be an integer from 2048 through 262144")
+        self.num_ctx = num_ctx
         self.api_url = f"{self.base_url}/api/generate"
 
     def generate(self, prompt: str) -> str:
@@ -105,6 +109,8 @@ class OllamaClient(LLMClient):
                     "min_p": self.min_p,
                 },
             }
+            if self.num_ctx is not None:
+                payload["options"]["num_ctx"] = self.num_ctx
             if self.json_format:
                 payload["format"] = "json"
             if self.think is not None:

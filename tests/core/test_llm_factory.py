@@ -84,6 +84,13 @@ def test_build_client_ollama_keeps_model_cap_without_yaml_concurrency(monkeypatc
     assert client._max_concurrency == 8
 
 
+def test_build_client_ollama_passes_context_window(monkeypatch):
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    client = build_llm_client({"provider": "ollama", "model": "qwen3.5:9b", "num_ctx": 32768})
+    assert isinstance(client, OllamaClient)
+    assert client.num_ctx == 32768
+
+
 def test_build_client_honors_max_concurrency(monkeypatch):
     monkeypatch.delenv("LLM_PROVIDER", raising=False)
     monkeypatch.delenv("VLLM_BASE_URL", raising=False)

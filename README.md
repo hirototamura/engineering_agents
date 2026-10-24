@@ -1,5 +1,7 @@
 # Engineering Agents — evaluating AI-driven ECLSS design for spacecraft
 
+**MuJoCo balancing cube:** [bounded design iteration with One-Piece](docs/en/mujoco-one-piece.md). The new scenario uses a versioned system model and evidence store alongside ECLSS.
+
 [日本語 README](README.ja.md) · [Docs](docs/en/index.md) · [Experiment record](docs/en/results.md) · [Measured data](docs/data) · [Agent design](docs/en/agent-design.md)
 
 **Full results write-up:** [technical report](docs/en/eclss_ai_agent_technical_report_04.md) ([日本語](docs/ja/eclss_ai_agent_technical_report_04.md)) — the four fifty-round chains and the emergence chapter.
@@ -49,9 +51,9 @@ The current analysis runs multiple 50-iteration design→verify chains against t
 | Backend | `plant_sim` |
 | Actor mode | `none` / `labeled_rule_base` / `llm` |
 | Evaluation | Physics gate, crew survival, TCL, environment, resource recovery, cost, mass, operation/physics response |
-| Raw logs | [experiments/runs/](experiments/runs) |
+| Raw logs | [experiments/eclss/runs/](experiments/eclss/runs) |
 | Analysed data | [docs/data/](docs/data) |
-| Re-analysis procedure | [experiments/README.md](experiments/README.md) |
+| Re-analysis procedure | [experiments/eclss/README.md](experiments/eclss/README.md) |
 
 Runs that violate physical consistency are not scored lower; they are excluded from scoring. The checks include mass conservation, non-negative inventories, subsystem capacity limits and impossible processing during failures.
 
@@ -94,17 +96,18 @@ The README keeps only the headline results. Details are kept in the experiment r
 | [docs/data/](docs/data) | Per-iteration CSV / JSON files |
 | [docs/data/README.md](docs/data/README.md) | Data column descriptions |
 | [docs/images/results/](docs/images/results) | Figures |
-| [experiments/runs/](experiments/runs) | Raw logs for the four chains |
-| [experiments/analysis/](experiments/analysis) | Analysis scripts |
-| [experiments/README.md](experiments/README.md) | Re-analysis procedure |
+| [experiments/eclss/runs/](experiments/eclss/runs) | Raw logs for the four chains |
+| [experiments/eclss/](experiments/eclss/) | Archived and current ECLSS experiments, analysis, datasets, and outputs |
+| [experiments/balancing_cube/](experiments/balancing_cube/) | Balancing-cube campaigns, simulation reports, and local run evidence |
+| [experiments/eclss/README.md](experiments/eclss/README.md) | ECLSS re-analysis procedure |
 
 The final re-analysis step is a `diff`.
 
 ```bash
-cd experiments
+cd experiments/eclss
 for f in runs/*.tar.gz; do tar -xzf "$f" -C runs/; done
 python3 analysis/analyze_ssos_iter.py --root runs/phase3-rescored --prefix phase3
-diff outputs/phase3_iteration_metrics.csv ../docs/data/phase3_iteration_metrics.csv
+diff outputs/phase3_iteration_metrics.csv ../../docs/data/phase3_iteration_metrics.csv
 ```
 
 ---
@@ -180,7 +183,10 @@ python3 -m streamlit run src/tools/dashboard/app.py
 
 ## Result Artifacts
 
-A single run is saved under `src/experiments/results/<run_id>/`.
+A single ECLSS run is saved under `experiments/eclss/results/<run_id>/`. A
+balancing-cube run is saved under `experiments/balancing_cube/results/<run_id>/`.
+Use `ea results --track eclss` or `ea results --track balancing_cube` to list a
+track's runs.
 
 ```text
 telemetry.jsonl              plant state at each step

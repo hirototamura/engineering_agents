@@ -299,7 +299,7 @@ Inside container directly: `ea-loop --actor-mode labeled_rule_base` (default `OL
 
 ```bash
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \
-  --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
+  --apply-proposals experiments/eclss/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 
 ### graph_rewire E2E smoke

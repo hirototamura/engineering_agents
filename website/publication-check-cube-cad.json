@@ -1,0 +1,22 @@
+{
+  "deployment": "dpl_3qU3Y68TDfAfc5PzWeCw9debA7Zo",
+  "ready": true,
+  "checks": [
+    {
+      "url": "https://engineering-agents-research.vercel.app/cube-cad/",
+      "anonymous_status": 200,
+      "matches_checked_build": true
+    },
+    {
+      "url": "https://engineering-agents-research.vercel.app/cube-cad/en/",
+      "anonymous_status": 200,
+      "matches_checked_build": true
+    }
+  ],
+  "browser_checks": [
+    "33 objects rendered",
+    "exploded view reaches 45 mm",
+    "English language link navigates correctly"
+  ],
+  "share_image_status": 200
+}

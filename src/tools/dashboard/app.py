@@ -19,7 +19,7 @@ from tools.dashboard import ssos_views
 from environment.scrubber.eclss_ops.telemetry import CO2_RECOVERY_PPM
 from tools.dashboard.jsonl_rows import select_row_for_step, series_by_step
 
-RESULTS_ROOT = Path(__file__).resolve().parents[2] / "experiments" / "results"
+RESULTS_ROOT = Path(__file__).resolve().parents[3] / "experiments" / "eclss" / "results"
 
 
 def _read_json(path: Path) -> Dict[str, Any]:

@@ -15,7 +15,7 @@ $Volumes = @(
   "-v", "${ScriptsDir}/ssos-headless.launch.py:/root/ssos-headless.launch.py:ro",
   "-v", "${ScriptsDir}/ssos-eps.launch.py:/root/ssos-eps.launch.py:ro",
   "-v", "${RepoRoot}/src:/ea/src",
-  "-v", "${RepoRoot}/src/experiments/results:/ea/results"
+  "-v", "${RepoRoot}/experiments/eclss/results:/ea/results"
 )
 
 Write-Host "==> SSOS detached container (for ea run)"
