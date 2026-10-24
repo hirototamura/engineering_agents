@@ -3,7 +3,7 @@
 The [private analysis Release](https://github.com/hirototamura/balancing-cube-simulation/releases/tag/isaac-analysis-20261024)
 provides the standalone 3,300-word technical report, all eight-corner figures and
 a 194 MB pack containing the prepared data, quantile CSV/JSON, source hashes and
-analysis code. The [checksum receipt](../../deploy/eng-agents-008/isaac-analysis-20261024.json)
+analysis code. The [checksum receipt](https://github.com/hirototamura/engineering_agents/blob/e8b84b0db8cf12466912f5a8e6819a8ff101b819/deploy/eng-agents-008/isaac-analysis-20261024.json)
 pins the archive. Source review is [PR #86](https://github.com/hirototamura/engineering_agents/pull/86).
 
 For this host, the viewer uses `.runtime/isaac-analysis-20261024-003` and listens
