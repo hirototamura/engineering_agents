@@ -1,0 +1,52 @@
+{
+  "asset": "isaac-analysis-readable-20261024.zip",
+  "bytes": 6330770,
+  "sha256": "b83f9868e16353a68363aa5c1584b82641f479fa958340bfd957d902477c281a",
+  "source_commit": "0b3238028f8a9be82d860e92677fb04ab7d6185e",
+  "file_count": 39,
+  "release_url": "https://github.com/hirototamura/balancing-cube-simulation/releases/tag/isaac-analysis-readable-20261024",
+  "source_pr": "https://github.com/hirototamura/engineering_agents/pull/86",
+  "analysis_only": true,
+  "existing_dataset": "isaac-analysis-20261024-003",
+  "validation": {
+    "full_suite_passed": 1209,
+    "skipped": 4,
+    "analysis_tests_passed": 13,
+    "browser": "Desktop/mobile, 12 sections, 5 figures, 8 corner plots, comparison, download bytes, no JS errors; passed",
+    "filters": "Presets, paired comparison, evaluation-only, zoom, empty, reset, incompatible factors; passed",
+    "mkdocs_strict": "passed"
+  },
+  "unchanged_data_files": [
+    {
+      "name": "technical-report.md",
+      "sha256": "8abbec34cc410496416fd3aadfe4252cb19fa6fd5dd5a91fd8398f02b4f1c1b0",
+      "identical_to_original": true
+    },
+    {
+      "name": "quantiles.csv",
+      "sha256": "eb05f5b8f275e33f98fad28b890b869690d36e4e68ca281541fe5ef0a761a5c1",
+      "identical_to_original": true
+    },
+    {
+      "name": "quantiles.json",
+      "sha256": "f4fbb7a71c444bd024dc2b31168245f498edf1155d666b9c4e20c4766ec6644e",
+      "identical_to_original": true
+    },
+    {
+      "name": "statistics.json",
+      "sha256": "107f0943f215179ca4578715d780a8ebf13556648e6e43db7f165d45dc4c30bd",
+      "identical_to_original": true
+    },
+    {
+      "name": "risk-bins.csv",
+      "sha256": "70f58c620bdf3937edac974650812e2154a0b376a4490c959e97f369a83387bd",
+      "identical_to_original": true
+    },
+    {
+      "name": "source-catalog.json",
+      "sha256": "ef1137594acbf902f89630f47b47d6e35c9ada2e3e5e4366c79806dad1862307",
+      "identical_to_original": true
+    }
+  ],
+  "report_html_sha256": "7d15e5f78fe17f6d15b76704c5b92908028731c9d7722b39818eb24bf5a05a05"
+}
