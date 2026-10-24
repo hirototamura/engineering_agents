@@ -1,12 +1,8 @@
 """Reproducible technical report generated from audited campaign artifacts."""
 from __future__ import annotations
-import base64
 import csv
-import html
 import json
-import re
 from pathlib import Path
-import numpy as np
 import matplotlib.pyplot as plt
 from .data import write_json
 from .statistics import select,summarize,risk_bins,paired_outcomes,quantile_records
@@ -199,32 +195,5 @@ def build(dataset,output):
         'The cache and report live in fresh directories; no historical simulation record is rewritten.\n',
         'Private original evidence: https://github.com/hirototamura/balancing-cube-simulation/releases/tag/isaac-cube-20261024\n']
     markdown='\n'.join(sections);(output/'technical-report.md').write_text(markdown)
-    # Embed figures so the readable HTML report is a standalone artifact.
-    def inline(value):
-        value=html.escape(value)
-        value=re.sub(r'`([^`]+)`',r'<code>\1</code>',value)
-        return re.sub(r'\*\*([^*]+)\*\*',r'<strong>\1</strong>',value)
-    blocks=[];code=False;in_table=False
-    for line in markdown.splitlines():
-        if in_table and not line.startswith('|'):
-            blocks.append('</tbody></table></div>');in_table=False
-        if line.startswith('```'):
-            blocks.append('</code></pre>' if code else '<pre><code>');code=not code;continue
-        if code:blocks.append(html.escape(line)+'\n');continue
-        if line.startswith('!['):
-            name=line.split('](',1)[1][:-1];encoded=base64.b64encode((output/name).read_bytes()).decode()
-            blocks.append(f'<figure><img alt="{html.escape(name)}" src="data:image/png;base64,{encoded}"></figure>');continue
-        if line.startswith('|'):
-            if set(line.replace('|','').replace('-','').strip())==set():
-                blocks.append('</thead><tbody>');continue
-            cells=line.strip('| ').split('|')
-            if not in_table:
-                blocks.append('<div class="table-scroll"><table><thead>');in_table=True;tag='th'
-            else:tag='td'
-            blocks.append('<tr>'+''.join(f'<{tag}>'+inline(c.strip())+f'</{tag}>' for c in cells)+'</tr>');continue
-        if line.startswith('# '):blocks.append('<h1>'+html.escape(line[2:])+'</h1>')
-        elif line.startswith('## '):blocks.append('<h2>'+html.escape(line[3:])+'</h2>')
-        elif line:blocks.append('<p>'+inline(line)+'</p>')
-    if in_table:blocks.append('</tbody></table></div>')
-    page='<!doctype html><html lang="en"><meta charset="utf-8"><title>Isaac campaign technical report</title><style>body{font:16px/1.6 system-ui;max-width:1450px;margin:40px auto;padding:0 24px;color:#172838}h1{font-size:32px}h2{margin-top:48px;border-bottom:1px solid #b8c7d5}img{width:100%}figure{margin:28px 0}pre{overflow:auto;background:#f2f6fa;padding:20px;font-size:13px}.table-scroll{overflow:auto;margin:24px 0}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid #dbe4ec;overflow-wrap:anywhere;min-width:80px}th{background:#eaf0f7}p{max-width:1100px}code{font-size:.88em}</style>'+'\n'.join(blocks)+'</html>'
-    (output/'technical-report.html').write_text(page)
+    from .presentation import render_report
+    render_report(markdown, output, summary, paired, groups)

@@ -11,6 +11,44 @@ at `http://127.0.0.1:8526`. After restoring the private pack on another host,
 pass its extracted `.runtime/isaac-analysis-20261024-003` directory to `serve`;
 the original GPU runtime is not required to analyze the prepared tilt data.
 
+## Reading the report and using the viewer
+
+The reading edition follows the typography, paper colors and section navigation
+of `website/content/balancing-cube/index.html`. It brings the paired findings and
+eight-corner plots ahead of the detailed protocol, retains all twelve technical
+sections, and embeds every figure for offline reading. The generated Markdown,
+quantile data, numerical statistics and source catalog are unchanged.
+
+The viewer has four tabs: **Tilt trajectories**, **Test setup**, **Cases & exports**
+and **Full technical report**. Choose a reference design, candidate design or
+comparison, then a tilt preset or custom initial-condition range. Advanced
+filters remain available for geometry, rotation direction, identities and
+outcomes. Fixed gains and delays appear as recorded settings rather than
+disabled controls. Comparison pass rates retain separate design denominators.
+Eight larger plots use two columns; full-range and near-upright views use the
+same unchanged quantiles. The setup tab shows mechanical properties in mm/g,
+observation timing, readable gain matrices and expandable exact source records.
+
+Attach a generated report when launching the viewer:
+
+```bash
+python -m tools.isaac_analysis report --dataset DATASET --output NEW_REPORT_DIR
+python -m tools.isaac_analysis serve --dataset DATASET \
+  --report NEW_REPORT_DIR/technical-report.html --port 8526
+```
+
+From your PC, forward the server port using your usual SSH destination:
+
+```bash
+ssh -N -o ExitOnForwardFailure=yes \
+  -L 18526:127.0.0.1:8526 one-piece@10.10.0.108
+```
+
+Keep the terminal open, visit `http://127.0.0.1:18526`, and select
+**Full technical report** to read it or download the self-contained HTML to
+your PC. The full report covers the complete historical campaigns; sidebar
+filters affect the trajectory and case tabs, not the historical report.
+
 The analysis package reads existing evidence. It does not launch physics,
 change requirements, tune a controller, or rewrite historical results.
 
