@@ -1,5 +1,16 @@
 # Isaac campaign analysis tools
 
+The [private analysis Release](https://github.com/hirototamura/balancing-cube-simulation/releases/tag/isaac-analysis-20261024)
+provides the standalone 3,300-word technical report, all eight-corner figures and
+a 194 MB pack containing the prepared data, quantile CSV/JSON, source hashes and
+analysis code. The [checksum receipt](../../deploy/eng-agents-008/isaac-analysis-20261024.json)
+pins the archive. Source review is [PR #86](https://github.com/hirototamura/engineering_agents/pull/86).
+
+For this host, the viewer uses `.runtime/isaac-analysis-20261024-003` and listens
+at `http://127.0.0.1:8526`. After restoring the private pack on another host,
+pass its extracted `.runtime/isaac-analysis-20261024-003` directory to `serve`;
+the original GPU runtime is not required to analyze the prepared tilt data.
+
 The analysis package reads existing evidence. It does not launch physics,
 change requirements, tune a controller, or rewrite historical results.
 
