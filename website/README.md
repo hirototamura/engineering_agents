@@ -93,7 +93,7 @@ The generated directory stays outside Git. `npm run build` first restores its
 and every file are checked by size and SHA-256; downloaded archives are cached
 in `.asset-cache/`. Existing edited assets cause an error and are preserved.
 For an offline build, download that exact archive in advance and run
-`node scripts/restore-cube-cad.mjs /path/to/engineering-research-cube-cad-20261024.tar.gz`.
+`node scripts/restore-cube-cad.mjs /path/to/engineering-research-cube-cad-20261024-r2.tar.gz`.
 Only the already public CAD reference is in this package; private validation
 datasets are not needed for a website build.
 

@@ -3,9 +3,9 @@
   "id": "cube-cad-remrc-reference-20261021-r1",
   "scope": "Only assets already shared by the public CAD reference pages; attribution and source license are included.",
   "artifact": {
-    "url": "https://github.com/hirototamura/engineering_agents/releases/download/website-cad-20261024/engineering-research-cube-cad-20261024.tar.gz",
-    "sha256": "cc62777531e01953060d6546be4762746e94084defe8285003a01771035e740c",
-    "size_bytes": 38044227,
+    "url": "https://github.com/hirototamura/engineering_agents/releases/download/website-cad-20261024-r2/engineering-research-cube-cad-20261024-r2.tar.gz",
+    "sha256": "7216189e636ca5f130df5b2ad4033e628c88e8dad8fb7591ae86505b95b8fa06",
+    "size_bytes": 38032715,
     "root": "cube-cad"
   },
   "files": [
