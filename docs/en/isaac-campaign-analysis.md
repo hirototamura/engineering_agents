@@ -13,6 +13,12 @@ the original GPU runtime is not required to analyze the prepared tilt data.
 
 ## Reading the report and using the viewer
 
+The [reading edition and viewer evidence](https://github.com/hirototamura/balancing-cube-simulation/releases/tag/isaac-analysis-readable-20261024)
+provides the updated standalone HTML and a 6.3 MB presentation/validation pack.
+The [reading-edition checksum receipt](https://github.com/hirototamura/engineering_agents/blob/codex/isaac-campaign-analysis-20261024/deploy/eng-agents-008/isaac-analysis-readable-20261024.json)
+pins its source and hashes. The original release and prepared dataset remain
+available at the link above.
+
 The reading edition follows the typography, paper colors and section navigation
 of `website/content/balancing-cube/index.html`. It brings the paired findings and
 eight-corner plots ahead of the detailed protocol, retains all twelve technical
