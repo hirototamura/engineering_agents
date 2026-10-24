@@ -16,14 +16,14 @@ from tools.isaac_analysis.data import load, CORNERS, sha256
 from tools.isaac_analysis.statistics import select, quantiles, quantile_records, summarize
 from tools.isaac_analysis.figures import plot_bands
 
-st.set_page_config(page_title='Eight corners · Isaac cube evidence', layout='wide')
+st.set_page_config(page_title='Eight corners · Isaac cube evidence', layout='wide', initial_sidebar_state='expanded')
 st.markdown('''<style>
 .stApp{background:#faf9f5;color:#202d34}[data-testid="stSidebar"]{background:#f0f1eb}
 .block-container{max-width:1380px;padding-top:4.5rem}h1,h2{font-family:Georgia,serif!important;font-weight:500!important;letter-spacing:-.025em}
 h1{font-size:2.8rem!important;line-height:1.12!important}h2{font-size:1.9rem!important}
 [data-testid="stMetricValue"]{font-family:Georgia,serif;color:#24566d}
 [data-testid="stCaptionContainer"],[data-testid="stCaptionContainer"] p{color:#5b686e}button[role="tab"]{font-size:1rem!important}
-[data-testid="stHeader"]{background:#faf9f5}[data-testid="stToolbar"]{display:none}
+[data-testid="stHeader"]{background:#faf9f5}
 .eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#5b686e;margin-bottom:14px}
 .lead{font-size:19px;line-height:1.6;color:#24566d;max-width:850px;margin:10px 0 24px}
 .note{padding:14px 18px;border-left:3px solid #b64628;background:#f0f1eb;font-size:14px;line-height:1.7;margin:15px 0}
