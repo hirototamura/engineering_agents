@@ -134,3 +134,21 @@ Sources: [Hermes skill format](https://hermes-agent.nousresearch.com/docs/develo
 The pinned gateway CLI does not accept `--run-budget`; live acceptance uses an
 external subprocess timeout plus `--max-turns`. Its existing profile run budget
 is preserved. Interrupted or timed-out tasks are recorded as failures.
+
+## Stable remote commands
+
+A user-level launcher can point at a versioned qualification checkout without
+switching the ongoing development checkout or changing its Python installation:
+
+```bash
+PYTHONPATH="$EA_ENGINEERING_REPO/src" "$EA_WORKSPACE/.venv/bin/python" \
+  -m tools.engineering_skills.launchers --repo "$EA_ENGINEERING_REPO" \
+  --workspace "$EA_WORKSPACE" --bin-dir "$HOME/.local/bin"
+engineering-hermes
+# Direct deterministic analysis is available through ea-engineering.
+```
+
+The existing Hermes wrapper already includes `$HOME/.local/bin`. The launcher
+installer refuses unrelated/human-edited commands. After merge, reinstall from
+the maintained checkout to move the pin. Keep the referenced checkout available.
+The launcher does not update canonical inputs or the model service.

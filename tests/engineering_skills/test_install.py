@@ -26,3 +26,17 @@ def test_installer_updates_only_unchanged_owned_copies(tmp_path):
     path.write_text(path.read_text()+'\nA new reviewed procedure.\n')
     install(repo,home)
     assert (home/'skills/engineering'/path.relative_to(repo/'skills/engineering')).read_bytes()==path.read_bytes()
+
+
+def test_stable_launchers_quote_paths_and_protect_human_edits(tmp_path):
+    import subprocess
+    from tools.engineering_skills.launchers import install as launchers
+    repo=tmp_path/'repo with spaces';workspace=tmp_path/'workspace with spaces'
+    target=repo/'deploy/eng-agents-008/bin/ea-engineering';target.parent.mkdir(parents=True)
+    target.write_text('#!/bin/sh\nprintf "%s" "$EA_WORKSPACE"\n')
+    binary=tmp_path/'bin'
+    launchers(repo,workspace,binary)
+    assert subprocess.check_output(['bash',str(binary/'ea-engineering')],text=True)==str(workspace)
+    launchers(repo,workspace,binary)
+    (binary/'ea-engineering').write_text('human launcher')
+    with pytest.raises(FileExistsError):launchers(repo,workspace,binary)
