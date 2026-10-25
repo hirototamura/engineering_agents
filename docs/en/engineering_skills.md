@@ -214,3 +214,13 @@ Sources: [Hermes skill format](https://hermes-agent.nousresearch.com/docs/develo
 The [2026-10-25 qualification receipt](https://github.com/hirototamura/engineering_agents/blob/5c7aee6dcc74cf2d89548ab710d0ab7b02fc65e6/deploy/eng-agents-008/engineering-skills-validation-20261025.json)
 records the original four bundled skills. It is historical evidence, not a claim
 that this refactored catalog was tested at that earlier revision.
+
+The [2026-10-26 qualification record](engineering_analysis_qualification_20261026.json)
+covers the refactored catalog: 73 focused tests, 1,263 full-suite passes with five
+existing skips, all 12 examples with 30 verified calculation nodes, and five live
+Hermes/Qwen workflows with 21 verified nodes. An affected Bode rendering check
+also passed after correcting its units. The record preserves exact execution
+revisions and distinguishes numerical qualification from later display changes.
+Canonical One-Piece assessment, ECLSS proposal reinjection, packaging and strict
+documentation checks passed. These are software qualification results, not
+physical verification or baseline adoption.

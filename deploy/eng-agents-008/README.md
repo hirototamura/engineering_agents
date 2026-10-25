@@ -79,10 +79,11 @@ prefix without spaces. It requires `uv` 0.12.5 and standard Linux build tools.
 The installed dependency set is pinned in `development-linux-py312.txt` and
 `cuda-build-linux64.lock`; Hermes uses its upstream frozen `uv.lock`.
 
-## Engineering skill harness
+## Engineering analysis skill harness
 
-The default Hermes wrapper installs the versioned GNC, mechanical, electrical
-and systems skills. See [skill commands and qualification](../../docs/en/engineering_skills.md).
+The default Hermes wrapper installs the 12 versioned engineering analysis skills:
+project-independent atomic capabilities and compositions, plus the cube control
+composition. See [contracts, commands and qualification](../../docs/en/engineering_skills.md).
 Use `hermes-engineering.sh` for an explicit engineering entry point.
 
 ## Hermes and the local model
