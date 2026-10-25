@@ -152,3 +152,21 @@ The existing Hermes wrapper already includes `$HOME/.local/bin`. The launcher
 installer refuses unrelated/human-edited commands. After merge, reinstall from
 the maintained checkout to move the pin. Keep the referenced checkout available.
 The launcher does not update canonical inputs or the model service.
+
+## Completed qualification
+
+The [2026-10-25 validation receipt](https://github.com/hirototamura/engineering_agents/blob/5c7aee6dcc74cf2d89548ab710d0ab7b02fc65e6/deploy/eng-agents-008/engineering-skills-validation-20261025.json)
+records four successful live Hermes/Qwen tasks, with matched skill/tool events,
+input/output hashes and numerical expectations. Each task used assumed or
+synthetic example data. The GNC example has sampled-stable placed poles; the
+mechanical example leaves full-system properties unresolved for a missing mass;
+the electrical example detects an overcurrent request; and the systems example
+retains an inconclusive hardware requirement.
+
+Local validation passed 37 focused tests and 1,226 full-suite tests, with four
+existing optional skips. Skill-format checks, the strict documentation build,
+canonical One-Piece assessment, ECLSS proposal reinjection and the stable remote
+launcher smoke also passed. The receipt distinguishes the live execution commit
+from later reporting and launcher changes, and verifies unchanged calculator
+hashes. These are software qualification results; no physical design was adopted
+or hardware requirement verified.
