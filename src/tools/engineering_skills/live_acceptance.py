@@ -46,7 +46,17 @@ def inspect_tool_trace(text, discipline, skill):
     return {'skill_loaded':loaded,'calculator_tool_succeeded':executed}
 
 
+def acceptance_report(reports, expected_count):
+    complete=len(reports)==expected_count
+    return {'created_at':datetime.now(timezone.utc).isoformat(),
+            'model_profile':'qwen3.8-27b-q4-k-m','expected_case_count':expected_count,
+            'completed_case_count':len(reports),'complete':complete,'tests':reports,
+            'passed':complete and all(r['accepted'] for r in reports)}
+
+
 def run(repo, output, *, workspace=None, timeout=240, only=None):
+    if only is not None and only not in SKILLS:
+        raise ValueError('Unknown discipline')
     repo, output=Path(repo).resolve(),Path(output).resolve()
     workspace=Path(workspace).resolve() if workspace else repo.parent
     if output.exists():raise FileExistsError('Use a new acceptance output directory')
@@ -96,9 +106,8 @@ def run(repo, output, *, workspace=None, timeout=240, only=None):
                         'input_hash_matches':input_ok,'result_hash_matches':result_ok,'calculator_hash_matches':source_ok,**observed,
                         'expected_behavior':bool(expected),'status':receipt.get('status','not_run'),
                         'accepted':code==0 and tool_activity and input_ok and result_ok and source_ok and bool(expected) and receipt.get('status')=='completed'})
-        (output/'acceptance.json').write_text(json.dumps({'created_at':datetime.now(timezone.utc).isoformat(),
-            'model_profile':'qwen3.8-27b-q4-k-m','tests':reports,'passed':all(r['accepted'] for r in reports)},indent=2)+'\n')
-    return all(r['accepted'] for r in reports)
+        (output/'acceptance.json').write_text(json.dumps(acceptance_report(reports,1 if only else len(SKILLS)),indent=2)+'\n')
+    return acceptance_report(reports,1 if only else len(SKILLS))['passed']
 
 
 if __name__=='__main__':

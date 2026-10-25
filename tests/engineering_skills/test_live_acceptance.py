@@ -12,3 +12,11 @@ def test_acceptance_requires_matched_successful_tool_events():
     assert not any(inspect_tool_trace('I used terminal and the tool was successful','gnc','cube-gnc-loop-analysis').values())
     events[-1]['output']=json.dumps({'exit_code':1})
     assert not inspect_tool_trace('\n'.join(json.dumps(e) for e in events),'gnc','cube-gnc-loop-analysis')['calculator_tool_succeeded']
+
+
+def test_partial_acceptance_batch_cannot_report_a_full_pass():
+    from tools.engineering_skills.live_acceptance import acceptance_report
+    partial=acceptance_report([{'accepted':True}],4)
+    assert not partial['complete'] and not partial['passed']
+    complete=acceptance_report([{'accepted':True}]*4,4)
+    assert complete['complete'] and complete['passed']
