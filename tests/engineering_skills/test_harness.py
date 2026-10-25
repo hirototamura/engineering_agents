@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 import yaml
+from environment.engineering_analysis.catalog import SKILLS
 
 REPO=Path(__file__).resolve().parents[2]
 
@@ -26,7 +27,7 @@ def test_hermes_wrapper_does_not_shadow_its_own_tools_package(tmp_path):
     assert result['PYTHONPATH'] is None
     assert result['EA_ENGINEERING_REPO']==str(REPO)
     assert str(REPO/'deploy/eng-agents-008/bin') in result['PATH'].split(os.pathsep)
-    assert len(list((workspace/'.runtime/hermes-home/skills/engineering').glob('*/SKILL.md')))==4
+    assert len(list((workspace/'.runtime/hermes-home/skills/engineering').glob('*/SKILL.md'))) == len(SKILLS)
 
 
 def test_portable_catalog_frontmatter_and_validation_links():

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "requirement-evidence-assessment",
+  "kind": "atomic",
+  "project_scope": "agnostic",
+  "primary_output": {
+    "file": "result.json",
+    "type": "requirement_evidence_assessment",
+    "version": 1
+  },
+  "requires": [],
+  "validation": "independent_numerical_oracles",
+  "input": {
+    "reference": "references/input_contract.md",
+    "example": "examples/input.json"
+  }
+}

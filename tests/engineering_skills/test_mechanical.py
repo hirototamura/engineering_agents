@@ -1,7 +1,8 @@
 import copy
 import numpy as np
 import pytest
-from environment.engineering_analysis.mechanical import analyze, properties
+from environment.engineering_analysis.mechanical import analyze
+from environment.engineering_analysis.mass_properties import properties
 
 
 def box(id='a', mass=2., center=None, size=None):

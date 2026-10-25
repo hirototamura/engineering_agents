@@ -1,172 +1,201 @@
-# Hermes engineering skill harness
+# Engineering analysis skills
 
-Hermes plans tasks, discovers a skill, calls its tools, reads results and proposes
-next work. Engineering Agents owns versioned skills and deterministic analysis.
-One-Piece owns requirements, model revisions, evidence and human decisions.
-The existing production cube design loop remains available; this change does not
-replace its bounded compiler or automatically apply analytical gains.
+Engineering analysis skills are project-independent capabilities used during design
+and verification. Hermes is the task harness; Engineering Agents owns the skills
+and deterministic tools. One-Piece supplies exact requirement/model revisions and
+retains human authority over requirements and adopted baselines.
+
+Each skill has **one primary output**, a typed `result.json`. Plots, CSV and
+`summary.json` are supporting views of that result. `receipt.json` is execution
+provenance, not another engineering deliverable. `contract.json` declares the
+output type/version, atomic or composite kind, dependencies and project scope.
+The executable catalog is checked against those contracts in CI.
+
+A generic skill is portable within its stated model scope. For example, the first
+transfer-function skill accepts continuous-time SISO state-space models; it does
+not claim to identify arbitrary nonlinear systems from scarce measurements.
+Project assumptions belong in supplied models or project adapters.
+
+## Initial catalog
+
+Atomic skills do not invoke another analysis skill:
+
+- `transfer-function-derivation` → **transfer_function_model**: derive
+  `G(s) = C(sI−A)⁻¹B + D`, preserving the original state basis, units and scope.
+- `frequency-response-calculation` → **frequency_response**: complex frequency
+  response, dB magnitude and phase under an explicit phase convention.
+- `state-feedback-gain-synthesis` → **state_feedback_gain**: full-state SISO gain,
+  gain units, achieved poles and zero-order-held sampled stability.
+- `rigid-body-mass-properties` → **rigid_body_mass_properties**: assembly mass,
+  center of mass and inertia tensor, with missing masses left unresolved.
+- `motor-operating-point` → **motor_operating_point**: one effective-DC
+  motor/driver power and current/voltage feasibility assessment.
+- `first-order-thermal-response` → **thermal_interval_response**: one exact
+  constant-load lumped thermal interval, including peak-temperature checks.
+- `requirement-evidence-assessment` → **requirement_evidence_assessment**:
+  exact-revision evidence eligibility and deterministic threshold outcomes.
+
+Composed skills consume lower-level skills:
+
+- `bode-diagram-analysis` → **frequency_response_assessment**: consumes the
+  transfer-function and frequency-response skills, generates a Bode plot and
+  evaluates explicit magnitude/phase criteria. A plot without criteria is
+  **unassessed**, not a design pass. Point checks do not certify an entire band;
+  a Bode plot does not establish feedback stability or gain/phase margins.
+- `pole-placement-design` → **pole_placement_design**: consumes the transfer
+  model and gain synthesis. The exact original realization reaches synthesis;
+  a transfer-equivalent canonical basis would give different gain coordinates.
+- `mass-property-uncertainty` → **mass_property_uncertainty_assessment**: consumes
+  nominal rigid properties and reuses the qualified rigid-body calculator for
+  bounded Monte Carlo draws. Central 95% ranges are empirical ranges under
+  independent uniform inputs, not confidence intervals or worst-case bounds.
+- `actuator-duty-cycle-analysis` → **actuator_duty_cycle_assessment**: consumes
+  motor points and successive thermal intervals, carries temperature between
+  modes and accumulates energy. Infeasible operating points stay visible.
+
+The project-specific `cube-gnc-loop-analysis` is a composition that produces a
+**cube_local_control_assessment**. It supplies the upright fixed-pivot tilt-axis
+model to transfer-function, Bode and pole-placement skills, then adds a
+project-specific torque-limited nonlinear comparison. Positive body torque is
+opposite ideal wheel motor torque. This remains a local diagnostic: three-axis
+contact, wheel momentum/speed, yaw, estimator errors and structural flexibility
+require other models. No production K, evaluation condition or baseline changes.
 
 ```mermaid
-flowchart LR
-  OP[One-Piece: exact model and requirement revisions] --> H[Hermes + Qwen3.8-27B]
-  H --> S[Load one relevant SKILL.md]
-  S --> T[Engineering Agents terminal analysis tool]
-  T --> R[JSON + plots + input and artifact hashes]
-  R --> H
-  R --> V[Deterministic skill and evidence checks]
-  H --> P[Explain gaps and propose next analysis or bounded design experiment]
-  V --> E[Reviewable evidence pack]
+flowchart TD
+  TF[Transfer-function derivation] --> BA[Bode diagram analysis]
+  FR[Frequency-response calculation] --> BA
+  TF --> PP[Pole-placement design]
+  FB[State-feedback gain synthesis] --> PP
+  TF --> CUBE[Cube local-control composition]
+  BA --> CUBE
+  PP --> CUBE
+  MASS[Rigid-body mass properties] --> UNC[Mass-property uncertainty]
+  MOTOR[Motor operating point] --> DUTY[Actuator duty-cycle analysis]
+  THERMAL[First-order thermal response] --> DUTY
 ```
 
-The first four skills are deliberately bounded:
-
-- **GNC — `cube-gnc-loop-analysis`:** derive a local tilt-axis transfer function,
-  plot Bode response, place poles, check sampled stability and compare linear
-  response with torque-limited nonlinear dynamics. This is not three-axis
-  synthesis or measured-data system identification.
-- **Mechanical — `cube-mechanical-mass-uncertainty`:** mass, CoM, inertia tensor,
-  principal moments, frame transforms and bounded mass/placement uncertainty.
-  Missing component masses keep full-system properties unresolved.
-- **Electrical — `cube-electrical-wheel-power`:** wheel-drive current, voltage
-  headroom, operating-mode energy, braking and winding temperature. BLDC
-  phase/line constants require a documented effective-DC conversion first.
-- **Systems — `cube-systems-evidence-assessment`:** compare exact-revision
-  requirements with eligible, hashed evidence; retain stale, missing, failed,
-  wrong-domain and unresolved-condition results. Human approval is not a test pass.
-
-The commands are tool interfaces, not prose-only skills:
+## Execution and composition
 
 ```bash
 python -m pip install -e '.[dev,analysis,onepiece]'
-python -m tools.engineering_skills run gnc \
-  --input skills/engineering/cube-gnc-loop-analysis/examples/input.json \
-  --output experiments/balancing_cube/engineering_analysis/my-run/gnc
+ea-engineering catalog
+ea-engineering run bode-diagram-analysis \
+  --input skills/engineering/bode-diagram-analysis/examples/input.json \
+  --output /absolute/path/to/NEW_BODE_RUN
 ```
 
-Each output contains `input.json`, `result.json`, `summary.json`, `receipt.json` and applicable
-plots/CSV. Existing output directories are refused. A failure retains an input
-and a failure receipt. The receipt records source revision, data basis, software
-runtime/library versions, calculator/common/runner source hashes, input/result/artifact hashes and duration. Assumed and synthetic inputs
-are labelled; numerical calculations are not physical qualification.
+`python -m tools.engineering_skills` exposes the same interface. The old short
+commands `gnc`, `mechanical`, `electrical` and `systems` remain aliases. Three old
+`cube-*` skill folders were renamed to generic capabilities; the cube GNC skill
+remains an explicitly labelled project composition. Historical evidence refers
+to the source revision at which it was generated and is preserved.
 
-For systems assessment, use full records, not an LLM-rewritten requirement:
+Hermes selects/loads a skill, invokes its trusted tool, reads the result and
+explains findings or proposes another analysis. The deterministic executor runs
+the declared dependency graph. Each child keeps its own input, typed result and
+receipt under `dependencies/<role>/`. The parent records child input/result/
+receipt hashes and a recursive artifact inventory. Repeated thermal intervals
+have distinct roles. Failure stops the composition and retains completed and
+failed child evidence; a missing dependency cannot become a successful parent.
+Graphs with cycles or undeclared dependencies are rejected.
+
+The mass-uncertainty skill retains the nominal child and records the sampled
+inputs' bounds, seed and sample count. Its repeated draw calculations reuse the
+same qualified rigid-body implementation in process, rather than creating a file
+pack for every Monte Carlo draw.
+
+Use fresh output directories. Receipts record calculator/shared-source hashes,
+Git revision, runtime versions, data basis and duration. Source-linked measured,
+assumed, derived and synthetic data remain distinct. Read `summary.json` and
+`receipt.json` with `cat`; inspect plots when applicable. Read each skill's
+`references/input_contract.md` and `references/validation.md` as needed.
+
+For non-synthetic systems assessment, supply full canonical One-Piece records
+from one project; `project_id` is explicit or taken from those records:
 
 ```bash
-python -m tools.engineering_skills run systems --input review-input.json \
-  --store ../one-piece/projects/balancing-cube/store \
+ea-engineering run requirement-evidence-assessment --input review-input.json \
+  --store /absolute/path/to/one-piece-store \
   --artifact-root /absolute/path/to/evidence \
-  --output experiments/balancing_cube/engineering_analysis/my-review
+  --output /absolute/path/to/NEW_EVIDENCE_REVIEW
 ```
 
-Non-synthetic assessments verify One-Piece store integrity and exact canonical
-record equality. Preserve native requirement units; unit conversion shall be
-explicit before assessment. Artifact paths are confined to the explicit root.
-Read-only assessment does not publish records, approve a baseline or edit CORE.md.
-A numerical criterion without enough condition/domain coverage stays inconclusive.
-The supplied systems example is deliberately synthetic and demonstrates that six
-simulation seconds cannot establish a thirty-second hardware requirement.
+The tool verifies store integrity, exact record identity and artifact hashes.
+Native requirement units are retained; conversions shall be explicit. A six-second
+simulation cannot verify a thirty-second hardware requirement. Human approval of
+requirement wording is distinct from verification status. Assessment does not
+publish records, approve a baseline or edit CORE.md.
 
-## Remote execution
+## Validation hierarchy
 
-The existing pinned profile runs Hermes v0.22.4 and Qwen3.8-27B Q4_K_M through
-the CUDA llama.cpp endpoint `127.0.0.1:8016/v1` on the reserved A5000. The model
-and inference service are not restarted by skill installation. The default Hermes
-wrapper now installs the four repository skills into its profile on startup;
-unchanged installer-owned copies can update, while human-edited skills cause a
-visible conflict rather than being overwritten.
-Source and calculator hashes are recorded in `engineering-skills-install.json`.
+**Atomic qualification** uses independent mathematical examples, invariants,
+limiting cases and rejected inputs. Tests cover closed-form transfer/gain
+solutions, a matrix-resolvent cross-check, very small feedthrough coefficients,
+RC frequency response, zero-order-held instability, primitive inertias and
+parallel-axis cross terms, energy identities in all motor quadrants, thermal
+step/cooling solutions and exact-revision evidence cases. An LLM's confidence is
+not a numerical oracle.
 
-```bash
-cd '/home/one-piece/hiroto/Engineering Agents'
-bash engineering_agents/deploy/eng-agents-008/hermes-engineering.sh
-# Or a bounded, explicit engineering task:
-bash engineering_agents/deploy/eng-agents-008/hermes-engineering.sh chat --oneshot \
-  --max-turns 8 \
-  -q 'Use cube-gnc-loop-analysis to analyze the example. Write a new run and explain its limitations.'
-```
-
-`EA_ENGINEERING_REPO` supports a separate Git worktree without switching ongoing
-remote development. Set `EA_WORKSPACE` to the parent workspace containing the
-runtime/venv/One-Piece checkouts. The wrapper provides `ea-engineering` on the terminal PATH. It uses the project
-Python only for calculation subprocesses, keeping Hermes and Engineering Agents
-packages with the same `tools` name isolated. The wrapper keeps approval prompts and local-host
-execution semantics. Skills do not add OpenShell, hardware actuation or new
-network services. CUDA hosts the model; these small SciPy/NumPy analyses run on
-CPU because they are not accelerated by configuring a visible GPU.
-
-## Validation
-
-1. **Skill packaging:** validate names, YAML frontmatter, referenced files and
-   install conflict/idempotency behavior. This is discovery validation only.
-2. **Independent numerical checks:** analytical roots/gains, known transfer
-   values, sampling effects, primitive mass moments, parallel-axis cross terms,
-   rotation invariance, power conservation and thermal step solutions.
-3. **Failure cases:** missing masses, invalid tensors/units, voltage/current
-   limits, regeneration policy, stale references, failed runs and hash errors.
-4. **Live harness acceptance:** each task asks Hermes/Qwen to load a skill and
-   execute its example. Inspect tool-call transcripts and trusted output hashes;
-   a fluent answer without execution is not accepted.
+**Composite qualification assumes qualified lower-level skills.** It checks
+exact input/output contracts, units, state basis, dependency routing, chronological
+temperature/energy flow, criterion evaluation, failure propagation and lineage.
+It does not requalify lower equations with duplicate tests. Any newly introduced
+mathematics, such as a project nonlinear model or uncertainty propagation, gets
+its own relevant checks in addition to composition tests.
 
 ```bash
 python -m pytest -q tests/engineering_skills
 python -m tools.engineering_skills.live_acceptance \
   --repo "$EA_ENGINEERING_REPO" --workspace "$EA_WORKSPACE" \
-  --output /absolute/new/acceptance-directory
+  --output /absolute/path/to/NEW_LIVE_ACCEPTANCE
 ```
 
-The skill-specific validation documents describe their oracles. Repeat affected
-checks when skill code, dependencies, quantization or serving templates change.
-These tests qualify implemented calculations and the harness connection. They do
-not establish physical accuracy, optimal designs or project-success improvement.
-Real measurements, calibration, excitation/identifiability checks and comparison
-with independently measured behavior are still needed. Future skills can add
-system identification, robust control, actuator characterization, load/strength
-analysis and circuit/filter analysis without expanding these first tools' claims.
+CI makes the analytical and composition tests mandatory on Python 3.11/3.12.
+Live acceptance checks successful Hermes skill/tool events, expected results,
+complete batches and recursively hash-matched dependency outputs. Fluent final
+prose without actual execution fails acceptance. Repeat affected checks after
+calculator, skill, contract, dependency, quantization or serving-template changes.
+Software qualification does not establish physical accuracy, optimal design or
+improved project-success rates. Calibration and measured model comparisons remain
+separate work.
 
-Use ISO/IEC/IEEE 29148:2018 first, applicable NASA guidance second, ASD-STE100
-where compatible, and `shall` for normative requirements. Shared authoritative
-policy lives in One-Piece, not duplicated requirements in a skill.
+## Hermes deployment
 
-Sources: [Hermes skill format](https://hermes-agent.nousresearch.com/docs/developer-guide/creating-skills),
-[Hermes skill discovery](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills),
-[Qwen model card](https://huggingface.co/Qwen/Qwen3.8-27B).
+The remote profile uses pinned Hermes v0.22.4 and CUDA-hosted Qwen3.8-27B Q4_K_M
+on the reserved RTX A5000. The wrapper installs the repository catalog and exposes
+`ea-engineering` to terminal tools. Analysis subprocesses use the project Python;
+Hermes's own `tools` package is isolated from the project's namespace. These small
+NumPy/SciPy calculations execute on CPU. The model service, approval settings,
+other GPUs and OpenShell decision remain unchanged.
 
-The pinned gateway CLI does not accept `--run-budget`; live acceptance uses an
-external subprocess timeout plus `--max-turns`. Its existing profile run budget
-is preserved. Interrupted or timed-out tasks are recorded as failures.
+```bash
+ssh gpu-sv-008
+~/.local/bin/engineering-hermes chat
+```
 
-## Stable remote commands
-
-A user-level launcher can point at a versioned qualification checkout without
-switching the ongoing development checkout or changing its Python installation:
+`EA_ENGINEERING_REPO` and `EA_WORKSPACE` support a dedicated versioned checkout.
+The installer updates unchanged owned skills and removes unchanged obsolete
+copies after a rename. It refuses to overwrite or delete human edits. Stable
+launchers can be repointed after merge without switching another working tree:
 
 ```bash
 PYTHONPATH="$EA_ENGINEERING_REPO/src" "$EA_WORKSPACE/.venv/bin/python" \
   -m tools.engineering_skills.launchers --repo "$EA_ENGINEERING_REPO" \
   --workspace "$EA_WORKSPACE" --bin-dir "$HOME/.local/bin"
-engineering-hermes
-# Direct deterministic analysis is available through ea-engineering.
 ```
 
-The existing Hermes wrapper already includes `$HOME/.local/bin`. The launcher
-installer refuses unrelated/human-edited commands. After merge, reinstall from
-the maintained checkout to move the pin. Keep the referenced checkout available.
-The launcher does not update canonical inputs or the model service.
+The pinned gateway does not accept `--run-budget`; live tasks use a bounded turn
+count and an external timeout while preserving the profile budget.
 
-## Completed qualification
+Use ISO/IEC/IEEE 29148:2018 first, applicable NASA guidance second, ASD-STE100
+where compatible, and `shall` for normative requirements. Shared authoritative
+requirements policy remains in One-Piece.
 
-The [2026-10-25 validation receipt](https://github.com/hirototamura/engineering_agents/blob/5c7aee6dcc74cf2d89548ab710d0ab7b02fc65e6/deploy/eng-agents-008/engineering-skills-validation-20261025.json)
-records four successful live Hermes/Qwen tasks, with matched skill/tool events,
-input/output hashes and numerical expectations. Each task used assumed or
-synthetic example data. The GNC example has sampled-stable placed poles; the
-mechanical example leaves full-system properties unresolved for a missing mass;
-the electrical example detects an overcurrent request; and the systems example
-retains an inconclusive hardware requirement.
+Sources: [Hermes skill format](https://hermes-agent.nousresearch.com/docs/developer-guide/creating-skills),
+[Hermes skill discovery](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills),
+[Qwen model card](https://huggingface.co/Qwen/Qwen3.8-27B).
 
-Local validation passed 37 focused tests and 1,226 full-suite tests, with four
-existing optional skips. Skill-format checks, the strict documentation build,
-canonical One-Piece assessment, ECLSS proposal reinjection and the stable remote
-launcher smoke also passed. The receipt distinguishes the live execution commit
-from later reporting and launcher changes, and verifies unchanged calculator
-hashes. These are software qualification results; no physical design was adopted
-or hardware requirement verified.
+The [2026-10-25 qualification receipt](https://github.com/hirototamura/engineering_agents/blob/5c7aee6dcc74cf2d89548ab710d0ab7b02fc65e6/deploy/eng-agents-008/engineering-skills-validation-20261025.json)
+records the original four bundled skills. It is historical evidence, not a claim
+that this refactored catalog was tested at that earlier revision.

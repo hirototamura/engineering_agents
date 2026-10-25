@@ -8,7 +8,7 @@ SKILLS=Path(__file__).resolve().parents[2]/'skills/engineering'
 
 
 def test_real_cli_artifact_integrity_and_no_overwrite(tmp_path):
-    p=SKILLS/'cube-systems-evidence-assessment/examples/input.json'
+    p=SKILLS/'requirement-evidence-assessment/examples/input.json'
     receipt=run('systems',p,tmp_path/'out')
     assert receipt['status']=='completed'
     result=json.loads((tmp_path/'out/result.json').read_text())
@@ -18,7 +18,7 @@ def test_real_cli_artifact_integrity_and_no_overwrite(tmp_path):
 
 
 def test_bad_hash_and_forged_verified_flag_are_overridden(tmp_path):
-    data=json.loads((SKILLS/'cube-systems-evidence-assessment/examples/input.json').read_text())
+    data=json.loads((SKILLS/'requirement-evidence-assessment/examples/input.json').read_text())
     data['evidence'][0]['artifact_verified']=True
     data['evidence'][0]['artifact']['sha256']='0'*64
     p=tmp_path/'input.json';p.write_text(json.dumps(data))
@@ -36,8 +36,8 @@ def test_failures_keep_a_receipt_and_non_synthetic_requires_ssot(tmp_path):
 
 
 @pytest.mark.parametrize('discipline,skill',[
-    ('gnc','cube-gnc-loop-analysis'),('mechanical','cube-mechanical-mass-uncertainty'),
-    ('electrical','cube-electrical-wheel-power')])
+    ('gnc','cube-gnc-loop-analysis'),('mechanical','mass-property-uncertainty'),
+    ('electrical','actuator-duty-cycle-analysis')])
 def test_all_scientific_examples_produce_json_and_plots(tmp_path,discipline,skill):
     receipt=run(discipline,SKILLS/skill/'examples/input.json',tmp_path/'out')
     assert receipt['status']=='completed'
@@ -47,7 +47,7 @@ def test_all_scientific_examples_produce_json_and_plots(tmp_path,discipline,skil
 def test_canonical_payload_tampering_is_rejected(monkeypatch,tmp_path):
     import sys
     import types
-    original={'id':'R','revision':'1','kind':'requirement','data':{'value':30}}
+    original={'project_id':'generic-project','id':'R','revision':'1','kind':'requirement','data':{'value':30}}
     class Store:
         def __init__(self,path):pass
         def check(self,project):return {'ok':True}

@@ -5,7 +5,7 @@ from scipy.integrate import solve_ivp
 from .common import number, require_units
 
 
-def analyze(data):
+def analyze(data, dependencies=None):
     require_units(data)
     m = number(data['mass_kg'], 'mass_kg', positive=True)
     h = number(data['com_height_m'], 'com_height_m', positive=True)
@@ -21,15 +21,14 @@ def analyze(data):
         raise ValueError('Specify two distinct negative real poles')
     A = np.array([[0, 1], [m*g*h/inertia, -damping/inertia]])
     B = np.array([[0], [1/inertia]])
-    K = np.real_if_close(signal.place_poles(A, B, poles).gain_matrix)
-    if np.iscomplexobj(K):
-        raise ValueError("Real target poles produced complex gains")
-    K = K.astype(float)
+    if dependencies is None:
+        from .catalog import calculate
+        dependencies = {}
+        for role, skill, value in jobs(data, dependencies):
+            dependencies[role] = calculate(skill, value)
+    K = np.array(dependencies['feedback']['K'])
     Ad, Bd, _, _, _ = signal.cont2discrete((A, B, np.eye(2), np.zeros((2, 1))), dt)
-    sampled_poles = np.linalg.eigvals(Ad-Bd@K)
-    # Bode describes an open-loop UNSTABLE plant; a plot is not a stability proof.
-    frequencies = np.logspace(-1, 3, 401)
-    response = 1/(inertia*(1j*frequencies)**2+damping*1j*frequencies-m*g*h)
+    sampled_poles = np.array([complex(p['real'], p['imag']) for p in dependencies['feedback']['sampled_closed_loop_poles']])
     limit = number(data['body_torque_limit_N_m'], 'body_torque_limit_N_m', positive=True)
     angle = number(data.get('initial_tilt_rad', .02), 'initial_tilt_rad')
     if abs(angle) > .25:
@@ -59,14 +58,13 @@ def analyze(data):
     return {'model': 'one tilt axis, fixed pivot, body torque input, small-angle linearization',
             'input_sign': 'positive u is positive body torque; ideal reaction-wheel motor torque has opposite sign',
             'equation': 'J*theta_ddot + d*theta_dot - m*g*h*theta = u_body',
-            'A': A.tolist(), 'B': B.tolist(), 'transfer_function': {'numerator': [1.], 'denominator': [inertia, damping, -m*g*h], 'input_unit': 'N*m', 'output_unit': 'rad'},
+            'A': A.tolist(), 'B': B.tolist(), 'transfer_function': dependencies['plant']['transfer_function'],
             'open_loop_poles_per_s': np.real_if_close(np.linalg.eigvals(A)).tolist(), 'open_loop_unstable': True,
             'K': K.tolist(), 'closed_loop_poles_per_s': np.real_if_close(np.linalg.eigvals(A-B@K)).tolist(),
             'sampled_closed_loop_poles': [{'real': float(p.real), 'imag': float(p.imag)} for p in sampled_poles],
             'sampled_stable': bool(np.all(abs(sampled_poles) < 1)), 'control_period_s': dt,
             'nyquist_rad_s': float(np.pi/dt),
-            'bode': {'omega_rad_s': frequencies.tolist(), 'magnitude_db': (20*np.log10(abs(response))).tolist(),
-                     'phase_deg': np.rad2deg(np.unwrap(np.angle(response))).tolist()},
+            'bode': dependencies['bode']['bode'], 'frequency_assessment': dependencies['bode']['state'],
             'trace_columns': ['time_s', 'linear_tilt_rad', 'linear_rate_rad_s', 'nonlinear_tilt_rad', 'nonlinear_rate_rad_s', 'body_torque_N_m'],
             'trace': trace.tolist(), 'saturated_samples': int(saturated),
             'final_nonlinear_tilt_rad': float(nonlinear[0]),
@@ -74,3 +72,22 @@ def analyze(data):
             'limitations': ['Not a three-axis controller or estimator design.', 'Wheel-speed/momentum limits, contact slip, sensor dynamics and structural flexibility are excluded.',
                             'Continuous pole placement is checked separately under zero-order-held sampling.',
                             'No production gain or simulation configuration is changed.']}
+
+
+def jobs(data, results):
+    require_units(data)
+    m = number(data['mass_kg'], 'mass_kg', positive=True)
+    h = number(data['com_height_m'], 'com_height_m', positive=True)
+    inertia = number(data['pivot_inertia_kg_m2'], 'pivot inertia', positive=True)
+    damping = number(data.get('damping_N_m_s_rad',0), 'damping', nonnegative=True)
+    g = number(data.get('gravity_m_s2',9.80665), 'gravity', positive=True)
+    model = {'units':data['units'], 'data_basis':data['data_basis'],
+        'system':{'A':[[0,1],[m*g*h/inertia,-damping/inertia]], 'B':[[0],[1/inertia]],
+            'C':[[1,0]], 'D':[[0]], 'state_units':['rad','rad/s'], 'input_unit':'N*m', 'output_unit':'rad',
+            'model_scope':'upright fixed-pivot single-axis cube linearization; positive body torque input'},
+        'assumptions':['J theta_ddot + d theta_dot - m g h theta = u_body; ideal wheel motor torque has the opposite sign.']}
+    yield 'plant', 'transfer-function-derivation', model
+    yield 'bode', 'bode-diagram-analysis', {**model,'omega_rad_s':np.logspace(-1,3,401).tolist(),
+        'criteria':data.get('frequency_criteria',[])}
+    yield 'feedback', 'pole-placement-design', {**model,'desired_poles_per_s':data['desired_poles_per_s'],
+        'control_period_s':data.get('control_period_s',.015)}
