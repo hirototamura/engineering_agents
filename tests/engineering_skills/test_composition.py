@@ -105,3 +105,17 @@ def test_composite_cli_response_stays_small_without_truncating_saved_evidence(mo
     assert len(raw)<2048 and result['status']=='completed' and result['dependency_count']==3
     receipt=json.loads((tmp_path/'out/receipt.json').read_text())
     assert len(receipt['artifacts'])>20
+
+
+def test_generic_bode_plot_carries_the_supplied_transfer_units(monkeypatch,tmp_path):
+    from tools.engineering_skills.runner import plot_results
+    from matplotlib.axes import Axes
+    labels=[];original=Axes.set_ylabel
+    def record(axis,label,*args,**kwargs):
+        labels.append(label)
+        return original(axis,label,*args,**kwargs)
+    monkeypatch.setattr(Axes,'set_ylabel',record)
+    plot_results('bode-diagram-analysis',{'bode':{'omega_rad_s':[1,2],
+        'magnitude_db':[-3,-6],'phase_deg':[-45,-60],'magnitude_reference':'1 m/N'}},tmp_path)
+    assert any('1 m/N' in label for label in labels)
+    assert all('rad/N' not in label for label in labels)

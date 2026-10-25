@@ -81,7 +81,7 @@ def plot_results(discipline, result, output):
             if 'nyquist_rad_s' in result:
                 axis.axvline(result['nyquist_rad_s'], color='tab:red', linestyle='--', label='Sampling Nyquist')
             axis.grid(True, which='both', alpha=.25)
-        axes[0].set_ylabel('Magnitude / dB (rad/N m)');axes[1].set_ylabel('Phase / deg');axes[1].set_xlabel('Angular frequency / rad s⁻¹')
+        axes[0].set_ylabel('Magnitude / dB\nReference: '+b['magnitude_reference']);axes[1].set_ylabel('Phase / deg');axes[1].set_xlabel('Angular frequency / rad s⁻¹')
         axes[0].set_title('Frequency response — see assessment criteria in result.json');fig.tight_layout();fig.savefig(output/'bode.png', dpi=150);plt.close(fig)
         if discipline == 'bode':
             return
