@@ -80,7 +80,7 @@ cd '/home/one-piece/hiroto/Engineering Agents'
 bash engineering_agents/deploy/eng-agents-008/hermes-engineering.sh
 # Or a bounded, explicit engineering task:
 bash engineering_agents/deploy/eng-agents-008/hermes-engineering.sh chat --oneshot \
-  --max-turns 8 --run-budget 240 \
+  --max-turns 8 \
   -q 'Use cube-gnc-loop-analysis to analyze the example. Write a new run and explain its limitations.'
 ```
 
@@ -129,3 +129,7 @@ policy lives in One-Piece, not duplicated requirements in a skill.
 Sources: [Hermes skill format](https://hermes-agent.nousresearch.com/docs/developer-guide/creating-skills),
 [Hermes skill discovery](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills),
 [Qwen model card](https://huggingface.co/Qwen/Qwen3.8-27B).
+
+The pinned gateway CLI does not accept `--run-budget`; live acceptance uses an
+external subprocess timeout plus `--max-turns`. Its existing profile run budget
+is preserved. Interrupted or timed-out tasks are recorded as failures.

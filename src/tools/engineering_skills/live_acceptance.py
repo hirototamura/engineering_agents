@@ -35,7 +35,7 @@ def run(repo, output, *, workspace=None, timeout=240, only=None):
         (task_dir/'query.txt').write_text(query)
         env=os.environ.copy();env.update(EA_ENGINEERING_REPO=str(repo),EA_WORKSPACE=str(workspace))
         command=['bash',str(repo/'deploy/eng-agents-008/hermes-engineering.sh'),'chat','--oneshot',
-                 '--max-turns','8','--reasoning','low','--run-budget',str(timeout),'-t','terminal,skills',
+                 '--max-turns','8','--reasoning','low','-t','terminal,skills',
                  '--format','stream-json','--query-file',str(task_dir/'query.txt')]
         started=time.monotonic()
         try:
