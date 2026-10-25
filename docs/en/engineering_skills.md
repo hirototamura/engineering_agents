@@ -86,7 +86,9 @@ bash engineering_agents/deploy/eng-agents-008/hermes-engineering.sh chat --onesh
 
 `EA_ENGINEERING_REPO` supports a separate Git worktree without switching ongoing
 remote development. Set `EA_WORKSPACE` to the parent workspace containing the
-runtime/venv/One-Piece checkouts. The wrapper keeps approval prompts and local-host
+runtime/venv/One-Piece checkouts. The wrapper provides `ea-engineering` on the terminal PATH. It uses the project
+Python only for calculation subprocesses, keeping Hermes and Engineering Agents
+packages with the same `tools` name isolated. The wrapper keeps approval prompts and local-host
 execution semantics. Skills do not add OpenShell, hardware actuation or new
 network services. CUDA hosts the model; these small SciPy/NumPy analyses run on
 CPU because they are not accelerated by configuring a visible GPU.

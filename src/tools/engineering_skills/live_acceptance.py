@@ -25,7 +25,7 @@ def run(repo, output, *, workspace=None, timeout=240, only=None):
         destination=task_dir/'analysis'
         input_path=repo/'skills/engineering'/skill/'examples/input.json'
         query=(f'Use the {skill} skill in Hermes. Load its instructions with skill_view. '
-               f'From {repo}, run its trusted Engineering Agents analysis calculator on {input_path}. '
+               f'From {repo}, execute `ea-engineering run {discipline} --input {input_path} --output {destination}` using the trusted Engineering Agents analysis calculator on {input_path}. '
                f'Write the analysis to the NEW directory {destination}. Do not replace the input or calculator. '
                'Read the result and receipt, then explain the main engineering conclusion and limitations. '
                'This is a validation exercise using assumed/synthetic data. Do not change requirements, baselines, '

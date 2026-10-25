@@ -20,7 +20,7 @@ Hermes is the harness. Use its terminal tool to execute the trusted Engineering 
 From the Engineering Agents checkout (`EA_ENGINEERING_REPO` in the deployed wrapper):
 
 ```bash
-python -m tools.engineering_skills run mechanical \
+ea-engineering run mechanical \
   --input skills/engineering/cube-mechanical-mass-uncertainty/examples/input.json \
   --output experiments/balancing_cube/engineering_analysis/NEW_RUN_ID/mechanical
 ```

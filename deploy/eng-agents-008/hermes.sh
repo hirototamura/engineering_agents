@@ -11,9 +11,9 @@ export PATH="$workspace/.runtime/node/bin:$workspace/.venv/bin:$HOME/.local/bin:
 export TERMINAL_CWD="$workspace"
 repo=${EA_ENGINEERING_REPO:-$workspace/engineering_agents}
 export EA_ENGINEERING_REPO="$repo"
-export PYTHONPATH="$repo/src${PYTHONPATH:+:$PYTHONPATH}"
+export PATH="$repo/deploy/eng-agents-008/bin:$PATH"
 if [[ -f "$repo/src/tools/engineering_skills/install.py" ]]; then
-  "$workspace/.venv/bin/python" -m tools.engineering_skills.install \
+  PYTHONPATH="$repo/src" "$workspace/.venv/bin/python" -m tools.engineering_skills.install \
     --repo "$repo" --hermes-home "$HERMES_HOME" >/dev/null
 fi
 mkdir -p "$HERMES_HOME"
@@ -25,4 +25,4 @@ curl --fail --silent --max-time 5 http://127.0.0.1:8016/health >/dev/null || {
   exit 1
 }
 cd "$workspace"
-exec "$workspace/.runtime/hermes-agent/.venv/bin/hermes" "$@"
+exec env -u PYTHONPATH "$workspace/.runtime/hermes-agent/.venv/bin/hermes" "$@"

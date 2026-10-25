@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Keep EA's top-level tools package out of Hermes's Python import path.
+set -euo pipefail
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+repo=${EA_ENGINEERING_REPO:-$(cd "$here/../../.." && pwd)}
+workspace=${EA_WORKSPACE:-$(cd "$repo/.." && pwd)}
+export PYTHONPATH="$repo/src"
+exec "$workspace/.venv/bin/python" -m tools.engineering_skills "$@"
