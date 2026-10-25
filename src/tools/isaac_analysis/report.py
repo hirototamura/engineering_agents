@@ -13,14 +13,22 @@ def table(headers,rows):
     return '| '+' | '.join(headers)+' |\n|'+'|'.join('---' for _ in headers)+'|\n'+''.join('| '+' | '.join(str(x) for x in row)+' |\n' for row in rows)+'\n'
 
 
-def build(dataset,output):
-    expected={'151f2bd27d18139b73b5b26f6cdcfff7926c534922e2971bd57ab3b4608483a8',
-              'b4b65a32da74137d5b91666e7d2ab383ac27c66bf38cc74d8106493f26be7227'}
-    if {g['payload']['compiled']['input_digest'] for g in dataset.catalog['groups'].values()}!=expected:
+def protocol_groups(dataset):
+    # Reference first, candidate second, regardless of CLI labels or input order.
+    expected=('151f2bd27d18139b73b5b26f6cdcfff7926c534922e2971bd57ab3b4608483a8',
+              'b4b65a32da74137d5b91666e7d2ab383ac27c66bf38cc74d8106493f26be7227')
+    groups=dataset.catalog['groups']
+    by_digest={g['payload']['compiled']['input_digest']:(label,g) for label,g in groups.items()}
+    if len(groups)!=2 or set(by_digest)!=set(expected):
         raise ValueError('This detailed protocol report covers the original two frozen architectures. Use inventory/select/quantiles for other configurations.')
-    if any(g['manifest']['plan_sha256']!='97776e29c25b46dbbca6595c5b7563b54f431d4d99493a7c0b5c32cda777250f' for g in dataset.catalog['groups'].values()):
+    if any(g['manifest']['plan_sha256']!='97776e29c25b46dbbca6595c5b7563b54f431d4d99493a7c0b5c32cda777250f' for g in groups.values()):
         raise ValueError('The detailed historical report requires the original 24,576-case plan')
-    output=Path(output);output.mkdir(parents=True,exist_ok=False);groups=dataset.catalog['groups'];labels=list(groups)
+    return dict(by_digest[digest] for digest in expected)
+
+
+def build(dataset,output):
+    groups=protocol_groups(dataset);labels=list(groups)
+    output=Path(output);output.mkdir(parents=True,exist_ok=False)
     all_ids=select(dataset);summary=summarize(dataset,all_ids);risk=risk_bins(dataset,all_ids)
     figures=[];all_quantiles=[]
     for label in labels:

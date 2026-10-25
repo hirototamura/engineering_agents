@@ -5,7 +5,8 @@ import numpy as np
 import pytest
 from tools.isaac_analysis.data import Dataset,prepare,sha256,load
 from tools.isaac_analysis.statistics import select,quantiles,quantile_records,paired_outcomes
-from tools.isaac_analysis.figures import plot_bands
+from tools.isaac_analysis.figures import plot_bands,tilt_zoom_domain
+from tools.isaac_analysis.report import protocol_groups
 from tools.isaac_analysis.agent_tools import IsaacAnalysisTools
 
 
@@ -71,6 +72,44 @@ def test_paired_regression_and_unpaired_plan_rejection(dataset):
     assert q[0]['pass_to_fail']==1 and q[0]['fail_to_pass']==0
     dataset.catalog['groups']['candidate']['manifest']['plan_sha256']='different'
     with pytest.raises(ValueError):paired_outcomes(dataset,'reference','candidate')
+
+
+def test_report_roles_follow_pinned_inputs_not_insertion_order_or_labels(dataset,tmp_path):
+    from tools.isaac_analysis.statistics import summarize
+    from tools.isaac_analysis.presentation import render_report
+    digests={'reference':'151f2bd27d18139b73b5b26f6cdcfff7926c534922e2971bd57ab3b4608483a8',
+             'candidate':'b4b65a32da74137d5b91666e7d2ab383ac27c66bf38cc74d8106493f26be7227'}
+    # Arbitrary CLI labels deliberately sort in the opposite role order.
+    names={'reference':'z-baseline','candidate':'a-proposal'}
+    for label,group in dataset.catalog['groups'].items():
+        group['payload']={'compiled':{'input_digest':digests[label]}}
+        group['manifest']['plan_sha256']='97776e29c25b46dbbca6595c5b7563b54f431d4d99493a7c0b5c32cda777250f'
+        group['factors']['total_mass_kg']=.7
+    dataset.catalog['groups']={names[k]:dataset.catalog['groups'][k] for k in ('candidate','reference')}
+    for row in dataset.cases:row['campaign']=names[row['campaign']]
+    groups=protocol_groups(dataset)
+    assert list(groups)==['z-baseline','a-proposal']
+    paired=paired_outcomes(dataset,*groups)
+    assert paired[0]['pass_to_fail']==1 and paired[0]['fail_to_pass']==0
+    assert paired[0]['difference_pp']==-50
+    markdown='\n'.join(f'## {i}. Section\nEvidence\n' for i in range(1,13))
+    summary=[r for r in summarize(dataset,select(dataset)) if r['cases']]
+    render_report(markdown,tmp_path,summary,paired,groups)
+    html=(tmp_path/'technical-report.html').read_text()
+    assert '<div class="result reference"><h3>Z-baseline</h3>' in html
+    assert '<div class="result candidate"><h3>A-proposal</h3>' in html
+    assert '1 paired cases changed from pass to fail; 0 changed from fail to pass' in html
+    dataset.catalog['groups']['a-proposal']['payload']['compiled']['input_digest']='other'
+    with pytest.raises(ValueError,match='frozen architectures'):protocol_groups(dataset)
+
+
+@pytest.mark.parametrize('metric',['tilt_x_deg','tilt_y_deg','tilt_total_deg'])
+@pytest.mark.parametrize('upper',[5,.5])
+def test_zoom_domains_keep_signed_tilt_visible(metric,upper):
+    low,high=tilt_zoom_domain(metric,upper)
+    assert high==upper
+    assert low==(0 if metric=='tilt_total_deg' else -upper)
+    if metric!='tilt_total_deg':assert low < -.1 < .1 < high
 
 
 def test_agent_tools_are_bounded_and_keep_denominators(dataset):

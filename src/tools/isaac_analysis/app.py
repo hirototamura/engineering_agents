@@ -14,7 +14,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from tools.isaac_analysis.data import load, CORNERS, sha256
 from tools.isaac_analysis.statistics import select, quantiles, quantile_records, summarize
-from tools.isaac_analysis.figures import plot_bands
+from tools.isaac_analysis.figures import plot_bands, tilt_zoom_domain
 
 st.set_page_config(page_title='Eight corners · Isaac cube evidence', layout='wide', initial_sidebar_state='expanded')
 st.markdown('''<style>
@@ -179,7 +179,8 @@ with plots:
                                 format_func=lambda x: {'all-recorded': 'Include all recorded motion', 'evaluation-only': 'Through evaluation stop only'}[x], key='ea_mode')
     metric = controls[1].selectbox('Tilt measurement', ['tilt_total_deg', 'tilt_x_deg', 'tilt_y_deg'],
                                    format_func=lambda x: {'tilt_total_deg': 'Total tilt (°)', 'tilt_x_deg': 'Tilt x (°)', 'tilt_y_deg': 'Tilt y (°)'}[x], key='ea_metric')
-    zoom = controls[2].selectbox('Vertical scale', ['Full recorded range', 'Near upright · 0–5°', 'Fine detail · 0–0.5°'], key='ea_zoom')
+    zoom = controls[2].selectbox('Vertical scale', ['Full recorded range', 'Near upright · 0–5°', 'Fine detail · 0–0.5°'],
+                                 format_func=lambda value: value if metric == 'tilt_total_deg' else value.replace('0–', '±'), key='ea_zoom')
     if mode == 'all-recorded':
         st.markdown('<div class="note"><strong>Failures stay visible.</strong> Every selected case contributes at every timestamp. After a stop, the controller sends zero effort and the cube continues moving freely. Later tilt may describe falling or resting on another face.</div>', unsafe_allow_html=True)
     else:
@@ -193,7 +194,7 @@ with plots:
     if not len(ids):
         st.info('No recorded cases match these filters. Widen the ranges or reset all filters.')
     else:
-        scale = alt.Scale(zero=metric == 'tilt_total_deg') if zoom == 'Full recorded range' else alt.Scale(domain=[0, 5 if zoom == 'Near upright · 0–5°' else .5])
+        scale = alt.Scale(zero=metric == 'tilt_total_deg') if zoom == 'Full recorded range' else alt.Scale(domain=tilt_zoom_domain(metric, 5 if zoom == 'Near upright · 0–5°' else .5))
         # Use a shared explicit range so corners remain visually comparable.
         if zoom == 'Full recorded range':
             low = frame['lo_100_0'].min()

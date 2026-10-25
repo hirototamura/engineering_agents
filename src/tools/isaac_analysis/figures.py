@@ -10,6 +10,11 @@ from .data import CORNERS,TILT_FIELDS
 from .statistics import quantiles
 
 
+def tilt_zoom_domain(metric, upper):
+    """Keep both signs visible for the archived x/y tilt components."""
+    return [0 if metric=='tilt_total_deg' else -upper, upper]
+
+
 def plot_bands(dataset,indices,*,mode='all-recorded',metric='tilt_total_deg',trajectories=False,title=None):
     bands=quantiles(dataset,indices,mode,metric);field=TILT_FIELDS.index(metric)
     fig,axes=plt.subplots(4,2,figsize=(12,15),sharex=True,sharey=True,layout='constrained')
