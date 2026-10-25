@@ -92,3 +92,16 @@ def test_dependency_failure_is_retained_and_parent_cannot_claim_completion(tmp_p
     assert receipt['status']=='failed' and receipt['dependencies'][-1]['status']=='failed'
     assert not (tmp_path/'out/result.json').exists()
     assert (tmp_path/'out/dependencies/plant/result.json').exists()
+
+
+def test_composite_cli_response_stays_small_without_truncating_saved_evidence(monkeypatch,capsys,tmp_path):
+    from tools.engineering_skills.runner import main
+    import sys
+    source=REPO/'skills/engineering/cube-gnc-loop-analysis/examples/input.json'
+    monkeypatch.setattr(sys,'argv',['ea-engineering','run','cube-gnc-loop-analysis','--input',str(source),'--output',str(tmp_path/'out')])
+    main()
+    raw=capsys.readouterr().out
+    result=json.loads(raw)
+    assert len(raw)<2048 and result['status']=='completed' and result['dependency_count']==3
+    receipt=json.loads((tmp_path/'out/receipt.json').read_text())
+    assert len(receipt['artifacts'])>20

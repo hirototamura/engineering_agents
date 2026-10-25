@@ -193,7 +193,12 @@ def main():
                               'compatibility_aliases':ALIASES},indent=2))
             return
         result = run(args.discipline, args.input, args.output, store=args.store, artifact_root=args.artifact_root)
-        print(json.dumps(result, indent=2))
+        # Recursive artifact inventories can exceed the harness tool-result limit.
+        # Keep stdout bounded; the full immutable receipt stays in the output pack.
+        print(json.dumps({'skill':result['skill'],'status':result['status'],
+            'output_directory':str(args.output.resolve()),'input_sha256':result['input_sha256'],
+            'result_sha256':result['result_sha256'],'dependency_count':len(result['dependencies']),
+            'receipt':str((args.output/'receipt.json').resolve())},indent=2))
     except Exception as error:
         print(f'{type(error).__name__}: {error}', file=sys.stderr)
         raise SystemExit(1)
