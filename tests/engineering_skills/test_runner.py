@@ -33,3 +33,26 @@ def test_failures_keep_a_receipt_and_non_synthetic_requires_ssot(tmp_path):
     assert json.loads((tmp_path/'out/receipt.json').read_text())['status']=='failed'
     with pytest.raises(ValueError, match='requires --store'):
         verify_canonical_requirements({'data_basis':'derived'},None)
+
+
+@pytest.mark.parametrize('discipline,skill',[
+    ('gnc','cube-gnc-loop-analysis'),('mechanical','cube-mechanical-mass-uncertainty'),
+    ('electrical','cube-electrical-wheel-power')])
+def test_all_scientific_examples_produce_json_and_plots(tmp_path,discipline,skill):
+    receipt=run(discipline,SKILLS/skill/'examples/input.json',tmp_path/'out')
+    assert receipt['status']=='completed'
+    assert list((tmp_path/'out').glob('*.png'))
+
+
+def test_canonical_payload_tampering_is_rejected(monkeypatch,tmp_path):
+    import sys
+    import types
+    original={'id':'R','revision':'1','kind':'requirement','data':{'value':30}}
+    class Store:
+        def __init__(self,path):pass
+        def check(self,project):return {'ok':True}
+        def records(self,project,kinds):return [original]
+    monkeypatch.setitem(sys.modules,'onepiece',types.SimpleNamespace(Store=Store))
+    assert verify_canonical_requirements({'data_basis':'derived','requirements':[original]},tmp_path)['verified']
+    with pytest.raises(ValueError,match='canonical'):
+        verify_canonical_requirements({'data_basis':'derived','requirements':[{**original,'data':{'value':6}}]},tmp_path)
