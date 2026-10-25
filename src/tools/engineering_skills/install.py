@@ -10,8 +10,8 @@ def install(repo, home):
     repo, home = Path(repo).resolve(), Path(home).expanduser().resolve()
     source = repo/'skills/engineering'
     folders = sorted(p for p in source.iterdir() if (p/'SKILL.md').is_file())
-    if len(folders) != 4:
-        raise ValueError('Expected four versioned engineering skills')
+    if not folders:
+        raise ValueError('No versioned engineering skills found')
     previous_path = home/'engineering-skills-install.json'
     previous = json.loads(previous_path.read_text()) if previous_path.exists() else {}
     planned = []
