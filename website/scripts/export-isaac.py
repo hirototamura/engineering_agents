@@ -52,6 +52,7 @@ def export(dataset, report, output):
     for label, group in data.catalog['groups'].items():
         if label not in ('reference', 'candidate'):
             raise ValueError('This publication targets the two named historical campaigns')
+        # Retain audited aliases including side_m, total_mass_kg and yaw_gain_nm_s.
         factors = dict(group['factors'])
         # Include only exact scalar resolved values the bounded viewer exposes as filters.
         compiled = group['payload']['compiled']['config']

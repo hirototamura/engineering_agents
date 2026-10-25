@@ -1,4 +1,5 @@
 import { CORNERS, validateWhere } from './analysis.mjs';
+import { factorOptions } from './filter-options.mjs';
 
 const $ = id => document.getElementById(id);
 const manifestUrl = '/isaac/data/manifest.json';
@@ -13,35 +14,34 @@ function setStatus(s){ $('status').textContent=s; }
 function showError(error){ $('error').hidden=false; $('error').textContent=String(error); setStatus(''); }
 function clearError(){ $('error').hidden=true; $('error').textContent=''; }
 function checkedCorners(){ return [...document.querySelectorAll('#corners input:checked')].map(x=>x.value); }
-function makeOptions(container,key,options,label,unit='') {
+function makeOptions(container,key,options,label,unit='',displayScale=1) {
   const wrap=el('label',{},label); const select=el('select'); select.dataset.factor=key;
   select.append(el('option',{value:''},'All recorded values'));
-  options.forEach(v=>select.append(el('option',{value:String(v)},`${v}${unit}`)));
+  factorOptions(options,unit,displayScale).forEach(option=>select.append(el('option',{value:option.value},option.label)));
   wrap.append(select); container.append(wrap);
 }
 function unique(list){return [...new Set(list)].sort((a,b)=>typeof a==='number'?a-b:String(a).localeCompare(String(b)));}
 function initFilters(){
   const corners=$('corners'); CORNERS.forEach(c=>{const label=el('label',{class:'check'}),input=el('input',{type:'checkbox',value:c});input.checked=true;label.append(input,el('span',{},`${c} · ${cornerNames[c]}`));corners.append(label);});
   const refs=Object.values(manifest.groups);
-  const mm=(v)=>Number((v*1000).toFixed(6)), grams=(v)=>Number((v*1000).toFixed(6));
   const mech=$('mechanical-filters');
-  makeOptions(mech,'side_m',[...new Set(refs.map(g=>mm(g.physics.cube_side_m)))],'Cube side',' mm');
-  makeOptions(mech,'total_mass_kg',[...new Set(refs.map(g=>grams(g.physics.frame_mass_kg+3*g.physics.wheel_mass_kg)))],'Total mass',' g');
-  makeOptions(mech,'frame_mass_kg',[...new Set(refs.map(g=>grams(g.physics.frame_mass_kg)))],'Frame mass',' g');
-  makeOptions(mech,'wheel_mass_kg',[...new Set(refs.map(g=>grams(g.physics.wheel_mass_kg)))],'Each wheel mass',' g');
-  makeOptions(mech,'wheel_radius_m',[...new Set(refs.map(g=>mm(g.physics.wheel_radius_m)))],'Wheel radius',' mm');
+  makeOptions(mech,'side_m',refs.map(g=>g.factors.side_m),'Cube side',' mm',1000);
+  makeOptions(mech,'total_mass_kg',refs.map(g=>g.factors.total_mass_kg),'Total mass',' g',1000);
+  makeOptions(mech,'frame_mass_kg',refs.map(g=>g.physics.frame_mass_kg),'Frame mass',' g',1000);
+  makeOptions(mech,'wheel_mass_kg',refs.map(g=>g.physics.wheel_mass_kg),'Each wheel mass',' g',1000);
+  makeOptions(mech,'wheel_radius_m',refs.map(g=>g.physics.wheel_radius_m),'Wheel radius',' mm',1000);
   makeOptions(mech,'wheel_axial_inertia_kg_m2',[...new Set(refs.map(g=>g.physics.wheel_axial_inertia_kg_m2))],'Wheel axial inertia',' kg·m²');
   makeOptions(mech,'wheel_transverse_inertia_kg_m2',[...new Set(refs.map(g=>g.physics.wheel_transverse_inertia_kg_m2))],'Wheel transverse inertia',' kg·m²');
   makeOptions(mech,'frame_inertia_kg_m2',[...new Set(refs.map(g=>g.physics.frame_inertia_kg_m2))],'Frame inertia',' kg·m²');
-  makeOptions(mech,'wheel_thickness_m',[...new Set(refs.map(g=>mm(g.physics.wheel_thickness_m)))],'Wheel thickness',' mm');
-  makeOptions(mech,'wheel_face_inset_m',[...new Set(refs.map(g=>mm(g.physics.wheel_face_inset_m)))],'Wheel face inset',' mm');
+  makeOptions(mech,'wheel_thickness_m',refs.map(g=>g.physics.wheel_thickness_m),'Wheel thickness',' mm',1000);
+  makeOptions(mech,'wheel_face_inset_m',refs.map(g=>g.physics.wheel_face_inset_m),'Wheel face inset',' mm',1000);
   makeOptions(mech,'motor_torque_limit_nm',[...new Set(refs.map(g=>g.physics.motor_torque_limit_nm))],'Motor torque limit',' N·m');
   makeOptions(mech,'wheel_speed_limit_rad_s',[...new Set(refs.map(g=>g.physics.wheel_speed_limit_rad_s))],'Wheel speed limit',' rad/s');
   makeOptions(mech,'gravity_m_s2',[...new Set(refs.map(g=>g.physics.gravity_m_s2))],'Gravity',' m/s²');
   const timing=$('timing-filters');
   makeOptions(timing,'observation_delay_s',[...new Set(refs.map(g=>g.sensing.observation_delay_s))],'Observation delay',' s');
   makeOptions(timing,'control_period_s',[...new Set(refs.map(g=>g.physics.control_period_s))],'Control period',' s');
-  makeOptions(timing,'yaw_gain_nm_s',[...new Set(refs.map(g=>g.controller.yaw_rate_gain_nm_s).filter(Number.isFinite))],'Yaw gain','');
+  makeOptions(timing,'yaw_gain_nm_s',refs.map(g=>g.factors.yaw_gain_nm_s).filter(Number.isFinite),'Yaw gain','');
   makeOptions(timing,'tilt_noise_std_deg',[...new Set(refs.map(g=>g.sensing.tilt_noise_std_deg))],'Tilt noise SD','°');
   makeOptions(timing,'gyro_noise_std_deg_s',[...new Set(refs.map(g=>g.sensing.gyro_noise_std_deg_s))],'Gyro noise SD','°/s');
   const statuses=manifest.case_categories?.status??['completed'];const term=$('termination');while(term.options.length>1)term.remove(1);statuses.forEach(value=>term.append(el('option',{value},value.replaceAll('_',' '))));
@@ -55,7 +55,7 @@ function readWhere(){
   const range=(key,min,max)=>{const lo=Number($(min).value),hi=Number($(max).value);if(!Number.isFinite(lo)||!Number.isFinite(hi)||lo>hi)throw Error(`Invalid ${key} range.`);if(lo!==({initial_tilt_radius_deg:0,initial_yaw_rate_rad_s:-1}[key])||hi!==({initial_tilt_radius_deg:5,initial_yaw_rate_rad_s:1}[key]))where[key]=[lo,hi];};
   range('initial_tilt_radius_deg','radius-min','radius-max');range('initial_yaw_rate_rad_s','yaw-min','yaw-max');
   document.querySelectorAll('#direction-filters input').forEach(i=>{const key=i.dataset.factor, inputs=[...document.querySelectorAll(`#direction-filters input[data-factor="${key}"]`)],lo=Number(inputs.find(x=>x.dataset.bound==='min').value),hi=Number(inputs.find(x=>x.dataset.bound==='max').value);if(!Number.isFinite(lo)||!Number.isFinite(hi)||lo>hi)throw Error(`Invalid ${key} range.`);const limits={initial_tilt_azimuth_deg:[-180,180],initial_tilt_x_deg:[-5,5],initial_tilt_y_deg:[-5,5]}[key];if(lo!==limits[0]||hi!==limits[1])where[key]=[lo,hi];});
-  document.querySelectorAll('#mechanical-filters select,#timing-filters select').forEach(s=>{if(s.value){let v=Number(s.value);if(s.dataset.factor==='side_m'||s.dataset.factor.endsWith('_mass_kg')||s.dataset.factor.endsWith('_m'))v/=1000;where[s.dataset.factor]=[v,v];}});
+  document.querySelectorAll('#mechanical-filters select,#timing-filters select').forEach(s=>{if(s.value){const v=Number(s.value);where[s.dataset.factor]=[v,v];}});
   const outcome=$('outcome').value;if(outcome!=='all')where.screening_passed=[outcome==='passed'];const termination=$('termination').value;if(termination!=='all')where.status=[termination];
   const gp=parseList($('gpus').value,'number');if(gp.length)where.gpu_indices=gp;const seeds=parseList($('seeds').value,'number');if(seeds.length)where.seed_values=seeds;const ids=parseList($('case-ids').value,'string');if(ids.length)where.id=ids;
   validateWhere(where);return where;
@@ -63,7 +63,7 @@ function readWhere(){
 function submit(){try{clearError();pendingCaseExport=null;$('download-cases').textContent='All selected cases JSON';activeFilter=readWhere();activeMode=$('mode').value;activeMetric=$('metric').value;activePaths=$('paths').checked;const id=++requestId;worker.postMessage({id,manifest,where:activeFilter,metric:activeMetric,mode:activeMode,paths:activePaths});setStatus('Reading archived cases and calculating pointwise empirical quantiles…');toggleDownloads(false);saveHash();}catch(e){showError(e.message);}}
 function toggleDownloads(enabled){['download-csv','download-receipt','download-cases'].forEach(id=>$(id).disabled=!enabled);}
 function saveHash(){const state={where:activeFilter,mode:activeMode,metric:activeMetric,zoom:$('zoom').value,paths:activePaths};const p=new URLSearchParams({selection:JSON.stringify(state)});history.replaceState(null,'',`${location.pathname}#${p}`);}
-function restoreHash(){try{const raw=new URLSearchParams(location.hash.slice(1)).get('selection');if(!raw)return;const s=JSON.parse(raw);if(!s||typeof s!=='object'||JSON.stringify(s).length>50000)return;validateWhere(s.where);if(!['all-recorded','evaluation-only'].includes(s.mode)||!Object.hasOwn(labels,s.metric))return;const w=s.where,camps=w.campaign??['reference'];$('campaign').value=camps.length===2?'both':camps[0];document.querySelectorAll('#corners input').forEach(x=>x.checked=(w.corner??CORNERS).includes(x.value));if(w.initial_tilt_radius_deg){$('radius-min').value=w.initial_tilt_radius_deg[0];$('radius-max').value=w.initial_tilt_radius_deg[1];$('preset').value='custom';}if(w.initial_yaw_rate_rad_s){$('yaw-min').value=w.initial_yaw_rate_rad_s[0];$('yaw-max').value=w.initial_yaw_rate_rad_s[1];}$('mode').value=s.mode;$('metric').value=s.metric;if(['full','near','fine'].includes(s.zoom))$('zoom').value=s.zoom;$('paths').checked=Boolean(s.paths);for(const key of ['initial_tilt_azimuth_deg','initial_tilt_x_deg','initial_tilt_y_deg'])if(w[key]){const fields=[...document.querySelectorAll(`#direction-filters input[data-factor="${key}"]`)];fields.find(x=>x.dataset.bound==='min').value=w[key][0];fields.find(x=>x.dataset.bound==='max').value=w[key][1];}for(const sel of document.querySelectorAll('#mechanical-filters select,#timing-filters select'))if(w[sel.dataset.factor]){let value=w[sel.dataset.factor][0],key=sel.dataset.factor;if(key==='side_m'||key==='wheel_radius_m'||key==='wheel_thickness_m'||key==='wheel_face_inset_m')value*=1000;else if(key.endsWith('_mass_kg'))value*=1000;sel.value=String(value);}for(const [id,key] of [['outcome','screening_passed'],['termination','status']])if(w[key]?.length===1)$(id).value=key==='screening_passed'?(w[key][0]?'passed':'failed'):w[key][0];if(w.gpu_indices)$('gpus').value=w.gpu_indices.join(',');if(w.seed_values)$('seeds').value=w.seed_values.join(',');if(w.id)$('case-ids').value=w.id.join(',');}catch{}}
+function restoreHash(){try{const raw=new URLSearchParams(location.hash.slice(1)).get('selection');if(!raw)return;const s=JSON.parse(raw);if(!s||typeof s!=='object'||JSON.stringify(s).length>50000)return;validateWhere(s.where);if(!['all-recorded','evaluation-only'].includes(s.mode)||!Object.hasOwn(labels,s.metric))return;const w=s.where,camps=w.campaign??['reference'];$('campaign').value=camps.length===2?'both':camps[0];document.querySelectorAll('#corners input').forEach(x=>x.checked=(w.corner??CORNERS).includes(x.value));if(w.initial_tilt_radius_deg){$('radius-min').value=w.initial_tilt_radius_deg[0];$('radius-max').value=w.initial_tilt_radius_deg[1];$('preset').value='custom';}if(w.initial_yaw_rate_rad_s){$('yaw-min').value=w.initial_yaw_rate_rad_s[0];$('yaw-max').value=w.initial_yaw_rate_rad_s[1];}$('mode').value=s.mode;$('metric').value=s.metric;if(['full','near','fine'].includes(s.zoom))$('zoom').value=s.zoom;$('paths').checked=Boolean(s.paths);for(const key of ['initial_tilt_azimuth_deg','initial_tilt_x_deg','initial_tilt_y_deg'])if(w[key]){const fields=[...document.querySelectorAll(`#direction-filters input[data-factor="${key}"]`)];fields.find(x=>x.dataset.bound==='min').value=w[key][0];fields.find(x=>x.dataset.bound==='max').value=w[key][1];}for(const sel of document.querySelectorAll('#mechanical-filters select,#timing-filters select'))if(w[sel.dataset.factor]){sel.value=String(w[sel.dataset.factor][0]);}for(const [id,key] of [['outcome','screening_passed'],['termination','status']])if(w[key]?.length===1)$(id).value=key==='screening_passed'?(w[key][0]?'passed':'failed'):w[key][0];if(w.gpu_indices)$('gpus').value=w.gpu_indices.join(',');if(w.seed_values)$('seeds').value=w.seed_values.join(',');if(w.id)$('case-ids').value=w.id.join(',');}catch{}}
 
 function textCell(row,value,head=false){const n=el(head?'th':'td',{},value==null?'—':String(value));row.append(n);}
 function table(container,headers,rows){const t=el('table'),thead=el('thead'),tr=el('tr');headers.forEach(x=>textCell(tr,x,true));thead.append(tr);t.append(thead);const body=el('tbody');rows.forEach(values=>{const r=el('tr');values.forEach(x=>textCell(r,x));body.append(r);});t.append(body);container.replaceChildren(t);}

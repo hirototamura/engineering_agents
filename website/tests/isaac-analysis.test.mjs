@@ -1,6 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CORNERS, emptyPanel, linearQuantile, matches, summarizePaths, validateWhere } from '../public/isaac-viewer/analysis.mjs';
+import { factorOptions } from '../public/isaac-viewer/filter-options.mjs';
+
+test('mechanical options preserve SI values while rounding converted labels', () => {
+  const value=0.16623539610269966;
+  const [option]=factorOptions([value,value],' mm',1000);
+  assert.equal(option.label,'166.235396 mm');
+  assert.equal(Number(option.value),value);
+  const where={side_m:[Number(option.value),Number(option.value)]};
+  validateWhere(where);
+  assert.equal(matches({}, {side_m:value},where),true);
+  assert.equal(matches({}, {side_m:.18},where),false);
+  const shared=JSON.parse(JSON.stringify({where}));
+  assert.equal(String(shared.where.side_m[0]),option.value);
+});
 
 test('pointwise empirical bands include failed trials and preserve inclusive stop ticks', () => {
   const rows=[{end_tick:1,screening_passed:true,seed:10},{end_tick:0,screening_passed:false,seed:20}];
