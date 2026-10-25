@@ -7,3 +7,5 @@ dist/
 preview*.png
 public/cube-cad/
 .asset-cache/
+
+public/isaac/
