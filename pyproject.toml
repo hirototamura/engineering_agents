@@ -23,8 +23,10 @@ dependencies = [
 [project.scripts]
 ea = "tools.cli.main:app"
 ea-reports = "tools.report_library.__main__:main"
+ea-engineering = "tools.engineering_skills.runner:main"
 
 [project.optional-dependencies]
+analysis = ["scipy>=1.16", "numpy>=2.3"]
 dev = ["pytest>=7.0", "mkdocs-material>=9.0", "mkdocs-static-i18n>=1.2.0"]
 mujoco = ["mujoco==3.3.7", "scipy>=1.16", "numpy>=2.3"]
 gpu = ["mujoco==3.3.7", "mujoco-mjx==3.3.7", "jax[cuda12]==0.6.2", "scipy>=1.16"]

@@ -1,0 +1,35 @@
+import hashlib
+import json
+from pathlib import Path
+import pytest
+from tools.engineering_skills.runner import run, verify_canonical_requirements
+
+SKILLS=Path(__file__).resolve().parents[2]/'skills/engineering'
+
+
+def test_real_cli_artifact_integrity_and_no_overwrite(tmp_path):
+    p=SKILLS/'cube-systems-evidence-assessment/examples/input.json'
+    receipt=run('systems',p,tmp_path/'out')
+    assert receipt['status']=='completed'
+    result=json.loads((tmp_path/'out/result.json').read_text())
+    assert result['requirements'][0]['state']=='inconclusive'
+    assert receipt['artifacts']['result.json']==hashlib.sha256((tmp_path/'out/result.json').read_bytes()).hexdigest()
+    with pytest.raises(FileExistsError):run('systems',p,tmp_path/'out')
+
+
+def test_bad_hash_and_forged_verified_flag_are_overridden(tmp_path):
+    data=json.loads((SKILLS/'cube-systems-evidence-assessment/examples/input.json').read_text())
+    data['evidence'][0]['artifact_verified']=True
+    data['evidence'][0]['artifact']['sha256']='0'*64
+    p=tmp_path/'input.json';p.write_text(json.dumps(data))
+    run('systems',p,tmp_path/'out')
+    result=json.loads((tmp_path/'out/result.json').read_text())
+    assert 'missing_or_bad_artifact_hash' in result['requirements'][0]['evidence'][0]['reasons']
+
+
+def test_failures_keep_a_receipt_and_non_synthetic_requires_ssot(tmp_path):
+    p=tmp_path/'bad.json';p.write_text(json.dumps({'units':'wrong','data_basis':'assumed'}))
+    with pytest.raises(ValueError):run('gnc',p,tmp_path/'out')
+    assert json.loads((tmp_path/'out/receipt.json').read_text())['status']=='failed'
+    with pytest.raises(ValueError, match='requires --store'):
+        verify_canonical_requirements({'data_basis':'derived'},None)

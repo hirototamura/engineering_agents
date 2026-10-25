@@ -68,3 +68,7 @@ Confirm Run 1 wrote `experiments/eclss/results/cloud-smoke-run1/design_proposals
 - `agents.mode: llm` / ssos `--design-mode llm` needs Ollama or the lab vLLM server (LAN or VPN). `ssos_eclss_loop` bare `ea run` defaults to `plant_sim` + labeled actors + LLM design; `--backend ros2` needs SSOS Docker. Minimal loop smoke is **out of scope** for both — use `labeled_rule_base` + `--backend mock`.
 - Dashboard (optional): `python3 -m streamlit run src/tools/dashboard/app.py --server.headless true` reads `experiments/eclss/results/<run_id>/`.
 - plant_sim sensitivity (optional, not the dashboard): `python3 -m tools.plant_sim_sensitivity_app` (port 8502).
+
+## Hermes engineering skill harness
+
+Hermes is the interactive harness for the cube engineering skill library. Read [engineering_skills.md](docs/en/engineering_skills.md). Versioned skills live in `skills/engineering/`; deterministic physics stays in `src/environment/engineering_analysis/`. Use exact One-Piece inputs and fresh analysis output directories. Skill prose and LLM conclusions do not establish requirement satisfaction.

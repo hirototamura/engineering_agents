@@ -9,6 +9,13 @@ export XLA_PYTHON_CLIENT_PREALLOCATE=false
 export MUJOCO_EGL_DEVICE_ID=${EA_EGL_DEVICE_ID:-6}
 export PATH="$workspace/.runtime/node/bin:$workspace/.venv/bin:$HOME/.local/bin:$PATH"
 export TERMINAL_CWD="$workspace"
+repo=${EA_ENGINEERING_REPO:-$workspace/engineering_agents}
+export EA_ENGINEERING_REPO="$repo"
+export PYTHONPATH="$repo/src${PYTHONPATH:+:$PYTHONPATH}"
+if [[ -f "$repo/src/tools/engineering_skills/install.py" ]]; then
+  "$workspace/.venv/bin/python" -m tools.engineering_skills.install \
+    --repo "$repo" --hermes-home "$HERMES_HOME" >/dev/null
+fi
 mkdir -p "$HERMES_HOME"
 if [[ ! -f "$HERMES_HOME/config.yaml" ]]; then
   cp "$here/hermes-config.yaml" "$HERMES_HOME/config.yaml"
