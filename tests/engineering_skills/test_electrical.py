@@ -1,6 +1,5 @@
-import math
 import pytest
-from environment.engineering_analysis.electrical import analyze
+from environment.engineering_analysis.electrical import analyze, jobs
 
 BASE={'units':'SI','data_basis':'synthetic_validation','motor_convention':'effective_dc','torque_constant_N_m_A':.1,'back_emf_V_s_rad':.1,
       'winding_resistance_ohm':2.,'bus_voltage_V':12.,'driver_efficiency':.8,'current_limit_A':3.,'maximum_winding_K':400.,
@@ -8,22 +7,24 @@ BASE={'units':'SI','data_basis':'synthetic_validation','motor_convention':'effec
       'modes':[{'name':'drive','duration_s':10.,'torque_N_m':.2,'speed_rad_s':20.}]}
 
 
-def test_power_energy_and_thermal_closed_form():
-    r=analyze(BASE);m=r['modes'][0]
-    assert m['current_A_per_motor']==pytest.approx(2.)
-    assert m['required_terminal_voltage_V']==pytest.approx(6.)
-    assert m['motor_electrical_W_per_motor']==pytest.approx(m['mechanical_W_per_motor']+m['copper_W_per_motor'])
+def test_mode_energy_aggregation_and_temperature_use_qualified_child_results():
+    point={'current_A':2,'required_terminal_voltage_V':6,'mechanical_W':4,'copper_W':8,
+           'motor_electrical_W':12,'driver_heat_W':3,'braking_dump_W':0,'battery_W':15,
+           'battery_current_A':1.25,'violations':[]}
+    deps={'mode000-point':point,'mode000-temperature':{'end_K':311,'peak_K':311,'state':'pass'}}
+    r=analyze(BASE,deps);m=r['modes'][0]
+    assert m['current_A_per_motor']==2 and m['end_winding_K']==311
     assert r['net_battery_energy_J']==pytest.approx(150.)
-    assert m['end_winding_K']==pytest.approx(298.15+80*(1-math.exp(-10/50)))
 
 
-def test_regeneration_is_opt_in_and_energy_is_conserved():
+def test_motor_regeneration_policy_and_operating_point_are_forwarded():
     mode={'name':'brake','duration_s':5.,'torque_N_m':-.1,'speed_rad_s':40.}
     d={**BASE,'modes':[mode]}
-    off=analyze(d)['modes'][0];on=analyze({**d,'regeneration_supported':True})['modes'][0]
-    assert off['battery_W_all_motors']==0 and off['braking_dump_W_per_motor']==pytest.approx(2.)
-    assert on['battery_W_all_motors']==pytest.approx(-1.6)
-    assert on['driver_heat_W_per_motor']==pytest.approx(.4)
+    for regen in (False,True):
+        _,skill,value=next(jobs({**d,'regeneration_supported':regen},{}))
+        assert skill=='motor-operating-point'
+        assert value['regeneration_supported']==regen
+        assert value['torque_N_m']==-.1 and value['speed_rad_s']==40
 
 
 def test_temperature_carries_between_modes_and_limits_are_visible():

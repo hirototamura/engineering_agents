@@ -1,24 +1,23 @@
 import copy
 import numpy as np
 import pytest
-from environment.engineering_analysis.gnc import analyze
+from environment.engineering_analysis.gnc import analyze, jobs
 
 BASE = dict(units='SI', data_basis='synthetic_validation', mass_kg=1., com_height_m=.1,
             pivot_inertia_kg_m2=.02, damping_N_m_s_rad=.005, desired_poles_per_s=[-4., -6.],
             body_torque_limit_N_m=1., duration_s=2., control_period_s=.015)
 
 
-def test_equations_poles_and_independent_gain_formula():
+def test_project_adapter_maps_physics_and_units_into_the_shared_model():
+    role,skill,data = next(jobs(BASE,{}))
+    assert role=='plant' and skill=='transfer-function-derivation'
+    assert data['system']['A']==[[0,1],[.980665/.02,-.005/.02]]
+    assert data['system']['B']==[[0],[1/.02]]
+    assert data['system']['state_units']==['rad','rad/s']
+    assert data['system']['input_unit']=='N*m'
     r = analyze(BASE)
-    assert sorted(r['closed_loop_poles_per_s']) == pytest.approx([-6, -4])
-    kp = .02*24 + 9.80665*.1
-    kd = .02*10-.005
-    assert r['K'][0] == pytest.approx([kp, kd])
     assert r['open_loop_unstable']
-    assert max(r['open_loop_poles_per_s']) > 0
-    w = np.array(r['bode']['omega_rad_s'])
-    independently = 1/np.sqrt((-.02*w*w-.980665)**2+(.005*w)**2)
-    assert r['bode']['magnitude_db'] == pytest.approx(20*np.log10(independently))
+    assert r['frequency_assessment']=='unassessed'
     assert r['sampled_stable']
 
 
