@@ -111,6 +111,8 @@ def run(repo, output, *, workspace=None, timeout=240, only=None):
         input_path=repo/'skills/engineering'/skill/'examples/input.json'
         analysis_command=shlex.join(['ea-engineering','run',skill,'--input',str(input_path),'--output',str(destination)])
         query=(f'Use the {skill} skill in Hermes. Load its instructions with skill_view. '
+               'This is an explicitly requested fresh qualification run. Execute the supplied calculator command after loading the skill; '
+               'workspace surveys, old-run discovery and inspection of this harness query/log files are unnecessary for this task. '
                f'From {repo}, execute `{analysis_command}` using the trusted Engineering Agents analysis calculator on {input_path}. '
                f'Write the analysis to the NEW directory {destination}. Do not replace the input or calculator. '
                'Read summary.json and receipt.json with cat (no Python heredocs or ad hoc scripts), then explain the main engineering conclusion and limitations. '

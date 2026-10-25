@@ -188,6 +188,21 @@ PYTHONPATH="$EA_ENGINEERING_REPO/src" "$EA_WORKSPACE/.venv/bin/python" \
 The pinned gateway does not accept `--run-budget`; live tasks use a bounded turn
 count and an external timeout while preserving the profile budget.
 
+## Extending the library
+
+Give a new skill one named, versioned primary output and a precise input/model
+scope. Add its folder, `contract.json`, example and validation reference, then
+register its calculator or dependency plan in `catalog.py`. Keep project choices
+in adapters or project compositions. Reuse existing outputs rather than copying
+their calculations into a new skill.
+
+For a leaf, add independent numerical oracles and negative/limiting examples.
+For a composition, declare its dependencies and test contracts, data flow,
+assessment logic and error propagation, assuming those dependencies are
+qualified. Qualify any new mathematics that the composition introduces. Change
+the contract version when its meaning or interface changes. Install and perform
+affected live checks before claiming harness qualification.
+
 Use ISO/IEC/IEEE 29148:2018 first, applicable NASA guidance second, ASD-STE100
 where compatible, and `shall` for normative requirements. Shared authoritative
 requirements policy remains in One-Piece.
