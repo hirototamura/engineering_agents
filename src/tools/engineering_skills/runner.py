@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import importlib
+import inspect
 import json
 from pathlib import Path
 import platform
@@ -53,7 +54,9 @@ def verify_canonical_requirements(data, store_path):
         if index.get((record['id'], record['revision'])) != record:
             raise ValueError('Requirement payload does not match its canonical One-Piece revision')
     return {'verified': True, 'store': str(Path(store_path).resolve()),
-            'record_digests': [digest_bytes(canonical(r)) for r in data['requirements']]}
+            'record_digests': [digest_bytes(canonical(r)) for r in data['requirements']],
+            'store_implementation': Store.__module__,
+            'store_implementation_sha256': digest_bytes(Path(inspect.getsourcefile(Store)).read_bytes())}
 
 
 def plot_results(discipline, result, output):
@@ -99,7 +102,8 @@ def run(discipline, input_path, output, *, store=None, artifact_root=None):
     started = time.monotonic()
     receipt = {'schema_version': 1, 'discipline': discipline, 'input_sha256': digest_bytes(raw),
                'started_at': datetime.now(timezone.utc).isoformat(), 'python': platform.python_version(),
-               'data_basis': data.get('data_basis'), 'physical_verified': False, 'status': 'running'}
+               'data_basis': data.get('data_basis'), 'physical_verified': False, 'status': 'running',
+               'numpy_version': np.__version__, 'runner_sha256': digest_bytes(Path(__file__).read_bytes())}
     try:
         receipt['source_revision'] = subprocess.check_output(['git', '-C', str(Path(__file__).resolve().parents[3]), 'rev-parse', 'HEAD'], text=True, stderr=subprocess.DEVNULL).strip()
     except (OSError, subprocess.CalledProcessError):
@@ -109,8 +113,17 @@ def run(discipline, input_path, output, *, store=None, artifact_root=None):
             receipt['canonical_requirements'] = verify_canonical_requirements(data, store)
             verify_artifacts(data, Path(artifact_root) if artifact_root else Path(input_path).resolve().parent)
         module = importlib.import_module('environment.engineering_analysis.'+discipline)
+        from environment.engineering_analysis import common
+        receipt['calculator_sha256'] = digest_bytes(Path(module.__file__).read_bytes())
+        receipt['common_guards_sha256'] = digest_bytes(Path(common.__file__).read_bytes())
+        import scipy
+        receipt['scipy_version'] = scipy.__version__
         result = module.analyze(data)
         json_write(out/'result.json', result)
+        summary = {k: v for k, v in result.items() if k not in ('bode', 'trace', 'parts')}
+        if 'parts' in result:
+            summary['part_count'] = len(result['parts'])
+        json_write(out/'summary.json', summary)
         plot_results(discipline, result, out)
         receipt['status'] = 'completed'
         receipt['result_sha256'] = digest_bytes((out/'result.json').read_bytes())

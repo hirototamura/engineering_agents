@@ -43,10 +43,10 @@ python -m tools.engineering_skills run gnc \
   --output experiments/balancing_cube/engineering_analysis/my-run/gnc
 ```
 
-Each output contains `input.json`, `result.json`, `receipt.json` and applicable
+Each output contains `input.json`, `result.json`, `summary.json`, `receipt.json` and applicable
 plots/CSV. Existing output directories are refused. A failure retains an input
 and a failure receipt. The receipt records source revision, data basis, software
-runtime, input/result/artifact hashes and duration. Assumed and synthetic inputs
+runtime/library versions, calculator/common/runner source hashes, input/result/artifact hashes and duration. Assumed and synthetic inputs
 are labelled; numerical calculations are not physical qualification.
 
 For systems assessment, use full records, not an LLM-rewritten requirement:
@@ -72,7 +72,8 @@ The existing pinned profile runs Hermes v0.22.4 and Qwen3.8-27B Q4_K_M through
 the CUDA llama.cpp endpoint `127.0.0.1:8016/v1` on the reserved A5000. The model
 and inference service are not restarted by skill installation. The default Hermes
 wrapper now installs the four repository skills into its profile on startup;
-existing changed skills cause a visible conflict rather than being overwritten.
+unchanged installer-owned copies can update, while human-edited skills cause a
+visible conflict rather than being overwritten.
 Source and calculator hashes are recorded in `engineering-skills-install.json`.
 
 ```bash

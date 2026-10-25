@@ -12,6 +12,8 @@ def install(repo, home):
     folders = sorted(p for p in source.iterdir() if (p/'SKILL.md').is_file())
     if len(folders) != 4:
         raise ValueError('Expected four versioned engineering skills')
+    previous_path = home/'engineering-skills-install.json'
+    previous = json.loads(previous_path.read_text()) if previous_path.exists() else {}
     planned = []
     hashes = {}
     for folder in folders:
@@ -26,14 +28,18 @@ def install(repo, home):
             if target.is_symlink():
                 raise FileExistsError(f'Refusing a symlink destination: {target}')
             if target.exists() and target.read_bytes() != path.read_bytes():
-                raise FileExistsError(f'Existing skill differs; review before updating: {target}')
+                actual = hashlib.sha256(target.read_bytes()).hexdigest()
+                if previous.get('skill_files', {}).get(str(relative)) != actual:
+                    raise FileExistsError(f'Existing skill differs; review before updating: {target}')
             if any(parent.is_symlink() for parent in target.parents if parent != parent.parent):
                 raise FileExistsError('Skill destination traverses a symlink')
             planned.append((path, target))
     for path, target in planned:
         target.parent.mkdir(parents=True, exist_ok=True)
-        if not target.exists():
-            shutil.copyfile(path, target)
+        if not target.exists() or target.read_bytes() != path.read_bytes():
+            temporary = target.with_suffix(target.suffix+'.ea-install-tmp')
+            shutil.copyfile(path, temporary)
+            temporary.replace(target)
     tool_hashes = {str(p.relative_to(repo)): hashlib.sha256(p.read_bytes()).hexdigest()
                    for base in ('src/environment/engineering_analysis', 'src/tools/engineering_skills')
                    for p in (repo/base).glob('*.py')}

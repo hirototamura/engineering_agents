@@ -14,3 +14,15 @@ def test_skill_install_is_discoverable_idempotent_and_protects_edits(tmp_path):
     f.write_text('human edit')
     with pytest.raises(FileExistsError):install(REPO,home)
     assert f.read_text()=='human edit'
+
+
+def test_installer_updates_only_unchanged_owned_copies(tmp_path):
+    import shutil
+    repo=tmp_path/'repo';repo.mkdir()
+    shutil.copytree(REPO/'skills',repo/'skills')
+    home=tmp_path/'profile'
+    install(repo,home)
+    path=next((repo/'skills/engineering').glob('*/SKILL.md'))
+    path.write_text(path.read_text()+'\nA new reviewed procedure.\n')
+    install(repo,home)
+    assert (home/'skills/engineering'/path.relative_to(repo/'skills/engineering')).read_bytes()==path.read_bytes()

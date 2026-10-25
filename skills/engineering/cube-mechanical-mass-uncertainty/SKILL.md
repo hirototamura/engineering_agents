@@ -15,7 +15,7 @@ Uncertainty uses independent uniform bounded mass/position inputs and a fixed ra
 
 ## Execute
 
-Hermes is the harness. Use its terminal tool to execute the trusted Engineering Agents calculator, then read `result.json`, `receipt.json` and the generated plots. The LLM explains and proposes; the calculator determines numerical results.
+Hermes is the harness. Use its terminal tool to execute the trusted Engineering Agents calculator, then read `summary.json`, `receipt.json` and the generated plots. `result.json` retains full arrays. The LLM explains and proposes; the calculator determines numerical results.
 
 From the Engineering Agents checkout (`EA_ENGINEERING_REPO` in the deployed wrapper):
 
@@ -26,5 +26,7 @@ ea-engineering run mechanical \
 ```
 
 The bundled input is an assumed example, not a measured cube or an approved design. Copy it to a new run input and replace the values with source-linked data.
+
+Read summaries with `cat summary.json receipt.json`; no ad hoc Python/heredoc formatter or approval-setting change is needed.
 
 Use a fresh output path. Failures leave an input and failure receipt; do not overwrite evidence or modify the tool to force a pass. Read [validation.md](references/validation.md) before claiming this skill is qualified. Read the scope/limitations in the machine result when reporting conclusions. State data gaps and the next discriminating measurement.

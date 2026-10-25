@@ -68,6 +68,8 @@ def analyze(data):
     samples = data.get('uncertainty_samples', 1000)
     if isinstance(samples, bool) or not isinstance(samples, int) or not 100 <= samples <= 10000:
         raise ValueError('uncertainty_samples shall be an integer in 100..10000')
+    if samples*len(data['parts']) > 250000:
+        raise ValueError('Uncertainty work budget exceeds 250000 part samples')
     rng = np.random.default_rng(data.get('seed', 0))
     draws = []
     # Uniform independent bounded intervals, not Gaussian errors or confidence claims.
