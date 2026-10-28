@@ -1,1 +1,21 @@
-{"hold_duration_s":6,"platform":"synthetic_simulation_fixture"}
+{
+  "schema": "engineering_metric_evidence/v1",
+  "id": "synthetic-six-seconds",
+  "requirement_ref": {
+    "id": "VALIDATION-HOLD",
+    "revision": "synthetic-1"
+  },
+  "design_ref": {
+    "id": "VALIDATION-DESIGN",
+    "revision": "1"
+  },
+  "configuration_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "domain": "simulation",
+  "metric": "unsupported_vertex_hold_duration",
+  "unit": "s",
+  "conditions": [
+    "after manual release"
+  ],
+  "status": "completed",
+  "value": 6
+}

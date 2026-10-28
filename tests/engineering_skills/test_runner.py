@@ -27,6 +27,49 @@ def test_bad_hash_and_forged_verified_flag_are_overridden(tmp_path):
     assert 'missing_or_bad_artifact_hash' in result['requirements'][0]['evidence'][0]['reasons']
 
 
+def test_verified_artifact_binds_metric_and_execution_metadata(tmp_path):
+    example=SKILLS/'requirement-evidence-assessment/examples'
+    data=json.loads((example/'input.json').read_text())
+    record=json.loads((example/'simulation.json').read_text())
+    artifact=tmp_path/'metric.json';artifact.write_bytes((example/'simulation.json').read_bytes())
+    data['evidence'][0]['artifact']['path']='metric.json'
+    data['requirements'][0]['data']['acceptance_criteria']['domain']='simulation'
+    p=tmp_path/'input.json'
+    def check(name):
+        p.write_text(json.dumps(data));run('systems',p,tmp_path/name)
+        return json.loads((tmp_path/name/'result.json').read_text())['requirements'][0]
+    data['evidence'][0]['value']=30
+    r=check('forged-value')
+    assert r['state']=='inconclusive' and 'metric_not_bound_to_artifact' in r['evidence'][0]['reasons']
+    data['evidence'][0]['value']=6
+    assert check('actual-value')['state']=='fail'
+    data['requirements'][0]['data']['acceptance_criteria']['value']=6
+    assert check('valid-pass')['state']=='pass'
+    data['evidence'][0]['configuration_digest']='b'*64
+    assert check('stale-metadata')['state']=='inconclusive'
+    data['evidence'][0]['configuration_digest']='a'*64
+    record['status']='failed';raw=json.dumps(record).encode();artifact.write_bytes(raw)
+    data['evidence'][0]['artifact']['sha256']=hashlib.sha256(raw).hexdigest()
+    r=check('mismatched-status')
+    assert r['state']=='inconclusive' and 'metric_not_bound_to_artifact' in r['evidence'][0]['reasons']
+
+
+def test_unrecognized_artifact_and_ineligible_failed_row_do_not_override_pass(tmp_path):
+    example=SKILLS/'requirement-evidence-assessment/examples'
+    data=json.loads((example/'input.json').read_text())
+    data['requirements'][0]['data']['acceptance_criteria'].update(domain='simulation',value=6)
+    data['evidence'][0]['artifact']['path']='valid.json'
+    (tmp_path/'valid.json').write_bytes((example/'simulation.json').read_bytes())
+    stale=dict(data['evidence'][0],id='stale',status='failed',configuration_digest='b'*64,
+               artifact={'path':'other.json','sha256':hashlib.sha256(b'{"hold_duration_s": 6}').hexdigest()})
+    (tmp_path/'other.json').write_bytes(b'{"hold_duration_s": 6}')
+    data['evidence'].append(stale)
+    p=tmp_path/'input.json';p.write_text(json.dumps(data));run('systems',p,tmp_path/'out')
+    result=json.loads((tmp_path/'out/result.json').read_text())['requirements'][0]
+    assert result['state']=='pass'
+    assert result['evidence'][1]['state']=='inconclusive' and 'metric_not_bound_to_artifact' in result['evidence'][1]['reasons']
+
+
 def test_failures_keep_a_receipt_and_non_synthetic_requires_ssot(tmp_path):
     p=tmp_path/'bad.json';p.write_text(json.dumps({'units':'wrong','data_basis':'assumed'}))
     with pytest.raises(ValueError):run('gnc',p,tmp_path/'out')

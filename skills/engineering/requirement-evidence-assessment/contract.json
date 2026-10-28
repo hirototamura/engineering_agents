@@ -11,6 +11,7 @@
   "requires": [],
   "validation": "independent_numerical_oracles",
   "input": {
+    "version": 2,
     "reference": "references/input_contract.md",
     "example": "examples/input.json"
   }

@@ -47,7 +47,7 @@
       "status": "completed",
       "artifact": {
         "path": "simulation.json",
-        "sha256": "bbc97f8660fc38a6fca699db037417e92d14e12cc1982222263794570aac3453"
+        "sha256": "37fd2996a39850f22d57bb96d3ed411a363aae27d4ad280bec0f7b8dd2273585"
       }
     }
   ]

@@ -122,6 +122,11 @@ ea-engineering run requirement-evidence-assessment --input review-input.json \
 ```
 
 The tool verifies store integrity, exact record identity and artifact hashes.
+Input contract version 2 requires a versioned metric record inside the hashed
+artifact; the metric value and execution metadata must match the evidence entry.
+Unrecognized legacy artifacts are inconclusive until a deterministic adapter
+produces that record. Hashes do not authenticate the producer or establish
+physical validity. Unsupported Boolean or string criteria remain inconclusive.
 Native requirement units are retained; conversions shall be explicit. A six-second
 simulation cannot verify a thirty-second hardware requirement. Human approval of
 requirement wording is distinct from verification status. Assessment does not
@@ -224,3 +229,6 @@ revisions and distinguishes numerical qualification from later display changes.
 Canonical One-Piece assessment, ECLSS proposal reinjection, packaging and strict
 documentation checks passed. These are software qualification results, not
 physical verification or baseline adoption.
+The record applies to its stated source revisions. The later artifact-binding
+repair changed the systems calculator and runner; repeat their qualification
+before claiming live validation of the revised implementation.

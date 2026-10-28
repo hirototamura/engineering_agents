@@ -30,14 +30,21 @@ def json_write(path, value):
 
 
 def verify_artifacts(data, root):
-    for evidence in data.get('evidence', []):
-        evidence['artifact_verified'] = False  # Never trust this field from an LLM.
+    verified = {}
+    for index, evidence in enumerate(data.get('evidence', [])):
         artifact = evidence.get('artifact', {})
         candidate = (root/artifact.get('path', '')).resolve()
         if not candidate.is_relative_to(root.resolve()):
             raise ValueError('Artifact escapes explicit artifact root')
         if candidate.is_file() and artifact.get('sha256'):
-            evidence['artifact_verified'] = digest_bytes(candidate.read_bytes()) == artifact['sha256']
+            raw = candidate.read_bytes()
+            if digest_bytes(raw) == artifact['sha256']:
+                try:
+                    record = json.loads(raw)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    record = None
+                verified[index] = {'hash_verified': True, 'record': record}
+    return verified
 
 
 def verify_canonical_requirements(data, store_path):
@@ -124,9 +131,10 @@ def run(discipline, input_path, output, *, store=None, artifact_root=None, _stac
     try:
         data = json.loads(raw)
         receipt['data_basis'] = data.get('data_basis')
+        verified_artifacts = None
         if skill.name == 'requirement-evidence-assessment':
             receipt['canonical_requirements'] = verify_canonical_requirements(data, store)
-            verify_artifacts(data, Path(artifact_root) if artifact_root else Path(input_path).resolve().parent)
+            verified_artifacts = verify_artifacts(data, Path(artifact_root) if artifact_root else Path(input_path).resolve().parent)
         module = implementation(skill)
         from environment.engineering_analysis import common
         receipt['calculator_sha256'] = digest_bytes(Path(module.__file__).read_bytes())
@@ -158,7 +166,10 @@ def run(discipline, input_path, output, *, store=None, artifact_root=None, _stac
                 dependencies[role] = json.loads((child_output/'result.json').read_text())
             if {r['skill'] for r in receipt['dependencies']} != set(skill.requires):
                 raise ValueError('Composition did not execute all declared dependencies')
-        result = getattr(module,skill.function)(data,dependencies) if skill.requires else getattr(module,skill.function)(data)
+        if skill.name == 'requirement-evidence-assessment':
+            result = getattr(module,skill.function)(data, verified_artifacts)
+        else:
+            result = getattr(module,skill.function)(data,dependencies) if skill.requires else getattr(module,skill.function)(data)
         result.update(schema_version=1,skill=skill.name,output_type=skill.output_type)
         json_write(out/'result.json', result)
         summary = {k: v for k, v in result.items() if k not in ('bode', 'trace', 'parts')}
