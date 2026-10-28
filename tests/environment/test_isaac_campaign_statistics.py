@@ -5,8 +5,7 @@ import json
 from pathlib import Path
 import pytest
 
-spec=importlib.util.spec_from_file_location('isaac_stats',Path(__file__).resolve().parents[2]/'scripts/summarize_isaac_campaign.py')
-module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+from scenario.balancing_cube import isaac_analysis as module
 
 
 def save(path,value):
@@ -46,3 +45,34 @@ def test_corrupt_shard_is_rejected(campaign,mutation):
     if mutation=='changed_source':value['source_sha256']='other'
     save(path,value)
     with pytest.raises(ValueError):module.summarize(campaign)
+
+
+def test_packaged_worker_manifest_and_cli_screening(campaign):
+    from typer.testing import CliRunner
+    from tools.cli.main import app
+    path=campaign/'manifest.json';value=json.loads(path.read_text())
+    value['worker_source_key']='batch.py'
+    value['source_hashes']={'batch.py':'source'}
+    save(path,value)
+    result=CliRunner().invoke(app,['isaac','analyze',str(campaign)])
+    assert result.exit_code==0, result.output
+    assert json.loads((campaign/'statistics.json').read_text())['trial_count']==1
+    assert len(json.loads((campaign/'screened-trials.json').read_text()))==1
+
+
+def test_cli_paired_comparison_keeps_failed_trial(campaign,tmp_path):
+    pytest.importorskip("scipy")
+    from typer.testing import CliRunner
+    from tools.cli.main import app
+    import shutil
+    candidate=tmp_path/'candidate';shutil.copytree(campaign,candidate)
+    before=[{'id':'one','corner':'000','screening_passed':True}]
+    after=[{'id':'one','corner':'000','screening_passed':False}]
+    save(campaign/'screened-trials.json',before);save(candidate/'screened-trials.json',after)
+    output=tmp_path/'paired.json'
+    result=CliRunner().invoke(app,['isaac','analyze',str(candidate),'--reference',str(campaign),'--output',str(output)])
+    assert result.exit_code==0, result.output
+    assert json.loads(output.read_text())['corners']['000']['pass_to_failed']==1
+    save(candidate/'plan.json',{'cases':[]})
+    with pytest.raises(ValueError,match='identical frozen trial plan'):
+        module.compare(campaign,candidate)

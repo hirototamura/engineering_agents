@@ -5,19 +5,20 @@ import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
-from integrations.one_piece.mechanical_bridge import MechanicalBridge
-from scenario.balancing_cube.adapter import BalancingCubeAdapter
-from environment.mujoco.contact import build_contact_xml
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--store', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--snapshot-revision', default='bottom-corner-000-20261017-3')
     parser.add_argument('--physics-only', action='store_true', help='Remove noncolliding decorative meshes for large batches')
     parser.add_argument('--proposal', type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    from integrations.one_piece.mechanical_bridge import MechanicalBridge
+    from scenario.balancing_cube.adapter import BalancingCubeAdapter
+    from environment.mujoco.contact import build_contact_xml
+
     args.output.mkdir(parents=True, exist_ok=False)
     snapshot = MechanicalBridge(args.store, snapshot_revision=args.snapshot_revision).load_snapshot()
     adapter = BalancingCubeAdapter(snapshot)

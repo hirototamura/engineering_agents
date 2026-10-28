@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 import sys
 import numpy as np
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from scenario.balancing_cube.evaluation import screening
 
 
@@ -36,7 +35,7 @@ def summarize(root):
         result=json.loads(path.read_text())
         if (result['gpu_uuid']!=shard['gpu_uuid'] or result['cases_sha256']!=shard['cases_sha256']
                 or result['input_digest']!=payload['compiled']['input_digest']
-                or result['source_sha256']!=manifest['source_hashes']['run_cube_batch_isaac.py']
+                or result['source_sha256']!=manifest['source_hashes'][manifest.get('worker_source_key', 'run_cube_batch_isaac.py')]
                 or result['trial_count']!=shard['trial_count']
                 or len(result['summaries'])!=shard['trial_count']):
             raise ValueError('Shard provenance or count mismatch')
@@ -63,9 +62,51 @@ def summarize(root):
         'uncertainty':'Wilson intervals describe this seeded initial-condition distribution, not model or hardware uncertainty.'},rows
 
 
-if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('campaign',type=Path);args=parser.parse_args()
-    stats,rows=summarize(args.campaign)
-    for name,value in [('statistics.json',stats),('screened-trials.json',rows)]:
-        with (args.campaign/name).open('x') as f: json.dump(value,f,indent=2,allow_nan=False)
-    print(json.dumps(stats,indent=2))
+
+def compare(reference, candidate):
+    from scipy.stats import binomtest
+    a=json.loads((reference/'plan.json').read_text());b=json.loads((candidate/'plan.json').read_text())
+    if a!=b: raise ValueError('Paired comparison requires the identical frozen trial plan')
+    first=json.loads((reference/'screened-trials.json').read_text());second=json.loads((candidate/'screened-trials.json').read_text())
+    left={r['id']:r for r in first};right={r['id']:r for r in second}
+    expected={c['id'] for c in a['cases']}
+    if len(left)!=len(first) or len(right)!=len(second) or set(left)!=expected or set(right)!=expected:
+        raise ValueError('Missing or duplicate paired trials')
+    out={}
+    for corner in sorted({r['corner'] for r in first}):
+        pairs=[(r,right[k]) for k,r in left.items() if r['corner']==corner]
+        improved=sum(not x['screening_passed'] and y['screening_passed'] for x,y in pairs)
+        regressed=sum(x['screening_passed'] and not y['screening_passed'] for x,y in pairs)
+        n=len(pairs);p=sum(x['screening_passed'] for x,y in pairs)/n;q=sum(y['screening_passed'] for x,y in pairs)/n
+        out[corner]={'count':n,'reference_pass_fraction':p,'candidate_pass_fraction':q,'difference_percentage_points':100*(q-p),
+            'failed_to_pass':improved,'pass_to_failed':regressed,
+            'mcnemar_exact_two_sided_p':float(binomtest(improved,improved+regressed,.5).pvalue) if improved+regressed else 1.,
+            'hypothesis_above_95_percent_observed':q>.95}
+    result={'corners':out,'physical_verified':False,'cross_backend_agreement':'inconclusive',
+        'scope':'Paired exploration, same initial conditions/noise and saved controller. Candidate selection used these exploration results.',
+        'statistical_limits':'Eight descriptive comparisons; p-values are unadjusted and do not establish hardware or model fidelity. Fresh validation seeds are needed before selection claims.'}
+    return result
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('campaign', type=Path)
+    parser.add_argument('--reference', type=Path, help='Compare this candidate with a paired reference campaign')
+    parser.add_argument('--output', type=Path, help='Required for paired comparison; new JSON output file')
+    args = parser.parse_args(argv)
+    if args.reference:
+        if args.output is None:
+            parser.error('--reference requires --output')
+        result = compare(args.reference, args.campaign)
+        with args.output.open('x') as stream:
+            json.dump(result, stream, indent=2, allow_nan=False)
+    else:
+        if args.output is not None:
+            parser.error('--output is only used with --reference')
+        result, rows = summarize(args.campaign)
+        for name, value in [('statistics.json', result), ('screened-trials.json', rows)]:
+            with (args.campaign/name).open('x') as stream:
+                json.dump(value, stream, indent=2, allow_nan=False)
+    print(json.dumps(result, indent=2))
+
+if __name__ == '__main__':
+    main()

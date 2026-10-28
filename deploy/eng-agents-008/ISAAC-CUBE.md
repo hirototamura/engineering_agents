@@ -34,24 +34,54 @@ Run from the workspace containing the three repositories. Use a fresh output
 directory for every command that writes evidence. NVIDIA's license acceptance
 was explicitly supplied by the user for this installation.
 
+Install Engineering Agents in the normal environment, and make its modules
+available to the separate Isaac environment without replacing Isaac's pinned
+dependencies. Run these installation commands from the workspace root:
+
 ```bash
-.venv/bin/python engineering_agents/scripts/export_cube_isaac.py \
+.venv/bin/python -m pip install -e engineering_agents
+.runtime/isaac/bin/python -m pip install --no-deps -e engineering_agents
+```
+
+The normal environment also needs the existing MuJoCo/One-Piece extras for export
+and proposals, and SciPy for paired comparisons. The normal environment owns
+`ea`; conversion and simulation use the explicit Isaac interpreter:
+
+```bash
+.venv/bin/ea isaac prepare export \
   --store one-piece/projects/balancing-cube/store --physics-only --output .runtime/isaac-cube/new-input
 CUDA_VISIBLE_DEVICES=<allocated-GPU-UUID> OMNI_KIT_ACCEPT_EULA=YES \
-  .runtime/isaac/bin/python engineering_agents/scripts/convert_cube_isaac.py \
+  .venv/bin/ea isaac prepare convert --python .runtime/isaac/bin/python \
   .runtime/isaac-cube/new-input
-.runtime/isaac/bin/python engineering_agents/scripts/audit_cube_isaac.py \
+.venv/bin/ea isaac prepare audit --python .runtime/isaac/bin/python \
   .runtime/isaac-cube/new-input
-.venv/bin/python engineering_agents/scripts/isaac_campaign.py \
-  .runtime/isaac-cube/new-input --python .runtime/isaac/bin/python \
-  --output .runtime/isaac-cube/new-campaign
-.venv/bin/python engineering_agents/scripts/summarize_isaac_campaign.py \
-  .runtime/isaac-cube/new-campaign
-.venv/bin/python engineering_agents/scripts/plot_isaac_campaign.py \
-  .runtime/isaac-cube/new-campaign
-.venv/bin/python engineering_agents/scripts/propose_isaac_design.py \
-  .runtime/isaac-cube/new-campaign --output .runtime/isaac-cube/new-proposal
+.venv/bin/ea isaac run campaign --python .runtime/isaac/bin/python \
+  .runtime/isaac-cube/new-input --output .runtime/isaac-cube/new-campaign
+.venv/bin/ea isaac analyze .runtime/isaac-cube/new-campaign
+.venv/bin/ea isaac plot .runtime/isaac-cube/new-campaign
+.venv/bin/ea isaac propose .runtime/isaac-cube/new-campaign \
+  --output .runtime/isaac-cube/new-proposal
 ```
+
+Use `ea isaac run pilot --python <isaac-python> INPUT --output NEW_RUN`
+for the wiring pilot, or `ea isaac run batch --python <isaac-python> INPUT
+--cases CASES.json --output NEW_SHARD` for one shard. Those operations require
+`CUDA_VISIBLE_DEVICES` set to the allocated GPU UUID. The campaign runner selects
+UUIDs itself after its existing allocation and occupancy checks.
+
+`ea isaac plot RUN --kind pilot|trials|campaign` selects a figure explicitly;
+otherwise the command detects the evidence type and rejects ambiguous inputs.
+`ea isaac analyze CANDIDATE --reference REFERENCE --output comparison.json`
+performs the existing paired comparison. Statistics and comparisons retain failed
+trials and refuse incomplete/tampered evidence. Existing archived campaign source
+keys remain readable; new manifests name the packaged batch worker explicitly.
+
+`ea isaac --help` lists the five commands. Each operation also provides help,
+for example `ea isaac prepare export --help` and `ea isaac run campaign --help`.
+Use `python -m tools.cli` in place of `ea` when the console executable is not on
+PATH. Runtime-specific modules under `environment.isaac` remain import-safe;
+Isaac, CUDA, USD and plotting libraries load only when the selected operation
+runs. There are no separate top-level Isaac Python scripts.
 
 Export an accepted compiler-valid proposal with `--proposal`
 and repeat import, audit, campaign and statistics. Matching campaign count/seed
@@ -137,3 +167,20 @@ poses, native-compatible sensor noise and rejection of corrupt statistical
 evidence. The final launcher additionally pins converted USD file hashes and
 refuses assets modified during a campaign. Earlier large campaigns predate that
 additional check; their archived asset bytes are pinned by the evidence pack.
+
+## CLI consolidation validation (2026-10-28)
+
+The twelve top-level Isaac scripts were replaced by the five `ea isaac`
+commands. Physics/runtime code lives in `environment.isaac`, campaign/evidence/
+proposal code in `scenario.balancing_cube`, and export/plotting/dispatch in
+`tools.isaac`. No changes to the physics calculations, screening gates or
+proposal bounds are intended by this refactor.
+
+Local validation: 1,203 tests passed, four skipped (existing optional coverage),
+and the ECLSS mock two-run proposal/reinjection smoke passed. Sixteen focused
+Isaac/CLI tests cover lazy imports, argument/help routing, worker launch and
+hashes, archived manifest compatibility, incomplete/tampered evidence, paired
+regressions and a generated telemetry plot. These tests are included in the
+mandatory cube CI job with its no-skips assertion. The refactored Isaac GPU
+runtime has not been executed on the server; archived GPU measurements above
+remain measurements of their original source revision.

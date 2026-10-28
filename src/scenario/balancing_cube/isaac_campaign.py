@@ -9,11 +9,10 @@ import subprocess
 import sys
 import time
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'src'))
 from environment.isaac.conditions import trial_plan
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('input', type=Path)
     parser.add_argument('--python', type=Path, required=True)
@@ -22,7 +21,7 @@ def main():
     parser.add_argument('--seed', type=int, default=20261023)
     parser.add_argument('--gpus', default='0,1,2,3,4,5')
     parser.add_argument('--timeout', type=float, default=3600)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     indices = [int(x) for x in args.gpus.split(',')]
     if len(set(indices)) != len(indices) or not indices or not set(indices) <= set(range(6)):
         raise ValueError('Only the user-allocated physical GPUs 0–5 are permitted')
@@ -42,13 +41,16 @@ def main():
         raise RuntimeError('An allocated GPU is occupied; refusing to overlap another workload')
     args.output.mkdir(parents=True, exist_ok=False)
     (args.output/'plan.json').write_text(json.dumps(plan, indent=2)+'\n')
-    source = Path(__file__).with_name('run_cube_batch_isaac.py')
+    from environment.isaac import batch, conditions
+    source = Path(batch.__file__)
     sources = args.output/'sources'; sources.mkdir()
-    for path in [Path(__file__), source, Path(__file__).resolve().parents[1]/'src/environment/isaac/conditions.py']:
+    for path in [Path(__file__), source, Path(conditions.__file__)]:
         shutil.copy2(path, sources/path.name)
     manifest = {'input': str(args.input.resolve()), 'input_sha256': hashlib.sha256((args.input/'input.json').read_bytes()).hexdigest(),
         'plan_sha256': hashlib.sha256((args.output/'plan.json').read_bytes()).hexdigest(),
         'gpu_inventory_before': inventory, 'shards': [], 'physical_verified': False,'asset_hashes':assets,
+        'worker_source_key': source.name,
+        'worker_module': 'environment.isaac.batch',
         'source_hashes': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sources.iterdir()}}
     children = []
     started = time.monotonic()
@@ -62,7 +64,7 @@ def main():
             gpu = devices[index][0]
             env = {**os.environ, 'CUDA_VISIBLE_DEVICES':gpu, 'OMNI_KIT_ACCEPT_EULA':'YES', 'HEADLESS':'1'}
             # Preserve the venv entry path: resolving its symlink loses pyvenv.cfg.
-            command = [str(args.python.absolute()), str(source.resolve()), str(args.input.resolve()),
+            command = [str(args.python.absolute()), '-m', 'environment.isaac.batch', str(args.input.resolve()),
                 '--cases', str(cases.resolve()), '--output', str(output.resolve())]
             process = subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT)
             children.append((process, log))

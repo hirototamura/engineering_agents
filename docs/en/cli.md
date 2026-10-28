@@ -252,3 +252,13 @@ These still work and delegate to the same execution path:
 - `python3 src/scripts/run_mock_eclss.py`
 - `python3 -m scenario.ssos_eclss_loop.scenario_run`
 - `from scenario.runner import run_scenario`
+
+
+## Isaac cube experiments
+
+`ea isaac` exposes `prepare`, `run`, `analyze`, `plot` and `propose`.
+See [runtime setup and complete commands](../../deploy/eng-agents-008/ISAAC-CUBE.md#commands).
+The normal EA interpreter handles export, campaign orchestration, analysis,
+plotting and proposals. Pass `--python <isaac-python>` for conversion, USD audit,
+pilot/batch simulation and campaign workers. GPU execution remains a separate
+qualification step; CLI help does not require Isaac or CUDA.

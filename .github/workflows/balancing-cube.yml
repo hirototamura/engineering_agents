@@ -46,6 +46,9 @@ jobs:
             tests/tools/test_workflow_study_report.py \
             tests/tools/test_qwen_deployment.py \
             tests/tools/test_cube_mounting_tools.py \
+            tests/environment/test_isaac_conditions.py \
+            tests/environment/test_isaac_campaign_statistics.py \
+            tests/tools/test_isaac_cli.py \
             --junitxml=cube-tests.xml
           python - <<'PY'
           import xml.etree.ElementTree as ET
