@@ -1,7 +1,6 @@
 """Seeded eight-corner initial states, in SI units and explicit XYZW order."""
 import itertools
 import numpy as np
-from scipy.spatial.transform import Rotation
 
 
 def body_com(physics):
@@ -26,6 +25,8 @@ def corner_frame(physics, corner):
 
 
 def initial_pose(config, case):
+    from scipy.spatial.transform import Rotation
+
     corner,direction,r0=corner_frame(config['physics'],case['corner'])
     tilt=np.deg2rad(case['initial_tilt_deg'])
     rotation=Rotation.from_rotvec([*tilt,0]).as_matrix()@r0

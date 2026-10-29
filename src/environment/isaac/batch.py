@@ -92,6 +92,8 @@ def main(argv=None):
         direction=tensor(np.stack([v[1] for v in initial])); corner=tensor(np.stack([v[2] for v in initial]))
         robot.write_root_pose_to_sim_index(root_pose=pose)
         velocity=torch.zeros((n,6),device='cuda:0');velocity[:,5]=tensor([c['initial_yaw_rate_rad_s'] for c in cases])
+        support_arm=rotate(pose[:,3:],corner)
+        velocity[:,:3]=-torch.cross(velocity[:,3:],support_arm,dim=-1)
         robot.write_root_link_velocity_to_sim_index(root_velocity=velocity)
         robot.write_joint_position_to_sim_index(position=torch.zeros_like(robot.data.default_joint_pos.torch))
         robot.write_joint_velocity_to_sim_index(velocity=torch.zeros_like(robot.data.default_joint_vel.torch))

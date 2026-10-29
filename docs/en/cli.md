@@ -257,7 +257,7 @@ These still work and delegate to the same execution path:
 ## Isaac cube experiments
 
 `ea isaac` exposes `prepare`, `run`, `analyze`, `plot` and `propose`.
-See [runtime setup and complete commands](../../deploy/eng-agents-008/ISAAC-CUBE.md#commands).
+See [runtime setup and complete commands](https://github.com/hirototamura/engineering_agents/blob/0565836c3801ad2f58ed642c2265e65c1255a12c/deploy/eng-agents-008/ISAAC-CUBE.md#commands).
 The normal EA interpreter handles export, campaign orchestration, analysis,
 plotting and proposals. Pass `--python <isaac-python>` for conversion, USD audit,
 pilot/batch simulation and campaign workers. GPU execution remains a separate

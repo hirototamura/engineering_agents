@@ -37,6 +37,28 @@ def test_operation_help_does_not_load_optional_physics():
         assert result.exit_code == 0, result.output
         assert 'usage:' in result.output
 
+    code = """
+import importlib.abc
+import sys
+
+class BlockScipy(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'scipy' or fullname.startswith('scipy.'):
+            raise ModuleNotFoundError('SciPy is intentionally unavailable')
+
+sys.meta_path.insert(0, BlockScipy())
+from typer.testing import CliRunner
+from tools.cli.main import app
+from environment.isaac.conditions import trial_plan
+assert len(trial_plan(8)['cases']) == 8
+for args in [['prepare', 'export'], ['run', 'campaign'], ['analyze'], ['plot'], ['propose']]:
+    result = CliRunner().invoke(app, ['isaac', *args, '--help'])
+    assert result.exit_code == 0, (args, result.exception, result.output)
+    assert 'usage:' in result.output
+"""
+    subprocess.run([sys.executable, '-c', code], check=True,
+                   env={**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[2]/'src')})
+
 
 def test_runtime_dispatch_keeps_python_path_arguments_and_failure(monkeypatch):
     calls=[]
