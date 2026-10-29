@@ -1,5 +1,9 @@
 # Isaac cube exploration
 
+The [campaign analysis tools](../../docs/en/isaac-campaign-analysis.md) add full
+technical reporting, eight-corner empirical percentile plots, case filters and
+a bounded read-only tool collection for Engineering Agents.
+
 Source review: [draft PR #85](https://github.com/hirototamura/engineering_agents/pull/85).
 The [private evidence Release](https://github.com/hirototamura/balancing-cube-simulation/releases/tag/isaac-cube-20261024)
 contains the 1.12 GB archive, videos, raw telemetry, paired comparisons and model
