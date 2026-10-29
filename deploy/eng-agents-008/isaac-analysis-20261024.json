@@ -1,0 +1,32 @@
+{
+  "asset": "isaac-analysis-evidence-20261024.zip",
+  "bytes": 194016176,
+  "sha256": "3f13ac7cea86b53bf185e925e2884e645d54d5cdddb193ea1b48b6f14e2090eb",
+  "source_commit": "cff20872d0a8645425885cdbf57f35c11e030484",
+  "file_count": 36,
+  "release_url": "https://github.com/hirototamura/balancing-cube-simulation/releases/tag/isaac-analysis-20261024",
+  "source_pr": "https://github.com/hirototamura/engineering_agents/pull/86",
+  "recorded_case_count": 49152,
+  "per_corner_per_campaign": 3072,
+  "analysis_only": true,
+  "physical_verified": false,
+  "percentile_coverages": [
+    68.3,
+    95.5,
+    99.7,
+    100
+  ],
+  "post_stop_modes": [
+    "all-recorded",
+    "evaluation-only"
+  ],
+  "validation": {
+    "local_full_suite": {
+      "passed": 1208,
+      "skipped": 4
+    },
+    "focused_analysis_tests": 13,
+    "viewer": "AppTest initial/candidate/both campaigns/radius/evaluation-only/empty/zoom passed"
+  },
+  "artifact_report": "technical-report.html"
+}
