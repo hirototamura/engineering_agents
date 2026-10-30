@@ -17,7 +17,7 @@
 
 対象は**人工衛星・宇宙船・ロケット・航空機・自動車・ヒューマノイドロボット**などの従来システムズエンジニアリングを必要とするハードウェア全般である。高忠実度 3D や実機接続より、**再現可能な設計→検証ループ**を優先する。
 
-**本リポジトリの主たるスコープは設計と検証である。** 監督（設計要求・検証要求の設定と、その要求自体の妥当性確認）は別リポジトリ **[One Piece](https://github.com/hirototamura/one-piece)** が担う。最終的には One Piece から要求を取得する連携が必要になるが、**現時点では実装しない**。本リポジトリでは `scenario.yaml` 等で要求をスタブし、設計・検証ループの実装に集中する。
+**本リポジトリの主たるスコープは設計と検証である。** 監督（設計要求・検証要求の設定と、その要求自体の妥当性確認）は別リポジトリ **[One Piece](https://github.com/hirototamura/one-piece)** が担う。**`balancing_cube` は版付き One-Piece スナップショットを既に読む**（要求・KDP・詳細パラメータ）。ECLSS シナリオは引き続き `scenario.yaml` で要求をスタブする。provenance エクスポートは SSOT pull の代替ではない。
 
 ---
 
@@ -192,7 +192,7 @@ integrations/one_piece  ← scenario から呼び出し
 
 ### やってよいこと
 
-- 表の **本デモ** 行のうち **設計** と **仮想検証** に集中する。監督の要求は `scenario.yaml` でスタブし、One Piece 連携は今は着手しない。
+- 表の **本デモ** 行のうち **設計** と **仮想検証** に集中する。ECLSS の監督要求は `scenario.yaml` でスタブする。ECLSS 側の One Piece pull は広げない。`balancing_cube` は機械系 SSOT ブリッジを既に使う。
 - **設計要求**と**検証要求**を `scenario.yaml` 等で明示し、版管理する（One Piece 連携までの暫定スタブ）。
 - 設計・検証が監督に**要求変更を提案**する経路を設計する（監督が改訂するまで現行要求で判定する）。
 - 要求が非現実的なとき、設計だけを曲げて適合させるのではなく**設計要求・検証要求の改訂**を検討する（**最重要要求**は侵さない）。
@@ -264,7 +264,8 @@ LLM モードは Ollama または研究室 vLLM が必要。CI・回帰は Fake 
 | [docs/architecture.md](architecture.md)                                   | レイヤ、実行フロー、エージェント設計                         |
 | [docs/api-contracts.md](api-contracts.md)                                 | `SimulatorProtocol`、JSONL、設計提案スキーマ         |
 | [docs/development-plan.md](development-plan.md)                         | 未完了機能、ロードマップ                               |
-| [docs/one-piece-integration.md](one-piece-integration.md)               | One Piece 連携（現状 provenance のみ。要求 pull は将来） |
+| [docs/one-piece-integration.md](one-piece-integration.md)               | ECLSS は provenance。キューブは `MechanicalBridge` で SSOT |
+| [MuJoCo設計反復](mujoco-one-piece.md) | `balancing_cube` 実行手順（CPU/GPU、Fake LLM、CLI制約） |
 | [docs/scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | 参照シナリオの仕様                                  |
 | [docs/scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) | SSOS 実 ECLSS シナリオ（Phase 0–7） |
 | [設計ループの学術解析](design-loop-analysis.md) | 設計→検証ループのアンサンブル物理 |

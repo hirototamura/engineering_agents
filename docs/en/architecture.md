@@ -15,18 +15,17 @@ Priorities:
 
 - **Structured agent relationships** (homogeneous team, representative action, deliberation logs)
 - **Clear API contracts** (backend protocols, JSONL)
-- **Two scenario tracks** — independent backends and output schemas (do not mix)
+- **Independent scenario tracks** — do not mix backends or result folders (ECLSS vs cube)
 
 
-| | `scrubber_degradation` | `ssos_eclss_loop` |
-| --- | --- | --- |
-| Narrative | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) |
-| Backend | `SimulatorProtocol` / `StationSimulator` | `EclssBackend` / `Ros2EclssBridge` |
-| Team | `ScrubberDegradationTeam` | `SsosEclssLoopTeam` (ops) + `PostRunDesignAgent` |
-| Rep IDs | `engineer_*` | `eclss_actor_*` (ops); `eclss_designer_*` (post-run) |
-| Runtime | Recovery commands | Operational commands (ARS/OGS, etc.) |
-| Post-run | Scrubber topology | `ssos_graph` |
-| Environment | Host Python only | mock or SSOS Docker |
+| | `scrubber_degradation` | `ssos_eclss_loop` | `balancing_cube` |
+| --- | --- | --- | --- |
+| Narrative | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) | [mujoco-one-piece.md](mujoco-one-piece.md) |
+| Backend | `SimulatorProtocol` / `StationSimulator` | `EclssBackend` / `Ros2EclssBridge` | `environment/mujoco/` (`mujoco_cpu` / `mjx_gpu`) |
+| Team | `ScrubberDegradationTeam` | `SsosEclssLoopTeam` (ops) + `PostRunDesignAgent` | Optional `DesignWorkflow` specialists; or `agents.mode: none` |
+| Runtime | Recovery commands | Operational commands (ARS/OGS, etc.) | Fixed-dt MuJoCo / MJX cases |
+| Post-run | Scrubber topology | `ssos_graph` | Bounded mechanical/control proposals |
+| Environment | Host Python only | mock or SSOS Docker | One-Piece store + optional CUDA |
 
 
 ---
@@ -55,6 +54,7 @@ environment/
       plant_sim/             # PlantSimEclssBackend — CLI default
       ros2/                  # Ros2EclssBridge, graph_rewire, topics
     eps/ros2/                # Ros2EpsBridge only — scrubber EPS option; not wired to eclss loop
+  mujoco/                    # balancing_cube (native + MJX GPU)
 ```
 
 ```mermaid
@@ -120,12 +120,12 @@ src/integrations/   (invoked from scenario)
 | Layer | Path | Responsibility |
 | --- | --- | --- |
 | Core | `src/core/` | Persona, Team ABC, memory, LLM client |
-| Environment | `src/environment/` | `scrubber/`: `SimulatorProtocol`, mock ECLSS ppm, mock EPS (`MockEpsBackend` or `Ros2EpsBridge`). `ssos/eclss/`: `EclssBackend`, mock \| ros2, `graph_rewire`. `ssos/ros2/cli.py`: shared ROS2 CLI. `ssos/eps/ros2/`: EPS bridge (scrubber optional; not used by eclss loop) |
-| Scenario | `src/scenario/` | Per-scenario YAML, Team, `design_proposals` |
+| Environment | `src/environment/` | `scrubber/`: `SimulatorProtocol`, mock ECLSS ppm, mock EPS. `ssos/eclss/`: `EclssBackend`. `mujoco/`: native MuJoCo + MJX GPU backends for `balancing_cube` |
+| Scenario | `src/scenario/` | Per-scenario YAML, Team, `design_proposals`. Cube loop: `scenario/balancing_cube/` |
 | ECLSS experiments | `experiments/eclss/` | ECLSS archives, analysis, and run output |
 | Cube experiments | `experiments/balancing_cube/` | Balancing-cube reports and run output |
 | Tools | `src/tools/dashboard/` | Streamlit (view branches on `summary.scenario`) |
-| Integrations | `src/integrations/one_piece/` | provenance JSON |
+| Integrations | `src/integrations/one_piece/` | ECLSS: provenance JSON. Cube: `mechanical_bridge.py` (SSOT in, evidence outbox) |
 
 ### Agent team (shared across both tracks)
 

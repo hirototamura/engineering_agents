@@ -29,7 +29,7 @@ To match the physics-only baseline in `scenario.yaml`, pass `--agents-mode none`
 
 | Command | Purpose |
 | --- | --- |
-| `ea run [SCENARIO]` | Run one simulation. On `ssos_eclss_loop`, `iteration.enabled` or `--iterate N` chains design→verify |
+| `ea run [SCENARIO]` | Run one simulation. On `ssos_eclss_loop`, `iteration.enabled` or `--iterate N` chains design→verify. On `balancing_cube`, `--iterate` sets `iteration.count` (mechanical budget, not the ECLSS chain) |
 | `ea scenarios` | List available scenarios |
 | `ea results [RUN_ID] [--track eclss\|balancing_cube]` | List recent runs or show one `summary.json` in the selected project folder |
 | `ea doctor` | Check Python 3.11+, dependencies, Docker/SSOS mounts, Ollama, and vLLM |
@@ -70,7 +70,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | `--results-root` | Override the selected project's result folder (also `EA_RESULTS_ROOT`) |
 | `--set KEY=VALUE` | Dot-notation deep override |
 | `--override-file` | YAML/JSON patch merged into scenario config |
-| `--backend` | `mock`, `plant_sim`, or `ros2` (`ssos_eclss_loop` only) |
+| `--backend` | ECLSS: `mock`, `plant_sim`, or `ros2`. Cube: `mujoco_cpu` or `mjx_gpu` (`cpu`/`gpu` aliases) |
 | `--inject-failures` / `--no-inject-failures` | Apply the `ssos_eclss_loop` `subsystem_failures` schedule (default: off) |
 | `--apply-proposals` | Apply prior `design_proposals.json` (`ssos_eclss_loop`) |
 | `--approve-provisional` / `--no-approve-provisional` | Adopt `provisional_final` LLM designs. Omit to use `scenario.yaml` `iteration.approve_provisional` (default false). |
@@ -100,6 +100,31 @@ The source of truth for the design→verify chain is `ssos_eclss_loop` `scenario
 | `--llm-model` / `VLLM_MODEL` | Stamps **both** actor and designer models | `--set agents.actor.llm.model=` and `agents.design.llm.model=` separately |
 | Labeled WRS on `--backend mock` | `LoopMockEclssBackend.send_water_recovery_goal` raises `NotImplementedError` | `--backend plant_sim` (or ros2) |
 | Scrubber `--apply-proposals` | File is written; **not** re-injected into the next sim | Closed loop is ssos only |
+
+### Pitfalls (`balancing_cube`)
+
+`ea run balancing_cube` is dispatched to `tools.cli.commands.mechanical.run_mechanical`, not the ECLSS iterate path. `scenario.yaml` defaults: `backend.kind: mujoco_cpu`, `agents.mode: llm`, `iteration.enabled: true`, `count: 5`. `ssot.path` is `null` until you set it.
+
+```bash
+ea run balancing_cube --backend mujoco_cpu --design-mode none \
+  --set ssot.path=../one-piece/projects/balancing-cube/store
+ea results --track balancing_cube
+```
+
+| Trap | What actually happens | What to pass |
+| --- | --- | --- |
+| Missing `ssot.path` | Exit 2: model/requirements cannot be copied from local defaults | `--set ssot.path=/path/to/onepiece-store` |
+| `--backend mock` / `plant_sim` / `ros2` | Exit 2: backend must be `mujoco_cpu` or `mjx_gpu` | `--backend mujoco_cpu` (or `mjx_gpu` / `cpu` / `gpu`) |
+| `--agents-mode labeled_rule_base` | Exit 2: rule fallback is never labelled LLM | `--design-mode none` or `llm` (`--agents-mode` is the same knob here) |
+| `--seed` | Exit 2: mechanical seeds are frozen in SSOT | omit `--seed` |
+| `--set simulation.steps=…` or physics keys | Exit 2: overrides may configure ssot/backend/agents/budget only | `--set` top-level keys: `ssot`, `backend`, `agents`, `iteration`, `output`, `memory` |
+| `memory.*` besides `enabled` / `seed_runs` | Exit 2 | `--set memory.enabled=true` / `memory.seed_runs=…` |
+| `iteration` fields outside budget | Exit 2 | `enabled`, `count`, `max_candidates`, `max_wall_s`, `stagnation_rounds`, `proposal_retries` (0..3) |
+| GPU requested but unavailable | Inconclusive run, **nonzero CLI exit**; CPU path stays valid | `--backend mujoco_cpu` unless MJX is actually present |
+| `--iterate` without scenario | Selects **ssos_eclss_loop**, not the cube | Pass `balancing_cube` as the scenario argument |
+| Bare cube `llm` without a designer | Needs Ollama/vLLM as in YAML (`provider: ollama`, `model: llama3.2`) | `--design-mode none` for reference-only; Fake LLM is `scripts/verify_cube_loop.py` |
+
+Budget caps enforced in the CLI: rounds 1–20, candidates 1–80, wall time ≤ 7200 s, stagnation 1–20. YAML defaults are 5 / 20 / 1800 s / 3. `--apply-proposals` loads `selected_candidate` (or the whole document) as the starting proposal; it does not merge ECLSS `ssos_graph` files. Results land under `experiments/balancing_cube/results/`. See [MuJoCo design loop](mujoco-one-piece.md).
 
 `ea run --iterate N` chains the unified post-run designer (`tool-use` / labeled) across N simulations. Omitting the scenario argument selects `ssos_eclss_loop`. Child sims use the same backend, actor/design modes, and `inject_failures` as a single `ea run` (CLI pins plant_sim, labeled actors, llm design; `inject_failures` stays the scenario.yaml value unless `--inject-failures` / `--set inject_failures=true`). `--approve-provisional` on prints INFO (this sim auto-approves LLM designs so the loop can run without a human; `--no-approve-provisional` restores the gate). Run k applies run k-1's adopted `applied_proposals.json` through unified `apply_design_proposals` (including `capacity_profile`). `set_parameter` (`thresholds.*`) is not auto-applied in the chain, so verification requirements stay frozen. Empty proposals do not stop the chain: the next simulation reuses the last applied file, or the initial YAML if none exist yet, until the chain completes. The last run verifies prior proposals; proposals it emits stay unverified. The verdict compares the selected flown machine's `crew_remaining` to the first iteration (`IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`). Replay numbers stay as evidence. The adopted design is the best flown machine, written to `chain_final_answer.json` (full survival, manufacturable and physics-gate-passed are required; over budget comes back as `provisional_final` for a human; nothing qualifying is said plainly. If thresholds, crew size, steps or backend moved partway through, it stops at `not_comparable` instead of ranking). `--no-paired-replay` is inconclusive. `ros2` is rejected. Cannot be combined with `--apply-proposals`. The terminal shows a crew-remaining table plus progress for the current simulation (step %) and completed iterations (N/M) on YAML-enabled chains and on `--iterate`. A single ssos sim (`iteration.enabled=false`) uses the same step bar. The dashboard lists iterate children (`01/`, replays) as selectable runs. Effective chain settings are written to `chain_summary.json` under `iteration`.
 

@@ -14,18 +14,17 @@
 
 - **構造化されたエージェント関係**（同種チーム、代表 action、議論ログ）
 - **明確な API 契約**（バックエンドプロトコル、JSONL）
-- **二系統のシナリオ** — 独立したバックエンドと出力スキーマ（混在しない）
+- **独立したシナリオ系統** — バックエンドも結果フォルダも混在させない（ECLSS とキューブ）
 
 
-|        | `scrubber_degradation`                                               | `ssos_eclss_loop`                                          |
-| ------ | -------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 叙事     | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) |
-| バックエンド | `SimulatorProtocol` / `StationSimulator`                             | `EclssBackend` / `Ros2EclssBridge`                         |
-| チーム    | `ScrubberDegradationTeam`                                            | `SsosEclssLoopTeam`（運用）+ `PostRunDesignAgent`           |
-| 代表 ID  | `engineer_`*                                                         | `eclss_actor_*`（運用）；`eclss_designer_*`（事後）           |
-| ランタイム  | 回復コマンド                                                               | 運用コマンド（ARS/OGS 等）                                          |
-| 事後提案   | scrubber トポロジ                                                        | `ssos_graph`                                               |
-| 実行環境   | ホスト Python のみ                                                        | mock または SSOS Docker                                       |
+|        | `scrubber_degradation`                                               | `ssos_eclss_loop`                                          | `balancing_cube` |
+| ------ | -------------------------------------------------------------------- | ---------------------------------------------------------- | --- |
+| 叙事     | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) | [mujoco-one-piece.md](mujoco-one-piece.md) |
+| バックエンド | `SimulatorProtocol` / `StationSimulator`                             | `EclssBackend` / `Ros2EclssBridge`                         | `environment/mujoco/`（`mujoco_cpu` / `mjx_gpu`） |
+| チーム    | `ScrubberDegradationTeam`                                            | `SsosEclssLoopTeam`（運用）+ `PostRunDesignAgent`           | 任意の `DesignWorkflow`。または `agents.mode: none` |
+| ランタイム  | 回復コマンド                                                               | 運用コマンド（ARS/OGS 等）                                          | 固定刻み MuJoCo / MJX |
+| 事後提案   | scrubber トポロジ                                                        | `ssos_graph`                                               | 有界な機械/制御提案 |
+| 実行環境   | ホスト Python のみ                                                        | mock または SSOS Docker                                       | One-Piece ストア + 任意 CUDA |
 
 
 ---
@@ -54,6 +53,7 @@ environment/
       plant_sim/             # PlantSimEclssBackend — CLI 既定
       ros2/                  # Ros2EclssBridge, graph_rewire, topics
     eps/ros2/                # Ros2EpsBridge のみ — scrubber EPS オプション。eclss loop 未接続
+  mujoco/                    # balancing_cube（ネイティブ + MJX GPU）
 ```
 
 ```mermaid
@@ -120,12 +120,12 @@ src/integrations/   （scenario から呼び出し）
 | レイヤ          | パス                            | 責務                                                                         |
 | ------------ | ----------------------------- | -------------------------------------------------------------------------- |
 | Core         | `src/core/`                   | Persona、Team ABC、メモリ、LLM クライアント                                            |
-| Environment  | `src/environment/`            | `scrubber/`: `SimulatorProtocol`、mock ECLSS ppm、mock EPS（`MockEpsBackend` または `Ros2EpsBridge`）。`ssos/eclss/`: `EclssBackend`、mock \| ros2、`graph_rewire`。`ssos/ros2/cli.py`: 共有 ROS2 CLI。`ssos/eps/ros2/`: EPS ブリッジ（scrubber 任意、eclss loop 未使用） |
-| Scenario     | `src/scenario/`               | 各シナリオ YAML、Team、`design_proposals`                                         |
+| Environment  | `src/environment/`            | `scrubber/`、`ssos/eclss/`、`mujoco/`（`balancing_cube` のネイティブ MuJoCo と MJX GPU） |
+| Scenario     | `src/scenario/`               | 各シナリオ YAML、Team、`design_proposals`。キューブは `scenario/balancing_cube/` |
 | ECLSS 実験 | `experiments/eclss/` | ECLSS のアーカイブ、解析、実行出力 |
 | キューブ実験 | `experiments/balancing_cube/` | キューブのレポートと実行出力 |
 | Tools        | `src/tools/dashboard/`        | Streamlit（`summary.scenario` でビュー分岐）                                       |
-| Integrations | `src/integrations/one_piece/` | provenance JSON                                                            |
+| Integrations | `src/integrations/one_piece/` | ECLSS: provenance JSON。キューブ: `mechanical_bridge.py`（SSOT 入力、evidence outbox） |
 
 
 ### エージェントチーム（両系統共通）

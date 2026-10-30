@@ -1,7 +1,14 @@
 
 # One Piece Integration
 
-Records **provenance** of design changes and operational recovery in JSON compatible with the One Piece data model. The full [One Piece](https://github.com/hirototamura/one-piece) Web UI is out of scope for the current MVP.
+Two different integrations share this directory:
+
+| Track | What is implemented | What is not |
+| --- | --- | --- |
+| **`balancing_cube`** | `MechanicalBridge` **reads** a pinned One-Piece store (`ssot.path`): snapshot, requirements, KDPs, detailed parameters. Evidence is written through a durable outbox. | Editing One-Piece requirements from this repo; treating CPU-only as GPU agreement |
+| **ECLSS** (`scrubber_degradation`, `ssos_eclss_loop`) | **Provenance export** of recovery/ops/design events as JSON compatible with the One Piece data model | Pulling ECLSS design/verification requirements from One-Piece SSOT (still stubbed in `scenario.yaml`) |
+
+The full [One Piece](https://github.com/hirototamura/one-piece) Web UI is out of scope. Cube runbook: [MuJoCo design loop](mujoco-one-piece.md).
 
 > JSONL schema: [api-contracts.md](api-contracts.md). Incomplete items: [development-plan.md](development-plan.md).
 
@@ -23,9 +30,12 @@ The simulation loop is not blocked by provenance generation. On failure, only a 
 
 ```text
 src/integrations/one_piece/
-├── __init__.py        # export_run_provenance
-├── client.py          # build records from events/messages
-└── ssot_schema.json   # MVP subset (elements, parameters, traces)
+├── __init__.py              # export_run_provenance (ECLSS)
+├── client.py                # build records from events/messages
+├── ssot_schema.json         # MVP subset (elements, parameters, traces)
+├── mechanical_bridge.py     # balancing_cube SSOT load + evidence outbox
+├── balancing_cube_import.py
+└── agent_context_exclusions.json
 ```
 
 ---

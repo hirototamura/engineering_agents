@@ -1,6 +1,13 @@
 # One Piece 連携
 
-設計変更と運用回復の **provenance（来歴）** を、One Piece のデータモデルと互換な JSON で記録する。完全な [One Piece](https://github.com/hirototamura/one-piece) Web UI は現 MVP のスコープ外。
+このディレクトリには **二つの連携** がある。
+
+| 系統 | 実装済み | 未実装 |
+| --- | --- | --- |
+| **`balancing_cube`** | `MechanicalBridge` が版付き One-Piece ストア（`ssot.path`）を**読む**。スナップショット・要求・KDP・詳細パラメータ。証拠は durable outbox | 本リポジトリからの要求改訂。CPU のみで GPU 一致を主張すること |
+| **ECLSS** | 回復/運用/設計イベントの **provenance エクスポート**（One Piece データモデル互換 JSON） | ECLSS の設計/検証要求を One-Piece SSOT から pull（`scenario.yaml` スタブのまま） |
+
+完全な [One Piece](https://github.com/hirototamura/one-piece) Web UI はスコープ外。キューブ実行: [MuJoCo設計反復](mujoco-one-piece.md)。
 
 > JSONL スキーマ: [api-contracts.md](api-contracts.md)。未完了項目: [development-plan.md](development-plan.md)。
 
@@ -23,9 +30,12 @@
 
 ```text
 src/integrations/one_piece/
-├── __init__.py        # export_run_provenance
-├── client.py          # events/messages からレコード構築
-└── ssot_schema.json   # MVP サブセット（elements, parameters, traces）
+├── __init__.py              # export_run_provenance（ECLSS）
+├── client.py                # events/messages からレコード構築
+├── ssot_schema.json         # MVP サブセット
+├── mechanical_bridge.py     # balancing_cube の SSOT 読込と evidence outbox
+├── balancing_cube_import.py
+└── agent_context_exclusions.json
 ```
 
 ---
