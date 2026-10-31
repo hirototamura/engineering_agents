@@ -123,7 +123,7 @@ def test_agent_tools_are_bounded_and_keep_denominators(dataset):
     with pytest.raises(ValueError):tools.call('isaac_tilt_quantiles',{'mode':'all-recorded','time_indices':list(range(33))})
 
 
-def original_campaign(tmp_path):
+def original_campaign(tmp_path, worker_source_key=None):
     root=tmp_path/'campaign';root.mkdir();inp=tmp_path/'input';inp.mkdir();shard=root/'shard-0';shard.mkdir()
     p={'cube_side_m':.16,'frame_mass_kg':.5,'frame_com_fraction':[.5]*3,'frame_inertia_kg_m2':[.002]*3,
         'wheel_mass_kg':.05,'wheel_radius_m':.04,'wheel_axial_inertia_kg_m2':.0001,'wheel_thickness_m':.006,
@@ -134,9 +134,11 @@ def original_campaign(tmp_path):
     case={'id':'one','corner':'000','initial_tilt_deg':[0.,0.],'initial_yaw_rate_rad_s':0.,'seed':10,'duration_s':.03}
     (root/'plan.json').write_text(json.dumps({'seed':1,'cases':[case],'trial_count':1}))
     (root/'cases-0.json').write_text(json.dumps({'cases':[case]}))
-    (root/'sources').mkdir();code=root/'sources/run_cube_batch_isaac.py';code.write_text('# frozen source')
+    worker=worker_source_key or 'run_cube_batch_isaac.py'
+    (root/'sources').mkdir();code=root/'sources'/worker;code.write_text('# frozen source')
     manifest={'status':'completed','input':str(inp),'input_sha256':sha256(inp/'input.json'),'plan_sha256':sha256(root/'plan.json'),
-        'source_hashes':{'run_cube_batch_isaac.py':sha256(code)},'shards':[{'rank':0,'gpu_uuid':'gpu','gpu_index':0,'trial_count':1,'cases_sha256':sha256(root/'cases-0.json')}]}
+        'source_hashes':{worker:sha256(code)},'shards':[{'rank':0,'gpu_uuid':'gpu','gpu_index':0,'trial_count':1,'cases_sha256':sha256(root/'cases-0.json')}]}
+    if worker_source_key is not None:manifest['worker_source_key']=worker_source_key
     (root/'manifest.json').write_text(json.dumps(manifest))
     result={'gpu_uuid':'gpu','input_digest':'fixed','source_sha256':sha256(code),'trial_count':1,'cases_sha256':sha256(root/'cases-0.json'),
         'summaries':[{**case,'peak_tilt_deg':2.,'status':'completed','simulated_duration_s':.03}]}
@@ -146,11 +148,20 @@ def original_campaign(tmp_path):
     return root
 
 
-def test_preparation_and_hash_verification(tmp_path):
-    root=original_campaign(tmp_path);out=tmp_path/'derived';d=prepare({'tiny':root},out)
+@pytest.mark.parametrize('worker_source_key',[None,'batch.py'])
+def test_preparation_and_hash_verification(tmp_path,worker_source_key):
+    root=original_campaign(tmp_path,worker_source_key);out=tmp_path/'derived';d=prepare({'tiny':root},out)
     assert len(d.cases)==1 and d.tilt[0,-1,2]==2
     with (out/'tilt.npy').open('ab') as f:f.write(b'changed')
     with pytest.raises(ValueError,match='cache changed'):load(out,verify=True)
+
+
+@pytest.mark.parametrize('worker_source_key',[None,'batch.py'])
+def test_preparation_rejects_wrong_worker_hash(tmp_path,worker_source_key):
+    root=original_campaign(tmp_path,worker_source_key);path=root/'shard-0/result.json'
+    result=json.loads(path.read_text());result['source_sha256']='wrong-worker-hash'
+    path.write_text(json.dumps(result))
+    with pytest.raises(ValueError,match='Shard provenance mismatch'):prepare({'bad':root},tmp_path/'bad-derived')
 
 
 def test_preparation_rejects_conflicting_raw_summary(tmp_path):

@@ -90,7 +90,7 @@ def prepare(campaigns, output):
             if sha256(case_path)!=shard['cases_sha256']: raise ValueError('Shard cases hash mismatch')
             if (result['input_digest']!=payload['compiled']['input_digest'] or result['gpu_uuid']!=shard['gpu_uuid']
                     or result['cases_sha256']!=shard['cases_sha256']
-                    or result['source_sha256']!=m['source_hashes']['run_cube_batch_isaac.py']
+                    or result['source_sha256']!=m['source_hashes'][m.get('worker_source_key','run_cube_batch_isaac.py')]
                     or result['trial_count']!=shard['trial_count']): raise ValueError('Shard provenance mismatch')
             for file in [result_path, folder/'telemetry.npz', case_path]:
                 evidence.append({'path':str(file),'sha256':sha256(file)})
