@@ -145,17 +145,31 @@ Details: [SSOS Docker setup](ssos/quickstart.md) · Full CLI reference: [CLI gui
 | --- | --- | --- | --- |
 | [scrubber_degradation](scenario-scrubber-degradation.md) | CO₂ scrubber anomaly on a Python mock plant | `StationSimulator` | `ea run scrubber_degradation --agents-mode labeled_rule_base` |
 | [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | Agent team operating SSOS ECLSS (ARS/OGS/WRS) | `plant_sim` (CLI default), `mock`, or `ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --set iteration.enabled=false` |
+| [balancing_cube](mujoco-one-piece.md) | SSOT-driven MuJoCo cube design→verify | `mujoco_cpu` or `mjx_gpu` | `ea run balancing_cube --backend mujoco_cpu --design-mode none --set ssot.path=…` |
 
-Both scenarios share the same agent pattern: **`none`**, **`labeled_rule_base`** (reproducible regression), or **`llm`** (Ollama or lab vLLM).
+ECLSS scenarios share **`none`**, **`labeled_rule_base`** (reproducible regression), or **`llm`**. `balancing_cube` accepts **`none`** (reference evaluation) or **`llm`** only — `labeled_rule_base` is rejected so a rule fallback is never labelled LLM.
+
+### Balancing cube (One-Piece SSOT, no Docker)
+
+Requires a local One-Piece store path. Optional extras: `pip install -e ".[mujoco]"` (CPU) or `.[gpu]` (MJX).
+
+```bash
+ea run balancing_cube --backend mujoco_cpu --design-mode none \
+  --set ssot.path=../one-piece/projects/balancing-cube/store
+ea results --track balancing_cube
+```
+
+`--seed` is rejected (evaluation seeds live in SSOT). `--set` may only touch `ssot`, `backend`, `agents`, `iteration`, `output`, `memory`. Details: [MuJoCo design loop](mujoco-one-piece.md).
 
 ---
 
 ## Where results are saved
 
-Default output root:
+Default output roots:
 
 ```text
-experiments/eclss/results/<run_id>/
+experiments/eclss/results/<run_id>/              # scrubber, ssos_eclss_loop
+experiments/balancing_cube/results/<run_id>/     # balancing_cube
 ```
 
 | File | Description |
@@ -171,7 +185,8 @@ experiments/eclss/results/<run_id>/
 Override with `--run-id`, `--output-dir`, or `EA_RESULTS_ROOT`.
 
 ```bash
-ea results                          # list recent runs
+ea results                          # ECLSS track
+ea results --track balancing_cube
 ea results scrubber_degradation_labeled_rule_base
 python3 -m streamlit run src/tools/dashboard/app.py   # optional dashboard
 ```
@@ -192,4 +207,5 @@ python3 -m streamlit run src/tools/dashboard/app.py   # optional dashboard
 | JSONL and API contracts | [API contracts](api-contracts.md) |
 | Coding agent discipline | [Engineering guide](AGENTS.md) |
 | SSOS Docker + ROS 2 integration | [SSOS integration](ssos/index.md) |
+| Balancing cube + One-Piece SSOT | [MuJoCo design loop](mujoco-one-piece.md) |
 | Browse docs locally | `pip install -e ".[dev]" && mkdocs serve` → [http://127.0.0.1:8000](http://127.0.0.1:8000) |

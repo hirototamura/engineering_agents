@@ -43,7 +43,9 @@ python scripts/verify_cube_loop.py \
   --store ../one-piece/projects/balancing-cube/store --output results/cube-offline-check
 ```
 
-`none`は比較基準をCPUで探索・確認する。Fake LLMの受入スクリプトは実際のCPUで2反復し、One-Pieceへの保存と再取得を検査する。既定のsnapshot `cube.simulation.snapshot@fixed-dt-mvp-2` は `D-000544-52890` の版を比較基準として指定する。LQR設計時の線形化モデルと保存済みKは元の構成を維持する。比較基準の指定は採用baselineの確定ではない。
+CLI制約（`run_mechanical` / `BalancingCubeScenario`）: `ssot.path` 必須。バックエンドは `mujoco_cpu`/`mjx_gpu`（`cpu`/`gpu` エイリアス）。エージェントは `llm` か `none` のみ。`--seed` は拒否。`--set` は `ssot` / `backend` / `agents` / `iteration` / `output` / `memory` のみ。シナリオ名なしの `--iterate` は `ssos_eclss_loop` になる。結果一覧は `ea results --track balancing_cube`。
+
+`none`は比較基準をCPUで探索・確認する。Fake LLMの受入スクリプトは実際のCPUで2反復し、One-Pieceへの保存と再取得を検査する。既定のsnapshotは `cube.simulation.snapshot@bottom-corner-000-20261017-3`（支持コーナー000に接する3面）。歴史再現用に `fixed-dt-mvp-2` も明示指定できる。比較基準の指定は採用baselineの確定ではない。
 
 実LLMの反復は `--design-mode llm --iterate 2 --llm-provider ollama` を使う。GPUは任意の `.[gpu]` とCUDA環境を別途用意し、`--backend mjx_gpu` を指定する。今回、新しい実LLM・GPU実行は確認していない。outbox再送は `MechanicalBridge(store_path).outbox(run_dir).flush()` で行える。送信が未完了なら次のPIへ進まない。
 

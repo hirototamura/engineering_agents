@@ -16,9 +16,11 @@ MkDocs サイトの全ページ一覧です。ヘッダーの言語切替で Eng
 | | [エージェントガイド](AGENTS.md) | ミッション、コーディング規律 |
 | シナリオ | [scrubber_degradation](scenario-scrubber-degradation.md) | Mock CO₂ スクラバー |
 | | [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | SSOS 実 ECLSS |
+| | [MuJoCo / One-Piece](mujoco-one-piece.md) | `balancing_cube` の SSOT ループ、CLI 制約、Fake LLM 受入 |
 | SSOS | [SSOS 接合](ssos/index.md) | Docker / ROS 2 運用ガイド |
 | | [ロードマップ](ssos/roadmap.md) | Phase 0–8 状態 |
-| その他 | [CLI ガイド](cli.md) | `ea` コマンド |
+| その他 | [CLI ガイド](cli.md) | `ea`（ECLSS とキューブの落とし穴） |
+| | [One Piece 連携](one-piece-integration.md) | ECLSS provenance とキューブ `MechanicalBridge` |
 | | [設計ループの学術解析](design-loop-analysis.md) | 順序変数・臨界性・可制御性（キャンペーン HTML） |
 | | [技術説明 ver.04](eclss_ai_agent_technical_report_04.md) | ハッカソン報告。第8章を創発の可視化に差し替え |
 | | [技術説明 ver.03](eclss_ai_agent_technical_report_03.md) | ハッカソン報告＋定量解析（第11–14章） |

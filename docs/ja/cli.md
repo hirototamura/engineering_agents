@@ -29,7 +29,7 @@ ea run
 
 | コマンド | 用途 |
 | --- | --- |
-| `ea run [SCENARIO]` | 1回シミュレーション実行。`ssos_eclss_loop` は `iteration.enabled` または `--iterate N` で設計→検証連鎖 |
+| `ea run [SCENARIO]` | 1回シミュレーション実行。`ssos_eclss_loop` は `iteration.enabled` または `--iterate N` で設計→検証連鎖。`balancing_cube` の `--iterate` は `iteration.count`（ECLSS 連鎖ではない） |
 | `ea scenarios` | 利用可能なシナリオ一覧 |
 | `ea results [RUN_ID] [--track eclss\|balancing_cube]` | 選択したプロジェクトの run 一覧、または `summary.json` 表示 |
 | `ea doctor` | Python 3.11+・依存関係・Docker/SSOS マウント・Ollama・vLLM の確認 |
@@ -70,6 +70,28 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | `--llm-model` / `VLLM_MODEL` | actor と designer **両方**を上書き | `--set agents.actor.llm.model=` と `agents.design.llm.model=` を別々に |
 | `--backend mock` で labeled WRS | `LoopMockEclssBackend.send_water_recovery_goal` が `NotImplementedError` | `--backend plant_sim`（または ros2） |
 | scrubber の `--apply-proposals` | ファイルは出るが **次 sim に再投入されない** | 閉ループは ssos のみ |
+
+### よくある落とし穴（`balancing_cube`）
+
+`ea run balancing_cube` は `tools.cli.commands.mechanical.run_mechanical` へ分岐し、ECLSS の iterate 経路は使わない。YAML 既定は `mujoco_cpu`、`agents.mode: llm`、`iteration.enabled: true`、`count: 5`。`ssot.path` は設定するまで `null`。
+
+```bash
+ea run balancing_cube --backend mujoco_cpu --design-mode none \
+  --set ssot.path=../one-piece/projects/balancing-cube/store
+ea results --track balancing_cube
+```
+
+| 罠 | 実際の挙動 | 渡すもの |
+| --- | --- | --- |
+| `ssot.path` なし | exit 2。ローカル既定からモデル/要求はコピーしない | `--set ssot.path=/path/to/onepiece-store` |
+| `--backend mock` 等 | exit 2。`mujoco_cpu` または `mjx_gpu` のみ | `--backend mujoco_cpu`（`mjx_gpu` / `cpu` / `gpu`） |
+| `--agents-mode labeled_rule_base` | exit 2。ルールフォールバックを LLM と名乗らない | `--design-mode none` または `llm` |
+| `--seed` | exit 2。機械系シードは SSOT 固定 | `--seed` を付けない |
+| `--set simulation.steps=…` など物理キー | exit 2。許可は ssot/backend/agents/budget のみ | トップレベルは `ssot` / `backend` / `agents` / `iteration` / `output` / `memory` |
+| GPU 要求だが実行不能 | inconclusive、**非ゼロ終了**。CPU 経路は有効 | MJX が無いなら `--backend mujoco_cpu` |
+| シナリオ無しの `--iterate` | **ssos_eclss_loop** になる | シナリオ引数に `balancing_cube` を付ける |
+
+CLI の予算上限: 周回 1–20、候補 1–80、壁時計 ≤ 7200 s、停滞 1–20。YAML 既定は 5 / 20 / 1800 s / 3。出力は `experiments/balancing_cube/results/`。[MuJoCo設計反復](mujoco-one-piece.md)。
 
 `ea run --iterate N` は unified の事後設計（tool-use / labeled）が出した `design_proposals.json` を次ランに載せる連鎖である。シナリオを省略すると `ssos_eclss_loop`。子ランは単発の `ea run` と同じ backend / actor / design / `inject_failures` を使う（CLI が plant_sim・labeled actor・llm design をピン。`inject_failures` は scenario.yaml の値のまま。入れるなら `--inject-failures` または `--set inject_failures=true`）。`--approve-provisional` オンなら INFO（人間の介在をなくすため LLM 設計提案を自動承認。監督ゲートを戻すには `--no-approve-provisional`）。ラン k のシミュはラン k-1 で採用した `applied_proposals.json` を **unified の `apply_design_proposals`**（`capacity_profile` 含む）で適用する。`set_parameter`（`thresholds.*`）は連鎖では自動適用しない（検証要求を凍結）。空の提案では直前の適用ファイル（まだ無ければ初期 YAML）のまま連鎖回数まで回す。最後のランはそれまでの提案の検証であり、そこで出た提案は未検証。判定は選ばれた飛行機体の `crew_remaining` と最初の周回の比較（`IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`）。replay は証拠。採用する設計は飛んだ機体から 1 本を選び `chain_final_answer.json` に書き出す（全員生存・製造可能・物理監査合格が必須、予算超過は `provisional_final` として人に上げる、該当が無ければ「該当なし」と出す。しきい値・乗員数・step 数・backend が途中で変わっていたら順位づけせず `not_comparable` で止める）。`--no-paired-replay` は判定不能。`ros2` は拒否する。`--apply-proposals` とは同時指定できない。ターミナルには乗員残数テーブルに加え、現在のシミュレーション（ステップ％）と完了したイテレーション（N/M）の進捗を出す（YAML 連鎖でも `--iterate` でも同じ）。`iteration.enabled=false` の単独 ssos も同じステップバーを使う。ダッシュボードは連鎖の子ディレクトリ（`01/`、replay）を個別 run として列挙する。実効設定は `chain_summary.json` の `iteration` に残る。
 

@@ -4,26 +4,25 @@
 
 **ECLSS**（Environmental Control and Life Support System / 環境制御・生命維持システム）の異常に対し、**エージェントチームが検知・対応し、事後に設計変更を提案する**までをシミュレートする研究用リポジトリです。ECLSS は物理実験装置ではなく、乗員の生存に必要な**生命維持装置**を指します。
 
-本リポジトリは **二系統のシナリオ** を持ちます。
+本リポジトリは **三系統のシナリオ** を持ちます。
 
 - **`scrubber_degradation`** — Python モック（`StationSimulator`）上の CO₂ スクラバー異常。生命維持プラント（ECLSS）と電力系（**EPS**）を再現し、ROS2 風トピック契約でエージェントと接続します。
 - **`ssos_eclss_loop`** — **Space Station OS（SSOS）** Docker 内の実 ROS2 ECLSS（`Ros2EclssBridge`）へ接続。ARS/OGS/WRS の運用と事後 `ssos_graph` 設計提案を検証します（Phase 0–7 完了）。
+- **`balancing_cube`** — 版付き **One-Piece** スナップショットに対する MuJoCo / MJX の設計→検証。自動変更は機械6変数・モータ系列・制御4ノブに限る。[MuJoCo設計反復](mujoco-one-piece.md)。
 
-いずれも将来の宇宙ステーション運用ソフトウェア（SSOS）との接合を見据えた研究用実装です。
-
-自律的なハードウェア設計の**一つ手前**として、「運用中の異常 → チームの判断 → 恒久設計の提案」というループを検証するのが目的です。
+ECLSS 系統は「運用中の異常 → チームの判断 → 恒久設計の提案」を検証する。キューブ系統は別の機械 SSOT ループであり、バックエンドも結果フォルダも混在させない。
 
 ---
 
-## 二つのシナリオ
+## 三つのシナリオ
 
-| | [scrubber_degradation](scenario-scrubber-degradation.md) | [ssos_eclss_loop](scenario-ssos-eclss-loop.md) |
-| --- | --- | --- |
-| 目的 | Mock 上の CO₂ スクラバー異常と EPS 連動 | SSOS 実 ROS2 ECLSS の運用代替（Crew Simulation 置換） |
-| バックエンド | `StationSimulator` | `EclssBackend`（mock / plant_sim / `Ros2EclssBridge`） |
-| テレメトリ | CO₂ ppm、電力マージン | CO₂/O₂/水ストレージ（kg / L） |
-| ランタイム | 回復コマンド（ファン、EPS ブースト） | 運用コマンド（ARS、OGS、request_co2） |
-| 事後提案 | scrubber トポロジ | `ssos_graph`（action_profile、graph_rewire） |
+| | [scrubber_degradation](scenario-scrubber-degradation.md) | [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | [balancing_cube](mujoco-one-piece.md) |
+| --- | --- | --- | --- |
+| 目的 | Mock 上の CO₂ スクラバー異常と EPS 連動 | SSOS 実 ROS2 ECLSS の運用代替（Crew Simulation 置換） | One-Piece SSOT 上のキューブ力学 + LQR |
+| バックエンド | `StationSimulator` | `EclssBackend`（mock / plant_sim / `Ros2EclssBridge`） | `mujoco_cpu` / `mjx_gpu` |
+| テレメトリ | CO₂ ppm、電力マージン | CO₂/O₂/水ストレージ（kg / L） | 接触・滑り・ピボット・ケース得点 |
+| ランタイム | 回復コマンド（ファン、EPS ブースト） | 運用コマンド（ARS、OGS、request_co2） | ネイティブ MuJoCo（要求時は MJX） |
+| 事後提案 | scrubber トポロジ | `ssos_graph`（action_profile、graph_rewire） | 有界な機械/制御提案 + evidence outbox |
 
 ---
 

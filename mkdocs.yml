@@ -68,6 +68,7 @@ plugins:
             - Scenarios:
               - scrubber_degradation: scenario-scrubber-degradation.md
               - ssos_eclss_loop: scenario-ssos-eclss-loop.md
+              - balancing_cube: mujoco-one-piece.md
             - SSOS integration:
               - Overview: ssos/index.md
               - Docker setup: ssos/quickstart.md
@@ -141,6 +142,7 @@ plugins:
             - シナリオ:
               - scrubber_degradation: scenario-scrubber-degradation.md
               - ssos_eclss_loop: scenario-ssos-eclss-loop.md
+              - balancing_cube: mujoco-one-piece.md
             - SSOS 接合:
               - 概要: ssos/index.md
               - Docker セットアップ: ssos/quickstart.md

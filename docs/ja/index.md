@@ -145,8 +145,21 @@ ea results
 | --- | --- | --- | --- |
 | [scrubber_degradation](scenario-scrubber-degradation.md) | Python モック上の CO₂ スクラバー異常 | `StationSimulator` | `ea run scrubber_degradation --agents-mode labeled_rule_base` |
 | [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | SSOS ECLSS（ARS/OGS/WRS）のエージェント運用 | `plant_sim`（CLI 既定）、`mock`、`ros2` | `ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --set iteration.enabled=false` |
+| [balancing_cube](mujoco-one-piece.md) | One-Piece SSOT 駆動の MuJoCo キューブ設計→検証 | `mujoco_cpu` または `mjx_gpu` | `ea run balancing_cube --backend mujoco_cpu --design-mode none --set ssot.path=…` |
 
-両シナリオでエージェントモードは共通: **`none`** / **`labeled_rule_base`**（再現性の高い回帰）/ **`llm`**（Ollama または研究室 vLLM）。
+ECLSS のエージェントモードは **`none`** / **`labeled_rule_base`**（再現性の高い回帰）/ **`llm`**。`balancing_cube` は **`none`**（参照評価）か **`llm`** のみ。`labeled_rule_base` は拒否する（ルールフォールバックを LLM と名乗らない）。
+
+### バランシングキューブ（One-Piece SSOT、Docker 不要）
+
+ローカルの One-Piece ストアパスが必須。任意: `pip install -e ".[mujoco]"`（CPU）または `.[gpu]`（MJX）。
+
+```bash
+ea run balancing_cube --backend mujoco_cpu --design-mode none \
+  --set ssot.path=../one-piece/projects/balancing-cube/store
+ea results --track balancing_cube
+```
+
+`--seed` は拒否（評価シードは SSOT）。`--set` が触れるのは `ssot` / `backend` / `agents` / `iteration` / `output` / `memory` のみ。詳細: [MuJoCo設計反復](mujoco-one-piece.md)。
 
 ---
 
@@ -155,7 +168,8 @@ ea results
 デフォルトの出力ルート:
 
 ```text
-experiments/eclss/results/<run_id>/
+experiments/eclss/results/<run_id>/              # scrubber, ssos_eclss_loop
+experiments/balancing_cube/results/<run_id>/     # balancing_cube
 ```
 
 | ファイル | 内容 |
@@ -171,7 +185,8 @@ experiments/eclss/results/<run_id>/
 `--run-id` / `--output-dir` / `EA_RESULTS_ROOT` で上書き可能。
 
 ```bash
-ea results                          # 直近 run 一覧
+ea results                          # ECLSS トラック
+ea results --track balancing_cube
 ea results scrubber_degradation_labeled_rule_base
 python3 -m streamlit run src/tools/dashboard/app.py   # 任意: ダッシュボード
 ```
@@ -192,4 +207,5 @@ python3 -m streamlit run src/tools/dashboard/app.py   # 任意: ダッシュボ�
 | JSONL と API 契約 | [API 契約](api-contracts.md) |
 | コーディングエージェント向け規律 | [エージェントガイド](AGENTS.md) |
 | SSOS Docker + ROS 2 接合 | [SSOS 接合](ssos/index.md) |
+| バランシングキューブ + One-Piece SSOT | [MuJoCo設計反復](mujoco-one-piece.md) |
 | ローカルでドキュメント閲覧 | `pip install -e ".[dev]" && mkdocs serve` → [http://127.0.0.1:8000](http://127.0.0.1:8000) |

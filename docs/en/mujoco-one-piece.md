@@ -41,6 +41,8 @@ python scripts/verify_cube_loop.py \
   --store ../one-piece/projects/balancing-cube/store --output results/cube-offline-check
 ```
 
+CLI constraints (enforced in `run_mechanical` / `BalancingCubeScenario`): `ssot.path` is required; backends are `mujoco_cpu`/`mjx_gpu` (`cpu`/`gpu` aliases); agent mode is `llm` or `none` only; `--seed` is rejected; `--set` may only change `ssot`, `backend`, `agents`, `iteration`, `output`, `memory`. `--iterate` without a scenario name still selects `ssos_eclss_loop`. List outputs with `ea results --track balancing_cube`.
+
 The default snapshot `cube.simulation.snapshot@bottom-corner-000-20261017-3` uses the three faces incident to supporting corner 000. It retains the tested MASS controller and its exact historical design-plant reference. The comparison design is a lower-face descendant of `D-000544-52890`; historical upper-face results do not apply automatically. The mission remains balancing on all eight corners. See [first-trial evidence and controller choice](bottom_corner_trial.md). `fixed-dt-mvp-2` remains available for explicit historical reproduction. No human baseline is adopted.
 
 `none` evaluates the reference on CPU. The offline script runs two Fake LLM rounds with actual CPU physics and checks persisted feedback. Real proposals use `--design-mode llm --iterate 2 --llm-provider ollama`. GPU execution needs the optional `.[gpu]` dependencies and CUDA, using `--backend mjx_gpu`. Neither real LLM improvement nor the new GPU path has been executed in this acceptance.
