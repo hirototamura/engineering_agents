@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "motor-operating-point",
+  "kind": "atomic",
+  "project_scope": "agnostic",
+  "primary_output": {
+    "file": "result.json",
+    "type": "motor_operating_point",
+    "version": 1
+  },
+  "requires": [],
+  "validation": "independent_numerical_oracles",
+  "input": {
+    "reference": "references/input_contract.md",
+    "example": "examples/input.json"
+  }
+}

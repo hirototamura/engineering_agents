@@ -1,0 +1,36 @@
+{
+  "units": "SI",
+  "data_basis": "assumed",
+  "motor_convention": "effective_dc",
+  "torque_constant_N_m_A": 0.04,
+  "back_emf_V_s_rad": 0.04,
+  "winding_resistance_ohm": 1.5,
+  "bus_voltage_V": 10.8,
+  "driver_efficiency": 0.9,
+  "current_limit_A": 2.0,
+  "maximum_winding_K": 353.15,
+  "thermal_resistance_K_W": 12.0,
+  "thermal_capacity_J_K": 20.0,
+  "motor_count": 3,
+  "regeneration_supported": false,
+  "modes": [
+    {
+      "name": "balance",
+      "duration_s": 30,
+      "torque_N_m": 0.03,
+      "speed_rad_s": 50.0
+    },
+    {
+      "name": "disturbance",
+      "duration_s": 2,
+      "torque_N_m": 0.1,
+      "speed_rad_s": 150.0
+    },
+    {
+      "name": "braking",
+      "duration_s": 5,
+      "torque_N_m": -0.03,
+      "speed_rad_s": 50.0
+    }
+  ]
+}

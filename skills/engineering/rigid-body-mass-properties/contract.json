@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "rigid-body-mass-properties",
+  "kind": "atomic",
+  "project_scope": "agnostic",
+  "primary_output": {
+    "file": "result.json",
+    "type": "rigid_body_mass_properties",
+    "version": 1
+  },
+  "requires": [],
+  "validation": "independent_numerical_oracles",
+  "input": {
+    "reference": "references/input_contract.md",
+    "example": "examples/input.json"
+  }
+}

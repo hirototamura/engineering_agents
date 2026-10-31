@@ -1,0 +1,61 @@
+{
+  "units": "SI",
+  "data_basis": "synthetic_validation",
+  "system": {
+    "A": [
+      [
+        0,
+        1
+      ],
+      [
+        -2,
+        -3
+      ]
+    ],
+    "B": [
+      [
+        0
+      ],
+      [
+        1
+      ]
+    ],
+    "C": [
+      [
+        1,
+        0
+      ]
+    ],
+    "D": [
+      [
+        0
+      ]
+    ],
+    "state_units": [
+      "m",
+      "m/s"
+    ],
+    "input_unit": "N",
+    "output_unit": "m",
+    "model_scope": "Assumed one-degree-of-freedom mass-spring-damper linear model, zero initial state."
+  },
+  "omega_rad_s": [
+    0.1,
+    0.2,
+    0.5,
+    1,
+    2,
+    5,
+    10,
+    100
+  ],
+  "criteria": [
+    {
+      "id": "response-at-one",
+      "metric": "magnitude_db",
+      "operator": "<=",
+      "value": -3,
+      "omega_rad_s": 1
+    }
+  ]
+}

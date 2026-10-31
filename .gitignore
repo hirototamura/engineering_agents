@@ -77,3 +77,6 @@ Icon?
 *.swp
 *.swo
 *~
+
+# Regenerable per-skill analysis runs and live Hermes qualification traces.
+experiments/balancing_cube/engineering_analysis/

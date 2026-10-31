@@ -1,0 +1,28 @@
+---
+name: requirement-evidence-assessment
+description: "Assess exact-revision requirements against eligible evidence, thresholds and hashes across projects. Use for deterministic design and verification evidence reviews."
+---
+
+# Requirement evidence assessment
+
+## Primary output
+
+`result.json`: **requirement_evidence_assessment**, version 1. Requirement-evidence assessment: pass/fail/inconclusive/not_run/not_applicable and reasons per exact revision. Human approval is not a verification result. Supporting plots/CSV are views of this result. `summary.json` is a compact view; `receipt.json` records source, input, result and dependency hashes.
+
+## Composition
+
+None. This is an atomic engineering analysis skill.
+
+## Execute
+
+Read [input_contract.md](references/input_contract.md) for inputs. From the Engineering Agents checkout (`EA_ENGINEERING_REPO` in the Hermes wrapper), execute the trusted tool:
+
+```bash
+ea-engineering run requirement-evidence-assessment \
+  --input skills/engineering/requirement-evidence-assessment/examples/input.json \
+  --output /absolute/path/to/NEW_ANALYSIS_RUN
+```
+
+When asked for existing results, inspect their receipts first. Reuse evidence only when the relevant inputs/configuration and required contract/source versions match; state any differences. When new execution is requested, use a fresh output directory and preserve older runs. Read `summary.json` and `receipt.json` with `cat`, inspect applicable plots, and explain the assessment, assumptions, missing data and next useful analysis. The bundled input is an assumed or synthetic example. The tool does not approve requirements, adopt a baseline or actuate hardware. Numerical qualification is distinct from physical validation.
+
+Read [validation.md](references/validation.md) before claiming this skill is qualified.
