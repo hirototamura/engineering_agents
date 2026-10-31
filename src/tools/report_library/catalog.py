@@ -37,7 +37,7 @@ TITLE = re.compile(r"<title\b[^>]*>(.*?)</title\s*>", re.IGNORECASE | re.DOTALL)
 SKIP_NAMES = {
     ".git", ".venv", ".venv-integration", "node_modules", "__pycache__",
     ".mypy_cache", ".pytest_cache", "site-packages", ".next", ".cache",
-    "build", "dist",
+    "build", "dist", "explorer_assets",
 }
 
 
@@ -49,6 +49,7 @@ def report_paths() -> list[Path]:
         "-g", "!**/node_modules/**", "-g", "!**/site-packages/**",
         "-g", "!**/store/commits/**", "-g", "!reports/**",
         "-g", "!**/src/tools/report_library/**",
+        "-g", "!**/explorer_assets/**",
         "-g", "!**/build/**", "-g", "!**/dist/**",
     ]
     try:

@@ -84,10 +84,12 @@ def _memory_projection(memory, root, output):
                 path = root.joinpath(*path.parts[position + 1:])
             elif not path.is_file():
                 parts = list(path.parts)
-                results_index = next((i for i in range(len(parts) - 1)
-                                      if parts[i] == "experiments" and parts[i + 1] == "results"), None)
+                results_index = next((i for i in range(len(parts) - 2)
+                                      if parts[i] == "experiments"
+                                      and parts[i + 1] == "balancing_cube"
+                                      and parts[i + 2] == "results"), None)
                 if results_index is not None:
-                    local_candidate = root.parent.joinpath(*parts[results_index + 2:])
+                    local_candidate = root.parent.joinpath(*parts[results_index + 3:])
                     if local_candidate.is_file():
                         path = local_candidate
             episode["source_links"].append({"path": source, "href": _link(path, output),

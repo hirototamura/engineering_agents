@@ -24,7 +24,8 @@ https://engineering-agents-research.vercel.app/cube-cad/en/
 
 通常は `engineering_agents` をCodexで開き、記事の変更を依頼してください。
 研究記事の原本はEngineering Agents側で管理し、このサイトには公開用の英日版を
-コピーして保持します。サイトのビルドは、コピー済みのファイルだけで完結します。
+コピーして保持します。記事はリポジトリ内のファイルから生成します。初回ビルドでは、
+すでに一般公開している参考CADデータの固定版をGitHub Releaseから取得し、SHA-256を照合します。
 
 ```sh
 cd website
@@ -87,12 +88,25 @@ GitHub Actionsの `Research website` は、このフォルダの変更時に両�
 ## Source layout
 
 The CAD reference lives in `public/cube-cad/` and is copied unchanged by Astro.
+The generated directory stays outside Git. `npm run build` first restores its
+48 files from the public Release pinned in `assets/cube_cad.json`. The archive
+and every file are checked by size and SHA-256; downloaded archives are cached
+in `.asset-cache/`. Existing edited assets cause an error and are preserved.
+For an offline build, download that exact archive in advance and run
+`node scripts/restore-cube-cad.mjs /path/to/engineering-research-cube-cad-20261024-r2.tar.gz`.
+Only the already public CAD reference is in this package; private validation
+datasets are not needed for a website build.
+
 Run `node scripts/sync-cube-cad.mjs` to import the bilingual reference from the
 local simulator output (or pass its directory as the first argument). This
 removes the local source-directory path, rewrites download/language links for
 the public site, and records source and asset hashes in `publication-manifest.json`.
 CAD downloads and attribution accompany the pages. The supplied source license
 and all fit limitations remain visible. The public site needs no simulator.
+After intentionally publishing revised CAD pages, use
+`node scripts/package-cube-cad.mjs /path/to/new-package.tar.gz RELEASE_ASSET_URL`
+to prepare a new package and manifest, then upload that package to the specified
+Release before committing the new pin. Node.js 22 and `tar` are required.
 
 `src/pages/` defines the two static routes. `src/lib/article.mjs` adapts only
 navigation and page metadata; recorded evidence and interactive scripts remain

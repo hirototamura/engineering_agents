@@ -140,9 +140,9 @@ Spec: [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md).
 | --- | --- | --- |
 | **ARS** | Air Revitalisation System | CO₂ storage removal (`air_revitalisation` Action) |
 | **OGS** | Oxygen Generation System | O₂ generation (`oxygen_generation`). Sabatier needs CO₂ feedstock |
-| **WRS** | Water Recovery System | Water recovery (`water_recovery_systems`) — ros2 bridge implemented |
+| **WRS** | Water Recovery System | Water recovery (`water_recovery_systems`). Team `kind: water_recovery` on plant_sim/ros2; LoopMock raises |
 | **Telemetry** | — | `/co2_storage`, `/o2_storage`, `/wrs/product_water_reserve` (kg / L) |
-| **Operational command** | — | ARS / OGS Actions, `request_co2` / `request_o2` Services |
+| **Operational command** | — | ARS / OGS / WRS Actions, `request_co2` / `request_o2` Services |
 | **Design proposal** | — | `ssos_graph` (`action_profile`, `graph_rewire`, etc.) |
 
 **Health thresholds (storage)**: CO₂ warning ≥ 2.0 kg / critical ≥ 8.0 kg; O₂ warning ≤ 6.0 kg / critical ≤ 1.0 kg. Details: [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md).
@@ -163,7 +163,7 @@ Spec: [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md).
 | --- | --- | --- | --- |
 | scrubber | `engineer` | 4 | `engineer_{(step-1) % N}` |
 | ssos actors | `eclss_actor` | 50 | `eclss_actor_{step % N}` (0-based steps) |
-| ssos designers | `eclss_designer` | 4 | one representative after the run (`changes`, no count cap) |
+| ssos designers | `eclss_designer` | 1 | one representative after the run (`changes`, no count cap) |
 
 Each step: all actors discuss (llm) or rules emit diagnostics (labeled). **Post-run design** on ssos is a separate designer team writing `design_proposals.json`. Design: [post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md).
 
@@ -408,7 +408,7 @@ python -c "from scenario.runner import run_scenario; print(run_scenario('scrubbe
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}}))"
 ```
 
-Output: `src/experiments/results/scrubber_degradation_labeled_rule_base/`
+Output: `experiments/eclss/results/scrubber_degradation_labeled_rule_base/`
 
 #### LLM team (scrubber · `llm` · Ollama or vLLM required)
 
@@ -416,7 +416,7 @@ Output: `src/experiments/results/scrubber_degradation_labeled_rule_base/`
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}}))"
 ```
 
-Output: `src/experiments/results/scrubber_degradation_llm/` (`run_id_llm` in `scenario.yaml`)
+Output: `experiments/eclss/results/scrubber_degradation_llm/` (`run_id_llm` in `scenario.yaml`)
 
 To use a different model or run name, change `llm.model` in `agents.yaml` or override `output.run_id_llm` before the run.
 
@@ -425,17 +425,16 @@ To use a different model or run name, change `llm.model` in `agents.yaml` or ove
 #### mock (host, no ROS2)
 
 ```bash
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode none
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labeled_rule_base
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base \
+  --set iteration.enabled=false --steps 8 --run-id mock-smoke
 ```
 
-Example output: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`
+Example output: `experiments/eclss/results/ssos_eclss_loop_labeled_rule_base/`
 
 PowerShell equivalent:
 
 ```powershell
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labeled_rule_base --steps 8
+python -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8 --set iteration.enabled=false --run-id mock-smoke
 ```
 
 #### ros2 (inside SSOS Docker)
@@ -456,7 +455,7 @@ Apply prior run design proposals:
 
 ```bash
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \
-  --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
+  --apply-proposals experiments/eclss/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 
 graph_rewire E2E: `./scripts/run_graph_rewire_e2e.sh` (requires ECLSS headless)
@@ -507,7 +506,7 @@ Open `http://localhost:8501`. See [Dashboard at a glance](#dashboard-at-a-glance
 
 - Runs with `summary.scenario == "ssos_eclss_loop"` branch to dedicated `ssos_views` UI
 
-Results: `src/experiments/results/<run_id>/`
+Results: `experiments/eclss/results/<run_id>/`
 
 ---
 
@@ -518,7 +517,7 @@ Results: `src/experiments/results/<run_id>/`
 | `src/core/agents/` | Persona, Team ABC, memory, LLM client |
 | `src/environment/` | `SimulatorProtocol` (scrubber), `EclssBackend` / `Ros2EclssBridge` (ssos), EPS mock / `Ros2EpsBridge` |
 | `src/scenario/` | `scrubber_degradation`, `ssos_eclss_loop`, teams, `design_proposals` |
-| `src/experiments/results/` | Run results (gitignore recommended) |
+| `experiments/eclss/results/` | Run results (gitignore recommended) |
 | `src/tools/dashboard/` | Streamlit UI |
 | `src/integrations/one_piece/` | provenance record generation |
 | `docs/ja/` | Japanese design, API, and scenario documentation |

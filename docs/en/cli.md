@@ -31,7 +31,7 @@ To match the physics-only baseline in `scenario.yaml`, pass `--agents-mode none`
 | --- | --- |
 | `ea run [SCENARIO]` | Run one simulation. On `ssos_eclss_loop`, `iteration.enabled` or `--iterate N` chains design→verify |
 | `ea scenarios` | List available scenarios |
-| `ea results [RUN_ID]` | List recent runs or show one `summary.json` |
+| `ea results [RUN_ID] [--track eclss\|balancing_cube]` | List recent runs or show one `summary.json` in the selected project folder |
 | `ea doctor` | Check Python 3.11+, dependencies, Docker/SSOS mounts, Ollama, and vLLM |
 | `ea job run SPEC.json` | Execute a serialized `RunSpec` (cluster-worker compatible) |
 | `ea --version` | Show CLI version |
@@ -63,11 +63,11 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | `--actor-mode` | `ssos_eclss_loop` in-sim actors: `none`, `labeled_rule_base`, or `llm` |
 | `--design-mode` | `ssos_eclss_loop` post-run designers: `none`, `labeled_rule_base`, or `llm` (omit to inherit actor mode) |
 | `--llm-provider` | `ollama` (local) or `vllm` (lab GPU server). Applied to whichever side is `llm` |
-| `--llm-model` | Override LLM model; on ssos writes both `agents.actor.llm.model` and `agents.design.llm.model` (collapses the 9B/27B split). Distinct URLs/models: `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (same for `.model`). `VLLM_MODEL` similarly stamps every vLLM client. Ollama-style tags with `:` fall back to `qwen3-8b` |
+| `--llm-model` | Override model for sides currently in `llm` mode; on ssos it stamps both `agents.actor.llm.model` and `agents.design.llm.model` when both are in `llm` mode (collapsing the 9B/27B split). Distinct URLs/models: `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (same for `.model`). `VLLM_MODEL` similarly overrides vLLM clients on sides in `llm` mode. Ollama-style tags with `:` fall back to `qwen3-8b` |
 | `--steps` | Override `simulation.steps` |
 | `--run-id` | Override output run id when using the default results root |
 | `--output-dir` | Write directly to a directory path |
-| `--results-root` | Override `src/experiments/results` (also `EA_RESULTS_ROOT`) |
+| `--results-root` | Override the selected project's result folder (also `EA_RESULTS_ROOT`) |
 | `--set KEY=VALUE` | Dot-notation deep override |
 | `--override-file` | YAML/JSON patch merged into scenario config |
 | `--backend` | `mock`, `plant_sim`, or `ros2` (`ssos_eclss_loop` only) |
@@ -83,9 +83,23 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | `--json` | Machine-readable result on stdout |
 | `--quiet` | Print only the output path |
 
+
+For separate actor and designer models when both sides use `llm`, omit `--llm-model` and unset `VLLM_MODEL` before setting `agents.actor.llm.model` and `agents.design.llm.model` individually. `_apply_llm_cli_to_llm_sides()` applies `--llm-model` after `--set`, while `VLLM_MODEL` takes precedence over YAML. These global overrides apply only to sides currently in `llm` mode.
+
 On `ssos_eclss_loop`, in-sim actors and post-run designers are separate. See [post-run design agent](memo/ssos_eclss_loop/post_run_design_agent.md). `--agents-mode` is a deprecated alias for `--actor-mode`.
 
 The source of truth for the design→verify chain is `ssos_eclss_loop` `scenario.yaml` `iteration:` (`enabled`, `count`, `paired_replay`, `approve_provisional`, `run_id`). `simulation.steps` is one sim's length, not the chain count. `--set iteration.count=10` uses the same merge as other scenario keys. Explicit `--iterate` / `--paired-replay` / `--approve-provisional` override YAML. `enabled: true` (the shipped default) makes `ea run ssos_eclss_loop` a chain; `--set iteration.enabled=false` is a single sim.
+
+### Pitfalls (`ssos_eclss_loop`)
+
+| Trap | What actually happens | What to pass |
+| --- | --- | --- |
+| Bare `ea run ssos_eclss_loop` | 50 chained plant_sim sims, labeled actors, **llm designer** | `--set iteration.enabled=false` for one sim; omit `--design-mode llm` only if you also pass `--actor-mode` (design then inherits) |
+| Reusing the default `--run-id` | `EventLog.prepare_run_dir` **deletes** the previous directory | Distinct `--run-id` for apply-proposals / compare |
+| `--apply-proposals` on a chain | Rejected | Chain via `iteration` / `--iterate`; single follow-up sim uses `--apply-proposals` |
+| `--llm-model` / `VLLM_MODEL` | Stamps **both** actor and designer models | `--set agents.actor.llm.model=` and `agents.design.llm.model=` separately |
+| Labeled WRS on `--backend mock` | `LoopMockEclssBackend.send_water_recovery_goal` raises `NotImplementedError` | `--backend plant_sim` (or ros2) |
+| Scrubber `--apply-proposals` | File is written; **not** re-injected into the next sim | Closed loop is ssos only |
 
 `ea run --iterate N` chains the unified post-run designer (`tool-use` / labeled) across N simulations. Omitting the scenario argument selects `ssos_eclss_loop`. Child sims use the same backend, actor/design modes, and `inject_failures` as a single `ea run` (CLI pins plant_sim, labeled actors, llm design; `inject_failures` stays the scenario.yaml value unless `--inject-failures` / `--set inject_failures=true`). `--approve-provisional` on prints INFO (this sim auto-approves LLM designs so the loop can run without a human; `--no-approve-provisional` restores the gate). Run k applies run k-1's adopted `applied_proposals.json` through unified `apply_design_proposals` (including `capacity_profile`). `set_parameter` (`thresholds.*`) is not auto-applied in the chain, so verification requirements stay frozen. Empty proposals do not stop the chain: the next simulation reuses the last applied file, or the initial YAML if none exist yet, until the chain completes. The last run verifies prior proposals; proposals it emits stay unverified. The verdict compares the selected flown machine's `crew_remaining` to the first iteration (`IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE`). Replay numbers stay as evidence. The adopted design is the best flown machine, written to `chain_final_answer.json` (full survival, manufacturable and physics-gate-passed are required; over budget comes back as `provisional_final` for a human; nothing qualifying is said plainly. If thresholds, crew size, steps or backend moved partway through, it stops at `not_comparable` instead of ranking). `--no-paired-replay` is inconclusive. `ros2` is rejected. Cannot be combined with `--apply-proposals`. The terminal shows a crew-remaining table plus progress for the current simulation (step %) and completed iterations (N/M) on YAML-enabled chains and on `--iterate`. A single ssos sim (`iteration.enabled=false`) uses the same step bar. The dashboard lists iterate children (`01/`, replays) as selectable runs. Effective chain settings are written to `chain_summary.json` under `iteration`.
 
@@ -102,12 +116,13 @@ The source of truth for the design→verify chain is `ssos_eclss_loop` `scenario
 
 ```bash
 ea results
+ea results --track balancing_cube
 python3 -m streamlit run src/tools/dashboard/app.py
 python3 -m tools.plant_sim_sensitivity_app  # plant_sim 3×4 knobs; not the run dashboard (port 8502)
 python3 -m tools.analysis all              # ensemble design-loop campaign + HTML (en + ja)
 ```
 
-The per-run dashboard answers "what happened in this simulation." The analysis campaign answers questions that are properties of the *ensemble* — order parameter, criticality, controllability, whether the mission is feasible inside `design_constraints.budgets`. See [Design-loop analysis](design-loop-analysis.md). The HTML lands at `src/experiments/analysis/design_loop_analysis.html`.
+The per-run dashboard answers "what happened in this simulation." The analysis campaign answers questions that are properties of the *ensemble* — order parameter, criticality, controllability, whether the mission is feasible inside `design_constraints.budgets`. See [Design-loop analysis](design-loop-analysis.md). The HTML lands at `experiments/eclss/analysis/design_loop_analysis.html`.
 
 ## SSOS Docker (`ssos_eclss_loop` + ros2) { #ssos-docker-ssos_eclss_loop--ros2 }
 
@@ -150,7 +165,7 @@ ea results
 | --- | --- |
 | `scripts/ssos/*` → `/root/` | Headless scripts (`ssos-eclss-headless.sh`, launch files) |
 | `src` → `/ea/src` | Code |
-| `experiments/results` → `/ea/results` | Run outputs on the host |
+| `experiments/eclss/results` → `/ea/results` | Run outputs on the host |
 
 For LLM agents, start Ollama on the host **or** reach the lab vLLM server (LAN/VPN) and use `--agents-mode llm`. Example: `--llm-provider vllm`. No second terminal for headless.
 

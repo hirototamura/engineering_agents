@@ -54,7 +54,7 @@ def extend(workspace: Path, data: dict) -> dict:
         sources[path.as_posix()] = {"path": path.as_posix(), "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
         return json.loads(raw)
 
-    results = Path("engineering_agents/src/experiments/results")
+    results = Path("engineering_agents/experiments/balancing_cube/results")
 
     def candidates(folder, snapshot):
         found = []

@@ -9,15 +9,25 @@ from typing import Any, Dict, Optional
 
 from core.event_log import EventLog, remove_run_directory
 
-_DEFAULT_RESULTS_ROOT = Path(__file__).resolve().parents[2] / "experiments" / "results"
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+_DEFAULT_RESULTS_ROOT = _REPOSITORY_ROOT / "experiments" / "eclss" / "results"
+_DEFAULT_CUBE_RESULTS_ROOT = _REPOSITORY_ROOT / "experiments" / "balancing_cube" / "results"
 RESULTS_ROOT_ENV_VAR = "EA_RESULTS_ROOT"
 _RUN_ID_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$")
 
 
-def default_results_root() -> Path:
+def default_results_root(track: str = "eclss") -> Path:
+    """Return the default artifact directory for one experiment track.
+
+    ``EA_RESULTS_ROOT`` remains an explicit override shared by all tracks.
+    """
+    if track not in {"eclss", "balancing_cube"}:
+        raise ValueError(f"Unknown experiment track: {track!r}")
     env_value = os.environ.get(RESULTS_ROOT_ENV_VAR)
     if env_value:
         return Path(env_value)
+    if track == "balancing_cube":
+        return _DEFAULT_CUBE_RESULTS_ROOT
     return _DEFAULT_RESULTS_ROOT
 
 

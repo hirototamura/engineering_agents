@@ -22,7 +22,7 @@ This repository has **two independent tracks**. Backend, telemetry, runtime comm
 
 ### Output directory
 
-`src/experiments/results/<run_id>/` — use `scenario` in `summary.json` to identify the track.
+`experiments/eclss/results/<run_id>/` for ECLSS and `experiments/balancing_cube/results/<run_id>/` for cube runs.
 
 Files present in both tracks:
 

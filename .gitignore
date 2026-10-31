@@ -42,24 +42,24 @@ preflight_private.json
 *.log
 simulation.log
 
-# Experiment run artifacts
-src/experiments/results/*
-!src/experiments/results/.gitkeep
-!src/experiments/results/evaluation.html
+# Experiment run artifacts are separated by project. Keep generated run data
+# local; commit only the curated ECLSS evaluation catalogue.
+experiments/eclss/results/*
+!experiments/eclss/results/.gitkeep
+!experiments/eclss/results/evaluation.html
+experiments/balancing_cube/results/*
+!experiments/balancing_cube/results/.gitkeep
 
-# Design-loop analysis: the run directories are regenerable and large, the
-# datasets and the report are the deliverable and are small.
-src/experiments/analysis/*
-!src/experiments/analysis/.gitkeep
-!src/experiments/analysis/datasets/
-!src/experiments/analysis/design_loop_analysis.html
-!src/experiments/analysis/design_loop_analysis.ja.html
-!src/experiments/analysis/design_loop_analysis.findings.json
+# ECLSS design-loop analysis run directories are regenerable and large. The
+# datasets, scripts, and reports in this folder are curated source material.
+experiments/eclss/analysis/response_surface/
+experiments/eclss/analysis/one_at_a_time/
+experiments/eclss/analysis/one_at_a_time_relieved/
 
-# Archived chains: the .tar.gz under experiments/runs/ is what is tracked.
+# Archived ECLSS chains: the .tar.gz under experiments/eclss/runs/ is tracked.
 # Extracted round directories stay local. Analysed figures/CSVs live in
-# experiments/outputs/ and are tracked for the hackathon record.
-experiments/runs/*/
+# experiments/eclss/outputs/ and are tracked for the hackathon record.
+experiments/eclss/runs/*/
 artifacts/ssos-regression/
 output/
 041922_output/

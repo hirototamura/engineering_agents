@@ -33,7 +33,7 @@ _EN: Dict[str, Any] = {
     "footer": (
         "Reproduce with <code>python3 -m tools.analysis run</code> then "
         "<code>python3 -m tools.analysis report</code>. Every number in this document "
-        "is computed from the datasets under <code>src/experiments/analysis/datasets/</code>; "
+        "is computed from the datasets under <code>experiments/eclss/analysis/datasets/</code>; "
         "none is typed in."
     ),
     "kpi_simulations": "simulations analysed",
@@ -355,7 +355,7 @@ _JA: Dict[str, Any] = {
     "footer": (
         "再現は <code>python3 -m tools.analysis run</code> のあと "
         "<code>python3 -m tools.analysis report</code>。"
-        "本文の数値はすべて <code>src/experiments/analysis/datasets/</code> から算出しており、手入力はない。"
+        "本文の数値はすべて <code>experiments/eclss/analysis/datasets/</code> から算出しており、手入力はない。"
     ),
     "kpi_simulations": "解析したシミュレーション",
     "kpi_saving": "乗員を救う設計",

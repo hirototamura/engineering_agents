@@ -1,12 +1,24 @@
 {
   "schema_version": 1,
-  "source_snapshot_date": "2026-10-22",
+  "source_snapshot_date": "2026-10-24",
   "engineering_agents": "Use the commit containing this lock file; record its git rev-parse HEAD in each run.",
   "repositories": [
-    {"directory": "one-piece", "github": "hirototamura/one-piece", "revision": "e23a5b5efc1289fa829b1cb9694c70669a6ee88f"},
-    {"directory": "balancing-cube-simulation", "github": "hirototamura/balancing-cube-simulation", "revision": "8176699f0f51051aff3ef87fac14014a1cd4075a"}
+    {
+      "directory": "one-piece",
+      "github": "hirototamura/one-piece",
+      "revision": "2b90b32211713b906446b57d270d01ae364158db"
+    },
+    {
+      "directory": "balancing-cube-simulation",
+      "github": "hirototamura/balancing-cube-simulation",
+      "revision": "8176699f0f51051aff3ef87fac14014a1cd4075a"
+    }
   ],
-  "evidence": {"repository": "hirototamura/balancing-cube-simulation", "release": "handover-20261022", "manifest": "evidence-manifest.json"},
+  "evidence": {
+    "repository": "hirototamura/balancing-cube-simulation",
+    "release": "handover-20261022",
+    "manifest": "evidence-manifest.json"
+  },
   "runtime": {
     "hermes_tag": "v0.22.4",
     "hermes_revision": "4d04303818b61bf3aa09278af48356315515965b",
@@ -24,5 +36,10 @@
     "context_tokens": 65536,
     "parallel_slots": 1,
     "openshell": "disabled_by_user: no kernel upgrade or reboot"
+  },
+  "validation_datasets": {
+    "catalog": "one-piece/datasets/integration_validation_20261024.json",
+    "catalog_sha256": "e29ad9e3dcd8127a4d59afb20f87a5bff3c85499f8a83894f9ec6947ddfe2a25",
+    "retrieval": "optional: onepiece datasets list/fetch/verify; restore selected datasets only"
   }
 }

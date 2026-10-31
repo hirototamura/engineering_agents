@@ -15,7 +15,7 @@
 | 12 | 設計改善の分析を2本。① なぜ LLM は全員生存でき、ルール設計器は 0 人のまま飽和したか ② グリッドが凍らせた WRS が、実は残差の自由度だった |
 | 13 | 創発の可視化。予想外の変数操作、設置クラスと reasoning 意図の対応、**言ったことと置いた機体の一致率**（① 2% → ③ 43% → ④ 6%）、シングル設計者 vs 監査パネルの思想の切れ目 |
 
-数値の正本: 段階①–③は [実験記録](results.md) と同梱の [`docs/data/`](https://github.com/hirototamura/engineering_agents/tree/main/docs/data) 周回 CSV。再現手順は [`experiments/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/README.md)。段階④の集計は ver.02 の監査パネル連鎖。プラント側のアンサンブルは [設計ループの学術解析](design-loop-analysis.md)。
+数値の正本: 段階①–③は [実験記録](results.md) と同梱の [`docs/data/`](https://github.com/hirototamura/engineering_agents/tree/main/docs/data) 周回 CSV。再現手順は [`experiments/eclss/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/eclss/README.md)。段階④の集計は ver.02 の監査パネル連鎖。プラント側のアンサンブルは [設計ループの学術解析](design-loop-analysis.md)。
 
 ---
 
@@ -713,6 +713,6 @@ ver.02 §8.3 の含意を、数で言い直す。監査は「壊さない」ゲ�
 4. **言ったことと置いた機体は、監査で再び割れる。** 本文↔設置の一致は① 2% → ③ 43% → ④ 6%。段階④の設計者は 45 周「WRS を削る」と書いた。置かれた機体は 41 周凍結である。思想の切れ目は設計者の文ではなく、局所最適回避レンズの reject 44 票にある。
 5. **採点の改善と物理の改善は今も混同しやすい。** 段階③の +18 点はレンジ補正である。ver.02 が書いたこの注意は、アンサンブル（予算内生存 0 / 121）と合わせて読むとより強い。ミッションを満たす設計は、宣言された予算の外にある。
 
-再現: 段階①–④の表は `experiments/analysis/analyze_ssos_iter.py` が CSV から再生成する。プラント側の ρ・ゲイン・アーキタイプは `python3 -m tools.analysis report`。創発の集計は `docs/data/report03_emergence.json`。図 11-1 / 12-1 / 13-1–13-5 は `experiments/analysis/make_report03_emergence_figures.py` が同じ CSV から描く。
+再現: 段階①–④の表は `experiments/eclss/analysis/analyze_ssos_iter.py` が CSV から再生成する。プラント側の ρ・ゲイン・アーキタイプは `python3 -m tools.analysis report`。創発の集計は `docs/data/report03_emergence.json`。図 11-1 / 12-1 / 13-1–13-5 は `experiments/eclss/analysis/make_report03_emergence_figures.py` が同じ CSV から描く。
 
 ---

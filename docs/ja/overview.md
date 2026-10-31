@@ -142,9 +142,9 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | --- | --- | --- |
 | **ARS** | Air Revitalisation System | CO₂ ストレージ除去（`air_revitalisation` Action） |
 | **OGS** | Oxygen Generation System | O₂ 生成（`oxygen_generation`）。Sabatier に CO₂ feedstock が必要 |
-| **WRS** | Water Recovery System | 水回収（`water_recovery_systems`）— ros2 ブリッジ実装済み |
+| **WRS** | Water Recovery System | 水回収（`water_recovery_systems`）。チームは `kind: water_recovery`（plant_sim/ros2。LoopMock は例外） |
 | **テレメトリ** | — | `/co2_storage`、`/o2_storage`、`/wrs/product_water_reserve`（kg / L） |
-| **運用コマンド** | — | ARS / OGS Action、`request_co2` / `request_o2` Service |
+| **運用コマンド** | — | ARS / OGS / WRS Action、`request_co2` / `request_o2` Service |
 | **設計提案** | — | `ssos_graph`（`action_profile`、`graph_rewire` 等） |
 
 **ヘルス閾値（ストレージ）**: CO₂ warning ≥ 2.0 kg / critical ≥ 8.0 kg；O₂ warning ≤ 6.0 kg / critical ≤ 1.0 kg。詳細は [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md)。
@@ -165,7 +165,7 @@ SSOS の ECLSS は、閉鎖環境の **CO₂ 除去（ARS）**、**O₂ 生成�
 | --- | --- | --- | --- |
 | scrubber | `engineer` | 4 | `engineer_{(step-1) % N}` |
 | ssos actor | `eclss_actor` | 50 | `eclss_actor_{step % N}`（0-based steps） |
-| ssos designer | `eclss_designer` | 4 | ラン終了後の代表 1 体（`changes`、件数上限なし） |
+| ssos designer | `eclss_designer` | 1 | ラン終了後の代表 1 体（`changes`、件数上限なし） |
 
 各 step で actor 全員が議論（llm）またはルール診断（labeled）。ssos の **事後設計**は別チームの designer が `design_proposals.json` を出す。設計: [事後設計エージェント](memo/ssos_eclss_loop/post_run_design_agent.md)。
 
@@ -420,7 +420,7 @@ python3 src/scripts/run_mock_eclss.py
 ea run scrubber_degradation --agents-mode labeled_rule_base
 ```
 
-出力先: `src/experiments/results/scrubber_degradation_labeled_rule_base/`
+出力先: `experiments/eclss/results/scrubber_degradation_labeled_rule_base/`
 
 ### LLM チーム（scrubber · `llm`・Ollama または vLLM 必須）
 
@@ -428,7 +428,7 @@ ea run scrubber_degradation --agents-mode labeled_rule_base
 ea run scrubber_degradation --agents-mode llm
 ```
 
-出力先: `src/experiments/results/scrubber_degradation_llm/`（`scenario.yaml` の `run_id_llm`）
+出力先: `experiments/eclss/results/scrubber_degradation_llm/`（`scenario.yaml` の `run_id_llm`）
 
 別モデルで別 run 名にしたい場合は、実行前に `agents.yaml` の `llm.model` を変更するか、`output.run_id_llm` をオーバーライドしてください。
 
@@ -437,17 +437,16 @@ ea run scrubber_degradation --agents-mode llm
 #### mock（ホスト、ROS2 不要）
 
 ```bash
-ea run ssos_eclss_loop --backend mock --actor-mode none
-ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base
-ea run ssos_eclss_loop --backend mock --actor-mode llm
+ea run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base \
+  --set iteration.enabled=false --steps 8 --run-id mock-smoke
 ```
 
-出力先例: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`
+出力先例: `experiments/eclss/results/ssos_eclss_loop_labeled_rule_base/`
 
 PowerShell では次のように実行できます。
 
 ```powershell
-python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labeled_rule_base --steps 8
+python -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 8 --set iteration.enabled=false --run-id mock-smoke
 ```
 
 #### ros2（SSOS Docker 内）
@@ -468,7 +467,7 @@ python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode labe
 
 ```bash
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \
-  --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
+  --apply-proposals experiments/eclss/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 
 graph_rewire E2E: `./scripts/run_graph_rewire_e2e.sh`（ECLSS headless 前提）
@@ -518,7 +517,7 @@ python -m streamlit run src/tools/dashboard/app.py
 - サイドバーで run 選択、`Compare with another run` で LLM 同士などを比較可能  
 - `summary.scenario == "ssos_eclss_loop"` の run は `ssos_views` で専用 UI に分岐
 
-実行結果の保存先: `src/experiments/results/<run_id>/`
+実行結果の保存先: `experiments/eclss/results/<run_id>/`
 
 ---
 
@@ -529,7 +528,7 @@ python -m streamlit run src/tools/dashboard/app.py
 | `src/core/agents/` | Persona、Team ABC、メモリ、LLM クライアント |
 | `src/environment/` | `SimulatorProtocol`（scrubber）、`EclssBackend` / `Ros2EclssBridge`（ssos）、EPS mock / `Ros2EpsBridge` |
 | `src/scenario/` | `scrubber_degradation`、`ssos_eclss_loop`、各 Team、`design_proposals` |
-| `src/experiments/results/` | 実行結果（gitignore 推奨） |
+| `experiments/eclss/results/` | 実行結果（gitignore 推奨） |
 | `src/tools/dashboard/` | Streamlit UI |
 | `src/integrations/one_piece/` | provenance レコード生成 |
 | `docs/ja/` | 設計・API・シナリオドキュメント（開発プラン含む） |

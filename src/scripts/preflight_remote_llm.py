@@ -480,7 +480,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--report",
         type=Path,
         default=None,
-        help="output path (default: src/experiments/results/preflight/preflight_report.json)",
+        help="output path (default: experiments/eclss/results/preflight/preflight_report.json)",
     )
     args = parser.parse_args(argv)
 

@@ -11,10 +11,10 @@ cd engineering_agents
 PYTHONPATH=src:../one-piece/src ../.venv-integration/bin/python -m tools.run_cube_bom_reference \
   --store ../one-piece/projects/balancing-cube/store \
   --bom ../one-piece/projects/balancing-cube/references/remrc_bom_20261021.json \
-  --output src/experiments/results/remrc-bom-reference-NEW-RUN-ID
+  --output experiments/balancing_cube/results/remrc-bom-reference-NEW-RUN-ID
 
 PYTHONPATH=src:../one-piece/src ../.venv-integration/bin/python -m tools.build_cube_bom_report \
-  --run-dir src/experiments/results/remrc-bom-reference-NEW-RUN-ID \
+  --run-dir experiments/balancing_cube/results/remrc-bom-reference-NEW-RUN-ID \
   --output ../reports/cube-configuration-catalogue/index.html
 ```
 

@@ -15,11 +15,13 @@ GPU 0–5 allocation, 24,576-trial campaigns and bounded proposal evaluation.
 
 ## Source and evidence
 
-The handover branches in all three repositories are
-`codex/eng-agents-008-handover-20261022`:
+The original handover snapshots remain on
+`codex/eng-agents-008-handover-20261022`. Current source maintenance continues in
+Engineering Agents #82 and One-Piece #12. Use `workspace.lock.json` for exact
+companion revisions instead of assuming that every branch has advanced together:
 
-- [Engineering Agents](https://github.com/hirototamura/engineering_agents/tree/codex/eng-agents-008-handover-20261022): experiment orchestration, bounded proposals, simulation adapters, reports and Astro website.
-- [One-Piece](https://github.com/hirototamura/one-piece/tree/codex/eng-agents-008-handover-20261022): reviewed system model, requirements, canonical JSON and evidence references.
+- [Engineering Agents](https://github.com/hirototamura/engineering_agents/pull/82): experiment orchestration, bounded proposals, simulation adapters, reports and Astro website.
+- [One-Piece](https://github.com/hirototamura/one-piece/pull/12): reviewed system model, requirements, canonical JSON, requirements explorer and evidence retrieval.
 - [Cube simulator](https://github.com/hirototamura/balancing-cube-simulation/tree/codex/eng-agents-008-handover-20261022): standalone simulation, lower-wheel configuration and reference CAD builders.
 - [Private handover Release](https://github.com/hirototamura/balancing-cube-simulation/releases/tag/handover-20261022): run data, One-Piece evidence objects, bilingual reports, CAD/STL/BOM inputs and website assets. GitHub access to the private simulator repository is required.
 
@@ -28,18 +30,34 @@ The handover branches in all three repositories are
 Agents commit that contains these files defines the remaining source revision;
 save that full SHA with every new experiment. No existing PR was merged.
 
-Generated website CAD assets remain outside Git. Restore the `website-cad` pack
-before `npm run check` or a complete website build; otherwise the CAD pages will
+Generated website CAD assets remain outside Git. Website builds now restore the
+hash-pinned, already public CAD package automatically (see `website/README.md`).
+The historical private `website-cad` handover pack remains available for offline
+restoration. Without either package, the CAD pages will
 be absent. The private pack also retains original downloaded archives so report
 download links continue to resolve. Mac-only absolute `file:` links in historical
 reports remain historical; use workspace-relative file paths on Linux.
 
 Credentials, local caches, virtual environments, disposable SQLite indexes and
-presentation work are excluded. The independent, unconnected
-`requirements-explorer-site` prototype stays local; the canonical One-Piece model
-and its report tooling are included. Future work on that prototype needs a
-separate source ownership decision. The user previously requested that
-presentation scripts remain local.
+presentation work are excluded. One-Piece now owns the requirements explorer;
+the local `requirements-explorer-site` checkout is a preserved prototype copy.
+See `one-piece/docs/en/requirements_explorer.md` for the pinned-model builder.
+Presentation work and the other local folders remain local at the user's request.
+
+Historical `integration-validation` data is indexed in
+`one-piece/datasets/integration_validation_20261024.json`. Retrieve selected runs
+and acceptance receipts with `onepiece datasets list/fetch/verify`; see
+`one-piece/docs/en/dataset_storage.md`. New archives use the private simulator
+Release `validation-archive-20261024`; exact existing Release assets are reused
+by SHA-256. This catalog is optional during workspace setup so a development
+checkout does not download all historical validation files.
+
+Experiment outputs now live under `engineering_agents/experiments/eclss/` or
+`engineering_agents/experiments/balancing_cube/`. The importer translates old
+Release paths during restoration without changing the archived bytes or hashes.
+Recorded `summary.scenario` selects the track, including ECLSS smoke runs whose
+folder names mention cube-related work. Unknown tracks stop for explicit
+classification. Existing edited destination files remain protected.
 
 ## Recreate on another environment
 
