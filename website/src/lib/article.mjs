@@ -28,6 +28,11 @@ export function renderArticle(language, input) {
     `<a href="${settings.otherPath}" lang="${settings.other}" hreflang="${settings.other}" aria-label="${settings.label}" data-language-switch>`);
   prefix = prefix.replace(/<meta name="description" content="[^"]*">/,
     `<meta name="description" content="${settings.description}">`);
+  if (!prefix.includes('href="/isaac/"')) {
+    const closeNav = prefix.indexOf('</nav>');
+    if (closeNav < 0) throw new Error('Missing article navigation');
+    prefix = prefix.slice(0, closeNav) + '<a href="/isaac/">Isaac campaign evidence</a>' + prefix.slice(closeNav);
+  }
   prefix = prefix.replace('</head>', [
     '<link rel="alternate" hreflang="ja" href="/">',
     '<link rel="alternate" hreflang="en" href="/en/">',

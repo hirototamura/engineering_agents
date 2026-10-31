@@ -7,7 +7,7 @@
     "node": "22.x"
   },
   "scripts": {
-    "prebuild": "node scripts/restore-cube-cad.mjs",
+    "prebuild": "node scripts/restore-cube-cad.mjs && node scripts/restore-isaac.mjs",
     "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --host 127.0.0.1",
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview --host 127.0.0.1",
