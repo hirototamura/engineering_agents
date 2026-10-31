@@ -564,6 +564,11 @@ redistributed. A failed physics gate produces `status: invalid` and no axis or
 total score. Partial scores keep the sum of scored axes and report
 `applicable_max` / `complete` rather than discarding the total.
 
+Cost and mass full/zero marks come from `scenario.yaml` `evaluation.footprint`
+(shipped: 500 / 900 MUSD, 3400 / 6000 kg). Omit those keys and full marks fall
+back to the baseline machine, zero marks to 750 MUSD / 5000 kg in
+`evaluation.py`. Exploration coefficients, not a flight-hardware estimate.
+
 ```json
 {
   "schema_version": "2.1",
@@ -609,7 +614,8 @@ active side's LLM `provider` / `model` / `base_url`.
 Writing an evaluation also refreshes the results-root `evaluation.html` browser,
 which lists every run with an `evaluation.json` and supports dropdown switching
 plus side-by-side score comparison. The dashboard View "Evaluation" embeds the
-same browser.
+same browser. The printable A3 sheet (`evaluation-scorecard-a3.html`) uses the
+same 2.1 weights; do not treat older 50/80 drafts as current.
 
 ### ROS2 topics (SSOS live ECLSS)
 

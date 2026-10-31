@@ -22,6 +22,11 @@ isProject: false
 
 # ECLSS評価器の実装
 
+> **当時の配点ドラフト。** 評価器の配線はこの計画どおりだが、スコアカードは schema **2.1**
+> （残存 20、コスト／質量 各 20、判断／応答 各 5、満点 100 / actor 無し 90）へ変わった。
+> 下の 50 / 80 を実装しない。正本は [`api-contracts.md`](api-contracts.md) と
+> `src/scenario/ssos_eclss_loop/evaluation.py`。
+
 ## 評価契約
 - 完全採点の対象は `ssos_eclss_loop` の `backend=plant_sim` かつ `survival.enabled=true`。それ以外も `evaluation.json` は生成し、理由付き `not_applicable` にする。
 - 配点外の物理ゲートを最初に実行し、必須値の欠損・非有限値、負在庫、台帳残差、故障中の処理、操作結果の物理符号を検査する。FAIL時は各軸と総合点を算出せず `invalid` にする。
