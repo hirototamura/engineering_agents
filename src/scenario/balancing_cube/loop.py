@@ -652,7 +652,9 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
     confirmed = validation["state"] == "completed" and validation.get("numeric_gpu_verified") is True and validation.get("all_screening_passed") is True
     validation_status = "numerically_confirmed" if confirmed else "provisional"
     required_gpu_incomplete = require_gpu and (validation.get("gpu_state") != "completed" or any(e["result"]["gpu_state"] != "completed" for e in entries))
-    if required_gpu_incomplete and stop not in {"reference_execution_failed", "reference_evaluation_incomplete", "required_gpu_not_run_for_reference"} and not incomplete_evaluations:
+    if (required_gpu_incomplete and stop not in {"reference_execution_failed", "reference_evaluation_incomplete",
+            "required_gpu_not_run_for_reference", "context_revision_changed_requires_new_run"}
+            and not stop.startswith("onepiece_sync_pending") and not incomplete_evaluations):
         stop = "required_gpu_not_run"
     before_summary_sync = sync()
     if before_summary_sync.get("pending") and not stop.startswith("onepiece_sync_pending"):

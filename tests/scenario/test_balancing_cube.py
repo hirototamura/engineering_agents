@@ -346,14 +346,33 @@ def test_gpu_unavailability_cannot_promote_cpu_evidence(monkeypatch):
     assert result["agreement_state"] == "inconclusive"
 
 
-def test_changed_ssot_revision_requires_new_run(tmp_path):
+@pytest.fixture
+def completed_gpu_exploration(monkeypatch):
+    actual = BalancingCubeAdapter.rollout
+
+    def rollout(self, compiled, *, stage="exploration", require_gpu=False, deadline=None):
+        assert stage == "exploration", "Validation must be skipped after the guard stops the run"
+        result = actual(self, compiled, stage=stage, require_gpu=False, deadline=deadline)
+        # Only the orchestration completion state is stubbed; no GPU verification is claimed.
+        if require_gpu:
+            result["gpu_state"] = "completed"
+        return result
+
+    monkeypatch.setattr(BalancingCubeAdapter, "rollout", rollout)
+
+
+@pytest.mark.parametrize("require_gpu", [False, True])
+def test_changed_ssot_revision_requires_new_run(tmp_path, completed_gpu_exploration, require_gpu):
     source = snapshot()
     changed = copy.deepcopy(source)
     changed["requirements"].append({"id": "new-requirement"})
     fake = FakeLLM()
     result = run_design_loop(snapshot=source, output_dir=tmp_path / "changed", llm_client=fake,
-                             rounds=2, context_loader=lambda: changed)
+                             rounds=2, context_loader=lambda: changed, require_gpu=require_gpu)
     assert result["stopped_reason"] == "context_revision_changed_requires_new_run"
+    assert result["status"] == "inconclusive" and result["validation"]["state"] == "not_run"
+    assert result["numeric_gpu_verified"] is False
+    assert json.loads((tmp_path / "changed/summary.json").read_text()) == result
     assert fake.prompts == []
 
 
@@ -477,7 +496,8 @@ def test_agent_context_excludes_acceptance_runs_before_design_and_evidence_limit
     assert profile["data"]["normative_modal"] == "shall"
 
 
-def test_sync_failure_stops_before_pi_and_retries_exact_records(tmp_path, monkeypatch):
+@pytest.mark.parametrize("require_gpu", [False, True])
+def test_sync_failure_stops_before_pi_and_retries_exact_records(tmp_path, monkeypatch, completed_gpu_exploration, require_gpu):
     bridge = ssot_bridge(tmp_path)
     source = bridge.load_snapshot()
     deliver = bridge.store.import_records
@@ -486,9 +506,11 @@ def test_sync_failure_stops_before_pi_and_retries_exact_records(tmp_path, monkey
     monkeypatch.setattr(bridge.store, "import_records", unavailable)
     fake = FakeLLM()
     result = run_design_loop(snapshot=source, output_dir=tmp_path / "outage", llm_client=fake,
-                             rounds=2, bridge=bridge)
+                             rounds=2, bridge=bridge, require_gpu=require_gpu)
     assert result["stopped_reason"] == "onepiece_sync_pending_before_pi"
     assert result["status"] == "inconclusive" and not fake.prompts
+    assert result["validation"]["state"] == "not_run" and result["numeric_gpu_verified"] is False
+    assert json.loads((tmp_path / "outage/summary.json").read_text()) == result
     outbox = bridge.outbox(tmp_path / "outage")
     assert outbox.flush()["pending"] > 0
     monkeypatch.setattr(bridge.store, "import_records", deliver)

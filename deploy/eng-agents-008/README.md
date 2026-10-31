@@ -5,6 +5,14 @@ This transfers the local Engineering Agents development state to
 **Eng Agents 008**. GitHub holds source revisions; a private Release holds large
 evidence files. This is development infrastructure, not a new design iteration.
 
+The [Isaac development setup](ISAAC.md) adds an isolated Isaac Sim 6.2 / Isaac
+Lab 3.0 environment for the next CAD and reinforcement-learning stage. It retains
+the pinned MuJoCo/MJX runtime below. Installation smoke tests do not replace the
+cube's deterministic MuJoCo/MJX confirmation or physical acceptance.
+
+The [eight-corner Isaac cube workflow](ISAAC-CUBE.md) documents the subsequent
+GPU 0–5 allocation, 24,576-trial campaigns and bounded proposal evaluation.
+
 ## Source and evidence
 
 The original handover snapshots remain on
