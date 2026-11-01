@@ -226,8 +226,9 @@ def _log_sim_events(log: EventLog, sim: SimulatorProtocol, step: int, logged_eve
 def _scenario_registry() -> Dict[str, Any]:
     from scenario.scrubber_degradation.scenario_run import SCENARIO_REGISTRY as scrubber
     from scenario.ssos_eclss_loop.scenario_run import SCENARIO_REGISTRY as ssos
+    from scenario.balancing_cube.scenario_run import SCENARIO_REGISTRY as mechanical
 
-    return {**scrubber, **ssos}
+    return {**scrubber, **ssos, **mechanical}
 
 
 def scenario_descriptions() -> Dict[str, str]:

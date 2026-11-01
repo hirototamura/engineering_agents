@@ -26,6 +26,7 @@ class LLMGeneration:
     text: str
     thinking: str = ""
     error: str = ""
+    usage: Optional[dict[str, Any]] = None
 
 
 def invoke_llm(client: Any, prompt: str) -> LLMGeneration:
@@ -46,6 +47,7 @@ def invoke_llm(client: Any, prompt: str) -> LLMGeneration:
                 text=text,
                 thinking=combine_thinking(result.thinking, extract_thinking_text(text)),
                 error=result.error,
+                usage=result.usage,
             )
         if isinstance(result, str):
             return LLMGeneration(text=result, thinking=extract_thinking_text(result))

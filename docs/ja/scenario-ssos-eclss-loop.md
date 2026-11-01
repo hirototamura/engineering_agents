@@ -302,7 +302,7 @@ python3 -m tools.cli run ssos_eclss_loop --backend plant_sim --actor-mode labele
 
 ```bash
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \
-  --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
+  --apply-proposals experiments/eclss/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 
 ### graph_rewire E2E スモーク

@@ -31,7 +31,7 @@ To match the physics-only baseline in `scenario.yaml`, pass `--agents-mode none`
 | --- | --- |
 | `ea run [SCENARIO]` | Run one simulation. On `ssos_eclss_loop`, `iteration.enabled` or `--iterate N` chains design→verify |
 | `ea scenarios` | List available scenarios |
-| `ea results [RUN_ID]` | List recent runs or show one `summary.json` |
+| `ea results [RUN_ID] [--track eclss\|balancing_cube]` | List recent runs or show one `summary.json` in the selected project folder |
 | `ea doctor` | Check Python 3.11+, dependencies, Docker/SSOS mounts, Ollama, and vLLM |
 | `ea job run SPEC.json` | Execute a serialized `RunSpec` (cluster-worker compatible) |
 | `ea --version` | Show CLI version |
@@ -67,7 +67,7 @@ python3 -m tools.cli run ssos_eclss_loop --iterate 10
 | `--steps` | Override `simulation.steps` |
 | `--run-id` | Override output run id when using the default results root |
 | `--output-dir` | Write directly to a directory path |
-| `--results-root` | Override `src/experiments/results` (also `EA_RESULTS_ROOT`) |
+| `--results-root` | Override the selected project's result folder (also `EA_RESULTS_ROOT`) |
 | `--set KEY=VALUE` | Dot-notation deep override |
 | `--override-file` | YAML/JSON patch merged into scenario config |
 | `--backend` | `mock`, `plant_sim`, or `ros2` (`ssos_eclss_loop` only) |
@@ -118,12 +118,13 @@ The source of truth for the design→verify chain is `ssos_eclss_loop` `scenario
 
 ```bash
 ea results
+ea results --track balancing_cube
 python3 -m streamlit run src/tools/dashboard/app.py
 python3 -m tools.plant_sim_sensitivity_app  # plant_sim 3×4 knobs; not the run dashboard (port 8502)
 python3 -m tools.analysis all              # ensemble design-loop campaign + HTML (en + ja)
 ```
 
-The per-run dashboard answers "what happened in this simulation." The analysis campaign answers questions that are properties of the *ensemble* — order parameter, criticality, controllability, whether the mission is feasible inside `design_constraints.budgets`. See [Design-loop analysis](design-loop-analysis.md). The HTML lands at `src/experiments/analysis/design_loop_analysis.html`.
+The per-run dashboard answers "what happened in this simulation." The analysis campaign answers questions that are properties of the *ensemble* — order parameter, criticality, controllability, whether the mission is feasible inside `design_constraints.budgets`. See [Design-loop analysis](design-loop-analysis.md). The HTML lands at `experiments/eclss/analysis/design_loop_analysis.html`.
 
 ## SSOS Docker (`ssos_eclss_loop` + ros2) { #ssos-docker-ssos_eclss_loop--ros2 }
 
@@ -166,7 +167,7 @@ ea results
 | --- | --- |
 | `scripts/ssos/*` → `/root/` | Headless scripts (`ssos-eclss-headless.sh`, launch files) |
 | `src` → `/ea/src` | Code |
-| `experiments/results` → `/ea/results` | Run outputs on the host |
+| `experiments/eclss/results` → `/ea/results` | Run outputs on the host |
 
 For LLM agents, start Ollama on the host **or** reach the lab vLLM server (LAN/VPN) and use `--agents-mode llm`. Example: `--llm-provider vllm`. No second terminal for headless.
 
@@ -268,3 +269,13 @@ These still work and delegate to the same execution path:
 - `python3 src/scripts/run_mock_eclss.py`
 - `python3 -m scenario.ssos_eclss_loop.scenario_run`
 - `from scenario.runner import run_scenario`
+
+
+## Isaac cube experiments
+
+`ea isaac` exposes `prepare`, `run`, `analyze`, `plot` and `propose`.
+See [runtime setup and complete commands](https://github.com/hirototamura/engineering_agents/blob/0565836c3801ad2f58ed642c2265e65c1255a12c/deploy/eng-agents-008/ISAAC-CUBE.md#commands).
+The normal EA interpreter handles export, campaign orchestration, analysis,
+plotting and proposals. Pass `--python <isaac-python>` for conversion, USD audit,
+pilot/batch simulation and campaign workers. GPU execution remains a separate
+qualification step; CLI help does not require Isaac or CUDA.

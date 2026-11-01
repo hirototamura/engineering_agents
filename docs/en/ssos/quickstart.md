@@ -37,7 +37,7 @@ ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
 ea results
 ```
 
-Output: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/` (`telemetry.jsonl`, `summary.json`, etc.)
+Output: `experiments/eclss/results/ssos_eclss_loop_labeled_rule_base/` (`telemetry.jsonl`, `summary.json`, etc.)
 
 Details: [CLI guide — SSOS Docker](../cli.md#ssos-docker-ssos_eclss_loop--ros2)
 
@@ -194,7 +194,7 @@ PYTHONPATH=src python3 -m scenario.ssos_eclss_loop.scenario_run \
 
 See [Plant Sim backend](../memo/ssos_eclss_loop/plant_sim_backend.md) for crew metabolism, WRS closure, and ledger telemetry.
 
-Output: `src/experiments/results/<run_id>/` (`telemetry.jsonl`, `health_metrics.jsonl`, `summary.json`)
+Output: `experiments/eclss/results/<run_id>/` (`telemetry.jsonl`, `health_metrics.jsonl`, `summary.json`)
 
 ---
 

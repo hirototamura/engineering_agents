@@ -1,0 +1,408 @@
+{
+  "schema_version": 1,
+  "id": "isaac-campaigns-20261024-v1",
+  "scope": "Public viewer projection only: tilt trajectories, selected case metadata and technical report. The original full campaign archives remain private.",
+  "artifact": {
+    "url": "https://github.com/hirototamura/engineering_agents/releases/download/isaac-web-20261025-r1/engineering-research-isaac-web-20261025-r1.tar.gz",
+    "sha256": "8b8c2983ebc04ec2d72e7bff2c943550985ca47ea0d3958254eb856da3a26c3b",
+    "size_bytes": 173421275,
+    "root": "isaac"
+  },
+  "files": [
+    {
+      "path": "data/candidate-000-cases.json.gz",
+      "sha256": "ae6f2528004641cbed5341116f383643c9d76243a5f6781b6a06c152ee57e45d",
+      "size_bytes": 388303
+    },
+    {
+      "path": "data/candidate-000-tilt_total_deg.f32.gz",
+      "sha256": "920464b20786971dc916ce72cb85d7d861d00c378389bb851d27904df48e8b44",
+      "size_bytes": 1527978
+    },
+    {
+      "path": "data/candidate-000-tilt_x_deg.f32.gz",
+      "sha256": "c7b09216fe507b010d9bd138cb58e81b3b42050d1fc51b555a766587bfd47188",
+      "size_bytes": 4554855
+    },
+    {
+      "path": "data/candidate-000-tilt_y_deg.f32.gz",
+      "sha256": "0b0f211c0d8b0a8608a5668cfc844100b7bf0228056b5fb57575123c62ad4335",
+      "size_bytes": 4554474
+    },
+    {
+      "path": "data/candidate-001-cases.json.gz",
+      "sha256": "6940903aa0ab5eee9817bb1210cb7d822c905a5ee604c6914683274174e6601d",
+      "size_bytes": 395882
+    },
+    {
+      "path": "data/candidate-001-tilt_total_deg.f32.gz",
+      "sha256": "79a31ae3115b4ad12d1d6536726a1b616aa182ea86690e2f63e037194d23ce6c",
+      "size_bytes": 1406550
+    },
+    {
+      "path": "data/candidate-001-tilt_x_deg.f32.gz",
+      "sha256": "33c3c9901a3044fb74bd1884d122a808fd81f15568e02b4e029774e5ef80c91e",
+      "size_bytes": 4202775
+    },
+    {
+      "path": "data/candidate-001-tilt_y_deg.f32.gz",
+      "sha256": "7d6dfcbef0f80e637052715db81033f1c15a69162f6bbd148c932eba431dc2fa",
+      "size_bytes": 4208099
+    },
+    {
+      "path": "data/candidate-010-cases.json.gz",
+      "sha256": "d87cecfd0f6a9fa90021e9bfda594980f0e065fe2ef8172094f55f97649149e4",
+      "size_bytes": 396281
+    },
+    {
+      "path": "data/candidate-010-tilt_total_deg.f32.gz",
+      "sha256": "5b79e7bb7383829c08d20a12d0388bba0e59fde7dfeebcedeca3416d66ac751d",
+      "size_bytes": 1522726
+    },
+    {
+      "path": "data/candidate-010-tilt_x_deg.f32.gz",
+      "sha256": "8bf7d0caef1ca0bebd10e671ddbe74989d321a7c3abdcd62b9d0b83df367f979",
+      "size_bytes": 4179213
+    },
+    {
+      "path": "data/candidate-010-tilt_y_deg.f32.gz",
+      "sha256": "03c63afb8bfe9561d6995209f00ca3c7d11f52048f30b129e5eba38ca275d3d4",
+      "size_bytes": 4170799
+    },
+    {
+      "path": "data/candidate-011-cases.json.gz",
+      "sha256": "308038c16a3300d4f3b912c20d86a8d79797b38ffda67b9d8972c022a2f5d91e",
+      "size_bytes": 394169
+    },
+    {
+      "path": "data/candidate-011-tilt_total_deg.f32.gz",
+      "sha256": "f8da77b4b5303b463402d78cc3aa1617ad04e0709429f62efe405027e5fba0a7",
+      "size_bytes": 1377224
+    },
+    {
+      "path": "data/candidate-011-tilt_x_deg.f32.gz",
+      "sha256": "e5cbd69b107a99e98fd931f45afb5a29ae714cb28421216552459f688081ad32",
+      "size_bytes": 4151813
+    },
+    {
+      "path": "data/candidate-011-tilt_y_deg.f32.gz",
+      "sha256": "719b18099e188bc4c999fd29afa59c5c0f6c9cac25e80af46f4ab0bcd65f98f7",
+      "size_bytes": 4155445
+    },
+    {
+      "path": "data/candidate-100-cases.json.gz",
+      "sha256": "1a4e4e0a194d449ad842fae8a960569625e3431f2314c5fbe15ddce85decb571",
+      "size_bytes": 395468
+    },
+    {
+      "path": "data/candidate-100-tilt_total_deg.f32.gz",
+      "sha256": "4956d7576efba9d8adab94c8ade67f8f09ba90a01d42fae605a6b2dac8243f9b",
+      "size_bytes": 1506908
+    },
+    {
+      "path": "data/candidate-100-tilt_x_deg.f32.gz",
+      "sha256": "bf326f81172a851bf7fb6621207aebe2f111d46465ba839ca61742fe569355d6",
+      "size_bytes": 4201102
+    },
+    {
+      "path": "data/candidate-100-tilt_y_deg.f32.gz",
+      "sha256": "10ef92ea50d86f081ea607fbe0a449fb16784cea9d58ff857485a2af7c889f32",
+      "size_bytes": 4194928
+    },
+    {
+      "path": "data/candidate-101-cases.json.gz",
+      "sha256": "487f57c838f4a0e24a812705bd9ae8a2d4671fbe8e337098558c3bdc201d2c8b",
+      "size_bytes": 394546
+    },
+    {
+      "path": "data/candidate-101-tilt_total_deg.f32.gz",
+      "sha256": "ee2315fe5be692f1bf7e5f85415a2290972b15da0618751304e7fad96fbdbc30",
+      "size_bytes": 1396456
+    },
+    {
+      "path": "data/candidate-101-tilt_x_deg.f32.gz",
+      "sha256": "5e2aa489a371d6cd3ee2402c3316caf765c21a63295df377c513fd0998b1dad4",
+      "size_bytes": 4142530
+    },
+    {
+      "path": "data/candidate-101-tilt_y_deg.f32.gz",
+      "sha256": "db42ee7c95fb00a3a227378801d75f19d4627be00875925b9f09ec34fc637e47",
+      "size_bytes": 4146038
+    },
+    {
+      "path": "data/candidate-110-cases.json.gz",
+      "sha256": "492ea62c0fee3ec5ca1763f1ea30aec91a3944d0019e8d5b73487dd7f3d5835b",
+      "size_bytes": 395623
+    },
+    {
+      "path": "data/candidate-110-tilt_total_deg.f32.gz",
+      "sha256": "8c3edb5150d0da96997f88b69f8cfa9a0d946f6ee9d040319c02e22f3427f789",
+      "size_bytes": 1443647
+    },
+    {
+      "path": "data/candidate-110-tilt_x_deg.f32.gz",
+      "sha256": "45b0bf4cac4da7ccc020e905e353b1bc5de9d9f484d8c6c3b13a4b2897126c3c",
+      "size_bytes": 4141700
+    },
+    {
+      "path": "data/candidate-110-tilt_y_deg.f32.gz",
+      "sha256": "41ec1f1d084d0ad53a6b22a58367825fc42f7070e9b8ae5efdd663415a13c185",
+      "size_bytes": 4130145
+    },
+    {
+      "path": "data/candidate-111-cases.json.gz",
+      "sha256": "b2de246d74e75a1c699acb056a81ba2bdf36b2d5cc7c783934681fb2c8141d17",
+      "size_bytes": 385162
+    },
+    {
+      "path": "data/candidate-111-tilt_total_deg.f32.gz",
+      "sha256": "e7d10db44fa3e2a390fe241e2239c2b1dd5516fccf7f7f6081c9070febaffa08",
+      "size_bytes": 1037896
+    },
+    {
+      "path": "data/candidate-111-tilt_x_deg.f32.gz",
+      "sha256": "e75653b896656463a8588389538524eb64159090fbdb91e4bb81eb10066968f7",
+      "size_bytes": 4514260
+    },
+    {
+      "path": "data/candidate-111-tilt_y_deg.f32.gz",
+      "sha256": "d8c22ea19539b5c2b9f56e2f0e0c0a7a8bee1fc3747ab9bb106658ddaf44ac2c",
+      "size_bytes": 4514835
+    },
+    {
+      "path": "data/candidate-tilt_total_deg-all-recorded-overview.json.gz",
+      "sha256": "76ee009c8364fa13125a1b174b927002aef8f22b815f844c6d99bd344891f94a",
+      "size_bytes": 70992
+    },
+    {
+      "path": "data/candidate-tilt_total_deg-evaluation-only-overview.json.gz",
+      "sha256": "15d42a09dfdc53037a60c6d13e5dcba4255a9052af83ac2cca282306fe714f79",
+      "size_bytes": 59507
+    },
+    {
+      "path": "data/candidate-tilt_x_deg-all-recorded-overview.json.gz",
+      "sha256": "244986012eeba0d82db728cac639310a2b71f8cadd012f4c797add059645f127",
+      "size_bytes": 221078
+    },
+    {
+      "path": "data/candidate-tilt_x_deg-evaluation-only-overview.json.gz",
+      "sha256": "5e6203f608de3c5aa83ec104a421728bd70f39dafcdc698c85e232c4797ac204",
+      "size_bytes": 262870
+    },
+    {
+      "path": "data/candidate-tilt_y_deg-all-recorded-overview.json.gz",
+      "sha256": "4f3111760dae1862c7dc4cac3a7d7d081e7da14a21d3c10e534ef56a8c5dc15c",
+      "size_bytes": 218797
+    },
+    {
+      "path": "data/candidate-tilt_y_deg-evaluation-only-overview.json.gz",
+      "sha256": "d3eb894c56fae29b35eff6ac0e49f923498b63c176900c2e71458b628b718812",
+      "size_bytes": 263270
+    },
+    {
+      "path": "data/manifest.json",
+      "sha256": "6357fd82546f54a00f27c458f89b96fcde1966e2c6fb224eae0a04f3b69acfdb",
+      "size_bytes": 35899
+    },
+    {
+      "path": "data/reference-000-cases.json.gz",
+      "sha256": "b3f55496f8392f3d25cbc24bb2717e7911422c5524051c94ca3009d36112b57d",
+      "size_bytes": 385924
+    },
+    {
+      "path": "data/reference-000-tilt_total_deg.f32.gz",
+      "sha256": "92529b23f2d66af5fc67eef6aaa465a3a8c0662a12da947250cc41ea973d555f",
+      "size_bytes": 1652364
+    },
+    {
+      "path": "data/reference-000-tilt_x_deg.f32.gz",
+      "sha256": "daa1fa5d2778ebbbefab1e9d402d6e60bcf83f2909a9fd6ab1be13384d0748f8",
+      "size_bytes": 4563118
+    },
+    {
+      "path": "data/reference-000-tilt_y_deg.f32.gz",
+      "sha256": "a2ec9df782f851bc0e51532c56ccde25dec68d75d23ba7bc936414444b0c7fef",
+      "size_bytes": 4559174
+    },
+    {
+      "path": "data/reference-001-cases.json.gz",
+      "sha256": "e707bab193aecd7658ec00c9f000c914ecd201ee0b54eac5028326b7ddc39ea5",
+      "size_bytes": 391112
+    },
+    {
+      "path": "data/reference-001-tilt_total_deg.f32.gz",
+      "sha256": "1eca6939db1b3074bc8bc280c54609da765dc09a9ed57eddf641aaaf6e9dd7d4",
+      "size_bytes": 1544602
+    },
+    {
+      "path": "data/reference-001-tilt_x_deg.f32.gz",
+      "sha256": "911f23bfe052eed3c7981d7ccade3c04650d46068a891ddcc396991585e0ecff",
+      "size_bytes": 4392415
+    },
+    {
+      "path": "data/reference-001-tilt_y_deg.f32.gz",
+      "sha256": "627efe470a92ca04b9fc735273a9c5acd3c1781b64b343a480673a1df32e8059",
+      "size_bytes": 4401576
+    },
+    {
+      "path": "data/reference-010-cases.json.gz",
+      "sha256": "d034b905f974c871e7dcd44807b18c81b15fc38a2ac57b58ef96e0b90fc13039",
+      "size_bytes": 392491
+    },
+    {
+      "path": "data/reference-010-tilt_total_deg.f32.gz",
+      "sha256": "a32b44bc808b5e7661e6619290bb3beca75c6ecd1ad274b7ea3da8c25a30a66e",
+      "size_bytes": 1754171
+    },
+    {
+      "path": "data/reference-010-tilt_x_deg.f32.gz",
+      "sha256": "6193bfe54ac8832b1ffb03474d4b1518dc13de2cfabc42c13d46976ec74bfa5c",
+      "size_bytes": 4397064
+    },
+    {
+      "path": "data/reference-010-tilt_y_deg.f32.gz",
+      "sha256": "30eb609526e574e9404798e95a535acb0937a41059fdd50ceaf7a3df3aa920c9",
+      "size_bytes": 4388626
+    },
+    {
+      "path": "data/reference-011-cases.json.gz",
+      "sha256": "b1bb87cdfd3cff3f25c3e5a0a9c3a3f8ceaa48ac5ef88dcb00a01c8dc6177b44",
+      "size_bytes": 394619
+    },
+    {
+      "path": "data/reference-011-tilt_total_deg.f32.gz",
+      "sha256": "8d30f2d56944de3288a1aa9b7d6a5579f73dd5205f5e50c8a669849c0bbc265e",
+      "size_bytes": 1503136
+    },
+    {
+      "path": "data/reference-011-tilt_x_deg.f32.gz",
+      "sha256": "1c38600d9e5785af079b605e2387a354d5712f189b5fef93353f0e70754575d5",
+      "size_bytes": 4364850
+    },
+    {
+      "path": "data/reference-011-tilt_y_deg.f32.gz",
+      "sha256": "d7a36fa6a9ee2908394afe78f3b1afed5f309dffdf09de46a848097a5ce5101c",
+      "size_bytes": 4363211
+    },
+    {
+      "path": "data/reference-100-cases.json.gz",
+      "sha256": "2cc7c21b56602f4916302d3d90e904b20835da40a3e7d72c5e1296dc650bbf33",
+      "size_bytes": 392624
+    },
+    {
+      "path": "data/reference-100-tilt_total_deg.f32.gz",
+      "sha256": "48b024698b510797a2e9a21642687bac4291bef8f9bcd7cff5d122e783b5d6ec",
+      "size_bytes": 1750153
+    },
+    {
+      "path": "data/reference-100-tilt_x_deg.f32.gz",
+      "sha256": "8ffc78fee76cfc6665496abb83a66646574736974e1d116db1577fa1ecd54648",
+      "size_bytes": 4401095
+    },
+    {
+      "path": "data/reference-100-tilt_y_deg.f32.gz",
+      "sha256": "fde7d25a8c272fc6ce9f7cb4d501a5a20b24696c1d53cb853aad5ccafda92183",
+      "size_bytes": 4398032
+    },
+    {
+      "path": "data/reference-101-cases.json.gz",
+      "sha256": "5aece26bcdf664da60eba8aa4fe0fac19d266cc1223212ef359b18e4d00858cd",
+      "size_bytes": 394841
+    },
+    {
+      "path": "data/reference-101-tilt_total_deg.f32.gz",
+      "sha256": "ea5f368414b3a5102cd2e3ea7a1df1be3c95214179e8fd47fc24932161214512",
+      "size_bytes": 1509666
+    },
+    {
+      "path": "data/reference-101-tilt_x_deg.f32.gz",
+      "sha256": "9971f3fe906ba169c4d193ce1cc98c354e657a2323e077836211817983295b38",
+      "size_bytes": 4357998
+    },
+    {
+      "path": "data/reference-101-tilt_y_deg.f32.gz",
+      "sha256": "f30896bc50e47e12ebad3078d5c2fecdf4b6e30665ac4e46ad2998d5583305b9",
+      "size_bytes": 4357860
+    },
+    {
+      "path": "data/reference-110-cases.json.gz",
+      "sha256": "1cd6c35ddcdb806fa22ca02dcb802370551d6efb6b8c4242108ec50d8c68c1ca",
+      "size_bytes": 394697
+    },
+    {
+      "path": "data/reference-110-tilt_total_deg.f32.gz",
+      "sha256": "3c0a514e514594b17e9fe147952d6dbd5951454dc97466c7748f9c4fd96a474f",
+      "size_bytes": 1700943
+    },
+    {
+      "path": "data/reference-110-tilt_x_deg.f32.gz",
+      "sha256": "6959b42767a8a1195b8c0e38c8f93505fa53ffada43b7820e1abeea00af1be8b",
+      "size_bytes": 4367774
+    },
+    {
+      "path": "data/reference-110-tilt_y_deg.f32.gz",
+      "sha256": "469b664a9620347a689d796aefc2c2fa902b38ff86f8c991705087426ac40216",
+      "size_bytes": 4375570
+    },
+    {
+      "path": "data/reference-111-cases.json.gz",
+      "sha256": "6bbb3c1d71f3e61bff837ac445671a3a54ebe80ba5d3cc62bb08fad0b709e19d",
+      "size_bytes": 387501
+    },
+    {
+      "path": "data/reference-111-tilt_total_deg.f32.gz",
+      "sha256": "02b859349a6279be9ecd23b51e4f250061e3e0f78f91367e8828d1bff9666c8d",
+      "size_bytes": 1129452
+    },
+    {
+      "path": "data/reference-111-tilt_x_deg.f32.gz",
+      "sha256": "9ec64e17da26b131ac2bd163247a7a0eba74d218b4c6881b60ac4427d3ef61b4",
+      "size_bytes": 4556256
+    },
+    {
+      "path": "data/reference-111-tilt_y_deg.f32.gz",
+      "sha256": "7481dd62f9b836ad2bb3b1c5495b0a3014f0d8499f9d73671469aa3b692af822",
+      "size_bytes": 4554951
+    },
+    {
+      "path": "data/reference-tilt_total_deg-all-recorded-overview.json.gz",
+      "sha256": "8567b1131d2ebe1fb94196dab6f477921846211b1b714faacd1ba6bb0f7b4670",
+      "size_bytes": 72099
+    },
+    {
+      "path": "data/reference-tilt_total_deg-evaluation-only-overview.json.gz",
+      "sha256": "8d17cf0afeb9978e491e8353bf622f23bfd8b414d12d1b7c4e8861cce33e296b",
+      "size_bytes": 67433
+    },
+    {
+      "path": "data/reference-tilt_x_deg-all-recorded-overview.json.gz",
+      "sha256": "d4ef0e0fbf6bb4ca82af999d4804396fff6cb5c64042bdf0513297b335eb5841",
+      "size_bytes": 218458
+    },
+    {
+      "path": "data/reference-tilt_x_deg-evaluation-only-overview.json.gz",
+      "sha256": "7e6a21442a06ae22b0e804ead4c5a6c7ceffa7cf6c51316938ffd8c1eb6abd9a",
+      "size_bytes": 261019
+    },
+    {
+      "path": "data/reference-tilt_y_deg-all-recorded-overview.json.gz",
+      "sha256": "436545c66b96f126de4c04b2252a218c49aaf4e2324fad779981e442c85b2fd1",
+      "size_bytes": 213915
+    },
+    {
+      "path": "data/reference-tilt_y_deg-evaluation-only-overview.json.gz",
+      "sha256": "64d4a2e08f99b3e3af40aa3030fce80f3cbd4a72a7ec8412cd18014f49925917",
+      "size_bytes": 261553
+    },
+    {
+      "path": "publication.json",
+      "sha256": "0ba185333aa89b7f5578d8faa5f0dba55adc32bf551c0b7b10ed7b56e7cc9eb7",
+      "size_bytes": 24174
+    },
+    {
+      "path": "report/index.html",
+      "sha256": "2aab4bc946d320696ee499e03c1bebb1247580c593be40e217621213d1ae3e21",
+      "size_bytes": 3167675
+    }
+  ]
+}

@@ -156,7 +156,7 @@ Contract: `src/integrations/one_piece/ssot_schema.json`.
 
 ```json
 {
-  "provenance_path": "src/experiments/results/scrubber_degradation_labeled_rule_base/provenance.jsonl",
+  "provenance_path": "experiments/eclss/results/scrubber_degradation_labeled_rule_base/provenance.jsonl",
   "provenance_record_count": 2,
   "design_proposals_path": ".../design_proposals.json",
   "design_proposal_count": 1

@@ -94,8 +94,9 @@ def test_ollama_generate_result_keeps_thinking_field(monkeypatch):
         return FakeResponse()
 
     monkeypatch.setattr("core.llm.ollama.requests.post", fake_post)
-    client = OllamaClient(think=True)
+    client = OllamaClient(think=True, num_ctx=16384)
     result = client.generate_result("design review")
     assert captured["json"]["think"] is True
+    assert captured["json"]["options"]["num_ctx"] == 16384
     assert result.text.startswith("{")
     assert result.thinking == "size ARS from dwell, not from the summary"

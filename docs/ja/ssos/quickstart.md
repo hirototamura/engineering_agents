@@ -37,7 +37,7 @@ ea run ssos_eclss_loop --actor-mode labeled_rule_base --steps 50
 ea results
 ```
 
-出力例: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`（`telemetry.jsonl`, `summary.json` 等）
+出力例: `experiments/eclss/results/ssos_eclss_loop_labeled_rule_base/`（`telemetry.jsonl`, `summary.json` 等）
 
 詳細: [CLI ガイド — SSOS Docker](../cli.md#ssos-docker-ssos_eclss_loop--ros2)
 
@@ -194,7 +194,7 @@ PYTHONPATH=src python3 -m scenario.ssos_eclss_loop.scenario_run \
 
 [Plant Sim backend 解説](../memo/ssos_eclss_loop/plant_sim_backend.md) を参照。
 
-出力: `src/experiments/results/<run_id>/`（`telemetry.jsonl`, `health_metrics.jsonl`, `summary.json`）
+出力: `experiments/eclss/results/<run_id>/`（`telemetry.jsonl`, `health_metrics.jsonl`, `summary.json`）
 
 ---
 

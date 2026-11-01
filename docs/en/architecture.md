@@ -122,7 +122,8 @@ src/integrations/   (invoked from scenario)
 | Core | `src/core/` | Persona, Team ABC, memory, LLM client |
 | Environment | `src/environment/` | `scrubber/`: `SimulatorProtocol`, mock ECLSS ppm, mock EPS (`MockEpsBackend` or `Ros2EpsBridge`). `ssos/eclss/`: `EclssBackend`, mock \| ros2, `graph_rewire`. `ssos/ros2/cli.py`: shared ROS2 CLI. `ssos/eps/ros2/`: EPS bridge (scrubber optional; not used by eclss loop) |
 | Scenario | `src/scenario/` | Per-scenario YAML, Team, `design_proposals` |
-| Experiments | `src/experiments/results/` | Run output |
+| ECLSS experiments | `experiments/eclss/` | ECLSS archives, analysis, and run output |
+| Cube experiments | `experiments/balancing_cube/` | Balancing-cube reports and run output |
 | Tools | `src/tools/dashboard/` | Streamlit (view branches on `summary.scenario`) |
 | Integrations | `src/integrations/one_piece/` | provenance JSON |
 

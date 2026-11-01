@@ -25,7 +25,7 @@ python3 -m tools.analysis report --lang ja   # Japanese only
 python3 -m tools.analysis all
 ```
 
-Outputs land under `src/experiments/analysis/`:
+Outputs land under `experiments/eclss/analysis/`:
 
 | Path | Contents |
 | --- | --- |
@@ -220,7 +220,7 @@ The layering rule (`tools → scenario → environment → core`) holds: this pa
 - Failure injection is off in the sweeps so that coverage is the only thing varying. The chains keep the shipped default, which enables it.
 - The grid holds WRS fixed, justified by its measured zero gain and a baseline coverage of 6.4.
 
-The self-contained HTML reports at `src/experiments/analysis/design_loop_analysis.html` (English) and `design_loop_analysis.ja.html` (日本語) are the numbered documents; this page is the operator's guide to regenerating them.
+The self-contained HTML reports at `experiments/eclss/analysis/design_loop_analysis.html` (English) and `design_loop_analysis.ja.html` (日本語) are the numbered documents; this page is the operator's guide to regenerating them.
 
 ## See also
 

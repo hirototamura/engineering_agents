@@ -94,4 +94,5 @@ def build_llm_client(llm_cfg: Optional[Dict[str, Any]] = None) -> LLMClient:
         think=think,
         api_timeout=api_timeout,
         max_concurrency=max_concurrency,
+        num_ctx=int(cfg["num_ctx"]) if cfg.get("num_ctx") is not None else None,
     )

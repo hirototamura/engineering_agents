@@ -166,7 +166,7 @@ One Piece `SsotProvenanceRecord` 概念に準拠。必須フィールド:
 
 ```json
 {
-  "provenance_path": "src/experiments/results/scrubber_degradation_labeled_rule_base/provenance.jsonl",
+  "provenance_path": "experiments/eclss/results/scrubber_degradation_labeled_rule_base/provenance.jsonl",
   "provenance_record_count": 2,
   "design_proposals_path": ".../design_proposals.json",
   "design_proposal_count": 1

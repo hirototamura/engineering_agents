@@ -408,7 +408,7 @@ python -c "from scenario.runner import run_scenario; print(run_scenario('scrubbe
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'labeled_rule_base'}}))"
 ```
 
-Output: `src/experiments/results/scrubber_degradation_labeled_rule_base/`
+Output: `experiments/eclss/results/scrubber_degradation_labeled_rule_base/`
 
 #### LLM team (scrubber · `llm` · Ollama or vLLM required)
 
@@ -416,7 +416,7 @@ Output: `src/experiments/results/scrubber_degradation_labeled_rule_base/`
 python -c "from scenario.runner import run_scenario; print(run_scenario('scrubber_degradation', overrides={'agents': {'mode': 'llm'}}))"
 ```
 
-Output: `src/experiments/results/scrubber_degradation_llm/` (`run_id_llm` in `scenario.yaml`)
+Output: `experiments/eclss/results/scrubber_degradation_llm/` (`run_id_llm` in `scenario.yaml`)
 
 To use a different model or run name, change `llm.model` in `agents.yaml` or override `output.run_id_llm` before the run.
 
@@ -429,7 +429,7 @@ python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rul
   --set iteration.enabled=false --steps 8 --run-id mock-smoke
 ```
 
-Example output: `src/experiments/results/ssos_eclss_loop_labeled_rule_base/`
+Example output: `experiments/eclss/results/ssos_eclss_loop_labeled_rule_base/`
 
 PowerShell equivalent:
 
@@ -455,7 +455,7 @@ Apply prior run design proposals:
 
 ```bash
 python -m scenario.ssos_eclss_loop.scenario_run --backend mock --actor-mode llm \
-  --apply-proposals src/experiments/results/ssos_eclss_loop_llm/design_proposals.json
+  --apply-proposals experiments/eclss/results/ssos_eclss_loop_llm/design_proposals.json
 ```
 
 graph_rewire E2E: `./scripts/run_graph_rewire_e2e.sh` (requires ECLSS headless)
@@ -506,7 +506,7 @@ Open `http://localhost:8501`. See [Dashboard at a glance](#dashboard-at-a-glance
 
 - Runs with `summary.scenario == "ssos_eclss_loop"` branch to dedicated `ssos_views` UI
 
-Results: `src/experiments/results/<run_id>/`
+Results: `experiments/eclss/results/<run_id>/`
 
 ---
 
@@ -517,7 +517,7 @@ Results: `src/experiments/results/<run_id>/`
 | `src/core/agents/` | Persona, Team ABC, memory, LLM client |
 | `src/environment/` | `SimulatorProtocol` (scrubber), `EclssBackend` / `Ros2EclssBridge` (ssos), EPS mock / `Ros2EpsBridge` |
 | `src/scenario/` | `scrubber_degradation`, `ssos_eclss_loop`, teams, `design_proposals` |
-| `src/experiments/results/` | Run results (gitignore recommended) |
+| `experiments/eclss/results/` | Run results (gitignore recommended) |
 | `src/tools/dashboard/` | Streamlit UI |
 | `src/integrations/one_piece/` | provenance record generation |
 | `docs/ja/` | Japanese design, API, and scenario documentation |

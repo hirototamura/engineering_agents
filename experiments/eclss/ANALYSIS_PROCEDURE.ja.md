@@ -65,7 +65,7 @@ engineering_agents/
 リポジトリルートから `experiments/` に移動します。
 
 ```bash
-cd experiments
+cd experiments/eclss
 ```
 
 Linux / macOS / Git Bash:
@@ -87,10 +87,10 @@ Get-ChildItem runs\*.tar.gz | ForEach-Object {
 展開後、以下のディレクトリが存在することを確認します。
 
 ```text
-experiments/runs/phase1-no-chain-memory/
-experiments/runs/phase2-chain-memory/
-experiments/runs/phase3-rescored/
-experiments/runs/phase4-multiagent/
+runs/phase1-no-chain-memory/
+runs/phase2-chain-memory/
+runs/phase3-rescored/
+runs/phase4-multiagent/
 ```
 
 各ディレクトリには `chain_summary.json` と `01/` から `50/` のiterationディレクトリがあるはずです。
@@ -119,14 +119,14 @@ python analysis\analyze_ssos_iter.py --root runs/phase4-multiagent      --prefix
 主な生成物:
 
 ```text
-experiments/outputs/phase1_iteration_metrics.csv
-experiments/outputs/phase2_iteration_metrics.csv
-experiments/outputs/phase3_iteration_metrics.csv
-experiments/outputs/phase4_iteration_metrics.csv
-experiments/outputs/phase1_iteration_findings.json
-experiments/outputs/phase2_iteration_findings.json
-experiments/outputs/phase3_iteration_findings.json
-experiments/outputs/phase4_iteration_findings.json
+experiments/eclss/outputs/phase1_iteration_metrics.csv
+experiments/eclss/outputs/phase2_iteration_metrics.csv
+experiments/eclss/outputs/phase3_iteration_metrics.csv
+experiments/eclss/outputs/phase4_iteration_metrics.csv
+experiments/eclss/outputs/phase1_iteration_findings.json
+experiments/eclss/outputs/phase2_iteration_findings.json
+experiments/eclss/outputs/phase3_iteration_findings.json
+experiments/eclss/outputs/phase4_iteration_findings.json
 ```
 
 ## 4. 4段階比較グラフを生成する
@@ -142,7 +142,7 @@ python3 analysis/make_comparison_trend.py
 生成物:
 
 ```text
-experiments/outputs/ssos_phase1_phase2_phase3_survival_score_trend.svg
+experiments/eclss/outputs/ssos_phase1_phase2_phase3_survival_score_trend.svg
 ```
 
 見るポイント:
@@ -161,7 +161,7 @@ python3 analysis/make_parameter_comparison.py
 生成物:
 
 ```text
-experiments/outputs/ssos_phase1_phase2_phase3_parameter_trends.svg
+experiments/eclss/outputs/ssos_phase1_phase2_phase3_parameter_trends.svg
 ```
 
 見るポイント:
@@ -193,14 +193,14 @@ python3 analysis/make_score_group_components.py --prefix phase4 --title "段階�
 生成物:
 
 ```text
-experiments/outputs/phase1_score_components_grouped.csv
-experiments/outputs/phase2_score_components_grouped.csv
-experiments/outputs/phase3_score_components_grouped.csv
-experiments/outputs/phase4_score_components_grouped.csv
-experiments/outputs/phase1_score_components_grouped.svg
-experiments/outputs/phase2_score_components_grouped.svg
-experiments/outputs/phase3_score_components_grouped.svg
-experiments/outputs/phase4_score_components_grouped.svg
+experiments/eclss/outputs/phase1_score_components_grouped.csv
+experiments/eclss/outputs/phase2_score_components_grouped.csv
+experiments/eclss/outputs/phase3_score_components_grouped.csv
+experiments/eclss/outputs/phase4_score_components_grouped.csv
+experiments/eclss/outputs/phase1_score_components_grouped.svg
+experiments/eclss/outputs/phase2_score_components_grouped.svg
+experiments/eclss/outputs/phase3_score_components_grouped.svg
+experiments/eclss/outputs/phase4_score_components_grouped.svg
 ```
 
 ### 詳細版: A / B / C / D / E / F / G
@@ -215,14 +215,14 @@ python3 analysis/make_score_components_split.py --prefix phase4 --title "段階�
 生成物:
 
 ```text
-experiments/outputs/phase1_score_components_split.csv
-experiments/outputs/phase2_score_components_split.csv
-experiments/outputs/phase3_score_components_split.csv
-experiments/outputs/phase4_score_components_split.csv
-experiments/outputs/phase1_score_components_stacked_split.svg
-experiments/outputs/phase2_score_components_stacked_split.svg
-experiments/outputs/phase3_score_components_stacked_split.svg
-experiments/outputs/phase4_score_components_stacked_split.svg
+experiments/eclss/outputs/phase1_score_components_split.csv
+experiments/eclss/outputs/phase2_score_components_split.csv
+experiments/eclss/outputs/phase3_score_components_split.csv
+experiments/eclss/outputs/phase4_score_components_split.csv
+experiments/eclss/outputs/phase1_score_components_stacked_split.svg
+experiments/eclss/outputs/phase2_score_components_stacked_split.svg
+experiments/eclss/outputs/phase3_score_components_stacked_split.svg
+experiments/eclss/outputs/phase4_score_components_stacked_split.svg
 ```
 
 見るポイント:
@@ -241,7 +241,7 @@ python3 analysis/summarize_three_way_inputs.py
 生成物:
 
 ```text
-experiments/outputs/ssos_three_way_comparison_summary.json
+experiments/eclss/outputs/ssos_three_way_comparison_summary.json
 ```
 
 ここには、以下のような比較表向けの値が入ります。
@@ -266,16 +266,16 @@ Linux / macOS / Git Bash:
 
 ```bash
 for n in 1 2 3 4; do
-  diff outputs/phase${n}_iteration_metrics.csv          ../docs/data/phase${n}_iteration_metrics.csv
-  diff outputs/phase${n}_iteration_findings.json        ../docs/data/phase${n}_iteration_findings.json
-  diff outputs/phase${n}_score_components_grouped.csv   ../docs/data/phase${n}_score_components_grouped.csv
-  diff outputs/phase${n}_score_components_grouped.svg   ../docs/images/results/phase${n}_score_components_grouped.svg
-  diff outputs/phase${n}_score_components_split.csv     ../docs/data/phase${n}_score_components_split.csv
-  diff outputs/phase${n}_score_components_stacked_split.svg ../docs/images/results/phase${n}_score_components_stacked_split.svg
+  diff outputs/phase${n}_iteration_metrics.csv          ../../docs/data/phase${n}_iteration_metrics.csv
+  diff outputs/phase${n}_iteration_findings.json        ../../docs/data/phase${n}_iteration_findings.json
+  diff outputs/phase${n}_score_components_grouped.csv   ../../docs/data/phase${n}_score_components_grouped.csv
+  diff outputs/phase${n}_score_components_grouped.svg   ../../docs/images/results/phase${n}_score_components_grouped.svg
+  diff outputs/phase${n}_score_components_split.csv     ../../docs/data/phase${n}_score_components_split.csv
+  diff outputs/phase${n}_score_components_stacked_split.svg ../../docs/images/results/phase${n}_score_components_stacked_split.svg
 done
 
-diff outputs/ssos_phase1_phase2_phase3_survival_score_trend.svg ../docs/images/results/ssos_phase1_phase2_phase3_survival_score_trend.svg
-diff outputs/ssos_phase1_phase2_phase3_parameter_trends.svg     ../docs/images/results/ssos_phase1_phase2_phase3_parameter_trends.svg
+diff outputs/ssos_phase1_phase2_phase3_survival_score_trend.svg ../../docs/images/results/ssos_phase1_phase2_phase3_survival_score_trend.svg
+diff outputs/ssos_phase1_phase2_phase3_parameter_trends.svg     ../../docs/images/results/ssos_phase1_phase2_phase3_parameter_trends.svg
 ```
 
 Windows PowerShell:
@@ -298,11 +298,11 @@ Compare-Object (Get-Content "outputs\ssos_phase1_phase2_phase3_parameter_trends.
 
 ## 8. 新しいchain結果を解析する場合
 
-新しいchain結果が `src/experiments/results/<run_id>/` にある場合:
+新しいchain結果が `results/<run_id>/` にある場合:
 
 ```bash
-cd experiments
-python3 analysis/analyze_ssos_iter.py --root ../src/experiments/results/<run_id> --prefix mychain
+cd experiments/eclss
+python3 analysis/analyze_ssos_iter.py --root results/<run_id> --prefix mychain
 python3 analysis/make_score_group_components.py --prefix mychain --title "新規chain: 点数内訳 集約版" --output mychain_score_components_grouped
 python3 analysis/make_score_components_split.py --prefix mychain --title "新規chain: 点数内訳 詳細版"
 ```
@@ -310,10 +310,10 @@ python3 analysis/make_score_components_split.py --prefix mychain --title "新規
 生成物:
 
 ```text
-experiments/outputs/mychain_iteration_metrics.csv
-experiments/outputs/mychain_iteration_findings.json
-experiments/outputs/mychain_score_components_grouped.svg
-experiments/outputs/mychain_score_components_stacked_split.svg
+experiments/eclss/outputs/mychain_iteration_metrics.csv
+experiments/eclss/outputs/mychain_iteration_findings.json
+experiments/eclss/outputs/mychain_score_components_grouped.svg
+experiments/eclss/outputs/mychain_score_components_stacked_split.svg
 ```
 
 3段階比較に新しいchainを加える場合は、`make_comparison_trend.py` と `make_parameter_comparison.py` の `SERIES` に新しいprefixを追加します。
@@ -350,8 +350,8 @@ experiments/outputs/mychain_score_components_stacked_split.svg
 ## 10. Cursorに依頼するときのプロンプト例
 
 ```text
-このリポジトリの experiments/README.md と docs/data/README.md を読み、
-experiments/runs/ にある4つのtar.gzを展開して、解析手順に従って
+このリポジトリの experiments/eclss/README.md と docs/data/README.md を読み、
+runs/ にある4つのtar.gzを展開して、解析手順に従って
 SSOS ECLSSの4段階比較レポートを再生成してください。
 
 必ず以下を出してください。
@@ -362,7 +362,7 @@ SSOS ECLSSの4段階比較レポートを再生成してください。
 - 段階③④のスコアは評価指標変更後なので、段階①/②と単純比較しないという注意書き
 - Cost/Massの点数上昇と、物理的な総コスト・総重量の改善を切り分けた考察
 
-生成結果は experiments/outputs/ に置き、docs/data/ と docs/images/results/ の
+生成結果は experiments/eclss/outputs/ に置き、docs/data/ と docs/images/results/ の
 コミット済み結果との差分も確認してください。
 ```
 
@@ -378,7 +378,7 @@ tar.gzを展開できていないか、`--root` の指定が1階層ずれてい�
 
 ### 詳細版A-Gのファイルがdocs側にない
 
-`make_score_components_split.py` の生成物がまだdocsにコミットされていない可能性があります。その場合は `experiments/outputs/` に生成された以下をdocs側へ追加します。
+`make_score_components_split.py` の生成物がまだdocsにコミットされていない可能性があります。その場合は `experiments/eclss/outputs/` に生成された以下をdocs側へ追加します。
 
 ```text
 docs/data/phaseN_score_components_split.csv

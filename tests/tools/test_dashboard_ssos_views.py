@@ -57,7 +57,7 @@ def test_plant_sim_series_extracts_ledgers():
 
 
 def test_build_line_plot_figure_skips_plant_sim_telemetry():
-    run_dir = Path("src/experiments/results/plant-sim-pytest-smoke")
+    run_dir = Path("experiments/eclss/results/plant-sim-pytest-smoke")
     if not (run_dir / "telemetry.jsonl").exists():
         telemetry = [
             {

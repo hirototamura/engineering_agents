@@ -44,20 +44,20 @@ Per-round metrics behind [the experiment record](../en/results.md) / [実験記�
 ## Where this came from
 
 These files are not hand-maintained. They are the output of
-[`experiments/analysis/analyze_ssos_iter.py`](../../experiments/analysis/analyze_ssos_iter.py)
+[`experiments/eclss/analysis/analyze_ssos_iter.py`](../../experiments/eclss/analysis/analyze_ssos_iter.py)
 run over the raw chain logs archived in
-[`experiments/runs/`](../../experiments/runs), and re-running it reproduces them
+[`experiments/eclss/runs/`](../../experiments/eclss/runs), and re-running it reproduces them
 byte for byte:
 
 ```bash
-cd experiments
+cd experiments/eclss
 for f in runs/*.tar.gz; do tar -xzf "$f" -C runs/; done
 python3 analysis/analyze_ssos_iter.py --root runs/phase1-no-chain-memory --prefix phase1
-diff outputs/phase1_iteration_metrics.csv ../docs/data/phase1_iteration_metrics.csv   # empty
+diff outputs/phase1_iteration_metrics.csv ../../docs/data/phase1_iteration_metrics.csv   # empty
 ```
 
 Full instructions, and what is inside a chain archive:
-[`experiments/README.md`](../../experiments/README.md).
+[`experiments/eclss/README.md`](../../experiments/eclss/README.md).
 
 ## Running a new chain
 

@@ -18,10 +18,15 @@ def register(app: typer.Typer) -> None:
 
 
 def results(
-    run_id: Optional[str] = typer.Argument(None, help="Run id under experiments/results."),
+    run_id: Optional[str] = typer.Argument(None, help="Run id under the selected experiment track."),
     limit: int = typer.Option(10, "--limit", help="Number of recent runs to list."),
+    track: str = typer.Option("eclss", "--track", help="Experiment track: eclss or balancing_cube."),
 ) -> None:
-    root = default_results_root()
+    try:
+        root = default_results_root(track)
+    except ValueError as exc:
+        print_error(str(exc), hint="Choose --track eclss or --track balancing_cube.")
+        raise typer.Exit(exit_codes.USER_ERROR)
     if run_id is None:
         runs = _list_runs(root, limit=limit)
         if not runs:

@@ -177,9 +177,9 @@ E と F がほぼ同じ量だけ一緒に動いている。これが要点であ
 | `<chain>/compact_chain_memory.json` | 次の周が読んだメモ |
 | `<chain>/chain_summary.json` | 連鎖の唯一の答えと、その選び方 |
 
-4本とも生ログを丸ごと保存してある（[`experiments/runs/`](https://github.com/hirototamura/engineering_agents/tree/main/experiments/runs)、圧縮して各11 MB）。
+4本とも生ログを丸ごと保存してある（[`experiments/eclss/runs/`](https://github.com/hirototamura/engineering_agents/tree/main/experiments/eclss/runs)、圧縮して各11 MB）。
 このページの表を作った解析スクリプトも同梱してあり、走らせ直せば図もCSVもバイト単位で再現する。
-手順の最後の工程がそれを証明する `diff` になっている: [`experiments/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/README.md)。
+手順の最後の工程がそれを証明する `diff` になっている: [`experiments/eclss/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/eclss/README.md)。
 
 新しい連鎖を走らせる:
 

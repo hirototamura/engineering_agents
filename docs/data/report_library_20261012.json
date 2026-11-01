@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "format": "engineering-report-release-index",
+  "assets": [
+    {
+      "filename": "engineering-report-collection-20261012.zip",
+      "sha256": "595e098f98bfeb8deab75d8a0f556df58c060fce98555c9a1f3c9675cee896df",
+      "size_bytes": 423173277,
+      "files": 1575,
+      "latest_main_reports": 15,
+      "indexed_source_reports": 29,
+      "indexed_html": 155,
+      "url": "https://github.com/hirototamura/engineering_agents/releases/download/reports-qwen-memory-20261012/engineering-report-collection-20261012.zip"
+    },
+    {
+      "filename": "qwen27b-memory10-results-20261012.tar.gz",
+      "url": "https://github.com/hirototamura/engineering_agents/releases/download/reports-qwen-memory-20261012/qwen27b-memory10-results-20261012.tar.gz",
+      "sha256": "99c95379a3d8901d7624ef26f4714a2884445e591f918716b6b5772043b8a547",
+      "size_bytes": 53407304
+    },
+    {
+      "filename": "qwen27b-memory20-results-20261012.tar.gz",
+      "url": "https://github.com/hirototamura/engineering_agents/releases/download/reports-qwen-memory-20261012/qwen27b-memory20-results-20261012.tar.gz",
+      "sha256": "f0697b89412850d7b95e9576279920d554866e77adbf602389088244ad123a3b",
+      "size_bytes": 78029769
+    },
+    {
+      "filename": "engineering_agents-0.1.0-py3-none-any.whl",
+      "url": "https://github.com/hirototamura/engineering_agents/releases/download/reports-qwen-memory-20261012/engineering_agents-0.1.0-py3-none-any.whl",
+      "sha256": "72043d214090d97686c4afe4eb0db3c7d3c8c1b0d1eaf4b7aa39b00c484bcf3c",
+      "size_bytes": 555050
+    },
+    {
+      "filename": "engineering-pr-verification-20261012.zip",
+      "sha256": "2c0e6210a2d46ffc27c64955dfdf13a14bcf1bc9cffe7c8ccc0ae095f2f95257",
+      "size_bytes": 76074,
+      "url": "https://github.com/hirototamura/engineering_agents/releases/download/reports-qwen-memory-20261012/engineering-pr-verification-20261012.zip"
+    }
+  ],
+  "languages": [
+    "en",
+    "ja"
+  ],
+  "original_source_hashes_preserved": true,
+  "translation_check": {
+    "pairs": 29,
+    "pages": 58,
+    "numeric_json_comparisons": 26
+  },
+  "physical_validation": false,
+  "adopted_human_baseline": null
+}

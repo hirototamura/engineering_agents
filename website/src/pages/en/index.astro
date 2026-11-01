@@ -1,0 +1,6 @@
+---
+import { renderArticle } from '../../lib/article.mjs';
+import source from '../../../content/balancing-cube/index.html?raw';
+const article = renderArticle('en', source);
+---
+<Fragment set:html={article} />

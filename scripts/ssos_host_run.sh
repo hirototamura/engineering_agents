@@ -6,7 +6,7 @@
 #
 # Prerequisite: SSOS container with volume mounts:
 #   -v "$REPO/src:/ea/src"
-#   -v "$REPO/src/experiments/results:/ea/results"
+#   -v "$REPO/experiments/eclss/results:/ea/results"
 #
 # Usage (from ea run — not end-user facing):
 #   ./scripts/ssos_host_run.sh /path/to/job.json

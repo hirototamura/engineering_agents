@@ -20,7 +20,7 @@ from tools.cli import exit_codes
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _HOST_RUN_SCRIPT = _REPO_ROOT / "scripts" / "ssos_host_run.sh"
 _CONTAINER_RESULTS_ROOT = Path("/ea/results")
-_HOST_RESULTS_MOUNT = _REPO_ROOT / "src" / "experiments" / "results"
+_HOST_RESULTS_MOUNT = _REPO_ROOT / "experiments" / "eclss" / "results"
 
 
 def ssos_container_name() -> str:

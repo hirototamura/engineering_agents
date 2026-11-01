@@ -177,10 +177,10 @@ Stated plainly, because a result page that only lists wins is not a result page.
 | `<chain>/compact_chain_memory.json` | the note the next round read |
 | `<chain>/chain_summary.json` | the chain's single answer and how it was selected |
 
-All four chains are archived whole — [`experiments/runs/`](https://github.com/hirototamura/engineering_agents/tree/main/experiments/runs), 11 MB compressed each — together
+All four chains are archived whole — [`experiments/eclss/runs/`](https://github.com/hirototamura/engineering_agents/tree/main/experiments/eclss/runs), 11 MB compressed each — together
 with the scripts that turn them into the tables on this page. Re-running the analysis reproduces
 every figure and every CSV byte for byte, and the last step of the instructions is a `diff` that
-proves it: [`experiments/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/README.md).
+proves it: [`experiments/eclss/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/eclss/README.md).
 
 Run a new chain with:
 

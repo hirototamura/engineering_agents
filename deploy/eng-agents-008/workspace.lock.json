@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "source_snapshot_date": "2026-10-24",
+  "engineering_agents": "Use the commit containing this lock file; record its git rev-parse HEAD in each run.",
+  "repositories": [
+    {
+      "directory": "one-piece",
+      "github": "hirototamura/one-piece",
+      "revision": "2b90b32211713b906446b57d270d01ae364158db"
+    },
+    {
+      "directory": "balancing-cube-simulation",
+      "github": "hirototamura/balancing-cube-simulation",
+      "revision": "8176699f0f51051aff3ef87fac14014a1cd4075a"
+    }
+  ],
+  "evidence": {
+    "repository": "hirototamura/balancing-cube-simulation",
+    "release": "handover-20261022",
+    "manifest": "evidence-manifest.json"
+  },
+  "runtime": {
+    "hermes_tag": "v0.22.4",
+    "hermes_revision": "4d04303818b61bf3aa09278af48356315515965b",
+    "hermes_python": "3.14.7",
+    "llama_cpp_tag": "b11819",
+    "cuda_toolkit": "12.8.1",
+    "cuda_architecture": "86",
+    "model_repository": "ggml-org/Qwen3.8-27B-GGUF",
+    "model_revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+    "model_file": "Qwen3.8-27B-Q4_K_M.gguf",
+    "model_sha256": "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747",
+    "gpu_uuid": "GPU-8a14a4ef-ac77-553a-206d-55efbf82617b",
+    "gpu_physical_index": 6,
+    "model_endpoint": "http://127.0.0.1:8016/v1",
+    "context_tokens": 65536,
+    "parallel_slots": 1,
+    "openshell": "disabled_by_user: no kernel upgrade or reboot"
+  },
+  "validation_datasets": {
+    "catalog": "one-piece/datasets/integration_validation_20261024.json",
+    "catalog_sha256": "e29ad9e3dcd8127a4d59afb20f87a5bff3c85499f8a83894f9ec6947ddfe2a25",
+    "retrieval": "optional: onepiece datasets list/fetch/verify; restore selected datasets only"
+  }
+}

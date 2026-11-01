@@ -1,0 +1,418 @@
+{
+  "en": {
+    "title": "Teaching an engineering agent to experiment",
+    "subtitle": "A self-balancing cube: from evidence-guided search to multi-agent design and a physical-model correction",
+    "abstract": "This study applies a design-improvement loop to a self-balancing cube: propose a design, test it in simulation, record the outcome, and use that evidence to improve the next proposal. Artificial intelligence (AI) reads past results and proposes wheel dimensions and control settings. We evaluate many simulation worlds in parallel on graphics processing units (GPUs), compare a team of specialist agents with a single designer, and revise the wheel placement. Follow what improved, what failed, and what remains to be tested.",
+    "sections": [
+      {
+        "id": "question",
+        "title": "The question: can design iteration become cumulative research?",
+        "paragraphs": [
+          "An experiment is useful when another person can reconstruct its question, inputs, method, result, and consequence. We make that chain the interface between a human, an engineering agent, and a simulator. The balancing cube is a small, demanding testbed: geometry, actuator limits, feedback control, and sensor delay interact.",
+          "The long-term aim of Engineering Agents is to improve its ability to bring engineering projects to a successful outcome. Its ultimate key performance indicators (KPIs) are Successful Project Number (the count of successful projects) and Successful Project Rate (the share of projects that succeed). The cube is a small testbed for building the design, experimentation, and record-keeping capabilities that can contribute to that goal.",
+          "Humans own the requirements, evaluation conditions, and adopted baseline. A large language model (LLM), which generates proposals from text and records, proposes designs and explanations. Programs enforce the change boundary and judge measurements. Evidence, including failure, becomes an input to the next iteration.",
+          "Engineering Agents already contains scenarios for an Environmental Control and Life Support System (ECLSS). The cube adds a mechanical-and-control testbed for the same broader idea: an agent should turn a design proposal into an experiment, preserve the result, and use that result to plan what to test next."
+        ]
+      },
+      {
+        "id": "system",
+        "title": "From the mission to a testable system model",
+        "paragraphs": [
+          "The mission is to balance the physical cube on any of its eight corners. The first development target is corner 000 with three reaction wheels on the faces closest to that corner. Earlier experiments used the opposite three faces. This human-identified modeling issue becomes a new experiment below; the agent did not discover it autonomously.",
+          "One-Piece records the requirements, key design parameters (KDPs), detailed settings, configuration revisions, and test evidence. Engineering Agents proposes the next permitted experiment. The inner feedback controller acts every 15 ms; the design loop acts after a complete experiment. A trace link connects records but does not establish that a requirement is satisfied.",
+          "The explorer shows reviewed-20261019-1, human-reviewed on 19 October 2026. It contains 22 obligations, seven groups, 37 parameters, eight functions and ten components. The review accepted requirement wording and allocations; it did not complete verification or adopt a hardware design. Archived Qwen, multi-agent and lower-wheel trials retain their original input revisions and results."
+        ]
+      },
+      {
+        "id": "method",
+        "title": "The method: restrict the experiment before increasing its scale",
+        "paragraphs": [
+          "The cube balances on a vertex using three reaction wheels. Accelerating a wheel applies an opposite torque to the body. The controller has to correct tilt while keeping wheel speed and motor demand within limits. The simulation model, named S2, represents a free body with six degrees of freedom and eight spherical corners contacting a floor. These contact and actuator parameters are assumptions, not measurements. MuJoCo is the physics simulator that computes motion and contact. We use its standard implementation, called native MuJoCo in the records. GPU-parallel exploration uses its GPU-capable implementation, MJX. The GPU-parallel exploration scores below are calculated from saved outputs of that implementation.",
+          "Automatic changes are limited to six mechanical variables, a registered motor, three weight groups of a linear quadratic regulator (LQR), which balances state error against control effort, and a gain that damps yaw (rotation around the vertical axis). Each weight can range from 0.25 to 4 times its nominal value; yaw gain ranges from 0 to 0.12. The control-effort weight R stays fixed. The model cannot relax a test to rescue a design.",
+          "The control period is 15 ms and the physics step is 1 ms. Each trial lasts 6 s. The evaluation matrix has 12 cases: three physical-domain priors (mass, contact and delay) × two release conditions × two random-number seeds (initial values). These numerical development tests used archived draft requirements. They do not demonstrate the now-reviewed 30 s physical holding requirement.",
+          "A discrete LQR controls two tilt angles, two angular rates, and two wheel-momentum states; a separate damper controls yaw rate. A fixed nominal model supplies the linearization used to generate the control-gain matrix K, which maps measured state to motor commands. Observations are simulated truth plus Gaussian noise (tilt 0.05°; gyro 0.2°/s standard deviation) and 15 or 30 ms delay. Wheel channels are ideal. There is no implemented attitude-estimation filter for an inertial measurement unit (IMU), a sensor unit that measures acceleration and angular rate in these experiments.",
+          "A reaction wheel stores angular momentum: h = Jω. Increasing its inertia can reduce the speed needed to store a given momentum, but it also changes the body inertia and feedback response. A larger wheel is therefore a hypothesis to test, not an automatic improvement. With finite speed capacity, continued correction can exhaust momentum headroom. A speed governor reduces commands near the speed limit. Wheel speed is reported in revolutions per minute (rpm).",
+          "The test matrix varies several assumptions together. The heavy-delay confirmation domain combines 1.173 times nominal frame mass, 30 ms observation delay, an 8 mm contact radius, and friction 0.4. A failure in this domain does not identify delay alone as its cause. Matched one-factor experiments are needed to separate the mechanisms."
+        ]
+      },
+      {
+        "id": "loop",
+        "title": "One proposal travels through the whole loop",
+        "paragraphs": [
+          "Engineering Agents reads exact requirement revisions, KDPs, prior designs, and measured outcomes from One-Piece. The Qwen large language model proposes a configuration. A trusted compiler checks the permitted changes and generates a saved LQR gain matrix K. The simulator executes the experiment; fixed gates judge the measurements.",
+          "Results are written back and read before the next proposal. When mechanics and control both change, a four-cell comparison separates the tested combinations. Identical compiled inputs can reuse earlier evidence. Failure and rejection stay in the record.",
+          "This article emphasizes exploration scores calculated directly from saved GPU-parallel exploration summaries, using the unchanged objective and gates. This is a retrospective analysis. The archived search chose its incumbents using its original stored aggregate; those decisions are preserved. A best GPU-parallel exploration observation in the charts is therefore not always the candidate selected during execution."
+        ]
+      },
+      {
+        "id": "memory",
+        "title": "Memory changes the next prompt, not the model weights",
+        "paragraphs": [
+          "The October 12 campaigns used vLLM, an inference server that makes a language model available to other programs. It served qwen3.8-27b-uncensored from orcarouter/Qwen3.8-27B-Uncensored-FP8. Temperature, which controls output randomness, was 0.3. The output limit was 3,072 tokens (the units in which the model processes text); thinking, which generates reasoning text, was enabled with a 2,048-token budget. No model weights were trained. The later multi-agent pilot used the same model family with different per-role budgets, shown below.",
+          "Working context, episodic experiment records, and semantic lessons are retrieved from an append-only JSON Lines (JSONL) journal, with one structured record per line with source hashes. There is no embedding database. This makes memory inspectable, but does not establish that every lesson is true. A later review fix expanded seeded history to retain every measured configuration; that fix was not part of the archived campaigns.",
+          "A concrete feedback path appears in the 20-round archive: round 1 changed momentum weight to 1.25 and still failed a speed-governor gate. Round 2 tried a larger wheel-radius ratio and passed all exploration cases. Later, round 4 isolated a controller change to momentum weight 0.85. The prompt explorer preserves the hypothesis, settings, retrieved measured episodes, and outcome so this sequence can be checked without trusting a narrative summary."
+        ]
+      },
+      {
+        "id": "history",
+        "title": "From a broad search to sequential proposals",
+        "paragraphs": [
+          "The historical random/elitist-mutation search evaluated 2,048 candidates across 24,576 exploration trials: 2,048 × 12. This was a candidate budget, not simultaneous configurations. Eight GPUs used 1,024 worlds per worker; mean measured utilization was 27.26%. Only 62 candidates cleared all gates: 3.03%, derived from 62 ÷ 2,048. Later, 46-candidate confirmation found 31 passes, nine failures, and six inconclusive outcomes. Different stages have different meanings.",
+          "D-000544-52890 is the original numerical comparison reference, not a human-adopted baseline. Historical and new evaluators differ; their scores should not be ranked directly. The Qwen campaigns completed 10 rounds with 13 configurations and 20 rounds with 24 configurations. Different sequential histories make this an uncontrolled comparison of duration.",
+          "An earlier local pilot used Ollama qwen3.5:9b for two native MuJoCo rounds: one unique proposal and one duplicate. Fake-LLM acceptance tests are separate. An initial Qwen 10-round attempt stopped after one completed round with proposal_generation_failed; that record is retained."
+        ]
+      },
+      {
+        "id": "results",
+        "title": "First result: GPU-parallel exploration improves",
+        "paragraphs": [
+          "In the ten-round campaign, the best saved GPU-parallel exploration score rose from 0.906924 at the reference to 0.990715 at round 10. In the twenty-round campaign, it rose from 0.906889 to 0.991408 at round 15. Each endpoint passed all twelve exploration cases. These are separate sequential histories, not a controlled test of ten versus twenty rounds.",
+          "The twenty-round archive selected round 19 using its original aggregate. That candidate has GPU-parallel exploration S=0.991399; round 15 is the retrospective GPU-parallel exploration maximum. A ranking metric needs a named implementation and a fixed set of cases. We retain both the measured maximum and the actual historical selection.",
+          "The plots show successful proposals and unsuccessful ones. Twelve passing cases can still differ in final tilt, while one failed case removes 1/12 from the score before other penalties. Small changes near a local optimum need to be interpreted at that scale."
+        ]
+      },
+      {
+        "id": "insights",
+        "title": "What unsuccessful experiments teach us",
+        "paragraphs": [
+          "The twenty-round factorial trial favored a controller-only change over changing mechanics and control together. More inertia was not automatically better: increasing wheel mass in the ten-round trial produced four failed exploration cases. Late tuning of rate weight also had a local maximum rather than a monotonic trend. The measured GPU-parallel exploration values are shown above.",
+          "A development score is only one view of a design. The recorded native MuJoCo replays below expose two earlier failures on separate stress conditions: the ten-round selection exhausted its speed-governor allowance, and the twenty-round selection lost balance at 4.725 s. The replay is recorded simulator motion, not hardware footage, and is not the source of the GPU-parallel exploration score curves.",
+          "The separate conditions were disclosed when work continued. They then became development evidence, not an untouched holdout. The later multi-agent study froze its selections before a new-seed audit. After publication, those new outcomes also become disclosed evidence for future work."
+        ]
+      },
+      {
+        "id": "accountability",
+        "title": "Accountability is part of the experimental apparatus",
+        "paragraphs": [
+          "Each claim should lead back to a requirement revision, configuration, compiled controller, case, and source artifact hash. Preserve rejected proposals, partial results, failed cases, and inconclusive decisions. The HTML explains these records; structured data supplies the agent with the same evidence.",
+          "One-Piece is currently a versioned-store and SysML-interchange minimum viable product (MVP), not a fully compliant systems platform. Requirement practice prioritizes the requirements-engineering standard ISO/IEC/IEEE 29148:2018, then applicable guidance from the National Aeronautics and Space Administration (NASA), then compatible wording from ASD-STE100, the Simplified Technical English specification. English normative requirements use shall. Human review remains necessary for requirements and baseline decisions. On 19 October 2026, a human review established the requirements and allocation baseline. Hardware verification and adoption of a hardware-design baseline remain separate decisions."
+        ]
+      },
+      {
+        "id": "discussion",
+        "title": "What these trials establish—and what comes next",
+        "paragraphs": [
+          "The pipeline can accumulate evidence across proposals, memories, workflow revisions, and a human-directed model change. The multi-agent pilot adds an explicit organizational experiment. The mounting trial adds a counterexample to the idea that one scalar score captures every useful engineering improvement.",
+          "The next ambition is recursive self-improvement: use outcomes to improve both a design and the process that produces the next design. We aim to apply this loop at task stages where small, local improvements increase the ability to make the next useful improvement faster than the difficulty of further improvement rises. Identifying the tasks and stages that meet this condition is part of the research.",
+          "How to measure that condition is still open. We have not defined a common basis for comparing improvement with the increasing difficulty of further improvement. Connecting local gains, computing and experimental effort, and human assistance to project-level success counts and rates is also a research question. Success criteria, the denominator for the success rate, and the treatment of unfinished projects need to be set before evaluation. This is a research vision; the trials reported here did not establish or measure these project-level outcomes or the proposed condition.",
+          "The evidence remains simulation-only and corner-000-only. The observation model adds noise and delay to true state; it is not a validated IMU attitude filter. Actuator and contact properties are uncalibrated. Thirty-second physical holding, the other seven corners, electrical and thermal behavior, and a human-adopted design remain unverified.",
+          "Before the next pilot, expose every output-length rule to the model and repeat both workflows with reversed execution order and independent seeds. Freeze the lower-wheel configuration, measure its complete GPU-parallel exploration case matrix, and vary delay, contact and inertia one at a time. Calibrate mass properties and actuator limits on hardware before interpreting simulated margins as physical margins."
+        ]
+      },
+      {
+        "id": "conclusion",
+        "title": "Progress is a result we can build on",
+        "paragraphs": [
+          "GPU-parallel exploration scores improved, and the pilot multi-agent workflow found a small additional gain. The wheel-placement correction then revealed a useful tradeoff: a known failure disappeared while a scalar score declined. The contribution is a process that lets a human and agents inspect such disagreements, preserve their inputs, and turn them into the next controlled experiment. A self-balancing hardware cube is still the goal, not an achieved result.",
+          "The long-term goal is to develop this foundation into a process that increases both the number and the rate of successful engineering projects."
+        ]
+      },
+      {
+        "id": "multi",
+        "title": "Can specialists improve the next experiment?",
+        "paragraphs": [
+          "The next hypothesis concerns the design team: can separate mechanical and control specialists, explicit evidence handoffs, and critique produce better proposals than one sequential designer? We adapted the fixed-weight workflow-search idea from Multi-Agent Self-Supervision (MASS), a study of improving multi-agent workflows. In our trial, numerical rules determine pass/fail. We did not perform the paper's outer-loop model training.",
+          "Both arms started from the same design, One-Piece snapshot, prior history, model, and budget caps. The multi-agent arm used separate mechanical and control specialists, a critic, a coordinator and a workflow optimizer. The single-identity arm used sequential shared-context handoffs. Each Hypertext Transfer Protocol (HTTP) request to the model server was rebuilt from pinned inputs and bounded memory; neither arm had an unlimited persistent conversation.",
+          "Each arm attempted ten cycles and completed eight. Two proposals per arm failed to return valid structured output within the 4,096-token role cap. The original dispatch remains inconclusive for completing all ten cycles. Across the pilot there were 89 model calls and 22 distinct compiled inputs. Equal caps did not produce equal call counts or simulation counts.",
+          "The multi-agent arm changed from independent parallel drafts to control-first sequential cross-review after the first measured cycle. One workflow edit was accepted. Several later edits failed a rationale-length check that the prompt did not advertise. This is an interface limitation, not evidence that the model cannot improve its workflow.",
+          "Rescoring saved GPU-parallel exploration outputs gives 0.991401 → 0.991541 for the multi-agent arm and 0.991401 → 0.991428 for the single-identity arm. The historical selections were different from those retrospective maxima. On the later fresh-seed GPU-parallel exploration audit, both selections and the unchanged starting design passed 12/12. There was no pass-rate advantage. A single paired pilot and these small score differences do not establish general superiority of multiple agents."
+        ]
+      },
+      {
+        "id": "mount",
+        "title": "A better question: are the wheels on the right faces?",
+        "paragraphs": [
+          "Parameter tuning cannot correct every modeling choice. A human review identified that the three wheels were on the upper faces, farthest from supporting corner 000. We moved the modeled rotating wheel/rotor bodies to the three lower faces while preserving their masses, wheel inertias, axis conventions, timing, and tested controller. The mounts remain fixed in the body; they do not follow whichever corner touches the ground.",
+          "The modeled center of mass falls from 156.45 mm to 131.47 mm above the support vertex, a derived reduction of 24.98 mm. For a small tilt, gravitational torque scales with mgh sin(θ), but angular acceleration also depends on body inertia. Lowering the center of mass changes the control plant; it does not by itself prove active stability. Fixed motor/stator mass still belongs to the unchanged lumped frame model.",
+          "This was a bounded human-directed model revision, not another ten-cycle agent search. A matched four-cell experiment tested upper/lower mounts with old/current saved controllers. With the current controller, the native MuJoCo exploration score fell from 0.991612 to 0.988586 while both mounts passed 12/12. The new lower design also passed the existing twelve stress cases. A full twelve-case GPU-parallel exploration score for this revised geometry has not been measured, so these values are not placed on the GPU-parallel exploration progress curve.",
+          "The known heavy-delay / confirm-b / seed-812 case improved: the speed governor was active for 1.8% of the upper-mount trial and 0.4% after relocation, against a 1% gate. Peak tilt fell from 3.260° to 2.163°. Both episodes completed six seconds. This is an observed response in a previously known case, not a fresh held-out success.",
+          "Two newly linearized controllers were less successful: they passed 9/12 and 8/12 exploration cases. We retained the tested MASS-trial controller instead. The constructive result is mixed: relocation removed a known gate failure but reduced the scalar exploration score. It motivates controlled inertia/contact studies, full GPU-parallel exploration of the revised model, and eventually all eight corners."
+        ]
+      }
+    ],
+    "hypotheses": [
+      {
+        "title": "H1 · Evidence closes the loop",
+        "claim": "Recorded outcomes can inform another bounded experiment.",
+        "result": "Demonstrated as an operational capability; physical success remains unproved."
+      },
+      {
+        "title": "H2 · Specialists improve search",
+        "claim": "Structured specialist handoffs can improve design proposals within equal budget caps.",
+        "result": "Small GPU-parallel exploration score gain in one paired pilot; no fresh-audit pass-rate advantage."
+      },
+      {
+        "title": "H3 · Move the wheels toward the support",
+        "claim": "Lower mounting can reduce the burden of a known delayed-sensing case.",
+        "result": "Known speed-limit failure removed; standard MuJoCo score decreased. Only corner 000 tested."
+      }
+    ],
+    "next_experiments": [
+      {
+        "title": "Complete the revised model study",
+        "method": "Freeze lower mounts and saved K; measure all twelve GPU-parallel exploration cases, then predeclare fresh seeds.",
+        "criterion": "Keep the GPU-parallel exploration score, individual gates, and corner coverage distinct."
+      },
+      {
+        "title": "Measure the contribution of memory",
+        "method": "Compare memory-enabled and memory-disabled proposals with the same starting design, model settings, budget, and several independent runs.",
+        "criterion": "Compare confirmed performance and failure counts with uncertainty, not only the best exploration score."
+      },
+      {
+        "title": "Test the proposed failure mechanism",
+        "method": "Use the mechanics/control 2 × 2 comparison and matched delayed-sensing cases to examine speed headroom and balance loss.",
+        "criterion": "A predicted case-level effect repeats under matched conditions before it becomes a design lesson."
+      }
+    ],
+    "glossary": [
+      {
+        "term": "Reaction wheel (RW)",
+        "definition": "A motor-driven rotating disk. Accelerating or slowing it applies reaction torque to the body and changes its attitude."
+      },
+      {
+        "term": "GPU-parallel exploration",
+        "definition": "Evaluate multiple simulated worlds concurrently on graphics processing units to search for designs. This study uses MJX, the GPU-capable implementation of MuJoCo. The 2,048-candidate budget does not mean that all 2,048 designs ran simultaneously."
+      },
+      {
+        "term": "Large language model (LLM)",
+        "definition": "An AI model that reads text and records to propose the next design and an explanation. It does not decide numerical pass/fail in this study."
+      },
+      {
+        "term": "Linear quadratic regulator (LQR)",
+        "definition": "A method for designing feedback control using weighted penalties on state error and control effort."
+      },
+      {
+        "term": "Root mean square (RMS)",
+        "definition": "Square the values, take their mean, then take the square root. Here it measures the size of tilt over the final second."
+      },
+      {
+        "term": "Requirement",
+        "definition": "A versioned statement of a required capability or constraint, with human-owned acceptance conditions."
+      },
+      {
+        "term": "Key design parameter (KDP)",
+        "definition": "Key Design Parameter: a consequential design value with units, bounds, and provenance."
+      },
+      {
+        "term": "Exploration score",
+        "definition": "A ranking metric for development cases; it is not proof that every requirement is met."
+      },
+      {
+        "term": "Validation matrix",
+        "definition": "A separate confirmation set used here for numerical checks; it does not establish physical validation."
+      },
+      {
+        "term": "Baseline",
+        "definition": "A configuration formally adopted by a human; a best numerical reference alone is not a baseline."
+      }
+    ]
+  },
+  "ja": {
+    "title": "実験から学ぶ、エンジニアリング・エージェント",
+    "subtitle": "自立するCubeを題材に、証拠に基づく探索からマルチエージェント設計、物理モデルの修正へ",
+    "abstract": "今回は、自己バランスキューブに「設計案を作る → シミュレーションで試す → 結果を記録する → 次の設計案を改善する」というループを適用する試みです。人工知能（Artificial Intelligence、AI）が過去の結果を読み、ホイールの寸法や制御の設定を提案します。多数の計算を同時に処理できる装置GPU（Graphics Processing Unit）で複数のシミュレーションを並列に評価する「GPU並列探索」、複数の専門エージェントによる協働、ホイール配置の修正から、改善と残された課題をたどります。",
+    "sections": [
+      {
+        "id": "question",
+        "title": "問い：設計反復を蓄積される研究にできるか",
+        "paragraphs": [
+          "実験は、別の人が問い、入力、方法、結果、その後の判断を再構成できるときに役立ちます。本研究では、このつながりを人間、エンジニアリングエージェント、シミュレータの間のインターフェースにします。バランシングキューブは、小さくても難しい試験対象です。形状、駆動制約、フィードバック制御、センサー遅延が相互に作用します。",
+          "Engineering Agentsが長期的に目指すのは、エンジニアリングプロジェクトを成功に導く能力を高めることです。最終的な重要業績評価指標（Key Performance Indicator、KPI）は、成功したプロジェクトの件数（Successful Project Number）と成功率（Successful Project Rate）です。このCube試行では、その目標につながる設計・試験・記録の能力を、小さな題材で積み上げています。",
+          "要求、評価条件、採用ベースラインの決定権は人間が持ちます。文章や記録を読んで提案を生成する大規模言語モデル（Large Language Model、LLM）が、設計と説明を提案します。プログラムが変更範囲を制限し、測定値を判定します。失敗を含む証拠が、次の反復の入力になります。",
+          "Engineering Agentsには、環境制御・生命維持システム（Environmental Control and Life Support System、ECLSS）を扱うシナリオがあります。Cubeは、同じ考え方を機械と制御の試験対象に広げます。設計提案を実験に変え、結果を保持し、その結果から次に試すことを計画するためです。"
+        ]
+      },
+      {
+        "id": "system",
+        "title": "ミッションから、試験できるシステムモデルへ",
+        "paragraphs": [
+          "ミッションは、実機のCubeが8つのどの頂点でも自立することです。最初の開発目標は頂点000と、その頂点に近い3面のリアクションホイール（RW）です。以前の実験は反対側の3面を使っていました。このモデル上の問題は人間が指摘し、後述の新しい実験につながりました。エージェントが自律的に発見した問題ではありません。",
+          "One-Pieceは要求、設計上重要な値（Key Design Parameter、KDP）、細かなパラメータ、構成の版、試験の証拠を記録します。Engineering Agentsは許可範囲で次の実験を提案します。内側の姿勢制御は15 msごと、設計反復は実験終了後に動きます。トレースの矢印は記録間の関係を示しますが、要求に合格した証明ではありません。",
+          "要求エクスプローラは、2026年10月19日に人によるレビューを受けたreviewed-20261019-1を表示します。22要求、7グループ、37パラメータに加え、8機能と10構成品への割当を取り込みました。承認されたのは要求文と割当であり、検証の完了や実機設計の採用ではありません。過去のQwen・マルチエージェント・下側RWの試行が使用した入力の版と結果は、そのまま保持しています。"
+        ]
+      },
+      {
+        "id": "method",
+        "title": "方法：規模を大きくする前に実験範囲を制限する",
+        "paragraphs": [
+          "Cubeは3つのリアクションホイールで頂点倒立を保ちます。ホイールを加速すると、機体には逆向きのトルクが作用します。制御器はホイール速度とモータの制約を守りながら傾斜を修正します。今回使ったシミュレーションモデル（S2）は6自由度の機体と床に接触する8つの球状頂点で構成します。接触・駆動パラメータは実測値ではなく仮定です。 物体の動きや接触を計算する物理シミュレータMuJoCoの標準実装（native MuJoCo）を使います。GPU並列探索にはそのGPU向け実装MJXを使います。以下の「GPU並列探索スコア」は、この実装で得た保存結果から計算した値です。",
+          "自動変更の対象は、機械6変数、登録済みモータ、傾きの誤差と操作量の両方を抑える線形二次レギュレータ（Linear Quadratic Regulator、LQR）の3群の状態重みQと、鉛直軸まわりの回転（yaw）を抑えるゲインに限定します。各重みの範囲は基準値の0.25〜4倍、yawゲインは0〜0.12です。操作量に対する重みRは固定します。モデルが設計を合格させるために試験を緩めることはできません。",
+          "制御周期は15 ms、物理刻みは1 msです。各試験は6 sで実施します。評価行列は、物理条件の仮定3領域（質量・接触・遅延） × リリース条件2種類 × 乱数の初期値（seed）2種類の12ケースです。これらの数値的な開発試験では、保存済みの草案要求を使用しました。現在レビュー済みとなった実機30 s保持要求を実証したものではありません。",
+          "離散LQRは傾斜2成分、角速度2成分、ホイール運動量2成分を制御し、別のダンパがyaw角速度を制御します。測定した状態をモータ指令に変換する制御ゲイン行列Kの生成には固定した基準モデルの線形化を使います。観測は真値にガウス雑音（標準偏差：傾斜0.05°、ジャイロ0.2°/s）と15または30 msの遅延を加えたものです。ホイールの観測は理想値です。この実験には加速度と角速度を測る慣性計測装置（Inertial Measurement Unit、IMU）から姿勢を求めるフィルタは実装していません。",
+          "リアクションホイールは角運動量h = Jωを蓄えます。慣性を増やすと、同じ角運動量に必要な回転速度を下げられますが、機体の慣性とフィードバック応答も変わります。大きいホイールが必ず改善になるわけではなく、試すべき仮説です。回転速度に上限があると、補正を続けるうちに角運動量の余裕を使い切る場合があります。 上限付近で指令を抑える機能を速度ガバナと呼びます。回転速度の単位rpmは毎分の回転数（revolutions per minute）です。",
+          "試験のドメインは複数の仮定を同時に変えます。heavy-delayの確認ドメインは、基準の1.173倍の固定部質量、30 msの観測遅延、8 mmの接触半径、摩擦係数0.4を組み合わせます。このドメインでの失敗だけでは、遅延が原因とは特定できません。機構を分けるには、他条件を固定した一因子の実験が必要です。"
+        ]
+      },
+      {
+        "id": "loop",
+        "title": "1つの提案を、実験と次の提案までつなぐ",
+        "paragraphs": [
+          "Engineering Agentsは、要求の版、KDP、過去の設計、測定結果をOne-Pieceから取得します。大規模言語モデルQwenが構成を提案し、信頼されたコンパイラが変更範囲を検査してLQRゲイン行列Kを生成・保存します。シミュレータが実験を実行し、固定したゲートが測定値を判定します。",
+          "結果を記録し、次の提案前に読み直します。機械と制御を同時に変える場合は4つの組み合わせを比較します。構成入力が同一なら過去の証拠を再利用できます。失敗や提案棄却も記録に残します。",
+          "本記事では、保存されたGPU並列探索の集計結果に、変更していない目的関数と判定ゲートを適用した探索スコアを中心に示します。これは実行後の再集計です。当時の探索は元の保存集計値で候補を選択しており、その判断は変更していません。そのため、図のGPU並列探索最良観測と、実行時に選択した候補は必ずしも一致しません。"
+        ]
+      },
+      {
+        "id": "memory",
+        "title": "メモリが変えるのは次のプロンプトであり、モデルの重みではない",
+        "paragraphs": [
+          "10月12日の実行では、モデルをほかのプログラムから呼び出す推論サーバーvLLMでorcarouter/Qwen3.8-27B-Uncensored-FP8由来のqwen3.8-27b-uncensoredを使用しました。出力のランダムさを調整するtemperatureは0.3でした。モデルが文章を処理する単位token（トークン）で数え、出力上限は3,072、推論用テキストを生成するthinkingの予算は2,048でした。モデル重みの学習はしていません。後のマルチエージェント試行では同じモデル系列を用い、役割別の予算を変更しています。詳細は後述します。",
+          "作業用文脈、実験のエピソード記録、意味的な教訓を、出典ハッシュを持つ1行ごとに1件のデータを記述するJSON Lines（JSONL）形式の追記専用ログから検索します。埋め込みデータベースはありません。この構成ではメモリを検査できますが、すべての教訓が正しいと実証したことにはなりません。後のレビュー修正で、初期メモリに測定済みの全構成を残すよう拡張しました。この修正は、アーカイブ済みキャンペーンの実行時には含まれていません。",
+          "20反復の記録には、具体的なフィードバック経路があります。第1反復は運動量の重みを1.25に変えても速度ガバナのゲートに不合格でした。第2反復はホイール半径比を増やし、探索の全ケースに合格しました。その後、第4反復は運動量の重み0.85という制御だけの変更を分離しました。プロンプトの確認画面に仮説、設定、取得した測定エピソード、結果を保持し、要約文だけを信用せずに経緯を確認できます。"
+        ]
+      },
+      {
+        "id": "history",
+        "title": "広い探索から逐次的な提案へ",
+        "paragraphs": [
+          "過去のランダム探索とエリートを保持する変異探索では、2,048候補 × 12ケース、合計24,576回の探索試験を評価しました。2,048は候補予算であり、同時実行する構成数ではありません。8基のGPUを使い、各ワーカーは1,024ワールドを用いました。測定した平均使用率は27.26%でした。すべてのゲートを通過したのは62候補で、62 ÷ 2,048から算出すると3.03%です。その後の46候補の確認は、31件通過、9件失敗、6件判定保留でした。各段階の件数の意味は異なります。",
+          "D-000544-52890は、元の数値試験での比較基準であり、人間が採用したベースラインではありません。過去と新しい実行では評価器が異なるため、スコアを直接順位付けできません。Qwenキャンペーンは、10反復で13構成、20反復で24構成を完了しました。逐次的な履歴が異なるため、期間についての統制比較にはなりません。",
+          "それ以前のローカル試行では、Ollamaのqwen3.5:9bを使い、native MuJoCoで2反復を実行しました。一つは新規提案で、もう一つは重複でした。Fake LLMによる受入試験は別です。最初のQwen 10反復の試行は、1反復を完了した後にproposal_generation_failedで停止しました。その記録も保持しています。"
+        ]
+      },
+      {
+        "id": "results",
+        "title": "最初の結果：GPU並列探索スコアは改善した",
+        "paragraphs": [
+          "10反復では、保存されたGPU並列探索スコアの最良値が参照構成の0.906924から第10反復の0.990715へ向上しました。20反復では0.906889から第15反復の0.991408へ向上しました。いずれの最良観測も探索12ケースの全ゲートを通過しています。ただし履歴の異なる逐次実行であり、「10回より20回が優れる」ことを示す対照実験ではありません。",
+          "20反復の実行当時は、元の集計値によって第19反復が選択されました。その候補のGPU並列探索スコアは0.991399で、GPU並列探索再集計の最大値は第15反復です。順位指標には、計算した実装と固定した試験集合の明示が必要です。本記事では、観測上の最大値と実際の過去の選択を両方保持します。",
+          "図には成功した提案と失敗した提案を示します。12ケースすべて合格しても、最後1秒の傾斜によってスコアは変わります。一方、1ケースの不合格だけで他のペナルティに加えて1/12を失います。局所的な微小改善は、この大きさと比較して解釈します。"
+        ]
+      },
+      {
+        "id": "insights",
+        "title": "うまくいかなかった実験から何を学ぶか",
+        "paragraphs": [
+          "20反復の2×2試験では、機械と制御の同時変更より、制御だけの変更が良好でした。慣性を増やせばよいとも限りません。10反復中にホイール質量を増やした試行では探索4ケースが不合格となりました。後半の角速度重みの調整も単調な改善ではなく、局所的な最大値を示しました。上の図は保存GPU並列探索出力による値です。",
+          "開発スコアは設計を評価する1つの切り口です。以下のnative MuJoCoの記録再生には、別のストレス条件で起きた過去の2つの失敗が表れます。10反復の選択は速度ガバナの許容動作割合を超え、20反復の選択は4.725秒で姿勢を失いました。これは記録したシミュレータの動きであり、実機映像でも、GPU並列探索スコア曲線の元データでもありません。",
+          "開発を続ける際に別条件の結果も開示しました。その時点で、これらは未知の評価集合ではなく開発用の証拠になります。後のマルチエージェント試行では設計選択を固定してから新seedで監査しましたが、その結果も公開後の次の研究では既知の証拠になります。"
+        ]
+      },
+      {
+        "id": "accountability",
+        "title": "説明責任も実験装置の一部",
+        "paragraphs": [
+          "各主張から、要求の版、構成、生成した制御器、ケース、元成果物のハッシュまでたどれる必要があります。棄却した提案、部分結果、失敗ケース、判定保留を保存します。HTMLはこれらの記録を説明し、構造化データは同じ証拠をエージェントへ渡します。",
+          "現在のOne-Pieceは、版管理ストアとシステムの構成や要求を表すSysML（Systems Modeling Language）の交換形式を備えた、最小限の試作機能（Minimum Viable Product、MVP）であり、完全な規格準拠を実現したシステム基盤ではありません。要求作成では国際規格ISO/IEC/IEEE 29148:2018を最優先とし、次に米国航空宇宙局（National Aeronautics and Space Administration、NASA）の適用可能なガイド、その次に技術英語を簡潔にする規則ASD-STE100のうち両者と整合する表現を使います。英語の規範的な要求にはshallを使います。要求とベースラインの判断には、引き続き人間のレビューが必要です。 2026年10月19日には要求文と機能・構成品への割当が人によるレビューを受け、要求・割当のベースラインが記録されました。実機の検証結果や採用設計のベースラインとは区別します。"
+        ]
+      },
+      {
+        "id": "discussion",
+        "title": "今回わかったことと、次に確かめること",
+        "paragraphs": [
+          "提案、記憶、ワークフロー変更、人間によるモデル修正をまたいで、証拠を蓄積するパイプラインが動いています。マルチエージェント試行では組織構成も実験対象にしました。配置変更の試行は、1つのスコアだけでは工学的に有用な改善のすべてを表せない例になりました。",
+          "この先に目指すのは、設計案に加え、次の設計案を作る手順も結果から改良する、再帰的自己改善（Recursive Self-improvement）です。適用する課題・段階には条件があります。局所的な微小な改善によって得られる「次の改善を生む能力の伸び」が、改善を重ねるほど上がる「さらに改善する難しさ」の増加を上回ることです。この条件が成り立つ課題・段階を見極め、そこへ自己改善のループを適用することを目指します。",
+          "この条件をどう測るかは、まだ明確ではありません。改善量と改善難易度をどう定義し、共通の条件で比較するかは未解決です。必要な計算・実験量や人間の支援を含め、局所的な改善をプロジェクト全体の成功件数・成功率へどう結び付けるかも、今後の研究課題です。成功の判定条件、成功率の分母、未完了のプロジェクトの扱いも、評価前に定める必要があります。ここで述べるのは研究のビジョンであり、今回の試行でこれらを実証・測定したという意味ではありません。",
+          "証拠はシミュレーションと頂点000に限られます。観測モデルは真値に雑音と遅延を加えるもので、検証済みのIMU姿勢推定器ではありません。駆動器・接触の値も未校正です。実機での30秒保持、他の7頂点、電気・熱挙動、人間による採用設計の確定は未実施です。",
+          "次の試行では、出力文字数の規則をすべてモデルに明示し、実行順を反転させ、独立seedで両方式を繰り返します。下側RWの構成を固定してGPU並列探索の全ケースを測定し、遅延・接触・慣性を1要因ずつ変えます。シミュレーションの余裕を実機の余裕と解釈する前に、質量特性と駆動限界を実測します。"
+        ]
+      },
+      {
+        "id": "conclusion",
+        "title": "積み重ねられる結果を、進歩にする",
+        "paragraphs": [
+          "GPU並列探索のスコアは改善し、マルチエージェントの試行でも小さな追加改善が見られました。その後のRW配置修正では、既知の失敗が解消する一方でスコアが下がるという、有用なトレードオフが現れました。人間とエージェントがこのような結果を調べ、入力を保存し、次の統制された実験へつなげる仕組みが今回の成果です。実機の自立Cubeは、達成済みの結果ではなく、引き続き目指す目標です。",
+          "この土台を、成功するエンジニアリングプロジェクトの件数と成功率を高める仕組みへ育てていくことが、長期的な目標です。"
+        ]
+      },
+      {
+        "id": "multi",
+        "title": "専門エージェントは、次の実験を改善できるか",
+        "paragraphs": [
+          "次の仮説は、チームの構成に関するものでした。機械・制御の文脈を分け、根拠を明示して受け渡し、批評を加えれば、1つの設計者が逐次考える場合より良い提案を作れるでしょうか。複数のエージェントの役割や情報の渡し方を改善する研究Multi-Agent Self-Supervision（MASS）の、モデル重みを固定したワークフロー探索を参考にしました。ただし本試行の合否は数値規則で決まり、MASSの外側のモデル学習は実施していません。",
+          "両方式は同じ設計、One-Pieceのsnapshot、過去履歴、モデル、予算上限から開始しました。マルチエージェント側は機械・制御の専門家、批評、調整、ワークフロー最適化を使います。単一設計者側は1つの設計者の文脈で逐次情報を渡します。サーバーとの通信方式HTTP（Hypertext Transfer Protocol）による各要求は固定入力と上限のある記憶から毎回構築し、無制限に会話を継続する方式ではありません。",
+          "両方式とも10サイクルを試み、8サイクルを完了しました。それぞれ2提案が役割別4,096 token上限内で有効な構造化出力を返せませんでした。全10サイクル完了について、元のdispatchはinconclusiveのままです。試行全体では89回のモデル呼出しと22通りの固有構成を記録しました。上限が同じでも、実際の呼出し数やシミュレーション構成数は同じではありません。",
+          "マルチエージェント側では最初の測定後、独立した並列提案から、制御担当を先にする逐次相互レビューへ変更しました。採用されたワークフロー変更は1件です。その後の複数の変更は、プロンプトに明示していなかった説明文の文字数検査で棄却されました。これはインターフェースの制約であり、モデルの方針改善能力を否定する証拠ではありません。",
+          "保存されたGPU並列探索の出力の再集計では、マルチエージェント側は0.991401 → 0.991541、単一設計者側は0.991401 → 0.991428でした。実行時の選択は、この再集計の最大値とは異なります。選択を固定した後の未使用の乱数条件によるGPU並列試験の監査では、両選択と変更していない開始設計がすべて12/12通過しました。通過率の優位性はありません。1組の試行と小さなスコア差から、マルチエージェントの一般的な優位性は主張できません。"
+        ]
+      },
+      {
+        "id": "mount",
+        "title": "より根本的な問い：RWの取り付け面は正しいか",
+        "paragraphs": [
+          "パラメータの調整だけでは、モデルの選び方をすべて修正できません。人間によるレビューで、3つのRWが支持頂点000から最も遠い上側3面にあることを指摘しました。モデル中の回転するホイール・ロータを下側3面へ移し、質量、ホイール慣性、軸の規約、時間設定、試験済みの制御器を保持しました。取り付けは機体に固定され、接地する頂点に応じて移動するものではありません。",
+          "モデルの重心高は支持頂点から156.45 mm → 131.47 mmとなり、計算上24.98 mm下がりました。小さな傾きでの重力トルクはmgh sin(θ)に比例しますが、角加速度は機体慣性にも依存します。低重心化は制御対象を変えますが、それだけで能動的な安定性を証明しません。固定モータ・ステータの質量は、変更していないフレームの集中質量モデルに含まれたままです。",
+          "これは人間が指示した限定的なモデル修正であり、新たな10サイクルのエージェント探索ではありません。上側・下側の配置と、過去・現在の保存制御器の4組を同条件で評価しました。現在の制御器では、native MuJoCoの探索スコアは0.991612 → 0.988586に下がりましたが、両配置とも12/12通過しました。下側の設計は既存のストレス12ケースも通過しました。変更後の形状のGPU並列探索による全12ケースのスコアは未測定のため、これらをGPU並列探索の進歩曲線に混ぜていません。",
+          "既知のheavy-delay / confirm-b / seed812では改善が見られました。速度ガバナの動作割合は上側配置の1.8%から下側配置の0.4%となり、1%以下のゲートを通過しました。最大傾斜も3.260° → 2.163°へ低下しました。両試験とも6秒完走しています。これは既知の条件に対する観測結果であり、未知の評価条件での成功ではありません。",
+          "一方、線形化し直した2種類の制御器は探索9/12、8/12の通過にとどまったため、MASS試行で使用した制御器を維持しました。今回の結果は一方向の成功ではありません。配置変更で既知のゲート不合格は解消しましたが、探索スコアは低下しました。慣性・接触の要因を分ける試験、修正モデルのGPU並列探索、さらに8頂点への拡張が次の課題です。"
+        ]
+      }
+    ],
+    "hypotheses": [
+      {
+        "title": "H1 · 証拠が設計ループをつなぐ",
+        "claim": "記録した結果を、次の限定された設計実験の入力にできる。",
+        "result": "動作する仕組みとして確認。実機での成功は未実証。"
+      },
+      {
+        "title": "H2 · 専門家の分担が探索を改善する",
+        "claim": "同じ予算上限で、専門家間の構造化した情報交換が提案を改善できる。",
+        "result": "1組の試行でGPU並列探索スコアの小さな改善。新しい乱数条件の追加試験の通過率には優位性なし。"
+      },
+      {
+        "title": "H3 · RWを支持頂点に近づける",
+        "claim": "下側配置によって、既知の観測遅延条件で制御の負担を減らせる。",
+        "result": "既知ケースの回転速度制限の条件不合格は解消。MuJoCoによる探索スコアは低下。試験した頂点は000のみ。"
+      }
+    ],
+    "next_experiments": [
+      {
+        "title": "修正したモデルを試験する",
+        "method": "下側配置と保存Kを固定してGPU並列探索12ケースを測定し、その後の新seedを事前に宣言する。",
+        "criterion": "GPU並列探索スコア、個別ゲート、試験した頂点の範囲を区別する。"
+      },
+      {
+        "title": "メモリの寄与を測定する",
+        "method": "同じ初期設計、モデル設定、予算の下で、メモリありとなしの提案を複数の独立実行で比較します。",
+        "criterion": "最良の探索スコアだけでなく、確認済みの性能と失敗数を不確かさとともに比較します。"
+      },
+      {
+        "title": "提案した失敗メカニズムを試す",
+        "method": "機械と制御の2 × 2比較および条件をそろえた遅延ケースを用い、速度余裕とバランス喪失を調べます。",
+        "criterion": "予測したケース単位の効果が同条件で再現してから、設計上の教訓として扱います。"
+      }
+    ],
+    "glossary": [
+      {
+        "term": "リアクションホイール（Reaction Wheel、RW）",
+        "definition": "モータで加減速する回転円盤。その反作用で機体にトルクを与え、姿勢を変える。"
+      },
+      {
+        "term": "GPU並列探索",
+        "definition": "多数の計算を同時に処理するGPUで、複数のシミュレーション世界を並列に評価して設計を探す方法。本研究ではMuJoCoのGPU向け実装MJXを使う。2,048候補は探索予算であり、2,048候補が常に同時実行されたという意味ではない。"
+      },
+      {
+        "term": "大規模言語モデル（Large Language Model、LLM）",
+        "definition": "文章や記録を入力し、次に試す設計案と説明を生成するAIモデル。本研究では数値試験の合否を決めない。"
+      },
+      {
+        "term": "線形二次レギュレータ（Linear Quadratic Regulator、LQR）",
+        "definition": "状態の誤差と操作量への重みを使い、フィードバック制御器を設計する方法。"
+      },
+      {
+        "term": "二乗平均平方根（Root Mean Square、RMS）",
+        "definition": "値を二乗して平均し、平方根を取った量。本記事では最後1秒の傾斜の大きさを表す。"
+      },
+      {
+        "term": "要求",
+        "definition": "必要な能力または制約を版管理した記述。受入条件の決定権は人間が持ちます。"
+      },
+      {
+        "term": "重要設計パラメータ（Key Design Parameter、KDP）",
+        "definition": "Key Design Parameter。単位、範囲、出典を持つ、設計上重要な値です。"
+      },
+      {
+        "term": "探索スコア",
+        "definition": "開発ケースで順位を付ける指標。すべての要求を満たした証明ではありません。"
+      },
+      {
+        "term": "検証行列",
+        "definition": "ここで数値確認に使った別の確認集合。実世界の妥当性確認を実証するものではありません。"
+      },
+      {
+        "term": "ベースライン",
+        "definition": "人間が正式に採用した構成。最良の数値比較基準だけではベースラインにはなりません。"
+      }
+    ]
+  }
+}

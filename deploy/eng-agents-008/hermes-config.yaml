@@ -1,0 +1,14 @@
+model:
+  provider: custom
+  default: qwen3.8-27b-q4-k-m
+  base_url: http://127.0.0.1:8016/v1
+  api_key: local-only
+  context_length: 65536
+  max_tokens: 4096
+agent:
+  max_turns: 30
+  run_budget_seconds: 900
+terminal:
+  backend: local
+# The startup wrapper sets the workspace, GPU UUID, and isolated HERMES_HOME.
+# Local backend is host execution, not an OpenShell security boundary.

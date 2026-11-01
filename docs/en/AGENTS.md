@@ -1,5 +1,12 @@
 # AGENTS.md — Guide for Engineering Agents
 
+## MuJoCo / One-Piece MVP (2026-10-10)
+
+`balancing_cube` reads versioned requirements, KDPs and detailed parameters from the One-Piece system model. References below to One-Piece integration being future/out of scope describe the legacy ECLSS demo; they do not apply to this scenario. See [MuJoCo design loop](mujoco-one-piece.md).
+
+Automatic changes are restricted to six mechanical variables, registered motor selection, LQR attitude/angular-rate/momentum weights and yaw gain. New runs compare CPU/GPU at a fixed timestep without half-step adjudication. Historical half-step evidence remains historical. Humans establish requirements, evaluation conditions and adopted baselines; deterministic simulation evidence establishes outcomes.
+
+
 This file defines the north star and implementation discipline of the repository for **human contributors** and **coding agents (Cursor, etc.)** alike.
 
 ---

@@ -1,0 +1,21 @@
+{
+  "asset": "isaac-cube-evidence-20261024.zip",
+  "bytes": 1123557356,
+  "sha256": "aa062e5b6e700541c926a61b4e546caf2e4ffb958582cdf74c0257556d08ebd8",
+  "source_commit": "d8e2637e4e884427871b8bab9dfc2cb67dd3d7a2",
+  "file_count": 211,
+  "release_url": "https://github.com/hirototamura/balancing-cube-simulation/releases/tag/isaac-cube-20261024",
+  "source_pr": "https://github.com/hirototamura/engineering_agents/pull/85",
+  "physical_verified": false,
+  "cross_backend_agreement": "inconclusive",
+  "large_campaigns": {
+    "reference": 24576,
+    "candidate": 24576
+  },
+  "final_launcher_check": 48,
+  "tests": {
+    "passed": 1196,
+    "skipped": 4
+  },
+  "note": "The 180 mm proposal regressed on paired exploration. No adopted baseline or physical acceptance. Full per-file checksums are inside the archive."
+}

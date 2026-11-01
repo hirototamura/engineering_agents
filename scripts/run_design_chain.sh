@@ -13,8 +13,8 @@
 # The operators are the deterministic rule base by default, so the measured
 # difference between two chains is the design, not a different crew improvising.
 #
-# What the archived chains under experiments/runs/ were run with, and how to
-# reproduce each: experiments/README.md.
+# What the archived chains under experiments/eclss/runs/ were run with, and how to
+# reproduce each: experiments/eclss/README.md.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -34,7 +34,7 @@ Options:
   --rounds N        Rounds in the chain (1-50). Default: scenario.yaml iteration.count
   --provider NAME   LLM provider for the design side: ollama | vllm
   --model NAME      Model id (Ollama tag or vLLM served-model id)
-  --run-id NAME     Output directory name under src/experiments/results/
+  --run-id NAME     Output directory name under experiments/eclss/results/
   -h, --help        Show this help
 
 Examples:

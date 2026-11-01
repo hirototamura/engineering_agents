@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "project_id": "balancing-cube",
+  "source": "balancing-cube offline acceptance runs retained in One-Piece release validation history",
+  "policy": "Keep canonical records immutable; exclude these acceptance-only run families from Engineering Agents PI context before recency limits are applied.",
+  "excluded_run_ids": [
+    "cube-0e30c843e39f4f0bb458",
+    "cube-30805114afe0486f9087",
+    "cube-40472d441ce84c6b9556",
+    "cube-52914928d6ce4ad99139",
+    "cube-55122bea483b4bcd99b8",
+    "cube-8d66c7e2f6aa4415b775",
+    "cube-a2e5b08f9ee749bc9ba7"
+  ]
+}

@@ -1,0 +1,19 @@
+---
+description: Bound the MuJoCo ENPIRE-inspired design loop
+globs: src/scenario/balancing_cube/**,src/environment/mujoco/**,src/integrations/one_piece/**
+alwaysApply: false
+---
+
+# MuJoCo design loop
+
+- Keep tools → scenario → environment → core; scenario owns One-Piece integration.
+- Read requirements, KDPs and model parameters from a pinned One-Piece revision.
+- EN (reset, verifier, constraints) stays immutable during PI/R/E iterations.
+- Automatic design variables: six mechanical parameters, motor family, three LQR Q groups and yaw gain only.
+- R, timing, sensors, actuator limits, seeds and outcome gates are not proposal fields.
+- Use the same saved controller K in CPU, GPU and replay paths.
+- Compare CPU/GPU at fixed dt; never add half-step adjudication to new runs.
+- E may revise bounded design-search strategy data, not the verifier or environment.
+- Preserve failures, policy ancestry, budgets, evidence and keep/reject reasons.
+- GPU unavailable means not run; CPU evidence cannot claim GPU verification.
+- Offline/Fake LLM acceptance does not prove real LLM improvement.

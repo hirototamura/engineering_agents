@@ -122,7 +122,8 @@ src/integrations/   （scenario から呼び出し）
 | Core         | `src/core/`                   | Persona、Team ABC、メモリ、LLM クライアント                                            |
 | Environment  | `src/environment/`            | `scrubber/`: `SimulatorProtocol`、mock ECLSS ppm、mock EPS（`MockEpsBackend` または `Ros2EpsBridge`）。`ssos/eclss/`: `EclssBackend`、mock \| ros2、`graph_rewire`。`ssos/ros2/cli.py`: 共有 ROS2 CLI。`ssos/eps/ros2/`: EPS ブリッジ（scrubber 任意、eclss loop 未使用） |
 | Scenario     | `src/scenario/`               | 各シナリオ YAML、Team、`design_proposals`                                         |
-| Experiments  | `src/experiments/results/`    | 実行出力                                                                       |
+| ECLSS 実験 | `experiments/eclss/` | ECLSS のアーカイブ、解析、実行出力 |
+| キューブ実験 | `experiments/balancing_cube/` | キューブのレポートと実行出力 |
 | Tools        | `src/tools/dashboard/`        | Streamlit（`summary.scenario` でビュー分岐）                                       |
 | Integrations | `src/integrations/one_piece/` | provenance JSON                                                            |
 
