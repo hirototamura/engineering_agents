@@ -21,7 +21,7 @@
 | ------ | -------------------------------------------------------------------- | ---------------------------------------------------------- | --- |
 | 叙事     | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) | [mujoco-one-piece.md](mujoco-one-piece.md) |
 | バックエンド | `SimulatorProtocol` / `StationSimulator`                             | `EclssBackend` / `Ros2EclssBridge`                         | `environment/mujoco/`（`mujoco_cpu` / `mjx_gpu`） |
-| チーム    | `ScrubberDegradationTeam`                                            | `SsosEclssLoopTeam`（運用）+ `PostRunDesignAgent`           | 任意の `DesignWorkflow`。または `agents.mode: none` |
+| チーム    | `ScrubberDegradationTeam`                                            | `SsosEclssLoopTeam`（運用）+ `PostRunDesignAgent`           | 既定は単一 LLM designer。任意で `DesignWorkflow`。`agents.mode: none` は比較基準を評価 |
 | ランタイム  | 回復コマンド                                                               | 運用コマンド（ARS/OGS 等）                                          | 固定刻み MuJoCo / MJX |
 | 事後提案   | scrubber トポロジ                                                        | `ssos_graph`                                               | 有界な機械/制御提案 |
 | 実行環境   | ホスト Python のみ                                                        | mock または SSOS Docker                                       | One-Piece ストア + 任意 CUDA |

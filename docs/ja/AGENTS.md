@@ -100,7 +100,7 @@
 
 ### 監督（人間 + AI）が担うこと
 
-> **スコープ注記:** 監督の実装は **One Piece** リポジトリが担う。本リポジトリでは要求を `scenario.yaml` でスタブするのみ。One Piece からの要求 pull は将来課題。
+> **スコープ注記:** 監督の実装は **One Piece** リポジトリが担う。ECLSS は要求を `scenario.yaml` でスタブする。`balancing_cube` は One-Piece SSOT から要求の特定版を読む。要求の改訂権限は人間が持つ。
 
 - **設計要求の設定** — 満たすべき性能・制約・トポロジの前提（何を作るか）
 - **検証要求の設定** — 受入基準・閾値・シナリオ（何をもって合格とするか）
@@ -127,7 +127,7 @@
 
 本デモは表の **本デモ** 行のうち **設計** と **検証（仮想世界）** を実装する。ECLSS/EPS は参照シナリオに過ぎず、パラダイムはドメイン横断である。
 
-表の **監督** 列は One Piece 側の責務である。現行 MVP では `scenario.yaml` の閾値・シナリオが検証要求のスタブであり、設計要求のスタブも同ファイル周辺に置く。One Piece から要求を pull する連携は将来課題とし、今は手を入れない（[one-piece-integration.md](one-piece-integration.md) は現状 provenance エクスポートのみ）。
+表の **監督** 列は One Piece 側の責務である。ECLSS は `scenario.yaml` に要求をスタブする。下の対応表と目指す完成形の図はこの従来 ECLSS の範囲を示す。`balancing_cube` は `MechanicalBridge` で要求・KDP・詳細パラメータの特定版を取得する。[One Piece 連携](one-piece-integration.md)を参照。
 
 ### 現行 MVP（`scrubber_degradation`）— 表との対応
 
@@ -193,7 +193,7 @@ integrations/one_piece  ← scenario から呼び出し
 ### やってよいこと
 
 - 表の **本デモ** 行のうち **設計** と **仮想検証** に集中する。ECLSS の監督要求は `scenario.yaml` でスタブする。ECLSS 側の One Piece pull は広げない。`balancing_cube` は機械系 SSOT ブリッジを既に使う。
-- **設計要求**と**検証要求**を `scenario.yaml` 等で明示し、版管理する（One Piece 連携までの暫定スタブ）。
+- ECLSS の**設計要求**と**検証要求**を `scenario.yaml` で明示し、版管理する。`balancing_cube` は One-Piece の特定版の要求を読み、ローカル YAML に複製・上書きしない。
 - 設計・検証が監督に**要求変更を提案**する経路を設計する（監督が改訂するまで現行要求で判定する）。
 - 要求が非現実的なとき、設計だけを曲げて適合させるのではなく**設計要求・検証要求の改訂**を検討する（**最重要要求**は侵さない）。
 - 検証は設計提案を入力にシミュレーションを回し、**現行の検証要求**を決定論的に確認する。

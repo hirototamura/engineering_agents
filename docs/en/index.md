@@ -151,7 +151,7 @@ ECLSS scenarios share **`none`**, **`labeled_rule_base`** (reproducible regressi
 
 ### Balancing cube (One-Piece SSOT, no Docker)
 
-Requires a local One-Piece store path. Optional extras: `pip install -e ".[mujoco]"` (CPU) or `.[gpu]` (MJX).
+Requires a restored local One-Piece store and the One-Piece Python package. Install `pip install -e ".[mujoco,onepiece]"` for CPU or `pip install -e ".[gpu,onepiece]"` for MJX/CUDA. The `onepiece` extra installs the pinned Release wheel; `mujoco` / `gpu` alone do not install it. Store restoration and the local-checkout alternative are in the [runbook](mujoco-one-piece.md#run-locally).
 
 ```bash
 ea run balancing_cube --backend mujoco_cpu --design-mode none \

@@ -22,7 +22,7 @@ Priorities:
 | --- | --- | --- | --- |
 | Narrative | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | [scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) | [mujoco-one-piece.md](mujoco-one-piece.md) |
 | Backend | `SimulatorProtocol` / `StationSimulator` | `EclssBackend` / `Ros2EclssBridge` | `environment/mujoco/` (`mujoco_cpu` / `mjx_gpu`) |
-| Team | `ScrubberDegradationTeam` | `SsosEclssLoopTeam` (ops) + `PostRunDesignAgent` | Optional `DesignWorkflow` specialists; or `agents.mode: none` |
+| Team | `ScrubberDegradationTeam` | `SsosEclssLoopTeam` (ops) + `PostRunDesignAgent` | Single LLM designer by default; optional `DesignWorkflow` specialists; `agents.mode: none` evaluates the reference |
 | Runtime | Recovery commands | Operational commands (ARS/OGS, etc.) | Fixed-dt MuJoCo / MJX cases |
 | Post-run | Scrubber topology | `ssos_graph` | Bounded mechanical/control proposals |
 | Environment | Host Python only | mock or SSOS Docker | One-Piece store + optional CUDA |

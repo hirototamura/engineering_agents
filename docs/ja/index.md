@@ -151,7 +151,7 @@ ECLSS のエージェントモードは **`none`** / **`labeled_rule_base`**（�
 
 ### バランシングキューブ（One-Piece SSOT、Docker 不要）
 
-ローカルの One-Piece ストアパスが必須。任意: `pip install -e ".[mujoco]"`（CPU）または `.[gpu]`（MJX）。
+復元済みのローカル One-Piece ストアと One-Piece Python パッケージが必須。CPU は `pip install -e ".[mujoco,onepiece]"`、MJX/CUDA は `pip install -e ".[gpu,onepiece]"` を実行する。`onepiece` extra が固定版 Release wheel を導入する。`mujoco` / `gpu` だけでは導入されない。ストア復元とローカル checkout を使う方法は[実行手順](mujoco-one-piece.md)を参照。
 
 ```bash
 ea run balancing_cube --backend mujoco_cpu --design-mode none \

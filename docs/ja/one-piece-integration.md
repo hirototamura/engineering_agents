@@ -13,6 +13,10 @@
 
 ---
 
+## ECLSS の provenance エクスポート
+
+以下の provenance 節は ECLSS 向け。キューブは `MechanicalBridge` と durable outbox を使う。同期待ちがあれば次の設計反復を止め、run は inconclusive、CLI は非ゼロ終了となる。再送方法は[キューブ実行手順](mujoco-one-piece.md)を参照。
+
 ## 目的
 
 自律ハードウェア開発の前段として、次を追跡可能にする:

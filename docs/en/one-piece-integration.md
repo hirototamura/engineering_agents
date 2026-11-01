@@ -14,6 +14,10 @@ The full [One Piece](https://github.com/hirototamura/one-piece) Web UI is out of
 
 ---
 
+## ECLSS provenance export
+
+The remaining provenance sections describe ECLSS. The cube uses `MechanicalBridge` and its durable outbox: pending synchronization stops the next design iteration and leaves the run inconclusive with a nonzero CLI exit. Retry it as described in the [cube runbook](mujoco-one-piece.md).
+
 ## Purpose
 
 As a precursor to autonomous hardware development, make the following traceable:
