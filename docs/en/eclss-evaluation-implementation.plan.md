@@ -22,6 +22,12 @@ isProject: false
 
 # ECLSS evaluator implementation
 
+> **Historical draft weights.** This plan shipped the evaluator, then schema **2.1**
+> changed the scorecard (`CREW` 20, cost/mass 20 each, D/E 5 each, `FULL_MAX` 100 /
+> `NO_ACTOR_MAX` 90). Do not implement from the 50 / 80 numbers below. Canonical
+> contract: [`api-contracts.md`](api-contracts.md) and
+> `src/scenario/ssos_eclss_loop/evaluation.py`.
+
 ## Evaluation contract
 - Full scoring applies only to `ssos_eclss_loop` with `backend=plant_sim` and `survival.enabled=true`. For all other runs, still emit `evaluation.json` with `not_applicable` and a reason.
 - Run the unscored physics gate first: check missing required values, non-finite values, negative inventories, ledger residuals, processing while failed, and physical sign consistency of operation results. On FAIL, do not compute axis or total scores; mark `invalid`.

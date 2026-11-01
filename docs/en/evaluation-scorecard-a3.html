@@ -131,7 +131,7 @@
 
     .scorebar {
       display: grid;
-      grid-template-columns: 5fr 1fr 1fr 1fr 1fr 1fr;
+      grid-template-columns: 4fr 2fr 2fr 2fr 4fr 4fr 1fr 1fr;
       min-height: 58px;
       margin-bottom: 14px;
       border: 1px solid var(--line);
@@ -153,6 +153,8 @@
     .s-a { background: #39759b; }
     .s-b { background: var(--green); }
     .s-c { background: #8b6b25; }
+    .s-cost { background: #5a6b73; }
+    .s-mass { background: #3f4c52; }
     .s-d { background: #644f1f; }
     .s-e { background: #4e3d18; }
     .points { font-size: 21px; white-space: nowrap; }
@@ -303,7 +305,7 @@
   <header>
     <div>
       <h1>ECLSS Simulation Evaluation &amp; Verification Scorecard</h1>
-      <p class="subtitle">Run evaluation based on actor survival and objective physical telemetry</p>
+      <p class="subtitle">Schema 2.1 — actor survival, footprint, and physical telemetry. Canonical: evaluation.json</p>
     </div>
     <div class="principle">
       Paramount requirement: obey the laws of physics
@@ -326,19 +328,21 @@
 
   <h1>Point allocation and evaluation axes</h1>
   <div class="scorebar" aria-label="Point allocation">
-    <div class="s-actor"><span>Actor survival</span><span class="points">50</span></div>
+    <div class="s-actor"><span>Actor survival</span><span class="points">20</span></div>
     <div class="s-a"><span>A TCL</span><span class="points">10</span></div>
     <div class="s-b"><span>B Environment</span><span class="points">10</span></div>
-    <div class="s-c"><span>C Resource margin</span><span class="points">10</span></div>
-    <div class="s-d"><span>D Decision</span><span class="points">10</span></div>
-    <div class="s-e"><span>E Response</span><span class="points">10</span></div>
+    <div class="s-c"><span>C Resource</span><span class="points">10</span></div>
+    <div class="s-cost"><span>Cost</span><span class="points">20</span></div>
+    <div class="s-mass"><span>Mass</span><span class="points">20</span></div>
+    <div class="s-d"><span>D Decision</span><span class="points">5</span></div>
+    <div class="s-e"><span>E Response</span><span class="points">5</span></div>
   </div>
 
   <section class="axes">
     <article class="card actor">
-      <h2>Actor survival — 50 points <span class="tag">top outcome</span></h2>
-      <p>Score the fraction of actors still alive at simulation end, scaled directly to points.</p>
-      <div class="formula">50 × crew_remaining ÷ crew_initial</div>
+      <h2>Actor survival — 20 points <span class="tag">top outcome</span></h2>
+      <p>Score the fraction of actors still alive at simulation end, scaled directly to points. Survival still ranks first; it does not also dominate the sheet.</p>
+      <div class="formula">20 × crew_remaining ÷ crew_initial</div>
       <ul>
         <li>Requires <strong>plant_sim + survival enabled</strong>. Crew count and actor count are synchronized as the same people.</li>
         <li>Outputs: <code>crew_initial</code>, <code>crew_remaining</code>, <code>crew_lost</code>, <code>crew_lost_by_cause</code>.</li>
@@ -391,10 +395,25 @@
   </section>
 
   <section class="card cd">
-    <h2>Axes added only when actor operations are enabled — 20 points total</h2>
+    <h2>Design footprint — 40 points total</h2>
+    <p>Cost and mass sit on the same sheet as performance. Full marks at or under <code>evaluation.footprint.*_full_score_*</code>, zero at or over <code>*_zero_score_*</code>, linear between. Shipped YAML: 500 / 900 MUSD, 3400 / 6000 kg. Omit the keys and full marks use the baseline machine (loses the whole crew); zero marks fall back to 750 MUSD / 5000 kg in code. Exploration coefficients, not a flight estimate.</p>
     <div class="split">
       <div class="mini">
-        <h3>D. Actor operational decisions — 10 points <span class="tag">actor factor</span></h3>
+        <h3>Cost — 20 points</h3>
+        <p>Hardware + launch from installed ARS / OGS / WRS capacity. Axis key: <code>cost</code>.</p>
+      </div>
+      <div class="mini">
+        <h3>Mass — 20 points</h3>
+        <p>Installed ARS + OGS + WRS mass. Axis key: <code>mass</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card cd">
+    <h2>Axes added only when actor operations are enabled — 10 points total</h2>
+    <div class="split">
+      <div class="mini">
+        <h3>D. Actor operational decisions — 5 points <span class="tag">actor factor</span></h3>
         <p>Evaluate when, what, and how much was requested before commands reach devices, against observed state.</p>
         <ul>
           <li>Latency from dangerous state to appropriate first action</li>
@@ -403,7 +422,7 @@
         </ul>
       </div>
       <div class="mini">
-        <h3>E. Design / device physical response — 10 points <span class="tag">design factor</span></h3>
+        <h3>E. Design / device physical response — 5 points <span class="tag">design factor</span></h3>
         <p>After a physically valid request, evaluate how much the device converted the request into actual processing.</p>
         <ul>
           <li>Success rate of valid commands; requested vs processed amount</li>
@@ -418,12 +437,12 @@
     <div>
       <div class="mode inactive" style="margin-top:8px">
         <h2>Actor operations: disabled</h2>
-        <div class="mode-line"><span>50 + A10 + B10 + C10 (D/E excluded)</span><span>80 points max</span></div>
+        <div class="mode-line"><span>20 + A10 + B10 + C10 + cost20 + mass20 (D/E excluded)</span><span>90 points max</span></div>
         <p class="note">Applies when actor.mode = none. Do not redistribute points; state applicable max explicitly. Do not compare totals directly with 100-point runs.</p>
       </div>
       <div class="mode active">
         <h2>Actor operations: enabled</h2>
-        <div class="mode-line"><span>50 + A10 + B10 + C10 + D10 + E10</span><span>100 points max</span></div>
+        <div class="mode-line"><span>20 + A10 + B10 + C10 + cost20 + mass20 + D5 + E5</span><span>100 points max</span></div>
         <p class="note">Applies when actor.mode = labeled_rule_base or llm. Scores operational commands actually applied to devices.</p>
       </div>
     </div>
@@ -438,6 +457,8 @@
         <code>trajectory.band_steps</code>
         <code>trajectory.longest_critical_streak</code>
         <code>resource_recovery.resources</code>
+        <code>cost.metrics</code>
+        <code>mass.metrics</code>
         <code>actor_decision.episodes</code>
         <code>actor_decision.attempts</code>
         <code>physical_response.operations</code>
