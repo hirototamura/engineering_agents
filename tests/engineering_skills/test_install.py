@@ -59,3 +59,47 @@ def test_owned_renamed_skills_migrate_but_human_edits_are_preserved(tmp_path,hum
         install(REPO,home)
         assert not old.exists()
     assert note.read_text()=='preserve this'
+
+
+def test_agent_neutral_catalog_install_is_idempotent_and_preserves_edits(tmp_path):
+    from tools.engineering_skills.install import install_catalog
+    destination = tmp_path / 'agent-skills'
+    (destination / 'unrelated-empty-directory').mkdir(parents=True)
+    receipt = install_catalog(REPO, destination)
+    assert (destination / 'unrelated-empty-directory').is_dir()
+    assert receipt['destination'] == str(destination)
+    assert 'hermes_home' not in receipt
+    assert install_catalog(REPO, destination) == receipt
+    assert {p.parent.name for p in destination.glob('*/SKILL.md')} == set(SKILLS)
+    skill = destination / 'transfer-function-derivation' / 'SKILL.md'
+    skill.write_text('human edit')
+    with pytest.raises(FileExistsError):
+        install_catalog(REPO, destination)
+    assert skill.read_text() == 'human edit'
+
+
+def test_agent_neutral_installer_cli_and_hermes_option_are_separate(tmp_path):
+    import json
+    import subprocess
+    import sys
+    destination = tmp_path / 'other-agent-skills'
+    result = subprocess.run(
+        [sys.executable, '-m', 'tools.engineering_skills.install', '--repo', str(REPO),
+         '--destination', str(destination)], capture_output=True, text=True, check=True)
+    assert json.loads(result.stdout)['destination'] == str(destination)
+    assert (destination / 'transfer-function-derivation' / 'contract.json').is_file()
+    conflicting = subprocess.run(
+        [sys.executable, '-m', 'tools.engineering_skills.install', '--repo', str(REPO),
+         '--destination', str(destination), '--hermes-home', str(tmp_path / 'hermes')],
+        capture_output=True, text=True)
+    assert conflicting.returncode != 0
+
+
+def test_agent_neutral_installer_rejects_source_and_symlink_destination(tmp_path):
+    from tools.engineering_skills.install import install_catalog
+    with pytest.raises(ValueError, match='source catalog'):
+        install_catalog(REPO, REPO / 'skills/engineering')
+    link = tmp_path / 'linked'
+    link.symlink_to(tmp_path, target_is_directory=True)
+    with pytest.raises(FileExistsError, match='symlink'):
+        install_catalog(REPO, link / 'skills')

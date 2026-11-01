@@ -1,1 +1,1 @@
-"""Hermes-facing engineering skill execution and evidence packaging."""
+"""Agent-independent engineering skill execution and evidence packaging."""

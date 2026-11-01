@@ -1,9 +1,10 @@
 # Engineering analysis skills
 
 Engineering analysis skills are project-independent capabilities used during design
-and verification. Hermes is the task harness; Engineering Agents owns the skills
-and deterministic tools. One-Piece supplies exact requirement/model revisions and
-retains human authority over requirements and adopted baselines.
+and verification. Engineering Agents owns the agent-independent skill catalog
+and deterministic tools. Hermes is the first harness integration; it is not a
+requirement for using the skills. One-Piece supplies exact requirement/model
+revisions and retains human authority over requirements and adopted baselines.
 
 Each skill has **one primary output**, a typed `result.json`. Plots, CSV and
 `summary.json` are supporting views of that result. `receipt.json` is execution
@@ -91,8 +92,8 @@ commands `gnc`, `mechanical`, `electrical` and `systems` remain aliases. Three o
 remains an explicitly labelled project composition. Historical evidence refers
 to the source revision at which it was generated and is preserved.
 
-Hermes selects/loads a skill, invokes its trusted tool, reads the result and
-explains findings or proposes another analysis. The deterministic executor runs
+An agent selects or reads a skill, invokes its shared analysis tool, reads the
+result and explains findings or proposes another analysis. The deterministic executor runs
 the declared dependency graph. Each child keeps its own input, typed result and
 receipt under `dependencies/<role>/`. The parent records child input/result/
 receipt hashes and a recursive artifact inventory. Repeated thermal intervals
@@ -131,6 +132,39 @@ Native requirement units are retained; conversions shall be explicit. A six-seco
 simulation cannot verify a thirty-second hardware requirement. Human approval of
 requirement wording is distinct from verification status. Assessment does not
 publish records, approve a baseline or edit CORE.md.
+
+## Agent integration boundary
+
+The versioned skill instructions, contracts, examples, calculators and result
+receipts are shared across agents. An agent integration is responsible for making
+those instructions discoverable, providing the project Python environment and
+terminal access to `ea-engineering`, and presenting the outputs. The agent does
+not determine verification outcomes. Direct human or scripted CLI use needs no
+agent harness. A project-specific composition can use the same generic skills.
+
+To copy the shared catalog to an agent-selected directory without overwriting
+local edits:
+
+```bash
+python -m tools.engineering_skills.install --repo /path/to/engineering_agents \
+  --destination /path/to/agent/skill-directory
+```
+
+This installs one folder per skill, including its contract, example and references,
+and stores an ownership receipt in the destination. It updates only unchanged
+owned files and refuses conflicting edits. Select a location and loading method
+supported by the particular agent; this generic installer does not assert that
+any agent automatically discovers nested directories or supports the skill format.
+It does not install Python dependencies: use the execution setup above and run
+`ea-engineering` from the checkout. Permissions, runtime isolation and tool
+availability remain the host agent's responsibility.
+
+Hermes is the first implemented harness adapter and has its own install layout,
+launcher and live acceptance tests. The generic installer and shared CLI do not
+constitute live qualification of Codex, Claude Code, OpenClaw or any other agent.
+Each new adapter needs end-to-end checks of discovery, tool execution, result
+and dependency receipts, errors and permissions for that host; lower-level
+numerical tests remain shared rather than duplicated.
 
 ## Validation hierarchy
 

@@ -18,7 +18,7 @@ The executor runs these dependencies and retains their typed results and receipt
 
 ## Execute
 
-Read [input_contract.md](references/input_contract.md) for inputs. From the Engineering Agents checkout (`EA_ENGINEERING_REPO` in the Hermes wrapper), execute the trusted tool:
+Read [input_contract.md](references/input_contract.md) for inputs. From the Engineering Agents checkout, execute the shared analysis tool:
 
 ```bash
 ea-engineering run actuator-duty-cycle-analysis \
