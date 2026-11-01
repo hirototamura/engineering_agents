@@ -585,6 +585,8 @@ back to the baseline machine, zero marks to 750 MUSD / 5000 kg in
     "axes": {
       "actor_survival": {"score": 18.0, "max_score": 20},
       "tcl": {"score": 8.0, "max_score": 10},
+      "environment_trajectory": {"score": 8.0, "max_score": 10},
+      "resource_recovery": {"score": 8.2, "max_score": 10},
       "cost": {"score": 16.0, "max_score": 20},
       "mass": {"score": 16.0, "max_score": 20}
     }
