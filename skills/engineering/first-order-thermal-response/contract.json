@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "first-order-thermal-response",
+  "kind": "atomic",
+  "project_scope": "agnostic",
+  "primary_output": {
+    "file": "result.json",
+    "type": "thermal_interval_response",
+    "version": 1
+  },
+  "requires": [],
+  "validation": "independent_numerical_oracles",
+  "input": {
+    "reference": "references/input_contract.md",
+    "example": "examples/input.json"
+  }
+}

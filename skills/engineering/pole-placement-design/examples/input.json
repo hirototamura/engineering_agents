@@ -1,0 +1,47 @@
+{
+  "units": "SI",
+  "data_basis": "synthetic_validation",
+  "system": {
+    "A": [
+      [
+        0,
+        1
+      ],
+      [
+        -2,
+        -3
+      ]
+    ],
+    "B": [
+      [
+        0
+      ],
+      [
+        1
+      ]
+    ],
+    "C": [
+      [
+        1,
+        0
+      ]
+    ],
+    "D": [
+      [
+        0
+      ]
+    ],
+    "state_units": [
+      "m",
+      "m/s"
+    ],
+    "input_unit": "N",
+    "output_unit": "m",
+    "model_scope": "Assumed one-degree-of-freedom mass-spring-damper linear model, zero initial state."
+  },
+  "desired_poles_per_s": [
+    -4,
+    -6
+  ],
+  "control_period_s": 0.015
+}

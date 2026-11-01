@@ -1,0 +1,11 @@
+{
+  "units": "SI",
+  "data_basis": "synthetic_validation",
+  "initial_K": 300,
+  "ambient_K": 300,
+  "heat_W": 8,
+  "thermal_resistance_K_W": 10,
+  "thermal_capacity_J_K": 5,
+  "duration_s": 10,
+  "maximum_K": 350
+}

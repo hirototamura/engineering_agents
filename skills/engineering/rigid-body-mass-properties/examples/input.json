@@ -1,0 +1,75 @@
+{
+  "units": "SI",
+  "data_basis": "assumed",
+  "seed": 42,
+  "uncertainty_samples": 500,
+  "parts": [
+    {
+      "id": "printed_frame_assumed",
+      "mass_kg": 0.35,
+      "center_m": [
+        0.076,
+        0.076,
+        0.076
+      ],
+      "shape": {
+        "type": "box",
+        "size_m": [
+          0.152,
+          0.152,
+          0.152
+        ]
+      },
+      "uncertainty_bounds": {
+        "mass_kg": [
+          0.32,
+          0.38
+        ],
+        "center_m": [
+          [
+            0.075,
+            0.075,
+            0.075
+          ],
+          [
+            0.077,
+            0.077,
+            0.077
+          ]
+        ]
+      }
+    },
+    {
+      "id": "wheel_assumed",
+      "mass_kg": 0.08,
+      "center_m": [
+        0.02,
+        0.076,
+        0.076
+      ],
+      "shape": {
+        "type": "annular_cylinder",
+        "outer_radius_m": 0.0632,
+        "inner_radius_m": 0.045,
+        "height_m": 0.006
+      }
+    },
+    {
+      "id": "battery_unknown",
+      "mass_kg": null,
+      "center_m": [
+        0.076,
+        0.076,
+        0.09
+      ],
+      "shape": {
+        "type": "box",
+        "size_m": [
+          0.056,
+          0.03,
+          0.019
+        ]
+      }
+    }
+  ]
+}
