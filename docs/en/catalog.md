@@ -16,9 +16,11 @@ Full page index for the MkDocs site. Use the header language switcher for 日本
 | | [Engineering guide](AGENTS.md) | Mission, coding discipline |
 | Scenarios | [scrubber_degradation](scenario-scrubber-degradation.md) | Mock CO₂ scrubber scenario |
 | | [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | SSOS live ECLSS scenario |
+| | [MuJoCo / One-Piece](mujoco-one-piece.md) | `balancing_cube` SSOT loop, CLI constraints, Fake LLM acceptance |
 | SSOS | [SSOS integration](ssos/index.md) | Docker / ROS 2 operational guides |
 | | [Roadmap](ssos/roadmap.md) | Phase 0–8 status |
-| More | [CLI guide](cli.md) | `ea` command reference |
+| More | [CLI guide](cli.md) | `ea` command reference (ECLSS + cube pitfalls) |
+| | [One Piece integration](one-piece-integration.md) | ECLSS provenance vs cube `MechanicalBridge` |
 | | [Design-loop analysis](design-loop-analysis.md) | Order parameters, criticality, controllability of the design→verify loop |
 | | [Technical report v4](eclss_ai_agent_technical_report_04.md) | Hackathon report. Chapter 8 is the emergence visualization |
 | | [Development plan](development-plan.md) | Roadmap and backlog index |

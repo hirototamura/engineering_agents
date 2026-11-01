@@ -17,7 +17,7 @@ Reproduce in software an engineering team that runs a **design–verification lo
 
 The target is hardware in general that traditionally requires systems engineering — **satellites, spacecraft, rockets, aircraft, automobiles, humanoid robots**, and similar. **Reproducible design→verification loops** take priority over high-fidelity 3D or real-hardware connection.
 
-**The primary scope of this repository is design and verification.** Supervision (setting design requirements and verification requirements, and validating those requirements themselves) is handled by a separate repository, **[One Piece](https://github.com/hirototamura/one-piece)**. Eventually, requirements must be pulled from One Piece, but **that is not implemented yet**. This repository stubs requirements in `scenario.yaml` and focuses on implementing the design–verification loop.
+**The primary scope of this repository is design and verification.** Supervision (setting design requirements and verification requirements, and validating those requirements themselves) is handled by a separate repository, **[One Piece](https://github.com/hirototamura/one-piece)**. **`balancing_cube` already reads a pinned One-Piece snapshot** (requirements, KDPs, detailed parameters). ECLSS scenarios still stub requirements in `scenario.yaml`; provenance export is not a substitute for that SSOT pull.
 
 ---
 
@@ -100,7 +100,7 @@ For a trustworthy enterprise product, separate **creativity (design AI)** from *
 
 ### What supervision (human + AI) does
 
-> **Scope note:** Supervision is implemented in the **One Piece** repository. This repository only stubs requirements in `scenario.yaml`. Pulling requirements from One Piece is future work.
+> **Scope note:** Supervision is implemented in the **One Piece** repository. ECLSS stubs requirements in `scenario.yaml`; `balancing_cube` reads exact requirement revisions from One-Piece SSOT. Humans retain authority to revise them.
 
 - **Set design requirements** — performance, constraints, topology assumptions to satisfy (what to build)
 - **Set verification requirements** — acceptance criteria, thresholds, scenarios (what counts as pass)
@@ -127,7 +127,7 @@ For a trustworthy enterprise product, separate **creativity (design AI)** from *
 
 This demo implements **design** and **verification (virtual world)** from the **This demo** row. ECLSS/EPS are only the reference scenario; the paradigm is domain-agnostic.
 
-The **Supervision** column is One Piece’s responsibility. In the current MVP, thresholds and scenarios in `scenario.yaml` stub verification requirements; design-requirement stubs live near that file. Pulling requirements from One Piece is future work and is not touched now ([one-piece-integration.md](one-piece-integration.md) covers provenance export only).
+The **Supervision** column is One Piece’s responsibility. ECLSS uses requirement stubs in `scenario.yaml`; the mapping and target-state diagram below describe that legacy ECLSS scope. `balancing_cube` already reads pinned requirements, KDPs and detailed parameters through `MechanicalBridge`. See [One Piece integration](one-piece-integration.md).
 
 ### Current MVP (`scrubber_degradation`) — mapping to the table
 
@@ -192,8 +192,8 @@ Do not import upper layers from lower layers. Do not put LLM or Persona in `envi
 
 ### Do
 
-- Focus on **design** and **virtual verification** from the **This demo** row. Stub supervision requirements in `scenario.yaml`; do not start One Piece integration yet.
-- Make **design requirements** and **verification requirements** explicit in `scenario.yaml` and version-control them (temporary stub until One Piece integration).
+- Focus on **design** and **virtual verification** from the **This demo** row. ECLSS still stubs supervision requirements in `scenario.yaml`. Do not expand ECLSS One-Piece pull; `balancing_cube` already uses the mechanical SSOT bridge.
+- Keep ECLSS **design requirements** and **verification requirements** explicit and versioned in `scenario.yaml`. For `balancing_cube`, consume pinned One-Piece requirements; do not copy or override them in local YAML.
 - Design paths for design and verification to **propose requirement changes** to supervision (judge against current requirements until supervision revises).
 - When requirements are unrealistic, consider **revising design and verification requirements** rather than bending design only (**top requirement** must not be violated).
 - Run simulation from design proposals and **deterministically confirm current verification requirements**.
@@ -264,7 +264,8 @@ This is **not** the same as the `first_principles` **thinking-style archetype** 
 | [architecture.md](architecture.md) | Layers, execution flow, agent design |
 | [api-contracts.md](api-contracts.md) | `SimulatorProtocol`, JSONL, design proposal schema |
 | [development-plan.md](development-plan.md) | Incomplete features, roadmap |
-| [one-piece-integration.md](one-piece-integration.md) | One Piece integration (provenance only for now; requirement pull is future) |
+| [one-piece-integration.md](one-piece-integration.md) | ECLSS provenance export; cube SSOT via `MechanicalBridge` |
+| [MuJoCo design loop](mujoco-one-piece.md) | `balancing_cube` runbook (CPU/GPU, Fake LLM, CLI constraints) |
 | [scenario-scrubber-degradation.md](scenario-scrubber-degradation.md) | Reference scenario specification |
 | [docs/scenario-ssos-eclss-loop.md](scenario-ssos-eclss-loop.md) | SSOS live ECLSS scenario (Phase 0–7) |
 | [Design-loop analysis](design-loop-analysis.md) | Ensemble physics of the design→verify loop |

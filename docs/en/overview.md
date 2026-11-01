@@ -4,24 +4,25 @@
 
 Research repository that simulates how an **agent team detects and responds to anomalies in ECLSS** (Environmental Control and Life Support System) and **proposes design changes afterward**. ECLSS is not a physical experiment apparatus; it refers to **life-support equipment** required for crew survival.
 
-This repository has **two scenario tracks**:
+This repository has **three scenario tracks**:
 
 - **`scrubber_degradation`** — CO₂ scrubber anomaly on a Python mock (`StationSimulator`). Reproduces the life-support plant (ECLSS) and power system (**EPS**) with a ROS2-style topic contract.
 - **`ssos_eclss_loop`** — Connects to live ROS2 ECLSS inside **Space Station OS (SSOS)** Docker (`Ros2EclssBridge`). Verifies ARS/OGS/WRS operations and post-run `ssos_graph` design proposals (Phase 0–7 complete).
+- **`balancing_cube`** — MuJoCo / MJX design→verify against a pinned **One-Piece** snapshot. Automatic changes stay inside six mechanical variables, motor family, and four control knobs. See [MuJoCo design loop](mujoco-one-piece.md).
 
-Both target research toward future space-station operations software (SSOS). The goal is to validate the loop: **in-flight anomaly → team judgment → permanent design proposal**.
+ECLSS tracks target research toward space-station operations software (SSOS): **in-flight anomaly → team judgment → permanent design proposal**. The cube track is a separate mechanical SSOT loop; do not mix backends or result folders.
 
 ---
 
-## Two scenarios
+## Three scenarios
 
-| | [scrubber_degradation](scenario-scrubber-degradation.md) | [ssos_eclss_loop](scenario-ssos-eclss-loop.md) |
-| --- | --- | --- |
-| Purpose | Mock CO₂ scrubber anomaly with EPS coupling | SSOS live ECLSS operations (Crew Simulation replacement) |
-| Backend | `StationSimulator` | `EclssBackend` (mock / plant_sim / `Ros2EclssBridge`) |
-| Telemetry | CO₂ ppm, power margin | CO₂/O₂/water storage (kg / L) |
-| Runtime | Recovery commands (fan, EPS boost) | Operational commands (ARS, OGS, request_co2) |
-| Post-run | Scrubber topology | `ssos_graph` (`action_profile`, `graph_rewire`) |
+| | [scrubber_degradation](scenario-scrubber-degradation.md) | [ssos_eclss_loop](scenario-ssos-eclss-loop.md) | [balancing_cube](mujoco-one-piece.md) |
+| --- | --- | --- | --- |
+| Purpose | Mock CO₂ scrubber anomaly with EPS coupling | SSOS live ECLSS operations (Crew Simulation replacement) | Versioned cube mechanics + LQR vs One-Piece SSOT |
+| Backend | `StationSimulator` | `EclssBackend` (mock / plant_sim / `Ros2EclssBridge`) | `mujoco_cpu` / `mjx_gpu` |
+| Telemetry | CO₂ ppm, power margin | CO₂/O₂/water storage (kg / L) | Contact, slip, pivot, case scores |
+| Runtime | Recovery commands (fan, EPS boost) | Operational commands (ARS, OGS, request_co2) | Native MuJoCo (and MJX when requested) |
+| Post-run | Scrubber topology | `ssos_graph` (`action_profile`, `graph_rewire`) | Bounded mechanical/control proposals + evidence outbox |
 
 ---
 
