@@ -21,7 +21,7 @@ retain the measured result, and use that evidence in the next proposal.
 
 There are also three different meanings of “current model”:
 
-These roles are now managed as CM-01, CM-02 and CM-03 in the One-Piece configuration catalogue. A separate CM-04 BOM reference was assessed on 21 October with no design iterations. See [the fixed BOM workflow](cube_bom_reference.md) and the [interactive catalogue and results](</Users/hiroto/Documents/ChatGPT/Engineering Agents/reports/cube-configuration-catalogue/index.html>).
+These roles are now managed as CM-01, CM-02 and CM-03 in the One-Piece configuration catalogue. A separate CM-04 BOM reference was assessed on 21 October with no design iterations. See [the fixed BOM workflow](cube_bom_reference.md) and the [interactive catalogue and results](</Users/hiroto/dev/eng_agents_workspace/reports/cube-configuration-catalogue/index.html>).
 
 - The blog displays the human-reviewed requirements/allocation model
   `reviewed-20261019-1`: 22 obligations, seven groups, 37 parameters, eight
@@ -48,14 +48,14 @@ These links point to the actual local files used by this audit. The first file
 to open is the **compiled configuration**, because the effective experiment is
 assembled from several versioned inputs.
 
-- [Current scenario dispatch](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/scenario.yaml:1>): snapshot selection, backend, LLM defaults and iteration limits.
-- [Saved lower-wheel compiled configuration](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/candidates/candidate-001/compiled.json>): exact derived mechanics, actuator/contact/sensor configuration, saved `controller.K`, input digest and campaign ID.
-- [Saved frozen snapshot](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/frozen-snapshot.json>): source revisions, requirements, KDPs, design bounds, cases and evaluation contract.
-- [Exploration result](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/candidates/candidate-001/result.json>): twelve per-case summaries, gate decisions, sampled rows and pose frames.
-- [Validation result](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/validation/result.json>): changed release/disturbance/seed conditions after selection.
-- [Run summary](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/summary.json>): completion, stopping reason, best candidate and validation status.
-- [Canonical lower-wheel snapshot records](</Users/hiroto/Documents/ChatGPT/Engineering Agents/one-piece/projects/balancing-cube/store/commits/56082d05ed0cfceec3467471bece01a915559a1fd59197ec1da4f8e5623139c2/records.json>): One-Piece source of truth.
-- [Reviewed model records](</Users/hiroto/Documents/ChatGPT/Engineering Agents/one-piece/projects/balancing-cube/store/commits/a9ba4933a54b413437f8487b847f8ff4e7e26c79292cc3ce79457307197ac6dd/records.json>): current human-reviewed requirements and allocation baseline.
+- [Current scenario dispatch](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/scenario.yaml:1>): snapshot selection, backend, LLM defaults and iteration limits.
+- [Saved lower-wheel compiled configuration](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/candidates/candidate-001/compiled.json>): exact derived mechanics, actuator/contact/sensor configuration, saved `controller.K`, input digest and campaign ID.
+- [Saved frozen snapshot](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/frozen-snapshot.json>): source revisions, requirements, KDPs, design bounds, cases and evaluation contract.
+- [Exploration result](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/candidates/candidate-001/result.json>): twelve per-case summaries, gate decisions, sampled rows and pose frames.
+- [Validation result](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/validation/result.json>): changed release/disturbance/seed conditions after selection.
+- [Run summary](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/bottom000-first-trial-20261017/summary.json>): completion, stopping reason, best candidate and validation status.
+- [Canonical lower-wheel snapshot records](</Users/hiroto/dev/eng_agents_workspace/one-piece/projects/balancing-cube/store/commits/56082d05ed0cfceec3467471bece01a915559a1fd59197ec1da4f8e5623139c2/records.json>): One-Piece source of truth.
+- [Reviewed model records](</Users/hiroto/dev/eng_agents_workspace/one-piece/projects/balancing-cube/store/commits/a9ba4933a54b413437f8487b847f8ff4e7e26c79292cc3ce79457307197ac6dd/records.json>): current human-reviewed requirements and allocation baseline.
 
 `scenario.yaml` is not the complete physics configuration. Normal dispatch
 requires `ssot.path`; the One-Piece bridge resolves exact references, merges the
@@ -65,8 +65,8 @@ design plant. In particular, the nominal 180 mm model is not the actual
 the default `ollama/llama3.2` entry is not the model used in the saved Qwen study.
 
 Read the executable resolution in
-[scenario_run.py](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/scenario_run.py:19>) and
-[MechanicalBridge](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/integrations/one_piece/mechanical_bridge.py:34>).
+[scenario_run.py](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/scenario_run.py:19>) and
+[MechanicalBridge](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/integrations/one_piece/mechanical_bridge.py:34>).
 
 ## 3. What makes the cube difficult?
 
@@ -154,8 +154,8 @@ The separate ideal-pivot model has a ball joint at the vertex. It is used for
 controller design and diagnostics; a mechanical joint prevents contact loss
 and slip, so it should not be mistaken for the floor-contact test.
 
-Sources: [model.py](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/environment/mujoco/model.py:28>),
-[contact.py](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/environment/mujoco/contact.py:29>) and
+Sources: [model.py](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/environment/mujoco/model.py:28>),
+[contact.py](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/environment/mujoco/contact.py:29>) and
 [MuJoCo's equations and contact formulation](https://mujoco.readthedocs.io/en/latest/computation.html).
 
 ### The fast feedback loop
@@ -191,8 +191,8 @@ eigenvalues alone do not establish contact-model stability with delay and
 saturation. The saved `K`, rather than a claim in an old hypothesis string,
 is the execution evidence.
 
-Sources: [control.py](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/environment/mujoco/control.py:8>),
-[compile_controller](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/design.py:82>) and
+Sources: [control.py](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/environment/mujoco/control.py:8>),
+[compile_controller](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/design.py:82>) and
 [SciPy's discrete Riccati solver](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.solve_discrete_are.html).
 
 ### Sensing and actuation are approximations
@@ -220,7 +220,7 @@ regenerative braking or thermal dynamics are simulated. Continuous-torque
 threshold exceedance is a proxy, and absolute mechanical work is not battery
 energy.
 
-Source: [sensor and torque pipeline](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/environment/mujoco/contact.py:127>).
+Source: [sensor and torque pipeline](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/environment/mujoco/contact.py:127>).
 
 ## 5. A file-reading exercise
 
@@ -258,7 +258,7 @@ J=\frac{k}{12}-0.05\,\overline{e_{\mathrm{RMS}}}-0.2\,\overline{f_{\tau}},
 
 where \(k\) is the number of cases that pass **every** gate, \(e_{\mathrm{RMS}}\) is final-one-second total-tilt RMS in degrees, and \(f_\tau\) is the fraction of integrated physics steps at which at least one wheel exceeds its continuous-torque comparison threshold. Bars mean an arithmetic average over all twelve cases, including failed cases. The coefficients carry the normalization needed for the chosen units; they are frozen numerical development weights, not values derived from a physical success model.
 
-The exact implementation is [aggregate](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/evaluation.py:92>). The weights and gates come from the run's frozen input under `plan.objective` and `contract.screening`, for example [the multi-agent run snapshot](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/multi_agent/frozen-snapshot.json>).
+The exact implementation is [aggregate](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/evaluation.py:92>). The weights and gates come from the run's frozen input under `plan.objective` and `contract.screening`, for example [the multi-agent run snapshot](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/multi_agent/frozen-snapshot.json>).
 
 ### What makes one case pass?
 
@@ -272,7 +272,7 @@ A case must complete the required **6 seconds**, report `completed`, and satisfy
 - Continuous-torque comparison threshold exceeded: **≤10% of physics steps**.
 - Speed governor active: **≤1% of physics steps**.
 
-[Screening](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/evaluation.py:7>) applies those rules deterministically. Missing or nonfinite numeric measurements cannot pass their numeric gates. Matrix aggregation also rejects duplicate or missing case identities.
+[Screening](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/evaluation.py:7>) applies those rules deterministically. Missing or nonfinite numeric measurements cannot pass their numeric gates. Matrix aggregation also rejects duplicate or missing case identities.
 
 Execution limits and pass limits serve different purposes. The current model terminates after tilt exceeds **20 degrees**, horizontal drift exceeds **30 millimetres**, contact is continuously lost for **0.1 seconds**, or slip continuously exceeds **0.05 metres/second** for **0.15 seconds**. Therefore, `completed` can coexist with a screening failure. A cube can remain within the simulator's emergency bounds for six seconds while exceeding the tighter five-degree or two-millimetre acceptance gates. These are numerical development limits; they are separate from the reviewed hardware requirements.
 
@@ -292,7 +292,7 @@ Drive counters instead run at each **1-millisecond physics step**. With an unint
 
 The continuous-torque fraction counts applied torque above a configured comparison threshold. It is **not a temperature prediction**. The governor fraction records occasions when a wheel has reached its speed limit and a nonzero permitted command would accelerate it farther in the same direction. The runner then blocks that accelerating command. The uncalibrated torque-speed envelope already reduces available torque as speed increases. Neither fraction predicts electrical power, battery sag, driver heating, regenerative braking, or component life.
 
-See [drive limiting](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/environment/mujoco/contact.py:157>), [physics-step counting](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/environment/mujoco/contact.py:260>), and [summary construction](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/environment/mujoco/contact.py:273>).
+See [drive limiting](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/environment/mujoco/contact.py:157>), [physics-step counting](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/environment/mujoco/contact.py:260>), and [summary construction](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/environment/mujoco/contact.py:273>).
 
 ### Twelve cases are a small test matrix
 
@@ -302,7 +302,7 @@ The domain priors deliberately vary several assumptions together. Nominal uses f
 
 Exploration release A starts at tilt `[1.5, −1.0]` degrees and yaw rate 0.15 rad/s, then applies `[0.04, −0.02, 0]` N·m for 0.24 seconds starting at 3 seconds. Release B starts at `[−1.0, 1.5]` degrees and −0.1 rad/s, then applies `[−0.02, 0.04, 0]` N·m over the same interval. Seeds are **101 and 102**.
 
-Selection validation uses different release and disturbance conditions, seeds **811 and 812**, and a heavy-domain mass factor of **1.173**. It is a public, integrity-checked matrix rather than an access-isolated secret holdout. Later fresh-seed audits supply additional evidence, but should not be confused with the original selection validation. [Trial construction](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/design.py:121>) shows exactly how this Cartesian product becomes simulator inputs.
+Selection validation uses different release and disturbance conditions, seeds **811 and 812**, and a heavy-domain mass factor of **1.173**. It is a public, integrity-checked matrix rather than an access-isolated secret holdout. Later fresh-seed audits supply additional evidence, but should not be confused with the original selection validation. [Trial construction](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/design.py:121>) shows exactly how this Cartesian product becomes simulator inputs.
 
 ### A real score decomposition—and a reporting distinction
 
@@ -314,7 +314,7 @@ J=12/12-0.05(0.1699230270)-0.2(0)=0.9915038486.
 
 This is not a 99.15% success probability. Once all cases pass and the torque penalty is zero, tiny score differences reflect only small changes in average final-second tilt RMS.
 
-The historical Engineering Agents loop actually selected this configuration using the **native MuJoCo summaries**, which produced **0.9916124707**. Its proposal feedback, memory, and best-design selection used that runtime score. The blog later recomputed the same formula from saved MJX summaries to show GPU-parallel progress. [Adapter result assembly](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/adapter.py:103>), [best-design selection](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/loop.py:354>), and [the blog projection](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/tools/research_story/recent.py:77>) make this distinction explicit. MJX has not yet replaced native summaries as the runtime's primary selection input.
+The historical Engineering Agents loop actually selected this configuration using the **native MuJoCo summaries**, which produced **0.9916124707**. Its proposal feedback, memory, and best-design selection used that runtime score. The blog later recomputed the same formula from saved MJX summaries to show GPU-parallel progress. [Adapter result assembly](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/adapter.py:103>), [best-design selection](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/loop.py:354>), and [the blog projection](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/tools/research_story/recent.py:77>) make this distinction explicit. MJX has not yet replaced native summaries as the runtime's primary selection input.
 
 The fresh GPU audit passed twelve cases with score **0.9914858776**. The lower-wheel trial passed twelve native exploration cases with score **0.9885861309**; its complete twelve-case GPU score remains unmeasured. Those two implementations' scores should not be silently mixed on a single progress curve.
 
@@ -334,13 +334,13 @@ Choose weights and priorities with engineering judgment, then freeze a new evalu
 
 There are two different control loops. The inner physical controller commands reaction-wheel torque every 15 ms during a six-second trial. The outer engineering loop proposes a configuration, waits for complete trials, reads their measurements, and proposes the next experiment. Qwen participates in this second loop. It does not decide each motor command while the cube balances.
 
-The cube’s outer loop is implemented in the scenario layer, chiefly [loop.py](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/loop.py:237>). Its optional team of specialists is [DesignWorkflow](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/workflow.py:98>). These are role-specific calls to the same model, rather than five independently trained models. The latest pilot served `qwen3.8-27b-uncensored`, with weight root `orcarouter/Qwen3.8-27B-Uncensored-FP8`, through vLLM at port 8001. Its recorded settings include temperature 0.3, a 32,768-token context window, and a 1,536-token thinking budget. The exact declaration is in the [study manifest](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/study-manifest.json>).
+The cube’s outer loop is implemented in the scenario layer, chiefly [loop.py](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/loop.py:237>). Its optional team of specialists is [DesignWorkflow](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/workflow.py:98>). These are role-specific calls to the same model, rather than five independently trained models. The latest pilot served `qwen3.8-27b-uncensored`, with weight root `orcarouter/Qwen3.8-27B-Uncensored-FP8`, through vLLM at port 8001. Its recorded settings include temperature 0.3, a 32,768-token context window, and a 1,536-token thinking budget. The exact declaration is in the [study manifest](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/study-manifest.json>).
 
 ### Configuration, history and the current model are different things
 
-Normal dispatch starts in [scenario_run.py](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/scenario_run.py:19>). It loads YAML and overrides, resolves a versioned One-Piece snapshot, constructs the LLM client, and enables memory and specialist coordination when requested. [scenario.yaml](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/scenario.yaml:1>) currently defaults to `bottom-corner-000-20261017-3`, native MuJoCo, and five design rounds. It requires an explicit One-Piece store path.
+Normal dispatch starts in [scenario_run.py](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/scenario_run.py:19>). It loads YAML and overrides, resolves a versioned One-Piece snapshot, constructs the LLM client, and enables memory and specialist coordination when requested. [scenario.yaml](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/scenario.yaml:1>) currently defaults to `bottom-corner-000-20261017-3`, native MuJoCo, and five design rounds. It requires an explicit One-Piece store path.
 
-The October 17 multi-agent pilot instead used `fixed-dt-mvp-2`, the earlier upper-wheel model and its pinned requirement inputs. The blog’s newer `reviewed-20261019-1` model is a current reference view. It does not retrospectively change historical experiments. A future lower-wheel experiment needs its own explicit snapshot and run declaration. [MechanicalBridge](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/integrations/one_piece/mechanical_bridge.py:34>) checks store integrity and resolves exact record revisions, rather than taking whichever requirement happens to be newest midway through a campaign.
+The October 17 multi-agent pilot instead used `fixed-dt-mvp-2`, the earlier upper-wheel model and its pinned requirement inputs. The blog’s newer `reviewed-20261019-1` model is a current reference view. It does not retrospectively change historical experiments. A future lower-wheel experiment needs its own explicit snapshot and run declaration. [MechanicalBridge](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/integrations/one_piece/mechanical_bridge.py:34>) checks store integrity and resolves exact record revisions, rather than taking whichever requirement happens to be newest midway through a campaign.
 
 ### One experiment, in chronological order
 
@@ -351,21 +351,21 @@ The October 17 multi-agent pilot instead used `fixed-dt-mvp-2`, the earlier uppe
 5. **Execute and measure.** Python runs the declared case matrix, computes metrics and checks numerical gates. It saves `candidates/candidate-NNN/compiled.json` and `result.json`, creates design/evaluation records, and appends a memory episode.
 6. **Learn from the result.** After records are saved and reread, an optional optimizer proposes the next workflow settings. A deterministic policy update also adjusts search emphasis. The next proposal starts only after these steps finish.
 
-This stage sequence is recorded as EN, PI, R, E. The executable sequence and persistence points are visible in [loop.py](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/loop.py:371>). If both mechanics and controller change, the program evaluates the four combinations of old/new mechanics and old/new controller. That comparison is anchored to the run’s frozen reference, not automatically the last proposed design. Repeated compiled inputs reuse exact saved evaluations, so one round is not necessarily one new simulation configuration.
+This stage sequence is recorded as EN, PI, R, E. The executable sequence and persistence points are visible in [loop.py](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/loop.py:371>). If both mechanics and controller change, the program evaluates the four combinations of old/new mechanics and old/new controller. That comparison is anchored to the run’s frozen reference, not automatically the last proposed design. Repeated compiled inputs reuse exact saved evaluations, so one round is not necessarily one new simulation configuration.
 
 ### What the model can see—and what it cannot
 
-The prompt retains requirement statements and revisions, acceptance criteria, approval state, KDP values and units, parameter origins and bounds, the comparison design, historical campaign summary, frozen execution conditions and the numerical objective. It contains a schema for six mechanical variables, motor family and four control settings. Recent feedback and the current incumbent connect these constraints to previous experiments. The [prompt projection](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/loop.py:49>) is deliberate: the LLM does not read the HTML report or browse the complete store itself.
+The prompt retains requirement statements and revisions, acceptance criteria, approval state, KDP values and units, parameter origins and bounds, the comparison design, historical campaign summary, frozen execution conditions and the numerical objective. It contains a schema for six mechanical variables, motor family and four control settings. Recent feedback and the current incumbent connect these constraints to previous experiments. The [prompt projection](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/loop.py:49>) is deliberate: the LLM does not read the HTML report or browse the complete store itself.
 
-A consequential limitation is the fresh feedback interface. [adapter.feedback](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/adapter.py:130>) returns a scalar score, an all-pass flag, implementation-agreement status and **names** of failed metrics. It does not return the newly measured per-case values, score contributions, threshold margins, torque histories or trajectories. Those richer outputs exist in result files, but the next LLM request does not automatically contain them. Imported historical memory can retain richer result summaries. The agent’s explanation of a tiny score change can therefore exceed the evidence actually shown in its prompt.
+A consequential limitation is the fresh feedback interface. [adapter.feedback](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/adapter.py:130>) returns a scalar score, an all-pass flag, implementation-agreement status and **names** of failed metrics. It does not return the newly measured per-case values, score contributions, threshold margins, torque histories or trajectories. Those richer outputs exist in result files, but the next LLM request does not automatically contain them. Imported historical memory can retain richer result summaries. The agent’s explanation of a tiny score change can therefore exceed the evidence actually shown in its prompt.
 
-Memory is an append-only, hash-chained [JSONL journal](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/memory.py:107>). Retrieval selects exact configuration matches, the highest measured score, recent episodes and diverse relevant failures, under a bounded prompt budget. It uses deterministic retrieval, not embeddings or a vector database. Measurements are separated from unverified LLM hypotheses. Saving an interpretation in memory does not make it a physical fact.
+Memory is an append-only, hash-chained [JSONL journal](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/memory.py:107>). Retrieval selects exact configuration matches, the highest measured score, recent episodes and diverse relevant failures, under a bounded prompt budget. It uses deterministic retrieval, not embeddings or a vector database. Measurements are separated from unverified LLM hypotheses. Saving an interpretation in memory does not make it a physical fact.
 
 ### How the specialist team works
 
 The initial workflow asks mechanical and control specialists independently. A critic then challenges their proposals; a coordinator selects or revises one compiler-ready experiment. The mechanical lens concerns geometry, mass, inertia and motor limits. The control lens concerns feedback, delay and momentum headroom. The critic seeks duplicates, confounded changes and unsupported mechanisms. It does not decide numerical acceptance.
 
-After measured results, a fifth call—the optimizer—may change routing, first specialist, evidence-handoff order and one focus label: speed headroom, delay robustness, tilt recovery or isolated changes. Routing can become sequential cross-review instead of blind parallel proposals. These are edits to bounded workflow data, not new executable tools or trained weights. [workflow.py](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/workflow.py:173>) specifies the role instructions and actual handoffs.
+After measured results, a fifth call—the optimizer—may change routing, first specialist, evidence-handoff order and one focus label: speed headroom, delay robustness, tilt recovery or isolated changes. Routing can become sequential cross-review instead of blind parallel proposals. These are edits to bounded workflow data, not new executable tools or trained weights. [workflow.py](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/workflow.py:173>) specifies the role instructions and actual handoffs.
 
 Each attempted full round permits four 4,096-token completions and one 2,048-token optimizer completion, with a 140,000-token aggregate prompt ceiling. Equal ceilings do not imply equal actual compute. Every request is reconstructed from structured context and earlier selected outputs; the single-designer comparison is also reconstructed this way, not an unlimited persistent conversation.
 
@@ -373,21 +373,21 @@ Each attempted full round permits four 4,096-token completions and one 2,048-tok
 
 Round six entered with sequential cross-review, control first, focused on speed headroom. The control specialist proposed reducing angular-rate Q scaling from `1.0560625` to `1.0310625`, holding tilt Q at `1.0`, momentum Q at `0.825`, yaw gain at `0.03`, and mechanics unchanged. It predicted less transient wheel-speed demand. The mechanical specialist instead proposed a thicker wheel. The critic returned an empty JSON object. The coordinator chose the control experiment and supplied the registered `bldc_ec45` family and complete configuration.
 
-Python prefixed the candidate ID with `round-6-`, compiled the controller, classified it as `M0C1`, and evaluated it as [candidate-010](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/multi_agent/candidates/candidate-010/result.json>). All twelve exploration cases passed; the recorded score was `0.9916124707109835`. This became the retained incumbent. Results were persisted and reread before the workflow optimizer ran. Its prompts, answers and saved controller can be followed from the [round-six folder](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/multi_agent/round-06/proposal.json>).
+Python prefixed the candidate ID with `round-6-`, compiled the controller, classified it as `M0C1`, and evaluated it as [candidate-010](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/multi_agent/candidates/candidate-010/result.json>). All twelve exploration cases passed; the recorded score was `0.9916124707109835`. This became the retained incumbent. Results were persisted and reread before the workflow optimizer ran. Its prompts, answers and saved controller can be followed from the [round-six folder](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/multi_agent/round-06/proposal.json>).
 
 Two cautions matter. First, the empty critique was accepted because intermediate role outputs need only parse as dictionaries; the final candidate compiler has stronger checks. Second, the mechanical draft claimed that increasing thickness, at fixed mass and radii, increases axial wheel inertia. The implemented annular inertia formula does not contain thickness in its axial term. This illustrates why hypotheses need explicit mechanics checks. Neither a plausible explanation nor a schema-valid answer is sufficient engineering evidence.
 
 ### Tool ownership, stopping rules and next improvements
 
-The present model is a bounded proposer, not an autonomous tool-using engineer. The [vLLM request](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/core/llm/vllm.py:387>) has messages and generation settings, but no tool declarations. Python owns tool timing, compilation, simulation, judgment and publication. No LLM call occurs inside the 15 ms physical-control cycle.
+The present model is a bounded proposer, not an autonomous tool-using engineer. The [vLLM request](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/core/llm/vllm.py:387>) has messages and generation settings, but no tool declarations. Python owns tool timing, compilation, simulation, judgment and publication. No LLM call occurs inside the 15 ms physical-control cycle.
 
-Default limits are five rounds, twenty configurations, thirty minutes and three stagnant rounds. Explicit longer campaigns can use twenty rounds, eighty configurations and two hours. Invalid proposals, provider errors, incomplete simulations, timeouts, missing required execution, changed snapshots and unsent records remain visible. The final exploration-selected incumbent receives an independent validation matrix; passing simulation does not adopt a hardware baseline. See [stop and finalization logic](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/loop.py:635>).
+Default limits are five rounds, twenty configurations, thirty minutes and three stagnant rounds. Explicit longer campaigns can use twenty rounds, eighty configurations and two hours. Invalid proposals, provider errors, incomplete simulations, timeouts, missing required execution, changed snapshots and unsent records remain visible. The final exploration-selected incumbent receives an independent validation matrix; passing simulation does not adopt a hardware baseline. See [stop and finalization logic](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/loop.py:635>).
 
 The latest paired pilot attempted ten cycles per arm but completed eight full cycles each. Two rejected outputs per arm consumed attempts. Multi-agent execution measured fourteen configurations; the single-designer arm measured ten. The finalized study remains inconclusive as a ten-completed-cycle comparison. A useful next step is richer measured feedback: per-case metric values, score decomposition, margins and prediction-versus-outcome comparisons, together with stronger critique completeness checks. These are proposed improvements; they are not implemented by this guide.
 
 ### Source trail
 
-The main executable sources are [dispatch](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/scenario_run.py:10>), [loop](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/loop.py:237>), [workflow](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/workflow.py:98>), [memory](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/memory.py:58>), and [compiler](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/src/scenario/balancing_cube/design.py:31>). Historical evidence is declared by the [study manifest](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/study-manifest.json>) and bounded by its [finalization record](</Users/hiroto/Documents/ChatGPT/Engineering Agents/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/finalization.json>).
+The main executable sources are [dispatch](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/scenario_run.py:10>), [loop](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/loop.py:237>), [workflow](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/workflow.py:98>), [memory](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/memory.py:58>), and [compiler](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/src/scenario/balancing_cube/design.py:31>). Historical evidence is declared by the [study manifest](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/study-manifest.json>) and bounded by its [finalization record](</Users/hiroto/dev/eng_agents_workspace/engineering_agents/experiments/balancing_cube/results/mass-inspired-cube10-20261017t060309z-context-v3/finalization.json>).
 
 ## 8. A constructive next experiment
 
