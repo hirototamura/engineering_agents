@@ -1,0 +1,518 @@
+{
+  "schema_version": 1,
+  "qualification_date": "2026-10-26",
+  "timezone": "Asia/Tokyo",
+  "qualification_source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+  "catalog": {
+    "total": 12,
+    "atomic": 7,
+    "portable_composites": 4,
+    "project_composites": 1,
+    "contracts": [
+      {
+        "schema_version": 1,
+        "name": "transfer-function-derivation",
+        "kind": "atomic",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "transfer_function_model",
+          "version": 1
+        },
+        "requires": [],
+        "validation": "independent_numerical_oracles"
+      },
+      {
+        "schema_version": 1,
+        "name": "frequency-response-calculation",
+        "kind": "atomic",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "frequency_response",
+          "version": 1
+        },
+        "requires": [],
+        "validation": "independent_numerical_oracles"
+      },
+      {
+        "schema_version": 1,
+        "name": "state-feedback-gain-synthesis",
+        "kind": "atomic",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "state_feedback_gain",
+          "version": 1
+        },
+        "requires": [],
+        "validation": "independent_numerical_oracles"
+      },
+      {
+        "schema_version": 1,
+        "name": "bode-diagram-analysis",
+        "kind": "composite",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "frequency_response_assessment",
+          "version": 1
+        },
+        "requires": [
+          "transfer-function-derivation",
+          "frequency-response-calculation"
+        ],
+        "validation": "composition_contracts"
+      },
+      {
+        "schema_version": 1,
+        "name": "pole-placement-design",
+        "kind": "composite",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "pole_placement_design",
+          "version": 1
+        },
+        "requires": [
+          "transfer-function-derivation",
+          "state-feedback-gain-synthesis"
+        ],
+        "validation": "composition_contracts"
+      },
+      {
+        "schema_version": 1,
+        "name": "rigid-body-mass-properties",
+        "kind": "atomic",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "rigid_body_mass_properties",
+          "version": 1
+        },
+        "requires": [],
+        "validation": "independent_numerical_oracles"
+      },
+      {
+        "schema_version": 1,
+        "name": "mass-property-uncertainty",
+        "kind": "composite",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "mass_property_uncertainty_assessment",
+          "version": 1
+        },
+        "requires": [
+          "rigid-body-mass-properties"
+        ],
+        "validation": "composition_contracts"
+      },
+      {
+        "schema_version": 1,
+        "name": "motor-operating-point",
+        "kind": "atomic",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "motor_operating_point",
+          "version": 1
+        },
+        "requires": [],
+        "validation": "independent_numerical_oracles"
+      },
+      {
+        "schema_version": 1,
+        "name": "first-order-thermal-response",
+        "kind": "atomic",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "thermal_interval_response",
+          "version": 1
+        },
+        "requires": [],
+        "validation": "independent_numerical_oracles"
+      },
+      {
+        "schema_version": 1,
+        "name": "actuator-duty-cycle-analysis",
+        "kind": "composite",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "actuator_duty_cycle_assessment",
+          "version": 1
+        },
+        "requires": [
+          "motor-operating-point",
+          "first-order-thermal-response"
+        ],
+        "validation": "composition_contracts"
+      },
+      {
+        "schema_version": 1,
+        "name": "requirement-evidence-assessment",
+        "kind": "atomic",
+        "project_scope": "agnostic",
+        "primary_output": {
+          "file": "result.json",
+          "type": "requirement_evidence_assessment",
+          "version": 1
+        },
+        "requires": [],
+        "validation": "independent_numerical_oracles"
+      },
+      {
+        "schema_version": 1,
+        "name": "cube-gnc-loop-analysis",
+        "kind": "composite",
+        "project_scope": "balancing_cube",
+        "primary_output": {
+          "file": "result.json",
+          "type": "cube_local_control_assessment",
+          "version": 1
+        },
+        "requires": [
+          "transfer-function-derivation",
+          "bode-diagram-analysis",
+          "pole-placement-design"
+        ],
+        "validation": "composition_contracts"
+      }
+    ]
+  },
+  "validation_policy": {
+    "atomic": "Independent mathematical examples, invariants, limiting and rejected inputs.",
+    "composite": "Assume qualified dependencies; check contracts, routing, state/units, chronological flow, evaluation logic, errors and lineage. Qualify newly introduced mathematics separately."
+  },
+  "local_checks": {
+    "focused": {
+      "passed": 73,
+      "log_sha256": "ec2ad5263fadcf5998ea7ccd1cbc9852aabc59b088a7fffa654fee3f9ad89dad"
+    },
+    "full_suite": {
+      "passed": 1263,
+      "skipped": 5,
+      "warnings": 2,
+      "log_sha256": "ee7734ab9bdbd153688a6d3664d52b91f9adb28fc8056fcb93f0807eaf55fd5e"
+    },
+    "skill_format_packages_passed": 12,
+    "strict_documentation_build": "passed",
+    "offline_examples": {
+      "completed": 12,
+      "verified_lineage_nodes": 30,
+      "records": [
+        {
+          "skill": "transfer-function-derivation",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 1,
+          "input_sha256": "31ffa0698f46582a6e6b2810cac18b1ec383192ad749b9dec618b8d674d2d651",
+          "result_sha256": "b942030004490d58f27144b80c37eaa53815fa7a4c8fbf3838e776c4e282311a"
+        },
+        {
+          "skill": "frequency-response-calculation",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 1,
+          "input_sha256": "4a6908c62cd12c5f2a7eda4c54247982cefe4c901d3345a94b1b3b56003a9f3a",
+          "result_sha256": "fc45ad68f088aa5a4412cf41fcdca18ccca40466756568cad9765aa230c9ba3d"
+        },
+        {
+          "skill": "state-feedback-gain-synthesis",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 1,
+          "input_sha256": "86bf9fc0ed280fc61d8004824295fed7eb85e9f0ee8a312f71e705723f615a73",
+          "result_sha256": "4804a3c67b014a3db033440ed807d98a846add2e4129bfdf14559b942c4a1d92"
+        },
+        {
+          "skill": "bode-diagram-analysis",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 3,
+          "input_sha256": "d1322ff2a569b80b26c143472e36f3382093f180772ada20d3563d1c8360b42a",
+          "result_sha256": "6de959f8f0ea92bee50d0fbb9bd75c10f417d2d182911ef8d85f67b8af5186ad"
+        },
+        {
+          "skill": "pole-placement-design",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 3,
+          "input_sha256": "86bf9fc0ed280fc61d8004824295fed7eb85e9f0ee8a312f71e705723f615a73",
+          "result_sha256": "299949e4fae177713ec559edf74353560901c5918cffeaf3622bf7976bbe54ab"
+        },
+        {
+          "skill": "rigid-body-mass-properties",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 1,
+          "input_sha256": "dd300be0a8068e056b854c95cf950723b4e3a6d033662d3368779d248739ba36",
+          "result_sha256": "229403710267b00e2a6eabc0ecec78c8c1a26ce597bde70bf689806715cfe43f"
+        },
+        {
+          "skill": "mass-property-uncertainty",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 2,
+          "input_sha256": "dd300be0a8068e056b854c95cf950723b4e3a6d033662d3368779d248739ba36",
+          "result_sha256": "63f98f3f2e9f5dc9a0d7c80d0a46c7e5691c442667ce9dcd464b388c690bebe1"
+        },
+        {
+          "skill": "motor-operating-point",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 1,
+          "input_sha256": "495b1d5396696a88ad3ae80ce2830db4a05c0c671d5bec0da5cc86e12aef8652",
+          "result_sha256": "dbecfe8a241a1e6c0fc1970bb6147a2222cb463b47ea5a135c4c79cffc2ccd84"
+        },
+        {
+          "skill": "first-order-thermal-response",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 1,
+          "input_sha256": "b545e6bd6600fb70d9be56f641062ed790aa8b289631d61dcddbd355e861dd71",
+          "result_sha256": "017c6d0c3b10b01d7a3e845786def0dd4457b099552e32d2acf269a48b3eb727"
+        },
+        {
+          "skill": "actuator-duty-cycle-analysis",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 7,
+          "input_sha256": "39d8a210873ff3f9fb2bd0d369968818231f48a63338961370f794d8217cb37b",
+          "result_sha256": "d6555deb3dbe0ec49eadc016076de46b737a018dfb91734c42da640aa6a8f159"
+        },
+        {
+          "skill": "requirement-evidence-assessment",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 1,
+          "input_sha256": "5003ce803b9e1c54d9cce13d3b2d6423f1d43da5f86f9db3104eeb223b91d9a8",
+          "result_sha256": "83836044b5ac4b61cadf5d085f0069b6b655695ce07afe2e315806759931521a"
+        },
+        {
+          "skill": "cube-gnc-loop-analysis",
+          "source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+          "verified_lineage_nodes": 8,
+          "input_sha256": "dd4aecb2ef61caf5bf396589cdeb80d03fc78546421668042f74d3c90f1ae86a",
+          "result_sha256": "f1703c54b44c476f9c039bbc6edb7b35ff3955fa52c8680505107b0e29b83271"
+        }
+      ]
+    },
+    "eclss_two_run_proposal_reinjection": {
+      "passed": true,
+      "nonempty_changes": 2,
+      "run_a_final_co2_kg": 1.5650000000000008,
+      "run_b_final_co2_kg": 1.5400000000000003
+    },
+    "canonical_onepiece_assessment": {
+      "verified": true,
+      "project_id": "balancing-cube",
+      "requirement_states": [
+        "inconclusive",
+        "inconclusive"
+      ]
+    }
+  },
+  "live_batch": {
+    "created_at": "2026-10-25T15:43:41.704843+00:00",
+    "model_profile": "qwen3.8-27b-q4-k-m",
+    "expected_case_count": 5,
+    "completed_case_count": 5,
+    "complete": true,
+    "passed": true,
+    "tests": [
+      {
+        "discipline": "gnc",
+        "skill": "cube-gnc-loop-analysis",
+        "process_exit": 0,
+        "elapsed_seconds": 120.44689309224486,
+        "tool_activity_observed": true,
+        "input_hash_matches": true,
+        "result_hash_matches": true,
+        "calculator_hash_matches": true,
+        "skill_loaded": true,
+        "calculator_tool_succeeded": true,
+        "expected_behavior": true,
+        "status": "completed",
+        "qualified_lineage_nodes": 8,
+        "accepted": true,
+        "execution_source_revision": "45ed6ff31b8af3bd61bb0c83673c8058778a2e9b",
+        "python": "3.12.14",
+        "numpy": "2.5.4",
+        "scipy": "1.18.1",
+        "input_sha256": "dd4aecb2ef61caf5bf396589cdeb80d03fc78546421668042f74d3c90f1ae86a",
+        "result_sha256": "a830b9b1cf9cddc1f6985f057eaa85233604fc6c51d3a3c7d4b60d2be4869d48",
+        "receipt_sha256": "c07daebf7a2d7cf7a9adde1aa6d52f22cb1d0f5691d6d654ce0bd52784b03c89",
+        "tool_trace_sha256": "408f9d8562d364e5f0896d993ac26d6e33a001eea736fdee3b243e1f4f910e4b"
+      },
+      {
+        "discipline": "mechanical",
+        "skill": "mass-property-uncertainty",
+        "process_exit": 0,
+        "elapsed_seconds": 81.38131210394204,
+        "tool_activity_observed": true,
+        "input_hash_matches": true,
+        "result_hash_matches": true,
+        "calculator_hash_matches": true,
+        "skill_loaded": true,
+        "calculator_tool_succeeded": true,
+        "expected_behavior": true,
+        "status": "completed",
+        "qualified_lineage_nodes": 2,
+        "accepted": true,
+        "execution_source_revision": "45ed6ff31b8af3bd61bb0c83673c8058778a2e9b",
+        "python": "3.12.14",
+        "numpy": "2.5.4",
+        "scipy": "1.18.1",
+        "input_sha256": "dd300be0a8068e056b854c95cf950723b4e3a6d033662d3368779d248739ba36",
+        "result_sha256": "63f98f3f2e9f5dc9a0d7c80d0a46c7e5691c442667ce9dcd464b388c690bebe1",
+        "receipt_sha256": "dca5522803121d275af287627efc21902818fb26e35a78a8e5321632249f332b",
+        "tool_trace_sha256": "00ad5a0544d4581c35aad166da75c4a09396b511263e51fbe06a93b652a9495e"
+      },
+      {
+        "discipline": "electrical",
+        "skill": "actuator-duty-cycle-analysis",
+        "process_exit": 0,
+        "elapsed_seconds": 71.24180732481182,
+        "tool_activity_observed": true,
+        "input_hash_matches": true,
+        "result_hash_matches": true,
+        "calculator_hash_matches": true,
+        "skill_loaded": true,
+        "calculator_tool_succeeded": true,
+        "expected_behavior": true,
+        "status": "completed",
+        "qualified_lineage_nodes": 7,
+        "accepted": true,
+        "execution_source_revision": "45ed6ff31b8af3bd61bb0c83673c8058778a2e9b",
+        "python": "3.12.14",
+        "numpy": "2.5.4",
+        "scipy": "1.18.1",
+        "input_sha256": "39d8a210873ff3f9fb2bd0d369968818231f48a63338961370f794d8217cb37b",
+        "result_sha256": "d6555deb3dbe0ec49eadc016076de46b737a018dfb91734c42da640aa6a8f159",
+        "receipt_sha256": "73804d03e7a641db6218ef6cd046b0e60bf277925dfd892f3bdd72c3bffcca5f",
+        "tool_trace_sha256": "9ab7977baef277ba52c547f274b0c8a33f4c1e51317abb83d5961fab81d8e634"
+      },
+      {
+        "discipline": "systems",
+        "skill": "requirement-evidence-assessment",
+        "process_exit": 0,
+        "elapsed_seconds": 82.73317880835384,
+        "tool_activity_observed": true,
+        "input_hash_matches": true,
+        "result_hash_matches": true,
+        "calculator_hash_matches": true,
+        "skill_loaded": true,
+        "calculator_tool_succeeded": true,
+        "expected_behavior": true,
+        "status": "completed",
+        "qualified_lineage_nodes": 1,
+        "accepted": true,
+        "execution_source_revision": "45ed6ff31b8af3bd61bb0c83673c8058778a2e9b",
+        "python": "3.12.14",
+        "numpy": "2.5.4",
+        "scipy": "1.18.1",
+        "input_sha256": "5003ce803b9e1c54d9cce13d3b2d6423f1d43da5f86f9db3104eeb223b91d9a8",
+        "result_sha256": "83836044b5ac4b61cadf5d085f0069b6b655695ce07afe2e315806759931521a",
+        "receipt_sha256": "3a50ab56bbd818ab9eb40baf07cccfced3f9a0c76bd52fef527d59662df45fb8",
+        "tool_trace_sha256": "b26122da026dbe8b91a5c2a90e772c6d42f9b2f996d3a90a715c8f5863582ac7"
+      },
+      {
+        "discipline": "bode",
+        "skill": "bode-diagram-analysis",
+        "process_exit": 0,
+        "elapsed_seconds": 65.71087372116745,
+        "tool_activity_observed": true,
+        "input_hash_matches": true,
+        "result_hash_matches": true,
+        "calculator_hash_matches": true,
+        "skill_loaded": true,
+        "calculator_tool_succeeded": true,
+        "expected_behavior": true,
+        "status": "completed",
+        "qualified_lineage_nodes": 3,
+        "accepted": true,
+        "execution_source_revision": "45ed6ff31b8af3bd61bb0c83673c8058778a2e9b",
+        "python": "3.12.14",
+        "numpy": "2.5.4",
+        "scipy": "1.18.1",
+        "input_sha256": "d1322ff2a569b80b26c143472e36f3382093f180772ada20d3563d1c8360b42a",
+        "result_sha256": "6de959f8f0ea92bee50d0fbb9bd75c10f417d2d182911ef8d85f67b8af5186ad",
+        "receipt_sha256": "14455150414bd707c4633beccd0aba48b1e1464e0221b54f347349b7557cf144",
+        "tool_trace_sha256": "872f8486e1752452f00fea008f1578e5bd3ced969cf5891f5b3ad6feda2e089d"
+      }
+    ],
+    "source_audit": {
+      "method": "Compare every recorded calculator/shared-source hash to its immutable execution Git revision; verify recursive artifact/contract/dependency bindings.",
+      "tests": [
+        {
+          "skill": "cube-gnc-loop-analysis",
+          "verified_nodes": 8
+        },
+        {
+          "skill": "mass-property-uncertainty",
+          "verified_nodes": 2
+        },
+        {
+          "skill": "actuator-duty-cycle-analysis",
+          "verified_nodes": 7
+        },
+        {
+          "skill": "requirement-evidence-assessment",
+          "verified_nodes": 1
+        },
+        {
+          "skill": "bode-diagram-analysis",
+          "verified_nodes": 3
+        }
+      ],
+      "total_verified_nodes": 21,
+      "passed": true
+    }
+  },
+  "affected_bode_render_recheck": {
+    "created_at": "2026-10-25T15:47:44.116925+00:00",
+    "model_profile": "qwen3.8-27b-q4-k-m",
+    "expected_case_count": 1,
+    "completed_case_count": 1,
+    "complete": true,
+    "tests": [
+      {
+        "discipline": "bode",
+        "skill": "bode-diagram-analysis",
+        "process_exit": 0,
+        "elapsed_seconds": 103.54890637844801,
+        "tool_activity_observed": true,
+        "input_hash_matches": true,
+        "result_hash_matches": true,
+        "calculator_hash_matches": true,
+        "skill_loaded": true,
+        "calculator_tool_succeeded": true,
+        "expected_behavior": true,
+        "status": "completed",
+        "qualified_lineage_nodes": 3,
+        "accepted": true
+      }
+    ],
+    "passed": true,
+    "execution_source_revision": "ff62e828cdefa42629019b4b4e2434300c43a586",
+    "receipt_sha256": "eb9dbcad43919b9b2ea041f1378bdced3635668af83ab30c442ed1ac3b42011f",
+    "tool_trace_sha256": "e1cdf0285578141e1e5fa36d876f4a1fef3fce6315d37eea87a1ed9975029a4a",
+    "result_sha256": "6de959f8f0ea92bee50d0fbb9bd75c10f417d2d182911ef8d85f67b8af5186ad"
+  },
+  "change_scope_after_live_batch": "The only analysis implementation difference after the five-workflow batch is the Bode axis label using the supplied magnitude reference. Numerical calculators, dependency plans and primary results are unchanged. The affected Bode path was rerun live; all twelve examples were rerun offline and the final full suite passed.",
+  "runtime_pins": {
+    "hermes_tag": "v0.22.4",
+    "hermes_revision": "4d04303818b61bf3aa09278af48356315515965b",
+    "hermes_python": "3.14.7",
+    "llama_cpp_tag": "b11819",
+    "cuda_toolkit": "12.8.1",
+    "cuda_architecture": "86",
+    "model_repository": "ggml-org/Qwen3.8-27B-GGUF",
+    "model_revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+    "model_file": "Qwen3.8-27B-Q4_K_M.gguf",
+    "model_sha256": "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747",
+    "gpu_uuid": "GPU-8a14a4ef-ac77-553a-206d-55efbf82617b",
+    "gpu_physical_index": 6,
+    "model_endpoint": "http://127.0.0.1:8016/v1",
+    "context_tokens": 65536,
+    "parallel_slots": 1,
+    "openshell": "disabled_by_user: no kernel upgrade or reboot"
+  },
+  "migration": "The edited remote evidence-reuse instructions were reviewed, carried into all portable skills and archived with their previous install manifest before replacement. Human edits remain protected by the default installer.",
+  "retained_evidence": "Raw transcripts, inputs, output packs, original edited skill and incomplete attempts are retained in local/remote qualification directories; this Git record contains compact results and hashes.",
+  "physical_verified": false,
+  "baseline_adopted": false,
+  "software_qualification_passed": true
+}

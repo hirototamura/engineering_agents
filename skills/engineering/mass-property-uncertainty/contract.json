@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "name": "mass-property-uncertainty",
+  "kind": "composite",
+  "project_scope": "agnostic",
+  "primary_output": {
+    "file": "result.json",
+    "type": "mass_property_uncertainty_assessment",
+    "version": 1
+  },
+  "requires": [
+    "rigid-body-mass-properties"
+  ],
+  "validation": "composition_contracts",
+  "input": {
+    "reference": "references/input_contract.md",
+    "example": "examples/input.json"
+  }
+}

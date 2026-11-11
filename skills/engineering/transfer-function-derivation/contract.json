@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "transfer-function-derivation",
+  "kind": "atomic",
+  "project_scope": "agnostic",
+  "primary_output": {
+    "file": "result.json",
+    "type": "transfer_function_model",
+    "version": 1
+  },
+  "requires": [],
+  "validation": "independent_numerical_oracles",
+  "input": {
+    "reference": "references/input_contract.md",
+    "example": "examples/input.json"
+  }
+}

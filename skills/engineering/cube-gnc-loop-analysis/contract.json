@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "cube-gnc-loop-analysis",
+  "kind": "composite",
+  "project_scope": "balancing_cube",
+  "primary_output": {
+    "file": "result.json",
+    "type": "cube_local_control_assessment",
+    "version": 1
+  },
+  "requires": [
+    "transfer-function-derivation",
+    "bode-diagram-analysis",
+    "pole-placement-design"
+  ],
+  "validation": "composition_contracts",
+  "input": {
+    "reference": "references/input_contract.md",
+    "example": "examples/input.json"
+  }
+}

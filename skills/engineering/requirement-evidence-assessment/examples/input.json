@@ -1,0 +1,54 @@
+{
+  "data_basis": "synthetic_validation",
+  "configuration_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "design_ref": {
+    "id": "VALIDATION-DESIGN",
+    "revision": "1"
+  },
+  "requirements": [
+    {
+      "id": "VALIDATION-HOLD",
+      "revision": "synthetic-1",
+      "kind": "requirement",
+      "data": {
+        "approval_state": "human_reviewed",
+        "acceptance_criteria": {
+          "domain": "hardware",
+          "metric": "unsupported_vertex_hold_duration",
+          "operator": ">=",
+          "value": 30,
+          "unit": "s"
+        },
+        "conditions": [
+          "after manual release"
+        ]
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "id": "synthetic-six-seconds",
+      "requirement_ref": {
+        "id": "VALIDATION-HOLD",
+        "revision": "synthetic-1"
+      },
+      "design_ref": {
+        "id": "VALIDATION-DESIGN",
+        "revision": "1"
+      },
+      "configuration_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "domain": "simulation",
+      "metric": "unsupported_vertex_hold_duration",
+      "value": 6,
+      "unit": "s",
+      "conditions": [
+        "after manual release"
+      ],
+      "status": "completed",
+      "artifact": {
+        "path": "simulation.json",
+        "sha256": "37fd2996a39850f22d57bb96d3ed411a363aae27d4ad280bec0f7b8dd2273585"
+      }
+    }
+  ]
+}

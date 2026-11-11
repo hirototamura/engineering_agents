@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "name": "pole-placement-design",
+  "kind": "composite",
+  "project_scope": "agnostic",
+  "primary_output": {
+    "file": "result.json",
+    "type": "pole_placement_design",
+    "version": 1
+  },
+  "requires": [
+    "transfer-function-derivation",
+    "state-feedback-gain-synthesis"
+  ],
+  "validation": "composition_contracts",
+  "input": {
+    "reference": "references/input_contract.md",
+    "example": "examples/input.json"
+  }
+}
