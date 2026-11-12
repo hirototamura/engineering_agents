@@ -47,7 +47,7 @@ ea run ssos_eclss_loop --agents-mode labeled_rule_base --steps 50
 ea results
 ```
 
-More detail: [docs/ja/cli.md](../../docs/ja/cli.md) · [docs/ja/ssos/quickstart.md](../../docs/ja/ssos/quickstart.md)
+More detail: [CLI reference](../../docs/ja/users/reference/cli.md) · [SSOS run procedure](../../docs/ja/users/scenarios/ssos_eclss_loop/running.md)
 
 ## Layout
 
