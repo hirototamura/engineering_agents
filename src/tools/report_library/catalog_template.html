@@ -33,14 +33,14 @@
     <div class="notice" id="scopeNotice"><strong>Reading the evidence:</strong> Exploration scores and independent validation have different roles. A simulated pass does not establish physical acceptance; open each report for its exact test conditions and limits.</div>
     <div class="section-title"><div><div class="smallcaps">Newest report</div><h2>Continue from the latest evidence</h2></div><p id="featureContext"></p></div>
     <section class="feature" id="featured"></section>
-    <div class="section-title" id="collections"><div><div class="smallcaps">Browse by subject</div><h2>Collections</h2></div><p>The catalog groups related work while retaining each original HTML file.</p></div>
+    <div class="section-title" id="collections"><div><div class="smallcaps">Browse by category</div><h2>Categories</h2></div><p>The catalog groups related work while retaining each original HTML file.</p></div>
     <div class="collections" id="collectionCards"></div>
     <div class="section-title" id="library"><div><div class="smallcaps">Chronological index</div><h2>Report library</h2></div><p>Matching titles show the latest copy. Separate experiment runs stay visible. “All HTML” includes older copies, documentation, and templates.</p></div>
     <div class="controls">
-      <div class="control"><label for="search">Search title, path, or subject</label><input id="search" type="search" placeholder="e.g. Qwen, GPU, GNC, One-Piece"></div>
+      <div class="control"><label for="search">Search title, path, or category</label><input id="search" type="search" placeholder="e.g. Qwen, GPU, GNC, One-Piece"></div>
       <div class="control"><label for="scope">Show</label><select id="scope"><option value="report">Reports and analyses</option><option value="all">All HTML files</option></select></div>
       <div class="control"><label for="project">Project</label><select id="project"><option value="">All projects</option></select></div>
-      <div class="control"><label for="category">Subject</label><select id="category"><option value="">All subjects</option></select></div>
+      <div class="control"><label for="category">Category</label><select id="category"><option value="">All categories</option></select></div>
       <div class="control"><label for="sort">Sort</label><select id="sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="title">Title A–Z</option></select></div>
       <button id="refresh" type="button" title="Rescan for new HTML files">Refresh index ↻</button>
     </div>
@@ -56,7 +56,8 @@
   try{localStorage.setItem("report-language",LOCALE)}catch(_error){}
   const JA={
     "Engineering Report Library":"技術レポートライブラリ",
-    "Collections":"分野別",
+    "Collections":"カテゴリー",
+    "Categories":"カテゴリー",
     "All reports":"全レポート",
     "Future reports":"今後のレポート",
     "Local evidence and report library":"ローカルの証拠・レポートライブラリ",
@@ -70,18 +71,18 @@
     "Exploration scores and independent validation have different roles. A simulated pass does not establish physical acceptance; open each report for its exact test conditions and limits.":"探索スコアと独立検証は役割が異なります。シミュレーションの通過は実機での合格を示しません。試験条件と限界は各レポートで確認してください。",
     "Newest report":"最新レポート",
     "Continue from the latest evidence":"最新の証拠から確認",
-    "Browse by subject":"分野から探す",
+    "Browse by category":"カテゴリーから探す",
     "The catalog groups related work while retaining each original HTML file.":"関連する成果をまとめ、元のHTMLファイルへの参照を保持します。",
     "Chronological index":"時系列の索引",
     "Report library":"レポート一覧",
     "Matching titles show the latest copy. Separate experiment runs stay visible. “All HTML” includes older copies, documentation, and templates.":"同じ題名は最新の複製を表示し、異なる実験の結果はそれぞれ表示します。「すべてのHTML」には旧版、文書、テンプレートも表示します。",
-    "Search title, path, or subject":"題名・パス・分野を検索",
+    "Search title, path, or category":"題名・パス・カテゴリーを検索",
     "Show":"表示",
     "All HTML files":"すべてのHTML",
     "Project":"プロジェクト",
     "All projects":"すべてのプロジェクト",
-    "Subject":"分野",
-    "All subjects":"すべての分野",
+    "Category":"カテゴリー",
+    "All categories":"すべてのカテゴリー",
     "Sort":"並び順",
     "Newest first":"新しい順",
     "Oldest first":"古い順",
@@ -105,6 +106,7 @@
     "日本語":"English"
   };
   const META_JA={
+    "Planning":"計画","Experiment reports":"試行実験レポート","Technical blog":"テクニカルブログ",
     "Design iterations":"設計反復","Qwen design iterations":"Qwen設計反復",
     "MASS-inspired cube workflow study":"MASSを参考にしたCubeワークフロー研究",
     "Cube lower-face first trial":"Cube下側取付の初回試験",
@@ -112,7 +114,7 @@
     "Ten attempts per arm: bounded multi-agent workflow, single-designer control, native MuJoCo–MJX agreement and fresh-seed confirmation.":"両群で10試行：範囲を限定した協調、単一設計者との比較、ネイティブMuJoCo–MJX整合、新規seedの確認。",
     "Ten attempts per arm: bounded multi-agent workflow, single-designer control, measured CPU/GPU evidence and fresh-seed confirmation.":"両群で10試行：範囲を限定したマルチエージェントと単一設計者、CPU/GPU実測根拠、新規seedによる確認。",
     "Qwen proposals, MuJoCo CPU/GPU trials, memory, validation, and One-Piece evidence.":"Qwenの提案、MuJoCoのCPU/GPU試験、メモリ、検証、One-Pieceの証拠。",
-    "Agent workflow":"エージェントの作業手順","Agent harness":"エージェント実行基盤",
+    "Agent workflow":"エージェントの作業手順","Agent harness":"エージェントハーネス",
     "The simulation agent harness and its evidence flow.":"シミュレーションエージェントの実行基盤と証拠の流れ。",
     "PR 82 design loop":"PR 82の設計ループ",
     "One-Piece context, Engineering Agents proposals, MuJoCo trials, and feedback.":"One-Pieceの文脈、Engineering Agentsの提案、MuJoCo試験、フィードバック。",
@@ -137,7 +139,7 @@
   const tr=(en,ja)=>LOCALE==="ja"?ja:en;
   const meta=value=>LOCALE==="ja"?(META_JA[value]||value):value;
   const fileUrl=path=>"../../"+path.split("/").map(encodeURIComponent).join("/");
-  const reportUrl=e=>e.localized?.[LOCALE]?"items/"+e.localized[LOCALE].split("/").at(-1):fileUrl(e.path);
+  const reportUrl=e=>fileUrl(e.localized?.[LOCALE]||e.path);
   const reportTitle=e=>{const title=e.localized_titles?.[LOCALE]||e.title;return Number.isInteger(e.run?.rounds)?title+" — "+e.run.rounds+tr(" iterations"," 反復"):title;};
   const languageToggle=document.getElementById("languageToggle");
   languageToggle.href="../"+(LOCALE==="en"?"ja":"en")+"/index.html"+location.search;
@@ -160,13 +162,13 @@
   function runFacts(e){const r=e.run||{};let bits=[];if(r.rounds!=null)bits.push(r.rounds+tr(" iterations"," 反復"));if(r.candidates!=null)bits.push(r.candidates+tr(" candidates"," 候補"));if(r.validation_total)bits.push(r.validation_passes+"/"+r.validation_total+tr(" validation cases"," 検証ケース"));if(r.selection_status)bits.push(r.selection_status);return bits;}
   function feature(){const e=reportEntries[0];if(!e)return;const r=e.run||{}, hasRun=r.rounds!=null;
     $("featureContext").textContent=tr("Open the underlying report to inspect the measured cases, provenance, and unresolved evidence.","対象レポートを開くと、試験ケース、出典、未解決の証拠を確認できます。");
-    $("featured").innerHTML=`<div class="feature-main">${preview(e)}<div class="feature-top"><span class="eyetag">${esc(meta(e.category))} / ${esc(e.project)}</span>${r.selection_status?`<span class="pill warn">${esc(r.selection_status)}</span>`:""}${!e.localized?.[LOCALE]?`<span class="pill warn">${tr("Translation pending","翻訳待ち")}</span>`:""}</div><h3>${esc(reportTitle(e))}</h3><p>${esc(meta(e.description))}</p><a class="action" href="${esc(reportUrl(e))}" target="_blank" rel="noopener">${tr("Open report","レポートを開く")} <span aria-hidden="true">↗</span></a><div class="feature-path mono">${esc(e.path)}</div></div><div class="feature-side"><div><label>${hasRun?tr("Completed iterations","完了した反復"):tr("Updated","最終更新")}</label><div class="number">${hasRun?esc(r.rounds):esc(date(e.modified_at))}</div><div class="rule"></div>${hasRun?`<label>${tr("Exploration best score","探索での最高スコア")}</label><div class="number">${esc(score(r.best_score))}</div>`:`<label>${tr("Collection","分野")}</label><div class="reading">${esc(meta(e.family))}</div>`}</div><div class="reading">${hasRun?`${tr("Independent validation","独立検証")}: ${esc(r.validation_passes)} / ${esc(r.validation_total)} ${tr("cases · score","ケース · スコア")} ${esc(score(r.validation_score))}`:tr("Original report and its supporting files stay in the project.","元のレポートと関連ファイルはプロジェクト内に保持しています。")}</div></div>`;
+    $("featured").innerHTML=`<div class="feature-main">${preview(e)}<div class="feature-top"><span class="eyetag">${esc(meta(e.category))} / ${esc(e.project)}</span>${r.selection_status?`<span class="pill warn">${esc(r.selection_status)}</span>`:""}${!e.localized?.[LOCALE]?`<span class="pill warn">${tr("Translation pending","翻訳待ち")}</span>`:""}</div><h3>${esc(reportTitle(e))}</h3><p>${esc(meta(e.description))}</p><a class="action" href="${esc(reportUrl(e))}" target="_blank" rel="noopener">${tr("Open report","レポートを開く")} <span aria-hidden="true">↗</span></a><div class="feature-path mono">${esc(e.path)}</div></div><div class="feature-side"><div><label>${hasRun?tr("Completed iterations","完了した反復"):tr("Updated","最終更新")}</label><div class="number">${hasRun?esc(r.rounds):esc(date(e.modified_at))}</div><div class="rule"></div>${hasRun?`<label>${tr("Exploration best score","探索での最高スコア")}</label><div class="number">${esc(score(r.best_score))}</div>`:`<label>${tr("Category","カテゴリー")}</label><div class="reading">${esc(meta(e.category))}</div>`}</div><div class="reading">${hasRun?`${tr("Independent validation","独立検証")}: ${esc(r.validation_passes)} / ${esc(r.validation_total)} ${tr("cases · score","ケース · スコア")} ${esc(score(r.validation_score))}`:tr("Original report and its supporting files stay in the project.","元のレポートと関連ファイルはプロジェクト内に保持しています。")}</div></div>`;
   }
   function collections(){let map=new Map();for(const e of reportEntries){const key=e.category;map.set(key,(map.get(key)||0)+1);}const rows=[...map].sort((a,b)=>b[1]-a[1]).slice(0,8);
     $("collectionCards").innerHTML=rows.map(([name,count])=>`<button type="button" class="collection" data-category="${esc(name)}"><strong>${count}</strong><b>${esc(meta(name))}</b><span>${tr("Browse","表示")} ${count===1?tr("report","レポート"):tr("reports","レポート")} →</span></button>`).join("");
     for(const button of document.querySelectorAll(".collection"))button.addEventListener("click",()=>{$("category").value=button.dataset.category;$("scope").value="report";render();$("library").scrollIntoView({behavior:"smooth"});});
   }
-  function populate(){for(const [id,values] of [["project",[...new Set(E.map(e=>e.project))]],["category",[...new Set(E.map(e=>e.category))]]]){const select=$(id);for(const value of values.sort((a,b)=>a.localeCompare(b))){const option=document.createElement("option");option.value=value;option.textContent=meta(value);select.append(option);}}}
+  function populate(){for(const [id,values] of [["project",[...new Set(reportEntries.map(e=>e.project))]],["category",[...new Set(reportEntries.map(e=>e.category))]]]){const select=$(id);for(const value of values.sort((a,b)=>a.localeCompare(b))){const option=document.createElement("option");option.value=value;option.textContent=meta(value);select.append(option);}}}
   function preview(e){const path=e.thumbnails?.[LOCALE];return path?`<a class="thumbnail" href="${esc(reportUrl(e))}" target="_blank" rel="noopener" aria-label="${esc(tr('Open report: ','レポートを開く：')+reportTitle(e))}"><img src="${esc(fileUrl(path))}" alt="${esc(tr('Page preview: ','ページのプレビュー：')+reportTitle(e))}" width="720" height="450" loading="lazy" decoding="async"></a>`:"";}
   function card(e){const facts=runFacts(e);if(e.latest_report&&e.version_count>1)facts.push(tr("Latest of ","最新版 / ")+e.version_count+tr(" copies / versions"," 件の版・複製"));facts.push(byteSize(e.size_bytes));if(e.scope==="report"&&!e.localized?.[LOCALE])facts.push(tr("Translation pending","翻訳待ち"));return `<article class="card">${preview(e)}<div class="card-top"><span class="kind">${esc(meta(e.category))} · ${esc(e.project)}</span><time datetime="${esc(e.modified_at)}">${esc(date(e.modified_at))}</time></div><h3>${esc(reportTitle(e))}</h3><p>${esc(meta(e.description))}</p><div class="facts">${facts.map(x=>`<span>${esc(x)}</span>`).join("")}</div><div class="card-footer"><a href="${esc(reportUrl(e))}" target="_blank" rel="noopener">${tr("Open HTML","HTMLを開く")} ↗</a><small>${esc(meta(e.family))}</small></div><div class="path mono">${esc(e.path)}</div></article>`;}
   function render(){const q=$("search").value.trim().toLocaleLowerCase(),scope=$("scope").value,project=$("project").value,category=$("category").value,sort=$("sort").value;

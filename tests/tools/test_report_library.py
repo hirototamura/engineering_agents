@@ -131,6 +131,86 @@ def test_build_ignores_compiled_launcher_directories(tmp_path):
     assert not (workspace / 'reports/__pycache__').exists()
 
 
+def test_discovery_includes_moved_research_but_not_archive_or_reading_copies(tmp_path, monkeypatch):
+    from tools.report_library import catalog
+    monkeypatch.setattr(catalog, 'WORKSPACE', tmp_path)
+    monkeypatch.setattr(catalog, 'HERE', tmp_path / 'reports')
+    for name in ['reports/balancing-cube-pre-research/study.html',
+                 'reports/en/items/copy.html', 'archive/old/report.html',
+                 'hardware-work/current.html',
+                 'engineering_agents-sdk-memory/site/index.html',
+                 'engineering_agents-sdk-memory/site/ja/docs/index.html',
+                 'engineering_agents-sdk-memory/experiments/eclss/analysis/design_loop_analysis.ja.html',
+                 'engineering_agents/experiments/eclss/results/evaluation.html',
+                 'engineering_agents-sdk-memory/experiments/report.html']:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('<title>Research</title>')
+    expected = {'reports/balancing-cube-pre-research/study.html', 'hardware-work/current.html',
+                'engineering_agents-sdk-memory/experiments/report.html'}
+    assert {p.relative_to(tmp_path).as_posix() for p in catalog.report_paths()} == expected
+    def unavailable(*args, **kwargs):
+        raise FileNotFoundError('rg unavailable')
+    monkeypatch.setattr(catalog.subprocess, 'run', unavailable)
+    assert {p.relative_to(tmp_path).as_posix() for p in catalog.report_paths()} == expected
+    row = catalog.classify(Path('reports/balancing-cube-pre-research/study.html'), 'Research')
+    assert row['project'] == 'Self Balancing Cube'
+    assert row['category'] == 'Planning'
+
+
+def test_cube_category_mapping():
+    from tools.report_library.catalog import classify
+    samples = {
+        'balancing-cube-simulation/docs/research-plan.html': 'Planning',
+        'balancing-cube-simulation/gpu-results-final/report/index.html': 'Experiment reports',
+        'balancing-cube-simulation/gpu-results-final/mac-20261009T132715Z-3454-15317/index.html': 'Planning',
+        'engineering_agents/experiments/balancing_cube/results/remrc-bom-reference-1/index.html': 'Experiment reports',
+        'engineering_agents/experiments/balancing_cube/results/memory-pipeline-report.html': 'Experiment reports',
+        'engineering_agents/experiments/balancing_cube/results/bottom-corner-trial-report.html': 'Experiment reports',
+        'engineering_agents/experiments/balancing_cube/results/agent-harness-guide.html': 'Agent harness',
+        'one-piece/projects/balancing-cube/report/index.html': 'System model',
+        'balancing-cube-simulation/results/gnc-report/index.html': 'GNC',
+        'engineering_agents-sdk-memory/website/content/balancing-cube/index.html': 'Technical blog',
+    }
+    for path, expected in samples.items():
+        row = classify(Path(path), 'Example')
+        assert row['project'] == 'Self Balancing Cube'
+        assert row['category'] == expected
+
+
+def test_native_language_pair_is_one_report_with_valid_locale_targets(tmp_path):
+    pair = tmp_path / 'balancing-cube-simulation/results/example'
+    pair.mkdir(parents=True)
+    (pair / 'index.html').write_text('<html lang="en"><title>Cube study</title></html>')
+    (pair / 'index.ja.html').write_text('<html lang="ja"><title>キューブ研究</title></html>')
+    environment = {**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[2] / 'src')}
+    result = subprocess.run([sys.executable, '-m', 'tools.report_library', '--workspace', str(tmp_path), 'build'],
+                            cwd=tmp_path, env=environment, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    data = json.loads((tmp_path / 'reports/catalog.json').read_text())
+    latest = [entry for entry in data['entries'] if entry.get('latest_report')]
+    assert len(latest) == 1
+    assert latest[0]['localized'] == {
+        'en': 'balancing-cube-simulation/results/example/index.html',
+        'ja': 'balancing-cube-simulation/results/example/index.ja.html',
+    }
+    assert 'fileUrl(e.localized?.[LOCALE]||e.path)' in (tmp_path / 'reports/ja/index.html').read_text()
+
+
+def test_catalog_excludes_eclss_but_keeps_cube_evaluation(tmp_path):
+    for name, title in [('cube/evaluation.html', 'Cube evaluation'),
+                        ('rescue/evaluation.html', 'SSOS ECLSS evaluation')]:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f'<html><title>{title}</title></html>')
+    environment = {**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[2] / 'src')}
+    result = subprocess.run([sys.executable, '-m', 'tools.report_library', '--workspace', str(tmp_path), 'build'],
+                            cwd=tmp_path, env=environment, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    entries = json.loads((tmp_path / 'reports/catalog.json').read_text())['entries']
+    assert [(e['path'], e['category']) for e in entries] == [('cube/evaluation.html', 'Experiment reports')]
+
+
 def test_paired_study_identity_does_not_collapse_two_arms_to_one_count(tmp_path, monkeypatch):
     from tools.report_library import catalog, translate_reports
     monkeypatch.setattr(catalog, 'WORKSPACE', tmp_path)

@@ -59,7 +59,7 @@ def test_research_story_has_own_catalog_family():
     from tools.report_library.catalog import classify
     row = classify(Path('engineering_agents/experiments/balancing_cube/results/balancing-cube-research-story-20261012/index.html'), 'Research')
     assert row['family'] == 'Balancing cube research story'
-    assert row['category'] == 'Research' and row['scope'] == 'report'
+    assert row['category'] == 'Planning' and row['scope'] == 'report'
     counterpart = classify(Path('engineering_agents/experiments/balancing_cube/results/balancing-cube-research-story-20261012/index.ja.html'), '研究')
     assert counterpart['scope'] == 'source'
 
