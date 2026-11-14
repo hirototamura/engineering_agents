@@ -15,3 +15,4 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
       - run: mkdocs build --strict
+      - run: python scripts/check_docs.py

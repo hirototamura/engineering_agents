@@ -1,6 +1,6 @@
 # Experiments — raw logs, analysis, and how to get from one to the other
 
-Four fifty-round design→verify chains, archived whole. Every number and every figure in [the experiment record](../../docs/en/results.md) / [実験記録](../../docs/ja/results.md) is derived from this directory and can be reproduced by the scripts here.
+Four fifty-round design→verify chains, archived whole. Every number and every figure in [the experiment record](../../docs/_archive/en/ssos_eclss_loop/reports/results.md) / [実験記録](../../docs/_archive/ja/ssos_eclss_loop/reports/results.md) is derived from this directory and can be reproduced by the scripts here.
 
 ```
 experiments/eclss/

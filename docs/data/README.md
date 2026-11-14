@@ -1,6 +1,6 @@
 # Measured data — four fifty-round chains
 
-Per-round metrics behind [the experiment record](../en/results.md) / [実験記録](../ja/results.md). Extracted from the run artifacts of four `ea run ssos_eclss_loop --iterate 50` chains against the same world, the same fifty-person crew, and the same non-survivable baseline.
+Per-round metrics behind [the experiment record](../_archive/en/ssos_eclss_loop/reports/results.md) / [実験記録](../_archive/ja/ssos_eclss_loop/reports/results.md). Extracted from the run artifacts of four `ea run ssos_eclss_loop --iterate 50` chains against the same world, the same fifty-person crew, and the same non-survivable baseline.
 
 | Phase | What changed | Files |
 | --- | --- | --- |
@@ -44,9 +44,9 @@ Per-round metrics behind [the experiment record](../en/results.md) / [実験記�
 ## Where this came from
 
 These files are not hand-maintained. They are the output of
-[`experiments/eclss/analysis/analyze_ssos_iter.py`](../../experiments/eclss/analysis/analyze_ssos_iter.py)
+[`experiments/eclss/analysis/analyze_ssos_iter.py`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/eclss/analysis/analyze_ssos_iter.py)
 run over the raw chain logs archived in
-[`experiments/eclss/runs/`](../../experiments/eclss/runs), and re-running it reproduces them
+[`experiments/eclss/runs/`](https://github.com/hirototamura/engineering_agents/tree/main/experiments/eclss/runs), and re-running it reproduces them
 byte for byte:
 
 ```bash
@@ -57,7 +57,7 @@ diff outputs/phase1_iteration_metrics.csv ../../docs/data/phase1_iteration_metri
 ```
 
 Full instructions, and what is inside a chain archive:
-[`experiments/eclss/README.md`](../../experiments/eclss/README.md).
+[`experiments/eclss/README.md`](https://github.com/hirototamura/engineering_agents/blob/main/experiments/eclss/README.md).
 
 ## Running a new chain
 
