@@ -1,0 +1,174 @@
+# Post-run design agent — actor / designer split
+
+> **Scope**: `ssos_eclss_loop` only. `scrubber_degradation` stays as-is (same team emits post-run proposals; `--agents-mode`).  
+> **Source**: Cursor plan “Post-run design agent” (`.cursor/plans/post-run_design_agent_9cfab49b.plan.md`). **Implemented** (`feat/post-run-design-agent`).  
+> Operator steps: [scenario-ssos-eclss-loop.md](../../../../en/users/scenarios/ssos_eclss_loop/index.md), [cli.md](../../../../en/users/reference/cli.md). Occupant attrition: [occupant_survival.md](occupant_survival.md).
+
+Naming: **actor** (in-sim operational agents) and **designer** (post-run design agents).
+
+> **Newer path**: with `design.mode: llm` and `design.tool_use.enabled: true` (the shipped default), the designer described here is replaced by the decision-loop capacity designer — see [tool_use_design_agent.md](tool_use_design_agent.md). Everything below still applies to `labeled_rule_base` and to `tool_use.enabled: false`.
+
+## Status (plan todos)
+
+| ID | Work | State |
+| --- | --- | --- |
+| branch | `feat/post-run-design-agent` | **done** |
+| config-cli | Nested `agents.actor` / `agents.design` and `--actor-mode` / `--design-mode` | **done** |
+| design-agent | `PostRunDesignAgent` (4 designers) + `DesignReviewBundle` | **done** |
+| decouple-sim-team | Remove post-run design from `SsosEclssLoopTeam`; call from `scenario_run` | **done** |
+| tests | Labeled closed loop, mixed modes, skip empty proposals | **done** |
+| docs | AGENTS / architecture / cli / ssos scenario ja/en | **done** |
+| unbounded-changes | No count cap on one representative’s `changes` | **done** (added after the plan) |
+| survival-bind | Lock `plant_sim.crew.size` to `actor.team.count` | **done** (merged with occupant survival on main) |
+
+## Why
+
+`SsosEclssLoopTeam` owned both runtime operations and post-run design. Making design smarter would have required a large model on every actor. Split the roles:
+
+| Kind | When | Role | id_prefix | Model (current default; may change) |
+| --- | --- | --- | --- | --- |
+| actor | Each step | Discourse + ARS/OGS/WRS operational commands only | `eclss_actor` → `eclss_actor_1` … `_50` | vLLM `qwen3.5-9b` on `:8000` (`think: false`, `max_tokens: 768`); `labeled_rule_base` allowed |
+| designer | **After the run only** | Read ICs, telemetry, and actor final state; write `design_proposals.json` | `eclss_designer` → `eclss_designer_1` … `_4` | vLLM `qwen3.8-27b-uncensored` on `:8001` (`think: true`, `max_tokens: 16384`) |
+
+Pass/fail stays deterministic in `src/scenario/ssos_eclss_loop/health.py`. The design LLM does not judge. LLM / Persona stay out of `environment/`.
+
+On `plant_sim`, occupants and **actors** shrink together. **Designers do not shrink** (they still propose as `eclss_designer_*` after a wipe).
+
+```mermaid
+flowchart TD
+  YAML["scenario.yaml + agents.yaml"] --> Run["SsosEclssLoopScenario.run"]
+  Run --> ActorTeam["SsosEclssLoopTeam actors"]
+  Run --> Backend["EclssBackend"]
+  ActorTeam -->|"runtime ops only"| Backend
+  Backend --> Artifacts["telemetry / health / messages / summary"]
+  Artifacts --> Design["PostRunDesignAgent"]
+  ActorTeam -->|"final state + discourse"| Design
+  YAML -->|"ICs + thresholds stubs"| Design
+  Design --> DP["design_proposals.json"]
+  DP -->|"next run --apply-proposals"| YAML
+```
+
+## Config and CLI (as built)
+
+`scenario.yaml`:
+
+```yaml
+agents:
+  actor:
+    mode: none                 # none | labeled_rule_base | llm
+    max_actions_per_step: 6    # llm / labeled cap on commands per step
+  design: {}
+    # omit design.mode to inherit actor.mode; set none to disable post-run design
+```
+
+`agents.yaml` notes:
+
+- Actor `team.count: 50` must match `plant_sim.crew.size`
+- Actor `policy` is the labeled operational profile (llm does not read it)
+- `design.llm` is independent; do not inherit the actor model when omitted
+
+Inheritance: omitted `agents.design.mode` equals `agents.actor.mode`. The 2-run smoke needs only `--actor-mode labeled_rule_base` for labeled design. `actor.mode: none` with labeled/llm design is allowed.
+
+CLI (ssos):
+
+- `--actor-mode` → `agents.actor.mode`
+- `--design-mode` → `agents.design.mode`
+- `--llm-provider` / `--llm-model` stamp both sides when both are `llm` (`VLLM_BASE_URL` / `VLLM_MODEL` too). Keep the yaml split by omitting those flags, or `--set agents.actor.llm.base_url=` / `--set agents.design.llm.base_url=` (same for `.model`)
+- `--agents-mode` — deprecated alias for `--actor-mode` on ssos. Specifying both is an error. Scrubber still uses `--agents-mode` only
+
+Killer combo: `--actor-mode labeled_rule_base --design-mode llm`.
+
+```bash
+python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 20 \
+  --run-id cloud-smoke-run1 --set iteration.enabled=false
+```
+
+## Where it lives
+
+| Path | Role |
+| --- | --- |
+| `src/scenario/ssos_eclss_loop/agent_config.py` | Normalize nested config and resolve modes. Legacy `agents.mode` lifts onto actor |
+| `src/scenario/agents/ssos_post_run_design.py` | `PostRunDesignAgent` + `DesignReviewBundle`. Does not subclass `Team`. No `run_step` |
+| `src/scenario/ssos_eclss_loop/scenario_run.py` | After the loop, `design_agent.propose(bundle)`. `bind_plant_sim_crew_and_team` uses `actor.team.count` |
+| `src/scenario/agents/ssos_eclss_loop_team.py` | Actors: operations only. `set_crew_alive` tracks occupants |
+| `src/scenario/ssos_eclss_loop/design_proposals.py` | Rule path still calls `build_design_proposals_from_run` |
+
+In `llm` mode, all designers deliberate once, then **one representative** emits `changes`. There is no count cap (skip the file when empty). Labeled `proposed_by` is `eclss_designer_1`. **Do not put policy numbers in the prompt.**
+
+`summary` includes `actor_mode`, `design_mode`, `design_proposed_by`. `agents_mode` stays equal to `actor_mode` for dashboard compatibility.
+
+## Chained runs (`scenario.yaml` `iteration:` / `ea run --iterate`)
+
+The chain job lives in `src/scenario/ssos_eclss_loop/scenario.yaml` under `iteration:` (not a separate file). The shipped default is `enabled: true`, so a bare `ea run ssos_eclss_loop` chains and shows the same live iteration/step progress as `--iterate`. Pass `--iterate N` to override `count`. CLI flags override YAML.
+
+```bash
+python3 -m tools.cli run ssos_eclss_loop --iterate 10 --backend plant_sim \
+  --actor-mode labeled_rule_base --design-mode llm --inject-failures --steps 50 \
+  --run-id design-iter-10
+```
+
+- Proposal **generation** stays on the unified post-run designer (tool-use by default). The chain does not replace that path
+- Run k applies run k-1's adopted `applied_proposals.json` through unified `apply_design_proposals` (including `capacity_profile`)
+- `set_parameter` (`thresholds.*`) is not on the apply allow-list and is not auto-applied in the chain. `iteration.approve_provisional` defaults to false. `--approve-provisional` opts in (INFO) so a labeled/mock loop can adopt `provisional_final` without a human.
+- Empty or not-adoptable proposals do not stop the chain; the last applied file (or the initial YAML) is reused
+- The last run is verification-only; proposals it emits stay unverified
+- After the chain, baseline / final replays with `design.mode=none` decide `IMPROVED` / `NOT_IMPROVED` / `INCONCLUSIVE` from `crew_remaining`
+- The terminal and dashboard show iteration progress and child runs (`01/`, replays)
+
+### The chain's final answer (`chain_final_answer.json`)
+
+Exploration is not restricted. A sizing that loses occupants, or one that
+cannot be manufactured, may still be simulated and carried into the next
+iteration -- learning from it is the point of chaining. Only **adoption** is
+restricted.
+
+The verdict answers "did the chain get anywhere". It does not answer "what do
+we build". Without that distinction, a design that saved everyone in iteration
+1 can be replaced in iteration 2 by one that does not, and it is then gone: no
+artifact names it, and the chain reports the loss as its result.
+
+So at the end of the chain one design is chosen from **every candidate every
+iteration simulated** -- not from each iteration's winner -- and written to
+`chain_final_answer.json`.
+
+| Condition | Treatment |
+| --- | --- |
+| Every occupant alive | **Required.** A design that loses one is never the final answer |
+| Manufacturable (in bounds) | **Required.** A machine nobody can build is not a design |
+| Physics gate passed | **Required.** Survival that could not be audited does not count as survival |
+| Over budget | Allowed through as `provisional_final` for a human to decide. Paying for it is their call |
+| Nothing qualifies | Said plainly. **The best of a losing set is not promoted to a result** |
+
+Ranking has one precondition (`scoring_bar_drift`): every iteration must have
+sat the same exam. If thresholds, crew size, step count or backend moved
+partway through, iteration 1 and iteration 3 were asked different questions, so
+the chain stops at `not_comparable` instead of ranking them.
+
+The comparison is between iterations, not against the shipped scenario file. A
+chain deliberately run at six occupants over eight steps differs from the
+scenario in all of those numbers and is entirely self-consistent; what breaks
+it is moving them halfway through.
+
+Eligibility is re-derived here rather than trusted from the iteration files.
+Each iteration marked its candidates against its own baseline -- the design the
+previous iteration handed it -- so "better than baseline" meant something
+different each time. Across the chain there is one reference: the station
+before anything was applied.
+
+## Out of scope (still not done)
+
+- Splitting scrubber
+- Changing proposal schema or `--apply-proposals` meaning
+- Adding `graph_rewire` to labeled design
+- Pulling requirements from One Piece / expanding provenance
+- Pass/fail judgment by the design LLM
+
+## Related
+
+- [scenario-ssos-eclss-loop.md](../../../../en/users/scenarios/ssos_eclss_loop/index.md)
+- [architecture.md](../../../../en/developers/architecture.md)
+- [AGENTS.md](../../../../en/developers/contributing.md)
+- [Homogeneous agent team](../../agents/homogeneous_agent_team_plan.md)
+- [Occupant survival](occupant_survival.md)
+- [Labeled rule-base](labeled_rule_base.md)
+- [SSOS ECLSS connection plan](../plans/ssos_eclss_loop_connection_plan.md)

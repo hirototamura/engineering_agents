@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "engineering-agents"
 version = "0.1.0"
-description = "ECLSS resilience-loop multi-agent simulation platform"
+description = "Engineering agent teams for domain-independent system design and verification"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"

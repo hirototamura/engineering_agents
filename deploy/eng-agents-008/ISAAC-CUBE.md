@@ -1,6 +1,6 @@
 # Isaac cube exploration
 
-The [campaign analysis tools](../../docs/en/isaac-campaign-analysis.md) add full
+The [campaign analysis tools](../../docs/en/users/scenarios/balancing_cube/running.md) add full
 technical reporting, eight-corner empirical percentile plots, case filters and
 a bounded read-only tool collection for Engineering Agents.
 

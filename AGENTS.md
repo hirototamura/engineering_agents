@@ -1,70 +1,53 @@
-# AGENTS.md — Engineering Agents Guide
+# Engineering Agents repository guide
 
-This file is the entry point for **human contributors** and **coding agents** (Cursor, etc.).
+Engineering Agents develops engineering teams that design and verify systems
+across domains through accumulated knowledge, memory, tools, evaluation, and
+evidence. The three bundled scenarios are equal-status instances of this effort.
 
-**Read the full guide in your language:**
+## Sources of guidance
 
-| Language | Guide |
-| --- | --- |
-| **English** | [docs/en/AGENTS.md](docs/en/AGENTS.md) |
-| **日本語** | [docs/ja/AGENTS.md](docs/ja/AGENTS.md) |
+- [Developer guide](docs/en/developers/index.md) / [開発者ガイド](docs/ja/developers/index.md)
+- [User guide](docs/en/users/index.md) / [ユーザーガイド](docs/ja/users/index.md)
+- [Documentation rules](docs/AGENTS.md) apply when changing documentation.
 
----
+## Engineering discipline
 
-## One-line summary
+- Preserve the mission and physical constraints. Agents may propose requirement
+  revisions; supervision retains authority until the requirements are revised.
+- Separate design proposals, applied changes, simulated evidence, and physical
+  validation. LLM explanations and dashboard previews do not establish pass/fail.
+- Requirements come from the selected scenario's authoritative contract. One Piece
+  integration is scenario-specific; provenance export does not imply SSOT input.
+- Keep evidence, effective inputs, rejected candidates, and failure states auditable.
+- Follow the dependency direction `tools → scenario → environment → core`.
+  Scenario code calls `integrations/one_piece`; do not import upward or put LLM /
+  Persona logic in environment implementations.
+- Do not assume identical modes, proposal schemas, evaluation, or output handling
+  across scenarios. External scenario loading is not yet implemented.
 
-**The paramount requirement is the mission itself. Design and verification requirements can be revised under One Piece. Design and verification must follow physics and must not violate the mission.**
+## Development and validation
 
----
-
-## MuJoCo integration
-
-`balancing_cube` uses the One-Piece versioned system model as SSOT. See [implementation and scope](docs/en/mujoco-one-piece.md). Its automatic changes are limited to six mechanical variables, motor selection, three LQR weight groups and yaw gain. New evaluation uses fixed-timestep CPU/GPU checks without half-step adjudication.
-
-## Quick reference (layers)
-
-```text
-tools → scenario → environment → core
-integrations/one_piece ← called from scenario
-```
-
-Do not import upward across layers. Do not put LLM or Persona logic in `environment/`.
-
-After changes, run `pytest`.
-
----
-
-## Cursor Cloud specific instructions
-
-Pure Python project (Python 3.12). The update script installs the package editable via `pip install -e ".[dev]"` into the **system** Python (no virtualenv), so `python3 -m pytest`, `python3 -m tools.cli`, etc. work in any fresh shell.
-
-### Minimal scope for “environment works”
-
-Do **not** treat the Streamlit dashboard as the smoke test. Visualization is optional; the mission is the **design→verification loop**:
-
-```text
-Run N   → simulation → design_proposals.json issued (post-run permanent design)
-Run N+1 → --apply-proposals → config merged → re-simulate → telemetry vs verification requirements
-```
-
-**Canonical 2-run smoke** (no Ollama, no ROS2): `ssos_eclss_loop` with `--backend mock` and `labeled_rule_base`. Use **distinct `--run-id` values** — the default `ssos_eclss_loop_labeled_rule_base` is recreated on each run (`EventLog.prepare_run_dir` removes the existing directory), which would delete Run 1 outputs before you can compare them.
+Use Python 3.11 or newer. Install this checkout with `python -m pip install -e
+'.[dev]'` in a virtual environment. Verify imports resolve into this checkout;
+a machine-global Python can import another editable installation.
 
 ```bash
-python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 20 \
- --run-id cloud-smoke-run1 --set iteration.enabled=false
-python3 -m tools.cli run ssos_eclss_loop --backend mock --actor-mode labeled_rule_base --steps 5 \
- --run-id cloud-smoke-run2 --set iteration.enabled=false --approve-provisional \
- --apply-proposals experiments/eclss/results/cloud-smoke-run1/design_proposals.json
+PYTHONPATH=src python -m tools.cli --help
+python -m pytest --ignore=tests/e2e
+mkdocs build --strict
 ```
 
-Confirm Run 1 wrote `experiments/eclss/results/cloud-smoke-run1/design_proposals.json` (`design_domain: ssos_graph`, non-empty `changes`). Confirm Run 2 completed with proposals merged. Compare `cloud-smoke-run2/summary.json` and `telemetry.jsonl` against Run 1 — behavior should reflect applied config while Run 1 artifacts remain intact.
+Optional MuJoCo / One-Piece / GPU tests require the corresponding extras and
+services. Live `tests/e2e` needs SSOS Docker / ROS2 with `SSOS_E2E=1`. Treat a local
+CLI smoke as a check of its declared path; full acceptance follows the selected
+scenario's regression kit.
 
-`scrubber_degradation` also emits `design_proposals.json` after a run, but **does not yet re-inject proposals into the next simulation** (dashboard Before/After is preview only). Closing that loop for scrubber is backlog; do not use scrubber alone as proof of a closed loop.
+The design→verification loop and persisted evidence are the functional smoke
+boundary. See [SSOS run procedure](docs/en/users/scenarios/ssos_eclss_loop/running.md)
+for a local example. Choose distinct run IDs when comparing results or applying a
+previous proposal; some paths recreate recognized output directories.
 
-### Tooling and CI
-
-- Console scripts (`ea`, etc.) land in `~/.local/bin`, which is not on `PATH`. Prefer `python3 -m tools.cli …` or add `~/.local/bin` to `PATH`. See [docs/en/cli.md](docs/en/cli.md).
-- Tests: `python3 -m pytest --ignore=tests/e2e` (matches CI). Full `tests/e2e` needs SSOS Docker + ROS2 (`SSOS_E2E=1`, self-hosted runner) — not required for the minimal loop smoke above.
-- `agents.mode: llm` / ssos `--design-mode llm` needs Ollama or the lab vLLM server (LAN or VPN). `ssos_eclss_loop` bare `ea run` defaults to `plant_sim` + labeled actors + LLM design; `--backend ros2` needs SSOS Docker. Minimal loop smoke is **out of scope** for both — use `labeled_rule_base` + `--backend mock`.
-- Dashboard (optional): `python3 -m streamlit run src/tools/dashboard/app.py --server.headless true` reads `experiments/eclss/results/<run_id>/`.
-- plant_sim sensitivity (optional, not the dashboard): `python3 -m tools.plant_sim_sensitivity_app` (port 8502).
+[Contribution process](docs/en/developers/contributing.md) and
+[documentation maintenance](docs/en/developers/development/documentation.md)
+define the corresponding review checks. Historical research is isolated under
+`docs/_archive/`; it does not override current implementation or guidance.
