@@ -64,16 +64,22 @@ def capture_page(page: Path | str, image: Path, timeout: float = 40,
                 else:
                     raise TimeoutError(f"No screenshot after {timeout:g} seconds")
             finally:
-                # Only terminate this isolated capture process and its children.
+                # Chrome normally exits after saving its screenshot. Reap it
+                # first; some hosts forbid signalling the Chrome process group.
                 try:
-                    os.killpg(process.pid, signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
-                try:
-                    process.wait(timeout=3)
+                    process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    os.killpg(process.pid, signal.SIGKILL)
-                    process.wait()
+                    try:
+                        os.killpg(process.pid, signal.SIGTERM)
+                    except PermissionError:
+                        process.terminate()
+                    except ProcessLookupError:
+                        pass
+                    try:
+                        process.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
         preview = preview.resize(size, Image.Resampling.LANCZOS)
         temporary_image = image.with_suffix(".tmp")
         preview.save(temporary_image, "WEBP", quality=82, method=6)

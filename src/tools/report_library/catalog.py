@@ -47,7 +47,8 @@ def report_paths() -> list[Path]:
         "rg", "--files", "-uuu", "-g", "*.html", "-g", "*.htm",
         "-g", "!**/.git/**", "-g", "!**/.venv*/**",
         "-g", "!**/node_modules/**", "-g", "!**/site-packages/**",
-        "-g", "!**/store/commits/**", "-g", "!reports/**",
+        "-g", "!**/store/commits/**", "-g", "!reports/**", "-g", "!archive/**",
+        "-g", "!engineering_agents-sdk-memory/site/**",
         "-g", "!**/src/tools/report_library/**",
         "-g", "!**/explorer_assets/**",
         "-g", "!**/build/**", "-g", "!**/dist/**",
@@ -61,12 +62,24 @@ def report_paths() -> list[Path]:
         for base, dirs, files in os.walk(WORKSPACE):
             dirs[:] = [name for name in dirs if name not in SKIP_NAMES
                        and not name.startswith(".venv") and name != "store"
-                       and Path(base, name) not in {HERE, Path(__file__).parent}]
+                       and Path(base, name) not in {HERE, WORKSPACE / "archive", Path(__file__).parent,
+                                                   WORKSPACE / "engineering_agents-sdk-memory" / "site"}]
             for name in files:
                 if name.lower().endswith((".html", ".htm")):
                     relative.append(Path(base, name).relative_to(WORKSPACE))
-    return sorted({WORKSPACE / path for path in relative
+    # Original Cube research now lives inside reports, alongside generated pages.
+    # Include only that source directory, not the catalog's own reading copies.
+    research = HERE / "balancing-cube-pre-research"
+    sources = {path for path in research.rglob("*")
+               if path.is_file() and path.suffix.lower() in {".html", ".htm"}}
+    def is_eclss(path: Path) -> bool:
+        # The Cube catalog excludes ECLSS reports and their source copies.
+        name = path.as_posix().casefold()
+        return "eclss" in name or "ssos" in name
+
+    return sorted({p for p in sources if not is_eclss(p.relative_to(WORKSPACE))} | {WORKSPACE / path for path in relative
                    if path.parts and path.parts[0] != "reports"
+                   and not is_eclss(path)
                    and path.as_posix() != "engineering_agents/src/tools/cube_bom_report.html"})
 
 
@@ -94,9 +107,18 @@ def classify(relative: Path, title: str) -> dict:
         "balancing-cube-pre-research": "Cube Research",
         "integration-validation": "Integration Evidence",
     }.get(relative.parts[0], relative.parts[0].replace("-", " ").title())
+    if (relative.parts[0] in {"engineering_agents", "engineering_agents-sdk-memory",
+                              "balancing-cube-simulation", "balancing-cube-pre-research",
+                              "gpu-sv-008-rescue-2026-10-31"}
+            or path.startswith(("reports/balancing-cube-pre-research/", "one-piece/projects/balancing-cube/"))):
+        project = "Self Balancing Cube"
     category, family, description, scope = "Other report", "Other reports", "HTML artifact from this workspace.", "report"
 
-    if path.startswith("engineering_agents/site/"):
+    if "/docs/_archive/" in path:
+        category, family, description, scope = "Archived copy", "Archived evidence", "Stored copy of an earlier report.", "archive"
+    elif "/src/tools/research_story/" in path or name == "cube_bom_report.html":
+        category, family, description, scope = "Source template", "Report sources", "HTML source used to create a report.", "source"
+    elif path.startswith("engineering_agents/site/"):
         category, family, description, scope = "Documentation", "Published documentation", "Generated documentation page.", "documentation"
     elif path.startswith("integration-validation/") or "/report/assets/" in path or "/pr82-publish-smoke-" in path or "/mass-workflow-compat-" in path:
         category, family, description, scope = "Archived copy", "Archived evidence", "Stored copy of an earlier report.", "archive"
@@ -139,7 +161,7 @@ def classify(relative: Path, title: str) -> dict:
     elif "gpu-results" in path or "gpu-campaign" in path or "gpu_results" in name:
         category, family = "GPU exploration", "Cube GPU exploration"
         description = "GPU design search, CPU confirmation, simulation evidence, and replay."
-    elif path.startswith("balancing-cube-pre-research/") or "research-plan" in name:
+    elif path.startswith(("balancing-cube-pre-research/", "reports/balancing-cube-pre-research/")) or "research-plan" in name:
         category, family = "Research", "Cube research"
         description = "Research and development studies that preceded the current design loop."
     elif "evaluation" in name or "scorecard" in name:
@@ -149,6 +171,15 @@ def classify(relative: Path, title: str) -> dict:
         category, family = "Engineering analysis", "Design loop analysis"
         description = "Analysis of design iteration and simulation feedback."
 
+    if scope == "report":
+        category = {"Research": "Planning", "GPU exploration": "Planning",
+                    "Configuration assessment": "Experiment reports", "Design iterations": "Experiment reports",
+                    "Engineering analysis": "Experiment reports", "Agent workflow": "Agent harness",
+                    "Other report": "Technical blog"}.get(category, category)
+        if path == "balancing-cube-simulation/gpu-results-final/report/index.html":
+            category = "Experiment reports"
+        if family == "Other reports":
+            family = "Technical blog"
     return {"project": project, "category": category, "family": family,
             "description": description, "scope": scope}
 
@@ -300,6 +331,13 @@ def build_catalog() -> dict:
         relative = path.relative_to(WORKSPACE)
         title = read_title(path)
         info = classify(relative, title)
+        if info["category"] == "ECLSS evaluation":
+            with path.open("rb") as source:
+                context = source.read(65536).lower()
+            if b"eclss" in context or b"ssos" in context:
+                continue
+            info.update(category="Experiment reports", family="Evaluation",
+                        description="Results and evidence from an experiment.")
         entry = {
             "id": hashlib.sha256(relative.as_posix().encode()).hexdigest()[:12],
             "path": relative.as_posix(),
@@ -321,6 +359,20 @@ def build_catalog() -> dict:
                 language: read_title(WORKSPACE / page)
                 for language, page in localized.items()
             }
+        # Native .ja.html / .html pairs are already translated reports; use
+        # their actual paths instead of requiring generated reading copies.
+        if info["scope"] == "report" and len(entry.get("localized", {})) < 2:
+            if path.name.endswith(".ja.html"):
+                english = path.with_name(path.name[:-8] + ".html")
+                japanese = path
+            else:
+                english = path
+                japanese = path.with_name(path.stem + ".ja.html")
+            if english.is_file() and japanese.is_file():
+                entry["localized"] = {"en": english.relative_to(WORKSPACE).as_posix(),
+                                      "ja": japanese.relative_to(WORKSPACE).as_posix()}
+                entry["localized_titles"] = {language: read_title(WORKSPACE / page)
+                                             for language, page in entry["localized"].items()}
         entry["source_language"] = matching.get("source_language") if matching else None
         previews = {}
         for language in ("en", "ja"):
