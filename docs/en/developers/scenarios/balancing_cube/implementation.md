@@ -27,6 +27,20 @@ flowchart TD
 
 The feedback controller executes inside each rollout using frozen numerical gains. The LLM proposes a configuration between complete experiments; it does not choose motor torques on each control tick.
 
+## Controller algorithm change policy
+
+One Piece records the authorized software edit boundary in
+`cube.change-contract.control-algorithm@refined-20261115-1`. It permits future
+algorithm changes in the reference `balancing-cube-simulation/balancing_cube/control.py`.
+This is a policy definition; the current proposal schema still accepts gain
+parameters only. Code proposal/execution support and its native/MJX interface
+mapping belong to the next implementation stage. Physics, observations,
+actuator limits, test conditions and evaluation remain outside that edit scope.
+
+The existing `compile_mechanical` and `compile_controller` names describe design
+configuration generation: input validation, derived quantities and simulation
+settings. They do not compile or execute proposed Python controller source.
+
 ## Compiler contract and dependent quantities
 
 A non-reference candidate must have a registered snapshot family, exactly the six mechanical keys below, and a nonempty `id`/`hypothesis`. Optional controller edits are limited to four allowlisted keys. The snapshot can tighten compiler bounds, not expand them.
