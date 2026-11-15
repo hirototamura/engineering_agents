@@ -1,7 +1,9 @@
 # バランシングキューブを設定する
 
-同梱入力は `src/scenario/balancing_cube/scenario.yaml` です。project `balancing-cube`、snapshot `cube.simulation.snapshot`、revision `bottom-corner-000-20261017-3` を選びます。このリビジョンがある既存の One Piece ストアを `--set ssot.path=/path/to/store` で指定します。パッケージはストアを同梱・復元しません。
+同梱入力は `src/scenario/balancing_cube/scenario.yaml` です。project `balancing-cube`、snapshot `cube.simulation.snapshot`、revision `requirement-scoring-20261115-2` を選びます。このリビジョンがある既存の One Piece ストアを `--set ssot.path=/path/to/store` で指定します。パッケージはストアを同梱・復元しません。
 
+
+新しい既定値には `onepiece.cube_scoring` と採用済みの評価レコードを含むOne-Pieceチェックアウトが必要です。`python -m pip install -e /path/to/one-piece` でインストールし、そのチェックアウトで `PYTHONPATH=src python projects/balancing-cube/adopt_requirement_scoring.py` を実行します。従来の固定wheelには新しい評価器がありません。[評価契約](../../../developers/scenarios/balancing_cube/evaluation.md)を参照してください。
 ## 必要な機能を導入する
 
 準備済み Python 環境で実行します。

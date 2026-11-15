@@ -14,6 +14,7 @@ from uuid import uuid4
 from integrations.one_piece.mechanical_bridge import atomic_json
 from .adapter import BalancingCubeAdapter, RolloutDeadlineExceeded, RolloutExecutionFailed
 from .design import CONTROL_BOUNDS, MECHANICAL_BOUNDS, digest
+from .evaluation import selection_key
 
 
 class ProposalGenerationFailed(RuntimeError):
@@ -65,12 +66,12 @@ def _compact_agent_context(context, snapshot):
     for record in context.get("records", []):
         kind, data = record["kind"], record.get("data", {})
         row = header(record)
-        if kind == "requirement":
+        if kind in {"requirement", "constraint"}:
             ja = data.get("translations", {}).get("ja", {})
             row["data"] = pick(data, ("level", "name", "statement", "unit", "value", "normative_modal",
                 "obligation", "acceptance_criteria", "conditions", "approval_state", "status", "source_status",
                 "hardware_verification_required", "physical_verified", "verification_status", "verification_method",
-                "unresolved_items"))
+                "unresolved_items", "constraint_scope", "record_role"))
             if ja:
                 row["data"]["translation_ja"] = pick(ja, ("name", "statement", "acceptance_criteria", "conditions"))
         elif kind == "parameter":
@@ -204,6 +205,8 @@ def _compact_agent_context(context, snapshot):
                           "not_available_must_be_null": screening.get("not_available_must_be_null", [])},
             "plan": stages,
             "objective": snapshot.get("plan", {}).get("objective", {}),
+            "requirement_scoring": snapshot.get("contract", {}).get("requirement_scoring"),
+            "reference_frames": snapshot.get("reference_frames"),
             "run_policy": snapshot.get("run_policy", {}),
             "physical_fidelity": snapshot.get("physical_fidelity"),
         },
@@ -225,7 +228,7 @@ def evolve_policy(policy, feedback, *, improved, snapshot):
     ranked = sorted(available, key=lambda row: (-sum(token in str(row.get("model_path", "")).lower() for token in tokens), str(row.get("id", ""))))
     step = policy["suggested_search_step"] * (1.15 if improved else .5)
     return {"revision": policy["revision"] + 1, "parent_revision": policy["revision"],
-            "hypothesis": f"Measured candidate {feedback['candidate_id']} score={feedback['score']:.8g}; "
+            "hypothesis": f"Measured candidate {feedback['candidate_id']} score={feedback['score']}; "
                           f"prioritize failures {failures or ['none in numerical screening']} and compare an allowlisted design change.",
             "priority_kdps": [row["id"] for row in ranked[:5]],
             "suggested_search_step": min(.25, max(.01, step)), "failure_metrics": failures,
@@ -351,7 +354,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                           "gpu_state": result["gpu_state"], "matrix_cell": cell},
                 status="evaluated", source_refs=[str(directory / "result.json"), str(directory / "compiled.json")],
                 episode_key=f"{run_id}:{round_index}:{cell}:{fingerprint}")
-        if best is None or result["score"] > best["result"]["score"]:
+        if selection_key(result)[0] >= 0 and (best is None or selection_key(result) > selection_key(best["result"])):
             best = entry
         return entry
 
@@ -461,6 +464,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                        )}
         if memory is not None:
             prompt_data["agent_memory"] = memory.retrieve(query=" ".join(policy.get("failure_metrics", [])),
+                                                         scoring_contract_ref=snapshot.get("scoring_contract_ref"),
                                                          max_chars=9000 if workflow is not None else 6000)
             prompt_data["current_best"] = {"proposal": best["compiled"]["proposal"],
                 "config": best["compiled"]["config"], "controller": best["compiled"]["controller"],
@@ -475,7 +479,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
         atomic_json(round_dir / "prompt-data.json", prompt_data)
         prompt_digest = digest(prompt_data)
         active_pi_artifacts = (round_dir / "ssot-context.json", round_dir / "prompt-data.json")
-        previous_score = best["result"]["score"] if best else float("-inf")
+        previous_score = selection_key(best["result"]) if best else (-2, float("-inf"))
         previous_best = best
         phase = "proposal"
         proposed = None
@@ -545,7 +549,8 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                 break
             feedback = adapter.feedback(evaluated[-1]["result"])
             if memory is not None:
-                atomic_json(round_dir / "memory-after.json", memory.retrieve(query=" ".join(feedback["failure_metrics"])))
+                atomic_json(round_dir / "memory-after.json", memory.retrieve(query=" ".join(feedback["failure_metrics"]),
+                            scoring_contract_ref=snapshot.get("scoring_contract_ref")))
             phase = "evolution"
             if workflow is not None:
                 if outbox and sync()["pending"]:
@@ -555,7 +560,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                 atomic_json(round_dir / "workflow/measurement-context.json", reread)
                 workflow_result = workflow.observe(llm_client, {
                     "cells": [{**adapter.feedback(e["result"]), "matrix_cell": e["result"]["matrix_cell"]} for e in evaluated],
-                    "retained_best": adapter.feedback(best["result"]),
+                    "retained_best": adapter.feedback(best["result"]) if best else None,
                     "persisted_context_digest": digest(reread),
                     "persisted_evidence_refs": [{"id": r["id"], "revision": r["revision"]}
                         for r in reread["records"] if r["kind"] in {"simulation_run", "design_candidate"}],
@@ -564,7 +569,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
                 workflow_record = publish("design_policy", f"{run_id}.workflow.{index}",
                     {k: v for k, v in workflow_result.items() if k != "calls"}, round_dir / "workflow/round-summary.json",
                     targets=ancestry, extra_artifacts=tuple(p for p in sorted((round_dir / "workflow").glob("*.json")) if p.name != "round-summary.json"))
-            improved = best["result"]["score"] > previous_score
+            improved = best is not None and selection_key(best["result"]) > previous_score
             policy = evolve_policy(policy, feedback, improved=improved, snapshot=snapshot)
             policy["pi_context_digest"] = context_digest
             policy["pi_prompt_digest"] = prompt_digest
@@ -659,7 +664,7 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
     before_summary_sync = sync()
     if before_summary_sync.get("pending") and not stop.startswith("onepiece_sync_pending"):
         stop = "onepiece_sync_pending_before_summary"
-    incomplete = incomplete_evaluations or stop.startswith("onepiece_sync_pending") or stop in {
+    incomplete = (entries and best is None) or incomplete_evaluations or stop.startswith("onepiece_sync_pending") or stop in {
         "reference_evaluation_incomplete", "initial_design_execution_failed", "incomplete_required_2x2_wall_budget", "context_revision_changed_requires_new_run", "wall_budget_during_proposal", "proposal_generation_failed", "workflow_generation_failed", "wall_budget_during_validation", "execution_failed_during_validation"} or required_gpu_incomplete
     summary = {"scenario": "balancing_cube", "run_id": run_id, "status": "inconclusive" if incomplete else "completed",
                "iterations_requested": rounds,

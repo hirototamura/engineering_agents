@@ -138,7 +138,7 @@ flowchart TD
 
 `EngineeringMemory` validates sequence, episode identity, record/feedback digests, and previous-record linkage on read. Writes use a file lock, append, flush, and `fsync`; repeated identical episode identities are idempotent and conflicting content is rejected. Retrieval is deterministic rather than embedding-based. Oversized measured episodes are explicitly omitted, not numerically truncated. The complete journal remains available; prompt length is measured in serialized characters, separately from the workflow's token budget.
 
-The current `adapter.feedback()` exposes score, all-pass flag, GPU verification, and failed metric names. Fresh per-case values, margins, and trajectories remain in result artifacts and are not automatically in the next prompt. Rich historical summaries in memory do not remove that interface limitation.
+`adapter.feedback()` exposes score, in-scope all-pass, GPU verification and failed metric names. With the requirement shortfall contract it also carries exact requirement references, per-case values, limits, deficits, unknown states and KDP provenance. Trajectories remain in result artifacts. Memory best-score selection is scoped to the same scoring-contract reference; bounded prompts explicitly omit oversized measured episodes.
 
 ## Durable publication sequence
 

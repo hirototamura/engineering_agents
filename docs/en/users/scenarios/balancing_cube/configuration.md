@@ -1,7 +1,9 @@
 # Configure balancing cube
 
-The bundled input is `src/scenario/balancing_cube/scenario.yaml`. It selects project `balancing-cube`, snapshot `cube.simulation.snapshot`, revision `bottom-corner-000-20261017-3`. Supply an existing One Piece store containing that revision through `--set ssot.path=/path/to/store`. The package does not restore or bundle the store.
+The bundled input is `src/scenario/balancing_cube/scenario.yaml`. It selects project `balancing-cube`, snapshot `cube.simulation.snapshot`, revision `requirement-scoring-20261115-2`. Supply an existing One Piece store containing that revision through `--set ssot.path=/path/to/store`. The package does not restore or bundle the store.
 
+
+The default requires the current One-Piece checkout containing `onepiece.cube_scoring` and the adopted scoring records. Install it with `python -m pip install -e /path/to/one-piece`, then run `PYTHONPATH=src python projects/balancing-cube/adopt_requirement_scoring.py` from that checkout. The legacy pinned One-Piece wheel does not contain this new evaluator. See the [evaluation contract](../../../developers/scenarios/balancing_cube/evaluation.md).
 ## Install the required capabilities
 
 From the prepared Python environment:

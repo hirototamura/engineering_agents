@@ -6,7 +6,9 @@ Start with `summary.json`: execution status, selected candidate, stop reasons, s
 
 The reference is simulated before proposal generation. Every candidate uses the complete frozen exploration matrix. The exploration-selected best design then uses a separate frozen validation matrix. Criteria and required duration come from the SSOT contract.
 
-The exploration objective is:
+The default requirement-shortfall contract minimizes `max_deficit` and returns `score=-max_deficit`. A mandatory violation fails, unknown requirements remain unknown, and all sufficient performances tie at zero. Read `requirement_evaluation` for requirement references, per-case measured values/limits/deficits and search/overall/physical statuses. The four current numerical proxies use the first 10 s; an in-scope numerical pass does not verify other hardware requirements. Missing whole-interval data leaves score null and preserves known shortfalls separately.
+
+Historical snapshots without this method keep their original objective:
 
 ```text
 screening_pass_fraction
