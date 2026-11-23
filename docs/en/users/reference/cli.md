@@ -9,7 +9,6 @@ Run from a prepared checkout with `PYTHONPATH=src python -m tools.cli`. The inst
 - `results [run_id]`: list recent summaries or print one. `--track eclss|balancing_cube` selects the default track; `--limit` defaults to 10.
 - `doctor`: report Python, dependencies, Docker/SSOS, output root, and model-service reachability. It is not a full scenario validation.
 - `job run SPEC.json`: execute one saved RunSpec. A saved single-run spec does not replay the orchestration of an automatic design chain.
-- `reports [build|serve|translate|capture|verify]`: inspect and maintain a workspace report library; default action is `build`. See [reports](../guides/reports.md).
 - `isaac prepare|run|analyze|plot|propose`: prepare and inspect cube experiments with Isaac. See [cube running](../scenarios/balancing_cube/running.md).
 
 ## Run controls
@@ -32,7 +31,6 @@ Cube dispatches through `run balancing_cube` but has a separate backend, SSOT, i
 | Preserve a single execution specification | `run SCENARIO … --write-spec PATH` | JSON controls/overrides, not all merged defaults |
 | Execute that specification | `job run PATH` | One scenario run |
 | Read a completed default-root run | `results RUN_ID --track TRACK` | Existing `summary.json` |
-| Discover workspace reports | `reports build --workspace PATH` | Derived catalog |
 | Prepare/inspect Isaac experiments | `isaac ACTION …` | Stage-specific cube evidence |
 
 For ECLSS chains, console dry-run output shows the count and parent directory; JSON/spec output describes the child RunSpec and is not a complete chain replay recipe. Preserve the chain command and repository revision as well.

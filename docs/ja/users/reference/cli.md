@@ -9,7 +9,6 @@
 - `results [run_id]`: 最近の summary を一覧表示、または 1 件を表示する。`--track eclss|balancing_cube` で既定の実験系統を選び、`--limit` の既定は 10。
 - `doctor`: Python、依存、Docker/SSOS、出力ルート、モデルサービスの接続性を報告する。シナリオ全体の検証ではない。
 - `job run SPEC.json`: 保存した RunSpec を 1 回実行する。単一実行の仕様は、自動設計連鎖の制御全体を再生するものではない。
-- `reports [build|serve|translate|capture|verify]`: ワークスペースのレポートライブラリを管理する。既定は `build`。[レポート](../guides/reports.md)を参照。
 - `isaac prepare|run|analyze|plot|propose`: Isaac キューブ実験を準備・実行・確認する。[キューブの実行](../scenarios/balancing_cube/running.md)を参照。
 
 ## 実行制御
@@ -32,7 +31,6 @@ ECLSS/スクラバーは必要に応じて `--steps`、エージェントモー�
 | 実行仕様の保存 | `run SCENARIO … --write-spec PATH` | 制御・上書きの JSON。全既定値ではない |
 | その仕様を実行 | `job run PATH` | シナリオを 1 回実行 |
 | 既定ルートの完了記録を読む | `results RUN_ID --track TRACK` | 既存の `summary.json` |
-| レポートを探す | `reports build --workspace PATH` | 派生カタログ |
 | Isaac 実験を準備・確認 | `isaac ACTION …` | 段階別のキューブ証拠 |
 
 ECLSS 連鎖の通常 dry-run は回数と親ディレクトリを表示します。JSON/spec は子の RunSpec であり、連鎖全体の再生手順ではありません。連鎖コマンドとリポジトリの版も保持してください。
