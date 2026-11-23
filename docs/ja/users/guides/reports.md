@@ -4,11 +4,11 @@
 
 ## カタログを生成・配信する
 
-プロジェクトフォルダを含むワークスペースを明示します。
+同じワークスペースにある `communication` リポジトリから、プロジェクトフォルダを含むワークスペースを明示します。
 
 ```bash
-PYTHONPATH=src python -m tools.cli reports build --workspace /path/to/workspace
-PYTHONPATH=src python -m tools.cli reports serve --workspace /path/to/workspace --port 8765 --open
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace build
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace serve --port 8765 --open
 ```
 
 `build` はワークスペース内に `reports/index.html`、言語別ページ、`reports/catalog.json` を生成します。`serve` は再読み込み時に再走査し、`http://127.0.0.1:8765/reports/index.html` で開きます。Ctrl-C で終了します。カタログ生成は元の HTML レポートを編集しません。
@@ -18,12 +18,12 @@ PYTHONPATH=src python -m tools.cli reports serve --workspace /path/to/workspace 
 ## 任意の翻訳とサムネイル
 
 ```bash
-PYTHONPATH=src python -m tools.cli reports translate --workspace /path/to/workspace --prepare-only
-PYTHONPATH=src python -m tools.cli reports verify --workspace /path/to/workspace
-PYTHONPATH=src python -m tools.cli reports capture --workspace /path/to/workspace
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace translate --prepare-only
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace verify
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace capture
 ```
 
-翻訳の準備はモデルへ接続せず文章量を数えます。実際の翻訳は `--endpoint`（既定 `http://127.0.0.1:18001`）と翻訳処理に固定されたモデルを使い、シミュレーションの LLM 設定は継承しません。派生した言語別表示と翻訳マニフェストを生成します。サムネイルにはブラウザ撮影環境が必要です。詳細は `PYTHONPATH=src python -m tools.report_library.translate_reports --help` など、処理ごとのモジュールのヘルプで確認します。
+翻訳の準備はモデルへ接続せず文章量を数えます。実際の翻訳は `--endpoint`（既定 `http://127.0.0.1:18001`）と翻訳処理に固定されたモデルを使い、シミュレーションの LLM 設定は継承しません。派生した言語別表示と翻訳マニフェストを生成します。サムネイルにはブラウザ撮影環境が必要です。詳細は `python3 reports/translate_reports.py --help` など、処理ごとのモジュールのヘルプで確認します。
 
 共有前に翻訳したラベルを元の証拠と照合し、`verify` を実行してください。翻訳は新しい測定を追加せず、元の実験の妥当性も変えません。指標の意味は対象の[シナリオ](../scenarios/index.md)に戻って確認します。
 
