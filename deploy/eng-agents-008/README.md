@@ -15,20 +15,18 @@ GPU 0–5 allocation, 24,576-trial campaigns and bounded proposal evaluation.
 
 ## Source and evidence
 
-The original handover snapshots remain on
-`codex/eng-agents-008-handover-20261022`. Current source maintenance continues in
-Engineering Agents #82 and One-Piece #12. Use `workspace.lock.json` for exact
-companion revisions instead of assuming that every branch has advanced together:
+Use `main` for maintained recovery tooling. For the October 22 source snapshot,
+use the [`eng-agents-008-handover-20261022` tag](https://github.com/hirototamura/engineering_agents/tree/eng-agents-008-handover-20261022),
+which points to `150cc282dda1f4af27dc125f6e10f3172661fc8e`. For the exact
+checkout used by the GPU validation trial, use the
+`validated_engineering_agents_revision` in [the validation receipt](validation-20261022.json).
 
-- [Engineering Agents](https://github.com/hirototamura/engineering_agents/pull/82): experiment orchestration, bounded proposals, simulation adapters, reports and Astro website.
-- [One-Piece](https://github.com/hirototamura/one-piece/pull/12): reviewed system model, requirements, canonical JSON, requirements explorer and evidence retrieval.
-- [Cube simulator](https://github.com/hirototamura/balancing-cube-simulation/tree/codex/eng-agents-008-handover-20261022): standalone simulation, lower-wheel configuration and reference CAD builders.
-- [Private handover Release](https://github.com/hirototamura/balancing-cube-simulation/releases/tag/handover-20261022): run data, One-Piece evidence objects, bilingual reports, CAD/STL/BOM inputs and website assets. GitHub access to the private simulator repository is required.
-
-`workspace.lock.json` pins companion commits and runtime/model revisions.
-`evidence-manifest.json` pins all seven Release asset hashes. The Engineering
-Agents commit that contains these files defines the remaining source revision;
-save that full SHA with every new experiment. No existing PR was merged.
+[The workspace lock](workspace.lock.json) pins the One-Piece and Cube simulator
+commits and the runtime versions for the selected source revision. [The evidence
+manifest](evidence-manifest.json) pins the hashes of seven archives on the
+[private handover Release](https://github.com/hirototamura/balancing-cube-simulation/releases/tag/handover-20261022).
+GitHub access to the private simulator repository is required to retrieve them.
+Record the Engineering Agents commit used for each new experiment.
 
 Generated website CAD assets remain outside Git. Website builds now restore the
 hash-pinned, already public CAD package automatically (see `website/README.md`).
@@ -62,18 +60,24 @@ classification. Existing edited destination files remain protected.
 ## Recreate on another environment
 
 Install GitHub CLI and authenticate as yourself (`gh auth login`). Do not copy
-another environment's tokens. Clone Engineering Agents at this handover revision
-and run the importer from its checkout:
+another environment's tokens. In a fresh workspace, clone `main` and use its
+importer to restore the locked companion sources and evidence:
 
 ```bash
 mkdir -p "$HOME/hiroto/Engineering Agents"
 cd "$HOME/hiroto/Engineering Agents"
-gh repo clone hirototamura/engineering_agents -- --branch codex/eng-agents-008-handover-20261022
-# For a frozen reproduction, git checkout the full handover commit SHA here.
+gh repo clone hirototamura/engineering_agents -- --branch main
 python3.12 engineering_agents/deploy/eng-agents-008/restore_workspace.py "$PWD"
 bash engineering_agents/deploy/eng-agents-008/install-runtime.sh
 cp engineering_agents/deploy/eng-agents-008/workspace_agents.md AGENTS.md
 ```
+
+Use `--source-only` with the importer if you only need the locked companion
+repositories. For an October 22 reproduction, clone
+`--branch eng-agents-008-handover-20261022` into a separate workspace and use
+the lock and importer from that checkout. For a new Cube scoring run, see the
+[current scenario configuration](../../docs/en/users/scenarios/balancing_cube/configuration.md)
+for the required One-Piece evaluator and snapshot.
 
 The importer verifies SHA-256, rejects archive traversal/symlinks, preserves
 existing changed files, and refuses to reset a different companion checkout.
@@ -124,8 +128,13 @@ systemctl --user start eng-agents-hermes-model
 systemctl --user stop eng-agents-hermes-model
 journalctl --user -u eng-agents-hermes-model -n 50
 # Recreate this service on another environment after runtime installation:
-.venv/bin/python engineering_agents/deploy/eng-agents-008/install_model_service.py
+EA_GPU_UUID=GPU-REPLACE_WITH_ALLOCATED_UUID \
+  .venv/bin/python engineering_agents/deploy/eng-agents-008/install_model_service.py
 ```
+
+Replace the example UUID with the full GPU UUID from `nvidia-smi -L`. The
+installer saves it in a systemd drop-in for later starts. Reinstalling without
+`EA_GPU_UUID` keeps an existing override.
 
 This service is enabled for user login. System linger is disabled on the shared
 host, so automatic startup before login is not promised. A start verifies the
