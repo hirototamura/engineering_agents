@@ -139,3 +139,27 @@ copies. Run `npm run sync:article` to update them from the research workspace.
 
 The article's numerical and physical limitations remain visible. Publishing
 this site does not establish hardware performance or change requirement status.
+
+## Deployment Storage
+
+Preview builds skip commits with no changes under `website/` using the
+`ignoreCommand` in `vercel.json`. Production builds always run. If Git history
+is unavailable (for example an initial commit or shallow checkout), the preview
+build runs rather than risk missing a website change. Vercel's ignored builds
+may still count toward deployment limits.
+
+Build output currently includes the pinned CAD and Isaac projections restored
+from GitHub Releases (about 302 MiB expanded in total). They are public but are
+stored as tar archives; the viewer requests individual files by URL. Do not
+remove these assets from output until a durable public static origin serves
+all files with their existing paths, correct content types, range/CORS behavior,
+and license notices. Validate both CAD languages, the Isaac report, viewer,
+filtered trajectories, and publication receipt before switching. Compare the
+Resources view of a representative deployment before and after migration.
+
+For existing deployment storage, review the project-specific deployment
+retention policy and deployment Resources. Keep current production, required
+rollback versions, and previews still used by active PRs. Shortening a policy or
+removing old deployments can affect rollback and shared preview links. Inspect
+usage after Vercel refreshes its measurements; a PR alone does not change the
+Vercel retention policy or remove historical deployments.
