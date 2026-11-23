@@ -111,11 +111,12 @@ this site does not establish hardware performance or change requirement status.
 
 ## Deployment Storage
 
-Preview builds skip commits with no changes under `website/` using the
-`ignoreCommand` in `vercel.json`. Production builds always run. If Git history
-is unavailable (for example an initial commit or shallow checkout), the preview
-build runs rather than risk missing a website change. Vercel's ignored builds
-may still count toward deployment limits.
+The `ignoreCommand` in `vercel.json` skips previews when `website/` matches
+the last successful deployment on the same branch (`VERCEL_GIT_PREVIOUS_SHA`).
+Production always builds. A missing comparison commit, for example on the first
+preview or in a shallow checkout, also triggers a build. The comparison needs
+the Git metadata in the build checkout. Vercel's ignored builds may still count
+toward deployment limits.
 
 Astro builds the article and five archive notices without downloading or
 deploying the CAD and Isaac packages (about 302 MiB expanded). The notices
