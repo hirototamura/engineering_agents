@@ -2,6 +2,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import runpy
 import stat
 import zipfile
 
@@ -89,3 +90,25 @@ def test_legacy_unknown_track_or_mapped_collision_fails_before_writes(tmp_path):
     with pytest.raises(ValueError, match="Duplicate destination"):
         restore.restore_archive(archive, root)
     assert not root.exists()
+
+
+def test_model_service_persists_gpu_override_across_reinstall(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: None)
+    installer = str(SOURCE.with_name("install_model_service.py"))
+    gpu_uuid = "GPU-12345678-abcd-1234-efab-123456789abc"
+    monkeypatch.setenv("EA_GPU_UUID", gpu_uuid)
+    runpy.run_path(installer)
+
+    override = tmp_path / ".config/systemd/user/eng-agents-hermes-model.service.d/50-eng-agents-gpu.conf"
+    expected = f"[Service]\nEnvironment=EA_GPU_UUID={gpu_uuid}\n"
+    assert override.read_text() == expected
+
+    monkeypatch.delenv("EA_GPU_UUID")
+    runpy.run_path(installer)
+    assert override.read_text() == expected
+
+    monkeypatch.setenv("EA_GPU_UUID", "GPU-87654321-abcd-1234-efab-123456789abc")
+    with pytest.raises(FileExistsError, match="existing GPU override"):
+        runpy.run_path(installer)
+    assert override.read_text() == expected
