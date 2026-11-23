@@ -12,6 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from integrations.one_piece.mechanical_bridge import atomic_json
+from scenario.jobs.resolve import sanitize_run_id
 from .adapter import BalancingCubeAdapter, RolloutDeadlineExceeded, RolloutExecutionFailed
 from .design import CONTROL_BOUNDS, MECHANICAL_BOUNDS, digest
 from .evaluation import selection_key
@@ -240,7 +241,7 @@ def evolve_policy(policy, feedback, *, improved, snapshot):
 def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidates=20,
                     max_wall_s=1800, stagnation_rounds=3, require_gpu=False,
                     bridge=None, context_loader=None, proposal=None, memory=None,
-                    proposal_retries=0, workflow=None, initial_proposal=None):
+                    proposal_retries=0, workflow=None, initial_proposal=None, run_id=None):
     # Defaults retain the MVP budgets. Longer campaigns require explicit
     # configuration; the twenty-round ceiling supports the authorized follow-up.
     if not 1 <= rounds <= 20 or not 1 <= max_candidates <= 80 or not 0 < max_wall_s <= 7200 or not 1 <= stagnation_rounds <= 20:
@@ -249,13 +250,13 @@ def run_design_loop(*, snapshot, output_dir, llm_client, rounds=5, max_candidate
         raise ValueError("proposal_retries must be 0..3")
     if workflow is not None and proposal_retries:
         raise ValueError("Budgeted workflows require proposal_retries=0; every call is accounted")
+    run_id = "cube-" + uuid4().hex[:20] if run_id is None else sanitize_run_id(run_id)
     root = Path(output_dir).resolve()
     if root.exists() and any(root.iterdir()):
         raise ValueError("Design runs are immutable; choose a new empty output directory")
     root.mkdir(parents=True, exist_ok=True)
     if callable(memory):
         memory = memory()
-    run_id = "cube-" + uuid4().hex[:20]
     adapter = BalancingCubeAdapter(snapshot)
     en = adapter.reset()
     atomic_json(root / "frozen-snapshot.json", adapter.snapshot)
