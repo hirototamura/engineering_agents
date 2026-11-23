@@ -1,37 +1,22 @@
 # Engineering research article
 
-研究記事、参考CADページ、Isaacキャンペーンの技術レポートと記録済みデータビューアを
-掲載するAstro製の公開サイトです。
+研究記事を掲載するAstro製の公開サイトです。
 
 - `/` — 日本語
 - `/en/` — English
-- `/cube-cad/` — キューブ参考CADアセンブリ（日本語）
-- `/cube-cad/en/` — Cube reference CAD assembly (English)
-- `/isaac/` — Isaacキャンペーンの概要と入口
-- `/isaac/viewer/` — 49,152件を8隅別に表示するフィルター付きビューア
-- `/isaac/report/` — 条件、結果、制約をまとめた技術レポート
+- `/cube-cad/`、`/cube-cad/en/` — キューブ参考CADのアーカイブ案内
+- `/isaac/`、`/isaac/viewer/`、`/isaac/report/` — Isaacキャンペーンのアーカイブ案内
 
-公開URL（Vercelへのログイン不要）:
-https://engineering-agents-research.vercel.app/cube-cad/
-https://engineering-agents-research.vercel.app/cube-cad/en/
-
-Isaac campaign pages:
-https://engineering-agents-research.vercel.app/isaac/
-https://engineering-agents-research.vercel.app/isaac/viewer/
-https://engineering-agents-research.vercel.app/isaac/report/
-- 記事上部の言語ボタンで相互に切り替えます。
-- 図、データ、保存されたシミュレーション再生はHTMLに内蔵されています。
-- Python、GPU、One-Pieceのストア、LLMサービスは公開サイトに不要です。
-
-- 日本語記事: https://engineering-agents-research.vercel.app/
-- English article: https://engineering-agents-research.vercel.app/en/
+[日本語記事](https://engineering-agents-research.vercel.app/)と
+[英語記事](https://engineering-agents-research.vercel.app/en/)は、
+記事上部の言語ボタンで切り替えられます。記事の図、データ、保存された
+シミュレーション再生は記事のHTMLに内蔵されています。
 
 ## Codexからの更新
 
 通常は `engineering_agents` をCodexで開き、記事の変更を依頼してください。
 研究記事の原本はEngineering Agents側で管理し、このサイトには公開用の英日版を
-コピーして保持します。記事はリポジトリ内のファイルから生成します。ビルドでは、
-すでに一般公開している参考CADデータとIsaacビューア用の公開データ投影を固定版GitHub Releaseから取得し、SHA-256を照合します。
+コピーして保持します。記事はリポジトリ内のファイルから生成します。
 
 ```sh
 cd website
@@ -93,46 +78,30 @@ GitHub Actionsの `Research website` は、このフォルダの変更時に両�
 
 ## Source layout
 
-The CAD reference lives in `public/cube-cad/` and is copied unchanged by Astro.
-The generated directory stays outside Git. `npm run build` first restores its
-48 files from the public Release pinned in `assets/cube_cad.json`. The archive
-and every file are checked by size and SHA-256; downloaded archives are cached
-in `.asset-cache/`. Existing edited assets cause an error and are preserved.
-For an offline build, download that exact archive in advance and run
-`node scripts/restore-cube-cad.mjs /path/to/engineering-research-cube-cad-20261024-r2.tar.gz`.
-Only the already public CAD reference is in this package; private validation
-datasets are not needed for a website build.
+The CAD and Isaac archives remain in the GitHub Releases pinned by
+`assets/cube_cad.json` and `assets/isaac-web.json`. The manifests record the
+size and SHA-256 of each archive and its individual files. The original
+Isaac campaign archives and full raw telemetry remain private.
 
-The Isaac routes are generated from an audited analysis cache by
-`scripts/export-isaac.py`. The generated `public/isaac/` directory is ignored by
-Git. `assets/isaac-web.json` pins a checksummed public projection archive with
-all case-level tilt channels, selected filter factors and the self-contained
-report. `npm run build` restores that archive through `scripts/restore-isaac.mjs`
-and verifies each asset before Astro copies it to the static output. The source
-campaign archives and full raw telemetry remain private. A revised web export
-must use a new release tag and manifest; do not replace the historical campaign
-or report provenance.
+For offline use, the restore scripts accept the respective downloaded archive:
 
-To reproduce the static projection from the research environment, run
-`scripts/export-isaac.py` against the checksummed `isaac-analysis-20261024-003`
-cache and the readable technical report, then package it with
-`scripts/package-isaac.mjs`. Publish that scoped archive as the public release
-asset named by the generated manifest before pinning the new manifest in Git.
-The production site renders the saved measurements in a browser; it does not
-run Isaac Sim or need the GPU server.
+```sh
+node scripts/restore-cube-cad.mjs /path/to/cad.tar.gz
+node scripts/restore-isaac.mjs /path/to/isaac.tar.gz
+```
 
-Run `node scripts/sync-cube-cad.mjs` to import the bilingual reference from the
-local simulator output (or pass its directory as the first argument). This
-removes the local source-directory path, rewrites download/language links for
-the public site, and records source and asset hashes in `publication-manifest.json`.
-CAD downloads and attribution accompany the pages. The supplied source license
-and all fit limitations remain visible. The public site needs no simulator.
-After intentionally publishing revised CAD pages, use
-`node scripts/package-cube-cad.mjs /path/to/new-package.tar.gz RELEASE_ASSET_URL`
-to prepare a new package and manifest, then upload that package to the specified
-Release before committing the new pin. Node.js 22 and `tar` are required.
+The scripts verify the archive and its contents before extracting them into
+`public/cube-cad/` and `public/isaac/`. Astro takes public files from `static/`,
+so the offline files and archived viewer code under `public/` stay outside
+the build.
 
-`src/pages/` defines the two static routes. `src/lib/article.mjs` adapts only
+The CAD sync and packaging scripts (`sync-cube-cad.mjs` and
+`package-cube-cad.mjs`) preserve attribution, source licensing and asset
+hashes. The Isaac tools (`export-isaac.py` and `package-isaac.mjs`) reproduce
+the public projection from the audited campaign analysis cache and report.
+Use a new release tag and manifest for any revised archive.
+
+`src/pages/` defines the article and archive pages. `src/lib/article.mjs` adapts only
 navigation and page metadata; recorded evidence and interactive scripts remain
 unchanged. `content/balancing-cube/` contains the imported, self-contained article
 copies. Run `npm run sync:article` to update them from the research workspace.
@@ -148,14 +117,9 @@ is unavailable (for example an initial commit or shallow checkout), the preview
 build runs rather than risk missing a website change. Vercel's ignored builds
 may still count toward deployment limits.
 
-Build output currently includes the pinned CAD and Isaac projections restored
-from GitHub Releases (about 302 MiB expanded in total). They are public but are
-stored as tar archives; the viewer requests individual files by URL. Do not
-remove these assets from output until a durable public static origin serves
-all files with their existing paths, correct content types, range/CORS behavior,
-and license notices. Validate both CAD languages, the Isaac report, viewer,
-filtered trajectories, and publication receipt before switching. Compare the
-Resources view of a representative deployment before and after migration.
+Astro builds the article and five archive notices without downloading or
+deploying the CAD and Isaac packages (about 302 MiB expanded). The notices
+keep the page URLs available and link to the pinned GitHub Releases.
 
 For existing deployment storage, review the project-specific deployment
 retention policy and deployment Resources. Keep current production, required

@@ -31,7 +31,7 @@ export function renderArticle(language, input) {
   if (!prefix.includes('href="/isaac/"')) {
     const closeNav = prefix.indexOf('</nav>');
     if (closeNav < 0) throw new Error('Missing article navigation');
-    prefix = prefix.slice(0, closeNav) + '<a href="/isaac/">Isaac campaign evidence</a>' + prefix.slice(closeNav);
+    prefix = prefix.slice(0, closeNav) + '<a href="/isaac/">Isaac campaign archive</a>' + prefix.slice(closeNav);
   }
   prefix = prefix.replace('</head>', [
     '<link rel="alternate" hreflang="ja" href="/">',
