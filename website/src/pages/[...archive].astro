@@ -1,0 +1,62 @@
+---
+import cad from '../../assets/cube_cad.json';
+import isaac from '../../assets/isaac-web.json';
+
+export function getStaticPaths() {
+  return [
+    { params: { archive: 'cube-cad' }, props: { title: 'キューブ参考CAD', language: 'ja', collection: 'cad' } },
+    { params: { archive: 'cube-cad/en' }, props: { title: 'Cube reference CAD', language: 'en', collection: 'cad' } },
+    { params: { archive: 'isaac' }, props: { title: 'Isaac campaign', language: 'en', collection: 'isaac' } },
+    { params: { archive: 'isaac/viewer' }, props: { title: 'Isaac campaign viewer', language: 'en', collection: 'isaac' } },
+    { params: { archive: 'isaac/report' }, props: { title: 'Isaac campaign report', language: 'en', collection: 'isaac' } },
+  ];
+}
+
+const { title, language, collection } = Astro.props;
+const japanese = language === 'ja';
+const { artifact } = collection === 'cad' ? cad : isaac;
+const releaseUrl = artifact.url.replace('/releases/download/', '/releases/tag/').replace(/\/[^/]+$/, '');
+---
+<!doctype html>
+<html lang={language}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} | Engineering Agents</title>
+  </head>
+  <body>
+    <main>
+      <h1>{title}</h1>
+      <p>{japanese
+        ? '参考CADは GitHub Releases にアーカイブしています。'
+        : 'These materials are archived in GitHub Releases.'}</p>
+      <p><a href={releaseUrl}>{japanese ? 'GitHub のリリースを開く' : 'Open the GitHub release'}</a></p>
+      <nav>
+        <a href={japanese ? '/' : '/en/'}>{japanese ? '研究記事' : 'Research article'}</a>
+        {collection === 'cad' && <a href={japanese ? '/cube-cad/en/' : '/cube-cad/'} lang={japanese ? 'en' : 'ja'}>
+          {japanese ? 'English' : '日本語'}
+        </a>}
+      </nav>
+    </main>
+  </body>
+</html>
+
+<style>
+  body {
+    color: #182220;
+    background: #f8faf9;
+    font: 1rem / 1.65 system-ui, sans-serif;
+  }
+
+  main {
+    max-width: 40rem;
+    margin: 12vh auto;
+    padding: 0 1.25rem;
+  }
+
+  nav {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+</style>
