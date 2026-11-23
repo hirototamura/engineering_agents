@@ -463,6 +463,32 @@ def test_real_store_two_rounds_read_saved_evidence_and_resolve_comparison(tmp_pa
     assert bridge.outbox(tmp_path / "run").flush()["pending"] == 0
 
 
+def test_requested_run_id_connects_results_memory_and_onepiece(tmp_path, monkeypatch):
+    from scenario.balancing_cube.scenario_run import BalancingCubeScenario
+    from tools.cli.main import app
+    from typer.testing import CliRunner
+
+    bridge = ssot_bridge(tmp_path)
+    results = tmp_path / "results"
+    monkeypatch.setenv("EA_RESULTS_ROOT", str(results))
+    run_id = "cube-user-requested"
+    root = BalancingCubeScenario().run(run_id=run_id, overrides={
+        "agents": {"mode": "none"}, "memory": {"enabled": True},
+        "ssot": {"path": str(bridge.store.path), "snapshot_revision": bridge.snapshot_revision},
+    })
+    assert root == results / run_id
+
+    displayed = CliRunner().invoke(app, ["results", "--track", "balancing_cube", run_id])
+    assert displayed.exit_code == 0, displayed.output
+    assert json.loads(displayed.output)["run_id"] == run_id
+
+    history = (root / "memory" / "episodes.jsonl").read_text().splitlines()
+    assert history and {json.loads(line)["run_id"] for line in history} == {run_id}
+    records = {r["id"]: r for r in bridge.store.records("balancing-cube")}
+    assert records[f"{run_id}.snapshot"]["data"]["source_run_id"] == run_id
+    assert records[f"{run_id}.summary"]["data"]["run_id"] == run_id
+
+
 def test_agent_context_excludes_acceptance_runs_before_design_and_evidence_limits(tmp_path):
     onepiece = pytest.importorskip("onepiece")
     bridge = ssot_bridge(tmp_path)

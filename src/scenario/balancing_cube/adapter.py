@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 from pathlib import Path
 import time
 from typing import Protocol
 
 from .design import compile_controller, compile_mechanical, digest, trial_matrix
-from .evaluation import aggregate, paired_metrics, screening
+from .evaluation import aggregate, paired_metrics, screening, requirement_mode
 
 
 class DesignProblemAdapter(Protocol):
@@ -46,6 +47,10 @@ class BalancingCubeAdapter:
                 raise ValueError(f"SSOT snapshot missing {required}")
         self.frozen_digest = digest(self.snapshot)
         self.code_digests = self._code_digests()
+        if requirement_mode(self.snapshot):
+            from onepiece import scoring, cube_scoring
+            self.scoring_files = [Path(module.__file__) for module in (scoring, cube_scoring)]
+            self.scoring_digests = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in self.scoring_files}
 
     @staticmethod
     def _code_digests():
@@ -57,10 +62,12 @@ class BalancingCubeAdapter:
         return {str(path.name): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
 
     def reset(self):
+        if hasattr(self, "scoring_files") and self.scoring_digests != {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in self.scoring_files}:
+            raise ValueError("invalid_contract_tamper: requirement evaluator changed")
         if digest(self.snapshot) != self.frozen_digest or self._code_digests() != self.code_digests:
             raise ValueError("invalid_contract_tamper: frozen reset/verifier/constraints changed")
         return {"stage": "EN", "snapshot_digest": self.frozen_digest,
-                "code_digests": self.code_digests,
+                "code_digests": {**self.code_digests, **getattr(self, "scoring_digests", {})},
                 "timestep_s": self.snapshot["model"]["physics"]["timestep_s"],
                 "holdout_status": "public_integrity_checked", "physical_verified": False}
 
@@ -101,6 +108,14 @@ class BalancingCubeAdapter:
         check_deadline("gpu_batch_completion")
         records = []
         for i, (trial, native) in enumerate(zip(trials, cpu)):
+            if requirement_mode(self.snapshot):
+                from onepiece.cube_scoring import hold_measurements
+                options = {"duration_s": self.snapshot["contract"]["screening"]["required_duration_s"],
+                           "control_period_s": trial["config"]["physics"]["control_period_s"]}
+                native["summary"].update(hold_measurements(native, **options))
+                if gpu["state"] == "completed":
+                    other = gpu["results"][i]
+                    other["summary"].update(hold_measurements(other, **options))
             record = {"run_id": trial["case"]["id"], "domain_id": trial["key"][0],
                       "condition_id": trial["key"][1], "seed": trial["key"][2],
                       "summary": native["summary"], "rows": native["rows"], "frames": native["frames"],
@@ -130,8 +145,30 @@ class BalancingCubeAdapter:
     def feedback(self, result):
         # PI receives measured summaries and failures; it is never asked to mark
         # its own design as passed or to rewrite verification requirements.
-        return {"candidate_id": result["candidate_id"], "score": result["score"],
+        feedback = {"candidate_id": result["candidate_id"], "score": result["score"],
                 "all_screening_passed": result["all_screening_passed"],
                 "numeric_gpu_verified": result["numeric_gpu_verified"],
                 "failure_metrics": sorted({c["metric"] for r in result["records"] for c in r["screening"] if not c["passed"]}),
                 "physical_verified": False}
+        if "requirement_evaluation" in result:
+            evaluation = result["requirement_evaluation"]
+            active = [r for r in evaluation["requirement_results"] if r["simulation_proxy"]]
+            chosen = set()
+            for rule in active:
+                def severity(index):
+                    row = next(r for r in evaluation["cases"][index]["requirement_results"]
+                               if r["requirement_ref"] == rule["requirement_ref"])
+                    return ({"pass": 0, "unjudged": 1, "fail": 2}[row["status"]],
+                            row["deficit"] if row["deficit"] is not None else -1)
+                chosen.add(max(range(len(evaluation["cases"])), key=severity))
+            projected = {k: copy.deepcopy(v) for k, v in evaluation.items() if k not in {"cases", "requirement_results"}}
+            projected["requirement_results"] = copy.deepcopy(active)
+            projected["cases"] = [{"case_ref": evaluation["cases"][i]["case_ref"],
+                "requirement_results": [{k: r[k] for k in ("requirement_ref", "metric", "value", "limit", "unit", "status", "deficit")}
+                                        for r in evaluation["cases"][i]["requirement_results"] if r["simulation_proxy"]]}
+                for i in sorted(chosen)]
+            projected["case_projection"] = {"total": len(evaluation["cases"]), "shown": len(chosen),
+                "selection": "worst violation or missing evidence per search requirement; full cases in result.json"}
+            feedback.update(scoring_contract_ref=result["scoring_contract_ref"],
+                            requirement_evaluation=projected)
+        return feedback
