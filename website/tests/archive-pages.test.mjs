@@ -34,3 +34,11 @@ test('archive routes contain only notice pages and ship no Isaac viewer code', (
   }
   assert.equal(existsSync(new URL('isaac-viewer/', output)), false);
 });
+
+test('the offline Isaac viewer retains the archived client and report links', () => {
+  const viewer = new URL('../public/isaac-viewer/', import.meta.url);
+  const page = readFileSync(new URL('index.html', viewer), 'utf8');
+  assert.match(page, /<script type="module" src="\/isaac-viewer\/app\.mjs"/);
+  assert.match(page, /href="\/isaac\/report\/"/);
+  assert.ok(existsSync(new URL('app.mjs', viewer)));
+});

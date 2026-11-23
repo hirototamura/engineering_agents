@@ -92,8 +92,18 @@ node scripts/restore-isaac.mjs /path/to/isaac.tar.gz
 
 The scripts verify the archive and its contents before extracting them into
 `public/cube-cad/` and `public/isaac/`. Astro takes public files from `static/`,
-so the offline files and archived viewer code under `public/` stay outside
-the build.
+so the offline files and archived viewer under `public/` stay outside the
+build. To open the Isaac viewer after restoring the archive, run this from
+`website/`:
+
+```sh
+python3 scripts/serve-isaac.py
+```
+
+Open [the local viewer](http://127.0.0.1:8000/isaac/viewer/) in a current browser.
+The same server serves the [technical report](http://127.0.0.1:8000/isaac/report/)
+and the recorded data. If port 8000 is in use, pass `--port 8001` and open the
+URL printed by the script.
 
 The CAD sync and packaging scripts (`sync-cube-cad.mjs` and
 `package-cube-cad.mjs`) preserve attribution, source licensing and asset
