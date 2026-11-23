@@ -58,7 +58,7 @@ class BalancingCubeScenario:
                 return instance
         if on_phase:
             on_phase("fixed-dt EN/PI/R/E mechanical design loop")
-        run_design_loop(snapshot=snapshot, output_dir=root, llm_client=llm,
+        run_design_loop(snapshot=snapshot, output_dir=root, llm_client=llm, run_id=run_id,
             rounds=iteration["count"] if mode == "llm" and iteration["enabled"] else 1,
             max_candidates=iteration["max_candidates"], max_wall_s=iteration["max_wall_s"],
             stagnation_rounds=iteration["stagnation_rounds"], require_gpu=backend == "mjx_gpu",

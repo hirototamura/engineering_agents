@@ -182,7 +182,7 @@ class EngineeringMemory:
                 "source_refs": copy.deepcopy(episode["source_refs"][:4]),
                 "source_refs_omitted": max(0, len(episode["source_refs"]) - 4)}
 
-    def retrieve(self, *, query="", configuration_digest=None, limit=8, max_chars=None):
+    def retrieve(self, *, query="", configuration_digest=None, limit=8, max_chars=None, scoring_contract_ref=None):
         """Recall exact repeats, best, recent and relevant failed attempts.
 
         Bounds use serialized JSON characters, not an estimated token count.
@@ -210,7 +210,8 @@ class EngineeringMemory:
             for episode in reversed(episodes):
                 if episode["configuration_digest"] == configuration_digest:
                     add(episode, "exact_configuration_repeat")
-        scored = [e for e in episodes if self._score(e) != -math.inf]
+        scored = [e for e in episodes if self._score(e) != -math.inf
+                  and e["measured_feedback"].get("scoring_contract_ref") == scoring_contract_ref]
         if scored:
             add(max(scored, key=lambda e: (self._score(e), e["sequence"])), "best_measured_score")
         if episodes:

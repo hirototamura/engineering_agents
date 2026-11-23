@@ -43,6 +43,12 @@ class MechanicalBridge:
         snapshot = copy.deepcopy(selected["data"])
         by_ref = {(r["id"], r["revision"]): r for r in all_records}
         context_refs = snapshot.get("context_refs", {})
+        scoring_ref = snapshot.get("scoring_contract_ref")
+        if scoring_ref:
+            scoring = by_ref.get((scoring_ref.get("id"), scoring_ref.get("revision")))
+            if (scoring is None or scoring["kind"] != "evaluation_contract"
+                    or scoring["data"] != snapshot["contract"].get("requirement_scoring")):
+                raise ValueError("Missing/mismatched frozen scoring contract")
         def resolve(name, kind):
             refs = context_refs.get(name)
             if not refs:

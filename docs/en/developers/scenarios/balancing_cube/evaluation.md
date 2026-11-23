@@ -4,7 +4,7 @@
 
 ## Complete numerical evidence
 
-`screening()` applies supported comparison operators to contract metrics and requires completed simulation for the declared duration. Numeric inequalities reject booleans and non-finite values. `aggregate()` requires exactly the expected unique `(domain_id, condition_id, seed)` matrix and rejects empty/non-finite evidence. The score combines screening pass fraction with the frozen RMS and torque-proxy penalties; a better objective is not permission to alter gates or trial conditions.
+`screening()` applies supported comparison operators to contract metrics and requires completed simulation for the declared duration. Numeric inequalities reject booleans and non-finite values. `aggregate()` requires exactly the expected unique `(domain_id, condition_id, seed)` matrix and rejects empty/non-finite evidence. The default uses the One-Piece requirement shortfall contract described below. Historical snapshots without that method retain their frozen RMS/torque-penalty formula. Neither mode permits candidate changes to gates or trial conditions.
 
 The aggregate's CPU verification flag identifies completed numerical evidence under this contract, not universal engineering acceptance or physical validation. GPU verification additionally requires every paired comparison to pass.
 
@@ -14,9 +14,19 @@ The aggregate's CPU verification flag identifies completed numerical evidence un
 
 A metric near a screening gate makes agreement inconclusive. The current comparison reports `half_step_adjudication_performed: false`; it does not run a half-step adjudication or reuse historical half-step evidence as a new result. Missing or failed GPU execution cannot be reported as GPU verification. Agreement of two numerical implementations does not establish model fidelity to hardware.
 
+## Requirement shortfall contract
+
+The default snapshot is `requirement-scoring-20261115-2`. One-Piece owns the exact requirement rules and `onepiece.scoring` / `onepiece.cube_scoring` implementation. For an upper limit use `max(0,x/L-1)`; for a lower limit use `max(0,1-x/L)`. A mandatory violation fails the result regardless of other performance. Unjudged data never establishes a pass. The maximum deficit D across requirements and cases is minimized; `score=-D` preserves the higher-is-better scalar interface. In-scope pass precedes fail, and sufficient performances tie at zero. No KDP values or extra precision/margins earn rewards.
+
+Current simulation proxies cover R-HOLD, R-TILT, R-RMS and R-DRIFT over the first 10 s after release. RMS is a time-weighted trapezoidal integral of squared tilt, with interpolation at the 10 s endpoint. The corner-000 plant/controller and development case matrices are retained. The 12 numerical cases do not establish eight-corner operation or a 9-of-10 hardware repeatability result. Other requirements/constraints remain unjudged, including electrical, thermal, manufacturing and corner-identification evidence.
+
+`requirement_evaluation` carries exact requirement/KDP references and KDP origins, measured per-case values, limits, units, deficits, search/overall/physical statuses and `max_deficit`. Early termination retains known shortfalls and `max_known_deficit`; missing whole-interval metrics leave D and score null. Incomplete scores are not ranked as complete candidates. Simulation `physical_status` remains `unjudged` and `physical_verified` remains false.
+
+The bridge checks the exact canonical scoring payload. Reset freezes both scoring source modules. Feedback carries per-requirement summaries, unjudged references and the worst cases into proposal/memory data; complete case evaluations remain in result artifacts. The `best_measured_score` memory selection is restricted to the same scoring-contract reference; old positive scores cannot outrank new negative deficits. Complete result files retain all observations, even if the bounded memory prompt omits an oversized episode.
+
 ## Objective and numerical-source separation
 
-The aggregate computes the frozen objective from native CPU summaries:
+For historical snapshots without `requirement_max_deficit_v1`, the aggregate computes the original frozen objective from native CPU summaries:
 
 ```text
 J = N_screening_pass / N_trials

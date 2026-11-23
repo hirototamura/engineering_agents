@@ -4,7 +4,25 @@ from __future__ import annotations
 import math
 
 
+def requirement_mode(snapshot):
+    method = snapshot.get("plan", {}).get("objective", {}).get("method")
+    if method and method != "requirement_max_deficit_v1":
+        raise ValueError("Unsupported scoring method")
+    return method == "requirement_max_deficit_v1"
+
+
+def selection_key(result):
+    if "requirement_evaluation" not in result:
+        return (0, result["score"])
+    from onepiece.cube_scoring import selection_key as key
+    return key(result)
+
+
 def screening(summary, contract):
+    if "requirement_scoring" in contract:
+        from onepiece.scoring import evaluate_requirements
+        evaluation = evaluate_requirements(contract["requirement_scoring"], summary, domain="simulation")
+        return [{**r, "passed": r["status"] == "pass"} for r in evaluation["requirement_results"] if r["simulation_proxy"]]
     checks = []
     for rule in contract["screening"]["criteria"]:
         value, limit, op = summary.get(rule["metric"]), rule["limit"], rule["operator"]
@@ -97,6 +115,17 @@ def aggregate(records, snapshot, expected_keys):
                           if isinstance(value, (int, float))):
         raise ValueError("Empty or nonfinite simulation evidence")
     flags = [all(c["passed"] for c in screening(r["summary"], snapshot["contract"])) for r in records]
+    if requirement_mode(snapshot):
+        from onepiece.cube_scoring import evaluate_cube_records
+        evaluation = evaluate_cube_records(records, snapshot)
+        return {"screening_pass_fraction": sum(c["search_status"] == "pass" for c in evaluation["cases"]) / len(records),
+                "all_screening_passed": evaluation["search_status"] == "pass", "score": evaluation["score"],
+                "scoring_contract_ref": evaluation["contract_ref"], "requirement_evaluation": evaluation,
+                "numeric_cpu_verified": True,
+                "numeric_gpu_verified": all(r.get("paired_metrics", {}).get("passed") is True for r in records),
+                "physical_fidelity": None, "physical_verified": False,
+                "electrical_energy_j": None, "temperature_prediction_c": None,
+                "trial_count": len(records), "records": records}
     rms = sum(r["summary"]["final_1s_tilt_rms_deg"] for r in records) / len(records)
     torque = sum(r["summary"]["continuous_torque_exceeded_fraction"] for r in records) / len(records)
     objective = snapshot["plan"]["objective"]
