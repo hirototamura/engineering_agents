@@ -39,7 +39,6 @@ jobs:
             tests/environment/test_mujoco_multi_gpu.py \
             tests/core/test_vllm_context_preflight.py \
             tests/core/test_vllm_trace.py \
-            tests/tools/test_report_library.py \
             tests/tools/test_cube_study_isolation.py \
             tests/tools/test_finalize_cube_workflow_study.py \
             tests/tools/test_replay_cube_cpu_reference.py \

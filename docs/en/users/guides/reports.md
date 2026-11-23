@@ -4,11 +4,11 @@ The report library discovers existing workspace HTML reports and builds a search
 
 ## Build or serve the catalog
 
-Choose the workspace containing your project folders explicitly:
+From the sibling `communication` repository, choose the workspace containing your project folders explicitly:
 
 ```bash
-PYTHONPATH=src python -m tools.cli reports build --workspace /path/to/workspace
-PYTHONPATH=src python -m tools.cli reports serve --workspace /path/to/workspace --port 8765 --open
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace build
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace serve --port 8765 --open
 ```
 
 `build` writes `reports/index.html`, language-specific catalog pages, and `reports/catalog.json` under that workspace. `serve` rescans on refresh and opens the catalog at `http://127.0.0.1:8765/reports/index.html`. Stop the server with Ctrl-C. Source HTML reports are not edited by catalog building.
@@ -18,12 +18,12 @@ PYTHONPATH=src python -m tools.cli reports serve --workspace /path/to/workspace 
 ## Optional translations and thumbnails
 
 ```bash
-PYTHONPATH=src python -m tools.cli reports translate --workspace /path/to/workspace --prepare-only
-PYTHONPATH=src python -m tools.cli reports verify --workspace /path/to/workspace
-PYTHONPATH=src python -m tools.cli reports capture --workspace /path/to/workspace
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace translate --prepare-only
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace verify
+PYTHONPATH=src python -m tools.report_library --workspace /path/to/workspace capture
 ```
 
-Translation preparation counts text without contacting a model. Actual translation uses the configured translation endpoint (`--endpoint`, default `http://127.0.0.1:18001`) and a fixed model in the report translator; it does not inherit the simulation's LLM settings. It creates derived language views and a translation manifest. Thumbnails require a working browser-capture environment. Use module-specific help for action details, for example `PYTHONPATH=src python -m tools.report_library.translate_reports --help`.
+Translation preparation counts text without contacting a model. Actual translation uses the configured translation endpoint (`--endpoint`, default `http://127.0.0.1:18001`) and a fixed model in the report translator; it does not inherit the simulation's LLM settings. It creates derived language views and a translation manifest. Thumbnails require a working browser-capture environment. Use module-specific help for action details, for example `python3 reports/translate_reports.py --help`.
 
 Check translated labels against the original evidence and run `verify` before sharing. A translated report does not create new measurements or change the validity of the underlying experiment. For the meaning of a report's metrics, return to its owning [scenario](../scenarios/index.md).
 
