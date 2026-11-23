@@ -4,5 +4,6 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "trailingSlash": true
+  "trailingSlash": true,
+  "ignoreCommand": "node scripts/ignore-unrelated-build.mjs"
 }
